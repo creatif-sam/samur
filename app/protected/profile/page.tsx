@@ -15,13 +15,13 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
-  const supabase = createClient();
 
   useEffect(() => {
     fetchProfile();
   }, []);
 
   const fetchProfile = async () => {
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -38,6 +38,7 @@ export default function ProfilePage() {
 
   const updateProfile = async () => {
     if (!profile) return;
+    const supabase = createClient();
 
     const { error } = await supabase
       .from('profiles')
@@ -51,6 +52,7 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
+    const supabase = createClient();
     await supabase.auth.signOut();
     window.location.href = '/auth/login';
   };

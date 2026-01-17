@@ -19,13 +19,13 @@ export default function PostsPage() {
   const [showNewPost, setShowNewPost] = useState(false);
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostVisibility, setNewPostVisibility] = useState<'private' | 'shared'>('private');
-  const supabase = createClient();
 
   useEffect(() => {
     fetchPosts();
   }, []);
 
   const fetchPosts = async () => {
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -44,6 +44,7 @@ export default function PostsPage() {
 
   const createPost = async () => {
     if (!newPostContent.trim()) return;
+    const supabase = createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;

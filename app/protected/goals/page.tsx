@@ -13,13 +13,13 @@ import { Plus, Target, Users } from 'lucide-react';
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     fetchGoals();
   }, []);
 
   const fetchGoals = async () => {
+    const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 

@@ -14,7 +14,6 @@ export default function PlannerPage() {
   const [currentDate, setCurrentDate] = useState<Date | null>(null);
   const [dayData, setDayData] = useState<PlannerDay | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     setCurrentDate(new Date());
@@ -28,6 +27,7 @@ export default function PlannerPage() {
 
   const fetchDayData = async () => {
     if (!currentDate) return;
+    const supabase = createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -55,6 +55,7 @@ export default function PlannerPage() {
 
   const updateTasks = async (tasks: Record<string, { text: string; completed: boolean }>) => {
     if (!dayData) return;
+    const supabase = createClient();
 
     const { error } = await supabase
       .from('planner_days')
@@ -68,6 +69,7 @@ export default function PlannerPage() {
 
   const updateReflection = async (reflection: string) => {
     if (!dayData) return;
+    const supabase = createClient();
 
     const { error } = await supabase
       .from('planner_days')
