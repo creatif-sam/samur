@@ -51,33 +51,45 @@ export default function GoalsPage() {
         return;
       }
 
+      const goalData = {
+        title: newGoalTitle.trim(),
+        description: newGoalDescription.trim() || null,
+        goal_type: 'personal' as const,
+        visibility: newGoalVisibility,
+        owner_id: user.id,
+        status: 'not_started' as const,
+        progress: 0,
+      };
+
+      console.log('Inserting goal data:', goalData);
+
       const { data, error } = await supabase
         .from('goals')
-        .insert({
-          title: newGoalTitle,
-          description: newGoalDescription,
-          goal_type: 'personal',
-          visibility: newGoalVisibility,
-          owner_id: user.id,
-          status: 'not_started',
-          progress: 0,
-        })
+        .insert(goalData)
         .select()
         .single();
 
       if (error) {
-        console.error('Error creating goal:', error);
+        console.error('Supabase error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return;
       }
 
       if (data) {
+        console.log('Goal created successfully:', data);
         setGoals([data, ...goals]);
         setNewGoalTitle('');
         setNewGoalDescription('');
         setShowNewGoal(false);
+      } else {
+        console.error('No data returned from insert');
       }
     } catch (error) {
-      console.error('Error in createGoal:', error);
+      console.error('Exception in createGoal:', error);
     }
   };
 
