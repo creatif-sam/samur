@@ -11,7 +11,7 @@ const defaultUrl = process.env.VERCEL_URL
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Together Goals & Habits",
-  description: "A personal app for couples to share goals, plan, and connect",
+  description: "A personal app for couples & boyfriend /girlfriend to share goals, plan, and connect",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
