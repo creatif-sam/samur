@@ -54,7 +54,8 @@ export default function DailyPlanner() {
       return;
     }
 
-    setTasks((data.tasks as PlannerTask[]) ?? []);
+    const fetchedTasks = Array.isArray(data.tasks) ? data.tasks : [];
+    setTasks(fetchedTasks);
     setMorning(data.morning ?? '');
     setReflection(data.reflection ?? '');
   };
