@@ -25,6 +25,7 @@ export default function HomePage() {
     visibility: 'private' | 'shared';
   } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string | null>(null); // State for user's full name
 
   useEffect(() => {
     fetchDashboardData();
@@ -34,6 +35,8 @@ export default function HomePage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
+    setUserName(user.user_metadata.full_name); // Set user's full name
 
     // Get shared goals
     const { data: goalsData } = await supabase
@@ -92,6 +95,11 @@ export default function HomePage() {
 
   return (
     <div>
+      {userName && (
+        <h1 className="text-2xl font-bold">
+          Hello {userName}, I love you ❤️
+        </h1>
+      )}
       <nav className="bg-gray-800 text-white p-4 flex justify-between">
         <div className="flex space-x-4">
           {/* Removed ReadApp button */}
