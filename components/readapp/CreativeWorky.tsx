@@ -1,13 +1,14 @@
 'use client';
 
-import { JSX, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { PenTool, Target, Clock, Focus } from 'lucide-react';
-import CreativeWorkyLogs from './CreativeWorkyLogs';
+import { PenTool, Target, Clock, Focus, Layers } from 'lucide-react';
+import { JSX } from 'react';
 
+type WorkType = 'creation' | 'production' | 'reproduction';
 
 export default function CreativeWork(): JSX.Element {
   const supabase = createClient();
@@ -19,25 +20,20 @@ export default function CreativeWork(): JSX.Element {
   const [endTime, setEndTime] = useState<string>('');
   const [workedOn, setWorkedOn] = useState<string>('');
   const [produced, setProduced] = useState<string>('');
+  const [workType, setWorkType] = useState<WorkType>('creation');
   const [aligned, setAligned] = useState<boolean | null>(null);
   const [focused, setFocused] = useState<boolean | null>(null);
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
-  /**
-   * Safely calculate hours worked
-   * Handles browser date formatting correctly
-   */
   const hoursWorked = useMemo<number | null>(() => {
     if (!date || !startTime || !endTime) return null;
 
     const isoDate = new Date(date).toISOString().split('T')[0];
-
     const start = new Date(`${isoDate}T${startTime}`);
     const end = new Date(`${isoDate}T${endTime}`);
 
     const diff = end.getTime() - start.getTime();
-
     if (Number.isNaN(diff) || diff <= 0) return null;
 
     return Number((diff / 1000 / 60 / 60).toFixed(2));
@@ -60,6 +56,7 @@ export default function CreativeWork(): JSX.Element {
       start_time: startTime,
       end_time: endTime,
       hours_worked: hoursWorked,
+      work_type: workType,
       worked_on: workedOn.trim(),
       produced: produced.trim() || null,
       aligned,
@@ -71,6 +68,7 @@ export default function CreativeWork(): JSX.Element {
     setProduced('');
     setStartTime('');
     setEndTime('');
+    setWorkType('creation');
     setAligned(null);
     setFocused(null);
     setNotes('');
@@ -79,7 +77,6 @@ export default function CreativeWork(): JSX.Element {
 
   return (
     <div className="p-4 space-y-4">
-      {/* Header */}
       <div className="flex items-center gap-2">
         <PenTool className="w-5 h-5 text-violet-600" />
         <h2 className="text-lg font-semibold">
@@ -87,14 +84,12 @@ export default function CreativeWork(): JSX.Element {
         </h2>
       </div>
 
-      {/* Date */}
       <Input
         type="date"
         value={date}
         onChange={(e) => setDate(e.target.value)}
       />
 
-      {/* Time Inputs */}
       <div className="grid grid-cols-2 gap-2">
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -121,7 +116,6 @@ export default function CreativeWork(): JSX.Element {
         </div>
       </div>
 
-      {/* Hours worked */}
       {hoursWorked !== null && (
         <div className="text-sm text-muted-foreground">
           Hours worked{' '}
@@ -131,7 +125,6 @@ export default function CreativeWork(): JSX.Element {
         </div>
       )}
 
-      {/* Work description */}
       <Input
         placeholder="What did you work on"
         value={workedOn}
@@ -144,7 +137,39 @@ export default function CreativeWork(): JSX.Element {
         onChange={(e) => setProduced(e.target.value)}
       />
 
-      {/* Alignment */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <Layers className="w-4 h-4 text-violet-600" />
+          Type of work
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            type="button"
+            variant={workType === 'creation' ? 'default' : 'outline'}
+            onClick={() => setWorkType('creation')}
+          >
+            Creation
+          </Button>
+
+          <Button
+            type="button"
+            variant={workType === 'production' ? 'default' : 'outline'}
+            onClick={() => setWorkType('production')}
+          >
+            Production
+          </Button>
+
+          <Button
+            type="button"
+            variant={workType === 'reproduction' ? 'default' : 'outline'}
+            onClick={() => setWorkType('reproduction')}
+          >
+            Repetition
+          </Button>
+        </div>
+      </div>
+
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Target className="w-4 h-4 text-violet-600" />
@@ -168,7 +193,6 @@ export default function CreativeWork(): JSX.Element {
         </div>
       </div>
 
-      {/* Focus */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Focus className="w-4 h-4 text-violet-600" />
@@ -192,7 +216,6 @@ export default function CreativeWork(): JSX.Element {
         </div>
       </div>
 
-      {/* Notes */}
       <Textarea
         placeholder="Reflection or notes"
         value={notes}
@@ -200,17 +223,12 @@ export default function CreativeWork(): JSX.Element {
         className="min-h-[80px]"
       />
 
-      {/* Save */}
       <Button
         disabled={loading || !workedOn.trim() || hoursWorked === null}
         onClick={submit}
       >
         Save Work
       </Button>
-       <CreativeWorkyLogs />
     </div>
-   
-
   );
-  
 }
