@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 export default function ReadAppPage() {
   const [readContent, setReadContent] = useState('');
   const [application, setApplication] = useState('');
-  const [quizzes, setQuizzes] = useState([]);
+  const [quizzes, setQuizzes] = useState<string[]>([]);
 
   const handleAddQuiz = () => {
     const newQuiz = prompt('Enter your quiz question:');
