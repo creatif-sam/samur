@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import QuizTake from './QuizTake';
 import { Button } from '@/components/ui/button';
+import { JSX } from 'react';
 
 interface Quiz {
   id: string;
