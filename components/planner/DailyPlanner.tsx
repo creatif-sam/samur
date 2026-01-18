@@ -253,6 +253,13 @@ export default function DailyPlanner(): React.JSX.Element {
     setIsTaskModalOpen(true);
   };
 
+  const handleRepeatTaskChange = (checked: boolean): void => {
+    setIsRecurring(checked);
+    if (!checked) {
+      setRepeatUntil(null); // Reset repeatUntil if recurring is disabled
+    }
+  };
+
   if (loading) {
     return <div className="p-4">Loading daily planner...</div>;
   }
