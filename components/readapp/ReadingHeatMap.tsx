@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { buildHeatmap, HeatmapDay } from '@/lib/readapp/heatmap';
+import {
+  buildHeatmap,
+  HeatmapDay,
+} from '@/lib/readapp/heatmap';
 
-export default function ReadingHeatmap(): JSX.Element {
+export default function ReadingHeatmap() {
   const [days, setDays] = useState<HeatmapDay[]>([]);
 
   useEffect(() => {
@@ -28,7 +31,10 @@ export default function ReadingHeatmap(): JSX.Element {
     });
 
     const daysArray = Object.entries(counts).map(
-      ([date, count]) => ({ date, count })
+      ([date, count]) => ({
+        date,
+        count,
+      })
     );
 
     setDays(buildHeatmap(daysArray, 4));
