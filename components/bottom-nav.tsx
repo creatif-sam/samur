@@ -2,9 +2,18 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Target, Calendar, MessageSquare, User, BookOpen } from 'lucide-react';
+import React, { JSX } from 'react';
+import {
+  Home,
+  Target,
+  Calendar,
+  MessageSquare,
+  User,
+  BookOpen,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUser } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 
 const navItems = [
@@ -13,18 +22,38 @@ const navItems = [
   { href: '/protected/planner', label: 'Planner', icon: Calendar },
   { href: '/protected/posts', label: 'Posts', icon: MessageSquare },
   { href: '/protected/readapp', label: 'ReadApp', icon: BookOpen },
-  { href: '/protected/profile', label: 'Profile', icon: User }, // Re-added Profile tab
+  { href: '/protected/profile', label: 'Profile', icon: User },
 ];
 
-export function BottomNav() {
+export function BottomNav(): JSX.Element {
   const pathname = usePathname();
-  const { user } = useUser();
+  const supabase = createClient();
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadProfile = async (): Promise<void> => {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', auth.user.id)
+        .single();
+
+      setAvatarUrl(data?.avatar_url ?? null);
+    };
+
+    void loadProfile();
+  }, [supabase]);
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
       <div className="flex justify-around items-center h-16 px-2">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
+
           return (
             <Link
               key={item.href}
@@ -32,25 +61,29 @@ export function BottomNav() {
               className={cn(
                 'flex flex-col items-center justify-center p-2 rounded-lg transition-colors',
                 isActive
-                  ? 'text-primary bg-primary/10'
+                  ? 'text-violet-600 bg-violet-600/10'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
               {item.label === 'Profile' ? (
-                user?.profilePicture ? (
+                avatarUrl ? (
                   <Image
-                    src={user.profilePicture}
+                    src={avatarUrl}
                     alt="Profile"
-                    width={20}
-                    height={20}
-                    className="rounded-full"
+                    width={24}
+                    height={24}
+                    className={cn(
+                      'rounded-full object-cover',
+                      isActive && 'ring-2 ring-violet-500'
+                    )}
                   />
                 ) : (
-                  <User size={20} /> // Fallback to default icon
+                  <User size={20} />
                 )
               ) : (
-                <item.icon size={20} /> // Fallback to default icon
+                <item.icon size={20} />
               )}
+
               <span className="text-xs mt-1">{item.label}</span>
             </Link>
           );

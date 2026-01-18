@@ -2,6 +2,8 @@ const CACHE_NAME = 'tgh-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png',
   // Add other static assets
 ];
 
@@ -20,7 +22,21 @@ self.addEventListener('fetch', (event) => {
           return response;
         }
         return fetch(event.request);
-      }
-    )
+      })
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (!cacheWhitelist.includes(cacheName)) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
 });
