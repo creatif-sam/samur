@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Tabs, Tab } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -21,7 +21,11 @@ export default function ReadAppPage() {
   return (
     <div className="p-6">
       <Tabs>
-        <Tab title="ReadApp">
+        <TabsList>
+          <TabsTrigger value="readapp">ReadApp</TabsTrigger>
+          <TabsTrigger value="quizzes">Quizzes</TabsTrigger>
+        </TabsList>
+        <TabsContent value="readapp">
           <h1 className="text-2xl font-bold mb-4">What did you read today?</h1>
           <Input
             placeholder="Enter what you read"
@@ -37,8 +41,8 @@ export default function ReadAppPage() {
             className="mb-4"
           />
           <Button>Save</Button>
-        </Tab>
-        <Tab title="Quizzes">
+        </TabsContent>
+        <TabsContent value="quizzes">
           <h1 className="text-2xl font-bold mb-4">Your Quizzes</h1>
           <ul className="list-disc pl-6">
             {quizzes.map((quiz, index) => (
@@ -46,7 +50,7 @@ export default function ReadAppPage() {
             ))}
           </ul>
           <Button onClick={handleAddQuiz} className="mt-4">Add Quiz</Button>
-        </Tab>
+        </TabsContent>
       </Tabs>
     </div>
   );
