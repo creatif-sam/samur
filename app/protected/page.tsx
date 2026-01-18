@@ -94,9 +94,7 @@ export default function HomePage() {
     <div>
       <nav className="bg-gray-800 text-white p-4 flex justify-between">
         <div className="flex space-x-4">
-          <Link href="/protected/readapp">
-            <Button variant="ghost" className="text-white">ReadApp</Button>
-          </Link>
+          {/* Removed ReadApp button */}
         </div>
       </nav>
       <DailyActionWord />

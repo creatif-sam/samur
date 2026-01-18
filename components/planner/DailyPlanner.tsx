@@ -3,11 +3,14 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { PlannerTask } from '@/lib/types';
+import Modal from '@/components/ui/modal';
 
 import HourBlock from './HourBlock';
 import MorningPrompt from './MorningPrompt';
 import EveningReflection from './EveningReflection';
 import CalendarOverview from './CalendarOverview';
+import { DatePicker } from '@/components/ui/date-picker';
+import { FaCalendarAlt } from 'react-icons/fa';
 
 import { Button } from '@/components/ui/button';
 import React from 'react';
@@ -27,8 +30,14 @@ export default function DailyPlanner(): React.JSX.Element {
     setSelectedDate(new Date().toISOString().split('T')[0]);
   }, []);
 
+  useEffect(() => {
+    showDailyActionWordToast(); // Trigger the daily action word toast when the planner loads
+  }, []);
+
   const [showCalendar, setShowCalendar] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [repeatUntil, setRepeatUntil] = useState<Date | null>(null);
 
   useEffect(() => {
     void bootstrap();
@@ -214,6 +223,36 @@ export default function DailyPlanner(): React.JSX.Element {
     await saveDay(updated, reflection);
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveDay(tasks, reflection);
+  };
+
+  const [taskStartTime, setTaskStartTime] = useState('');
+  const [taskEndTime, setTaskEndTime] = useState('');
+
+  const handleTaskStartTimeChange = (value: string) => {
+    setTaskStartTime(value);
+    setModalContent(`Task start time set to ${value}`);
+    setIsModalOpen(true);
+  };
+
+  const handleTaskEndTimeChange = (value: string) => {
+    setTaskEndTime(value);
+    setModalContent(`Task end time set to ${value}`);
+    setIsModalOpen(true);
+  };
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalContent, setModalContent] = useState('');
+
+  const [isRepeatModalOpen, setIsRepeatModalOpen] = useState(false);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  const handleTaskIconClick = () => {
+    setIsTaskModalOpen(true);
+  };
+
   if (loading) {
     return <div className="p-4">Loading daily planner...</div>;
   }
@@ -243,27 +282,89 @@ export default function DailyPlanner(): React.JSX.Element {
         />
       )}
 
-      <MorningPrompt />
+      <form onSubmit={handleSubmit}>
+        <MorningPrompt />
 
-      <div className="space-y-2">
-        {HOURS.map((hour) => (
-          <HourBlock
-            key={hour}
-            hour={hour}
-            tasks={tasks.filter((t) => t.startTime === hour)}
-            allTasks={tasks}
-            setTasks={updateTasks}
+        <div className="space-y-2">
+          {HOURS.map((hour) => (
+            <HourBlock
+              key={hour}
+              hour={hour}
+              tasks={tasks.filter((t) => t.startTime === hour)}
+              allTasks={tasks}
+              setTasks={updateTasks}
+            >
+              <button
+                className="text-gray-500 hover:text-gray-800"
+                onClick={handleTaskIconClick}
+              >
+                <FaCalendarAlt />
+              </button>
+            </HourBlock>
+          ))}
+        </div>
+
+        <Modal isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)}>
+          <p>Set the end date for the task.</p>
+          <DatePicker
+            selected={repeatUntil}
+            onChange={(date) => setRepeatUntil(date)}
+            placeholderText="Select end date"
           />
-        ))}
-      </div>
+        </Modal>
 
-      <EveningReflection
-        value={reflection}
-        onChange={async (val) => {
-          setReflection(val);
-          await saveDay(tasks, val);
-        }}
-      />
+        <EveningReflection
+          value={reflection}
+          onChange={async (val) => {
+            setReflection(val);
+            await saveDay(tasks, val);
+          }}
+        />
+
+        <label>
+          <input
+            type="checkbox"
+            checked={isRecurring}
+            onChange={(e) => handleRepeatTaskChange(e.target.checked)}
+          />
+          Repeat Task
+        </label>
+        {isRecurring && (
+          <DatePicker
+            selected={repeatUntil}
+            onChange={(date) => setRepeatUntil(date)}
+            placeholderText="Select end date"
+          />
+        )}
+
+        <Modal isOpen={isRepeatModalOpen} onClose={() => setIsRepeatModalOpen(false)}>
+          <p>Repeat task functionality enabled. Please select an end date.</p>
+        </Modal>
+
+        <label>
+          Start Time:
+          <input
+            type="time"
+            value={taskStartTime}
+            onChange={(e) => handleTaskStartTimeChange(e.target.value)}
+            className="border rounded-md p-2 w-full"
+          />
+        </label>
+        <label>
+          End Time:
+          <input
+            type="time"
+            value={taskEndTime}
+            onChange={(e) => handleTaskEndTimeChange(e.target.value)}
+            className="border rounded-md p-2 w-full"
+          />
+        </label>
+        <button type="submit">Save Task</button>
+      </form>
+
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}>
+        <p>{modalContent}</p>
+      </Modal>
     </div>
   );
 }
@@ -274,4 +375,8 @@ function getWeekNumber(date: Date): number {
     (date.getTime() - start.getTime()) / 86400000 +
     start.getDay();
   return Math.ceil(diff / 7);
+}
+
+function showDailyActionWordToast(): void {
+  console.log('Welcome to the daily planner!');
 }

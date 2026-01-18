@@ -80,3 +80,22 @@ export interface PlannerTask {
   endTime: string;
   notes?: string;
 }
+
+
+
+export type ReadingStatus =
+  | 'to_read'
+  | 'reading'
+  | 'done'
+  | 'applied';
+
+
+  export type ReadingCategory =
+  | 'faith'
+  | 'self_development'
+  | 'skill'
+  | 'philosophy'
+  | 'psychology'
+  | 'leadership'
+  | 'productivity'
+  | 'miscellaneous';
