@@ -1,54 +1,76 @@
-'use client';
+'use client'
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 export function PwaRegister() {
-  const [deferredPrompt, setDeferredPrompt] = useState<Event | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<Event | null>(null)
+  const [isInstalled, setIsInstalled] = useState(false)
+  const [showInstallUI, setShowInstallUI] = useState(false)
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-          console.log('SW registered: ', registration);
-        })
-        .catch((registrationError) => {
-          console.log('SW registration failed: ', registrationError);
-        });
-    }
+    if (!('serviceWorker' in navigator)) return
+
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => {
+        console.log('SW registered:', registration)
+      })
+      .catch((error) => {
+        console.log('SW registration failed:', error)
+      })
 
     const handleBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault(); // Prevent the default mini-infobar from appearing
-      setDeferredPrompt(event); // Save the event for triggering later
-    };
+      event.preventDefault()
+      setDeferredPrompt(event)
+      setShowInstallUI(true)
+    }
 
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    const handleAppInstalled = () => {
+      setIsInstalled(true)
+      setShowInstallUI(false)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true)
+    }
 
     return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    };
-  }, []);
-
-  const handleInstallClick = () => {
-    if (deferredPrompt) {
-      (deferredPrompt as any).prompt(); // Show the install prompt
-      (deferredPrompt as any).userChoice.then((choiceResult: any) => {
-        if (choiceResult.outcome === 'accepted') {
-          console.log('User accepted the install prompt');
-        } else {
-          console.log('User dismissed the install prompt');
-        }
-        setDeferredPrompt(null); // Clear the saved prompt
-      });
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
+      window.removeEventListener('appinstalled', handleAppInstalled)
     }
-  };
+  }, [])
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) {
+      alert(
+        'To install this app:\n\nOn iOS: Share > Add to Home Screen\nOn Android: Browser menu > Add to Home Screen'
+      )
+      return
+    }
+
+    const promptEvent = deferredPrompt as any
+    promptEvent.prompt()
+    const choiceResult = await promptEvent.userChoice
+
+    if (choiceResult.outcome === 'accepted') {
+      console.log('User accepted install')
+    }
+
+    setDeferredPrompt(null)
+    setShowInstallUI(false)
+  }
+
+  if (isInstalled || !showInstallUI) return null
 
   return (
-    <div>
-      {deferredPrompt && (
-        <button onClick={handleInstallClick} className="fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded">
-          Install App
-        </button>
-      )}
-    </div>
-  );
+    <button
+      onClick={handleInstallClick}
+      className="fixed bottom-4 right-4 bg-blue-500 text-white px-4 py-2 rounded shadow-lg"
+    >
+      Install App
+    </button>
+  )
 }

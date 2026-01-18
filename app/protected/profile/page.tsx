@@ -15,13 +15,15 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [goalStats, setGoalStats] = useState({ total: 0, completed: 0 });
   const [postCount, setPostCount] = useState(0);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     fetchProfile();
+    fetchStats();
   }, []);
 
   const fetchProfile = async () => {
@@ -57,40 +59,32 @@ export default function ProfilePage() {
 
   const uploadAvatar = async (file: File) => {
     if (!profile) return;
-    if (!file) {
-      alert('No file selected!');
-      return;
-    }
-    console.log('Uploading file:', file);
-    console.log('File type:', file?.type, 'File size:', file?.size);
+
     setUploading(true);
     const supabase = createClient();
     const fileExt = file.name.split('.').pop();
-    const filePath = `${profile.id}.${fileExt}`; // Store at bucket root
-    // Upload to Supabase Storage
-    const { error: uploadError } = await supabase.storage
+    const filePath = `${profile.id}.${fileExt}`;
+
+    const { error } = await supabase.storage
       .from('avatars')
       .upload(filePath, file, { upsert: true });
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      alert('Failed to upload avatar!');
+
+    if (error) {
       setUploading(false);
       return;
     }
-    // Get public URL
+
     const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+
     if (data?.publicUrl) {
-      // Update profile with new avatar URL
-      const { error: updateError } = await supabase
+      await supabase
         .from('profiles')
         .update({ avatar_url: data.publicUrl })
         .eq('id', profile.id);
-      if (!updateError) {
-        setProfile({ ...profile, avatar_url: data.publicUrl });
-      } else {
-        alert('Failed to update profile avatar!');
-      }
+
+      setProfile({ ...profile, avatar_url: data.publicUrl });
     }
+
     setUploading(false);
   };
 
@@ -103,56 +97,41 @@ export default function ProfilePage() {
   const fetchStats = async () => {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      console.error('No authenticated user found.');
-      return;
-    }
+    if (!user) return;
 
-    console.log('Authenticated user:', user);
-
-    // Fetch goals
-    const { data: goals, error: goalsError } = await supabase
+    const { data: goals } = await supabase
       .from('goals')
       .select('*')
       .eq('owner_id', user.id);
 
-    if (goalsError) {
-      console.error('Error fetching goals:', goalsError);
-      console.log('Supabase query response:', goals);
-    } else {
-      console.log('Fetched goals:', goals);
-    }
+    const total = goals?.length || 0;
+    const completed = goals?.filter(g => g.status === 'done').length || 0;
+    setGoalStats({ total, completed });
 
-    const totalGoals = goals?.length || 0;
-    const completedGoals = goals?.filter((goal) => goal.status === 'done').length || 0;
-    setGoalStats({ total: totalGoals, completed: completedGoals });
-
-    // Fetch posts
-    const { data: posts, error: postsError } = await supabase
+    const { data: posts } = await supabase
       .from('posts')
       .select('*')
       .eq('author_id', user.id);
 
-    if (postsError) {
-      console.error('Error fetching posts:', postsError);
-      console.log('Supabase query response:', posts);
-    } else {
-      console.log('Fetched posts:', posts);
-    }
-
     setPostCount(posts?.length || 0);
   };
-
-  useEffect(() => {
-    fetchStats();
-  }, []);
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="relative p-4 space-y-6">
+      {/* Top right logout icon */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleLogout}
+        className="absolute top-4 right-4"
+      >
+        <LogOut className="w-5 h-5" />
+      </Button>
+
       <h1 className="text-2xl font-bold">Profile</h1>
 
       <Card>
@@ -160,7 +139,6 @@ export default function ProfilePage() {
           <CardTitle>Personal Information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Avatar */}
           <div className="flex items-center gap-4">
             <Avatar className="w-20 h-20">
               <AvatarImage src={profile?.avatar_url || undefined} />
@@ -168,16 +146,18 @@ export default function ProfilePage() {
                 {name?.[0] || 'U'}
               </AvatarFallback>
             </Avatar>
+
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
+              className="hidden"
               onChange={e => {
                 const file = e.target.files?.[0];
                 if (file) uploadAvatar(file);
               }}
             />
+
             <Button
               variant="outline"
               size="sm"
@@ -189,35 +169,28 @@ export default function ProfilePage() {
             </Button>
           </div>
 
-          {/* Name */}
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label>Name</Label>
             {editing ? (
               <div className="flex gap-2">
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter your name"
-                />
-                <Button onClick={updateProfile} size="sm">
+                <Input value={name} onChange={e => setName(e.target.value)} />
+                <Button size="sm" onClick={updateProfile}>
                   <Save className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" onClick={() => setEditing(false)} size="sm">
+                <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
                   Cancel
                 </Button>
               </div>
             ) : (
               <div className="flex justify-between items-center">
                 <span>{name || 'No name set'}</span>
-                <Button variant="outline" onClick={() => setEditing(true)} size="sm">
+                <Button size="sm" variant="outline" onClick={() => setEditing(true)}>
                   Edit
                 </Button>
               </div>
             )}
           </div>
 
-          {/* Email (read-only) */}
           <div className="space-y-2">
             <Label>Email</Label>
             <p className="text-muted-foreground">{profile?.id}</p>
@@ -225,34 +198,27 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Stats */}
       <Card>
         <CardHeader>
           <CardTitle>Statistics</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between">
             <span>Total Goals</span>
             <span>{goalStats.total}</span>
           </div>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between">
             <span>Completed Goals</span>
-            <span>{((goalStats.completed / goalStats.total) * 100).toFixed(2)}%</span>
+            <span>
+              {goalStats.total === 0
+                ? '0%'
+                : ((goalStats.completed / goalStats.total) * 100).toFixed(2) + '%'}
+            </span>
           </div>
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between">
             <span>Total Posts</span>
             <span>{postCount}</span>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Logout */}
-      <Card>
-        <CardContent className="p-4">
-          <Button variant="destructive" onClick={handleLogout} className="w-full">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
         </CardContent>
       </Card>
     </div>

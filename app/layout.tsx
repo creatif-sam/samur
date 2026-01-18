@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
-import { PwaRegister } from "@/components/pwa-register";
+import { ClientProviders } from "@/components/ClientProviders";
 import "./globals.css";
 
 const defaultUrl = process.env.VERCEL_URL
@@ -48,8 +48,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <PwaRegister />
-          {children}
+          <ClientProviders>
+            {children}
+          </ClientProviders>
         </ThemeProvider>
       </body>
     </html>
