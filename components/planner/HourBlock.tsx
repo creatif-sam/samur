@@ -1,6 +1,6 @@
 'use client';
 
-import { PlannerTask } from '@/lib/types/planner';
+import { PlannerTask } from '@/lib/types';
 import TaskItem from './TaskItem';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
