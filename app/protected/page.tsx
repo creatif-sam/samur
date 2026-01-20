@@ -129,38 +129,7 @@ export default function HomePage() {
         {/* Daily Action Word */}
       <DailyActionWord />
 
-      {/* Community Feed */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <MessageCircle className="w-4 h-4 text-violet-600" />
-            Community Feed
-          </CardTitle>
-          <Link
-            href="/protected/posts"
-            className="text-xs text-violet-600 flex items-center gap-1"
-          >
-            View all posts
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {socialFeedPosts.length ? (
-            socialFeedPosts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                currentUserId={currentUserId}
-              />
-            ))
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No shared posts yet. Be the first to share something!
-            </p>
-          )}
-        </CardContent>
-      </Card>
-
+     
       {/* Video Focus */}
       <Card className="overflow-hidden">
         <div className="relative aspect-video bg-black">
@@ -189,34 +158,9 @@ export default function HomePage() {
         </CardContent>
       </Card>
 
-      {/* Why This Works */}
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <h3 className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">
-            Why this redesign works
-          </h3>
 
-          <div className="space-y-1 text-sm">
-            <p>The video sets emotional direction.</p>
-            <p>The day plan anchors intention.</p>
-            <p>Goals and posts reinforce accountability.</p>
-          </div>
 
-          <div className="pt-3 space-y-1 text-sm">
-            <p>This is how discipline is built in real life.</p>
-            <p>Inspiration.</p>
-            <p>Then structure.</p>
-            <p>Then community.</p>
-          </div>
 
-          <div className="pt-4 text-xs text-muted-foreground">
-            Short focused teachings are selected by you to keep
-            discipline intentional and personal.
-          </div>
-        </CardContent>
-      </Card>
-
-    
 
       {/* Today Focus */}
       <Card>
@@ -293,6 +237,42 @@ export default function HomePage() {
           )}
         </CardContent>
       </Card>
+
+       {/* Community Feed */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MessageCircle className="w-4 h-4 text-violet-600" />
+            Community Feed
+          </CardTitle>
+          <Link
+            href="/protected/posts"
+            className="text-xs text-violet-600 flex items-center gap-1"
+          >
+            View all posts
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {socialFeedPosts.length ? (
+            socialFeedPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                currentUserId={currentUserId}
+              />
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No shared posts yet. Be the first to share something!
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+
+
+      
 
       {/* Recent Reflections */}
       <Card>
