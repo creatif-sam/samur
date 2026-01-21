@@ -14,6 +14,11 @@ export default function TopCalendar({
 }: TopCalendarProps) {
   const dateInputRef = useRef<HTMLInputElement>(null)
 
+  const monthLabel = selectedDate.toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric',
+  })
+
   const days = useMemo(() => {
     const base = new Date(selectedDate)
     const start = new Date(base)
@@ -41,8 +46,13 @@ export default function TopCalendar({
   }
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-      {/* Top row on mobile */}
+    <div className="flex flex-col gap-2">
+      {/* Month label */}
+      <div className="text-center text-sm font-medium text-muted-foreground">
+        {monthLabel}
+      </div>
+
+      {/* Days row */}
       <div className="flex items-center gap-2">
         <button
           onClick={() => navigate(-1)}
@@ -51,7 +61,7 @@ export default function TopCalendar({
           <ChevronLeft size={16} />
         </button>
 
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar overscroll-x-contain">
           {days.map((day) => {
             const active = sameDay(day, selectedDate)
 
@@ -66,7 +76,9 @@ export default function TopCalendar({
                 }`}
               >
                 <div className="text-[10px] leading-none">
-                  {day.toLocaleDateString(undefined, { weekday: 'short' })}
+                  {day.toLocaleDateString(undefined, {
+                    weekday: 'short',
+                  })}
                 </div>
                 <div className="font-medium leading-none">
                   {day.getDate()}
@@ -84,7 +96,7 @@ export default function TopCalendar({
         </button>
       </div>
 
-      {/* Calendar button moves down on mobile */}
+      {/* Calendar icon below on mobile */}
       <div className="flex justify-end sm:justify-start">
         <button
           onClick={() => dateInputRef.current?.showPicker()}
@@ -94,6 +106,7 @@ export default function TopCalendar({
         </button>
       </div>
 
+      {/* Hidden native date picker */}
       <input
         ref={dateInputRef}
         type="date"
