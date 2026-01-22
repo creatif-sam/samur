@@ -40,6 +40,9 @@ interface DbGoalCategory {
   emoji: string | null
 }
 
+export const dynamic = 'force-dynamic'
+
+
 export default function GoalsPage() {
   const supabase = createClient()
 
