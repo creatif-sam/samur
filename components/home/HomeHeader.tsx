@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CloudSun } from 'lucide-react'
 
 interface HomeHeaderProps {
   userName?: string | null
@@ -32,23 +32,12 @@ export default function HomeHeader({ userName }: HomeHeaderProps) {
     const daysGone =
       Math.floor(goneMs / (1000 * 60 * 60 * 24)) + 1
 
-    const remainingMs = Math.max(
-      end.getTime() - now.getTime(),
-      0
-    )
+    const remainingMs = Math.max(end.getTime() - now.getTime(), 0)
 
-    const days = Math.floor(
-      remainingMs / (1000 * 60 * 60 * 24)
-    )
-    const hours = Math.floor(
-      (remainingMs / (1000 * 60 * 60)) % 24
-    )
-    const minutes = Math.floor(
-      (remainingMs / (1000 * 60)) % 60
-    )
-    const seconds = Math.floor(
-      (remainingMs / 1000) % 60
-    )
+    const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((remainingMs / (1000 * 60 * 60)) % 24)
+    const minutes = Math.floor((remainingMs / (1000 * 60)) % 60)
+    const seconds = Math.floor((remainingMs / 1000) % 60)
 
     const desktopBase = new Date(now)
     desktopBase.setDate(now.getDate() - 3)
@@ -87,13 +76,27 @@ export default function HomeHeader({ userName }: HomeHeaderProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold">
-          Today
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Stay intentional{userName ? `, ${userName}` : ''}
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold">
+            Today
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Stay intentional{userName ? `, ${userName}` : ''}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-xl px-4 py-2 bg-gradient-to-br from-violet-600 to-purple-700 text-white shadow-sm">
+          <CloudSun className="h-5 w-5 opacity-90" />
+          <div className="text-right">
+            <div className="text-sm font-semibold">
+              28°C
+            </div>
+            <div className="text-xs opacity-90">
+              Partly cloudy
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex items-center justify-between gap-2">
@@ -115,9 +118,7 @@ export default function HomeHeader({ userName }: HomeHeaderProps) {
                   }`}
                 >
                   <div className="text-xs opacity-80">
-                    {day.toLocaleDateString(undefined, {
-                      weekday: 'short',
-                    })}
+                    {day.toLocaleDateString(undefined, { weekday: 'short' })}
                   </div>
                   <div className="font-semibold">
                     {day.getDate()}
@@ -140,9 +141,7 @@ export default function HomeHeader({ userName }: HomeHeaderProps) {
                   }`}
                 >
                   <div className="text-xs opacity-80">
-                    {day.toLocaleDateString(undefined, {
-                      weekday: 'short',
-                    })}
+                    {day.toLocaleDateString(undefined, { weekday: 'short' })}
                   </div>
                   <div className="font-semibold">
                     {day.getDate()}

@@ -32,7 +32,7 @@ export default function TopCalendar({
     const mobileBase = new Date(selectedDate)
     mobileBase.setDate(selectedDate.getDate() - 2)
 
-    const mobileDays = Array.from({ length: 5 }).map((_, i) => {
+    const mobileDays = Array.from({ length: 6 }).map((_, i) => {
       const d = new Date(mobileBase)
       d.setDate(mobileBase.getDate() + i)
       return d
