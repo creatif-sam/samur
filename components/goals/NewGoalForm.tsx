@@ -45,7 +45,7 @@ interface GoalCategory {
   id: string
   name: string
   color: string
-  emoji: string
+  emoji?: string
 }
 
 export function NewGoalForm({
@@ -80,7 +80,9 @@ export function NewGoalForm({
     useState<GoalCategory[]>(categories)
 
   const valid =
-    title.trim() && dueDate && categoryId
+    Boolean(title.trim()) &&
+    Boolean(dueDate) &&
+    Boolean(categoryId)
 
   async function createCategory() {
     if (!newCategoryName.trim()) return
@@ -191,7 +193,7 @@ export function NewGoalForm({
           <SelectContent>
             {localCategories.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {c.emoji} {c.name}
+                {(c.emoji ?? '📁')} {c.name}
               </SelectItem>
             ))}
           </SelectContent>

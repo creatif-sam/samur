@@ -120,3 +120,10 @@ export type ReadingStatus =
   | 'leadership'
   | 'productivity'
   | 'miscellaneous';
+
+
+  export interface GoalCategory {
+  id: string
+  name: string
+  emoji?: string
+}
