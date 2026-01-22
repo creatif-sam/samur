@@ -170,7 +170,7 @@ export default function ProfilePage() {
         variant="ghost"
         size="icon"
         onClick={handleLogout}
-        className="fixed top-4 right-4 z-50"
+        className="fixed top-4 right-4 z-50 bg-white/80 backdrop-blur-md"
       >
         <LogOut className="w-5 h-5" />
       </Button>
