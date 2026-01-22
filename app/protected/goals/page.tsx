@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
 import { Button } from '@/components/ui/button'
+import { VisionBoard } from '@/components/goals/VisionBoard'
+
 import {
   Tabs,
   TabsContent,
@@ -22,13 +24,9 @@ import {
   GoalCategory,
 } from '@/components/goals/NewGoalForm'
 import { GoalList } from '@/components/goals/GoalList'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
+
+import { GoalsDonutChart } from '@/components/goals/charts/GoalsDonutChart'
+import { GoalsYearlyLineChart } from '@/components/goals/charts/GoalsYearlyLineChart'
 
 type GoalView = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 
@@ -45,18 +43,22 @@ export default function GoalsPage() {
   const supabase = createClient()
 
   const [goals, setGoals] = useState<Goal[]>([])
-  const [categories, setCategories] = useState<DbGoalCategory[]>([])
+  const [categories, setCategories] =
+    useState<DbGoalCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
-  const [view, setView] = useState<GoalView>('weekly')
-  const [showSharedOnly, setShowSharedOnly] = useState(false)
+  const [view, setView] =
+    useState<GoalView>('weekly')
+  const [showSharedOnly, setShowSharedOnly] =
+    useState(false)
 
   useEffect(() => {
     loadAll()
   }, [])
 
   async function loadAll() {
-    const { data: auth } = await supabase.auth.getUser()
+    const { data: auth } =
+      await supabase.auth.getUser()
     if (!auth.user) {
       setLoading(false)
       return
@@ -70,7 +72,9 @@ export default function GoalsPage() {
           .or(
             `owner_id.eq.${auth.user.id},partner_id.eq.${auth.user.id}`
           )
-          .order('created_at', { ascending: false }),
+          .order('created_at', {
+            ascending: false,
+          }),
         supabase
           .from('goal_categories')
           .select('*')
@@ -197,6 +201,10 @@ export default function GoalsPage() {
     )
   }, [filteredGoals, uiCategories])
 
+  const completedCount = filteredGoals.filter(
+    (g) => g.status === 'done'
+  ).length
+
   return (
     <div className="p-4 space-y-6 max-w-4xl mx-auto">
       {loading ? (
@@ -215,51 +223,67 @@ export default function GoalsPage() {
           </TabsList>
 
           <TabsContent value="overview">
-            <div className="border rounded-xl p-4 space-y-4">
-              {pieData.length > 0 ? (
-                <>
-                  <div className="h-56">
-                    <ResponsiveContainer width="100%" height={220}>
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          dataKey="value"
-                          innerRadius={50}
-                          outerRadius={80}
-                        >
-                          {pieData.map((e, i) => (
-                            <Cell key={i} fill={e.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </>
-              ) : (
-                <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">
-                  No goals for this period
-                </div>
-              )}
+            <div className="space-y-6">
+              <div className="border rounded-xl p-4 space-y-3">
+                <h3 className="text-sm font-semibold">
+                  Yearly Goal Timeline
+                </h3>
+                <GoalsYearlyLineChart
+                  goals={filteredGoals}
+                />
+              </div>
+
+              <div className="border rounded-xl p-4 space-y-3">
+                <h3 className="text-sm font-semibold">
+                  Goals by Category
+                </h3>
+                <GoalsDonutChart
+  goals={goals}
+  categories={uiCategories}
+/>
+
+              </div>
             </div>
+
+
+            <div className="border rounded-xl p-4 space-y-3">
+  <h3 className="text-sm font-semibold">
+    Vision Board
+  </h3>
+  <p className="text-xs text-muted-foreground">
+    Words shaping your goals
+  </p>
+
+  <VisionBoard goals={goals} />
+</div>
+
+
+
           </TabsContent>
 
           <TabsContent value="goals">
             <div className="space-y-4 mt-6">
               <div className="flex gap-2">
-                {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(
-                  (v) => (
-                    <Button
-                      key={v}
-                      size="sm"
-                      variant={view === v ? 'default' : 'outline'}
-                      onClick={() => setView(v)}
-                      className="capitalize"
-                    >
-                      {v}
-                    </Button>
-                  )
-                )}
+                {(
+                  [
+                    'weekly',
+                    'monthly',
+                    'quarterly',
+                    'yearly',
+                  ] as const
+                ).map((v) => (
+                  <Button
+                    key={v}
+                    size="sm"
+                    variant={
+                      view === v ? 'default' : 'outline'
+                    }
+                    onClick={() => setView(v)}
+                    className="capitalize"
+                  >
+                    {v}
+                  </Button>
+                ))}
               </div>
 
               <div className="flex justify-between">
@@ -269,8 +293,14 @@ export default function GoalsPage() {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    variant={showSharedOnly ? 'default' : 'outline'}
-                    onClick={() => setShowSharedOnly(!showSharedOnly)}
+                    variant={
+                      showSharedOnly
+                        ? 'default'
+                        : 'outline'
+                    }
+                    onClick={() =>
+                      setShowSharedOnly(!showSharedOnly)
+                    }
                   >
                     <Users className="w-4 h-4 mr-2" />
                     Shared
@@ -288,7 +318,10 @@ export default function GoalsPage() {
                     <Download className="w-4 h-4 mr-2" />
                     Export
                   </Button>
-                  <Button size="sm" onClick={() => setShowNew(true)}>
+                  <Button
+                    size="sm"
+                    onClick={() => setShowNew(true)}
+                  >
                     <Plus className="w-4 h-4 mr-2" />
                     New
                   </Button>
