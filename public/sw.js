@@ -1,8 +1,8 @@
-const CACHE_NAME = 'tgh-pwa-v1';
+const CACHE_NAME = 'samur-pwa-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/icon-192.png',
+  '/icon-192-v2.png',
   '/icon-512.png',
   // Add other critical resources
 ];
@@ -67,7 +67,7 @@ self.addEventListener('push', event => {
       {
         action: 'view',
         title: 'View',
-        icon: '/icon-192.png'
+        icon: '/icon-192-v2.png'
       },
       {
         action: 'dismiss',
