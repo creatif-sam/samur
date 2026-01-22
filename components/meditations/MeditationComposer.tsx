@@ -24,11 +24,20 @@ export interface Meditation {
   visibility: 'private' | 'shared'
 }
 
-
 interface MeditationComposerProps {
   meditation?: Meditation
   onClose: () => void
   onCreated?: () => void
+}
+
+/**
+ * System derived period
+ * 12:00 AM – 11:59 AM => morning
+ * 12:00 PM – 11:59 PM => evening
+ */
+function getMeditationPeriod(): 'morning' | 'evening' {
+  const hour = new Date().getHours()
+  return hour < 12 ? 'morning' : 'evening'
 }
 
 export default function MeditationComposer({
@@ -63,14 +72,17 @@ export default function MeditationComposer({
 
     const supabase = createClient()
     const { data: auth } = await supabase.auth.getUser()
+
     if (!auth.user) {
       setSaving(false)
       return
     }
 
-    let meditationId = meditation?.id
+    const period = getMeditationPeriod()
+    let meditationId = meditation?.id ?? null
 
-    if (meditation) {
+    // UPDATE
+    if (meditation?.id) {
       const { error } = await supabase
         .from('meditations')
         .update({
@@ -80,6 +92,7 @@ export default function MeditationComposer({
           application,
           prayer,
           visibility,
+          period, // ensure updated rows stay consistent
         })
         .eq('id', meditation.id)
 
@@ -88,7 +101,10 @@ export default function MeditationComposer({
         setSaving(false)
         return
       }
-    } else {
+    }
+
+    // INSERT
+    if (!meditation?.id) {
       const { data, error } = await supabase
         .from('meditations')
         .insert({
@@ -99,6 +115,7 @@ export default function MeditationComposer({
           application,
           prayer,
           visibility,
+          period,
         })
         .select()
         .single()
@@ -112,6 +129,7 @@ export default function MeditationComposer({
       meditationId = data.id
     }
 
+    // Optional auto post
     if (autoPost && meditationId) {
       let partnerId = null
 
@@ -122,7 +140,7 @@ export default function MeditationComposer({
           .eq('id', auth.user.id)
           .single()
 
-        partnerId = profile?.partner_id
+        partnerId = profile?.partner_id ?? null
       }
 
       await supabase.from('posts').insert({
