@@ -14,10 +14,10 @@ import PartnerMeditationBoard from '@/components/meditations/PartnerMeditationBo
 import type { MeditationDB } from '@/lib/types'
 
 
-interface MeditationWithMeta extends Meditation {
-  id: string
-  created_at: string
-}
+// interface MeditationWithMeta extends Meditation {
+//   id: string
+//   created_at: string
+// }
 
 type ViewMode = 'list' | 'grid'
 
