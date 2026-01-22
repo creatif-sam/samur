@@ -41,12 +41,13 @@ const CATEGORY_COLORS = [
   '#7c3aed',
 ]
 
-interface GoalCategory {
+export interface GoalCategory {
   id: string
   name: string
   color: string
   emoji?: string
 }
+
 
 export function NewGoalForm({
   onCancel,

@@ -17,24 +17,27 @@ import {
   Download,
   Users,
 } from 'lucide-react'
-import { NewGoalForm } from '@/components/goals/NewGoalForm'
+import {
+  NewGoalForm,
+  GoalCategory,
+} from '@/components/goals/NewGoalForm'
 import { GoalList } from '@/components/goals/GoalList'
-import { GoalsOverview } from '@/components/goals/GoalsOverview'
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 
 type GoalView = 'weekly' | 'quarterly' | 'yearly'
 
-interface GoalCategory {
+/* Database category shape */
+interface DbGoalCategory {
   id: string
   name: string
   color: string
   emoji: string | null
-}
-
-interface UiGoalCategory {
-  id: string
-  name: string
-  color: string
-  emoji?: string
 }
 
 export default function GoalsPage() {
@@ -42,7 +45,7 @@ export default function GoalsPage() {
 
   const [goals, setGoals] = useState<Goal[]>([])
   const [categories, setCategories] =
-    useState<GoalCategory[]>([])
+    useState<DbGoalCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [view, setView] = useState<GoalView>('weekly')
@@ -150,8 +153,8 @@ export default function GoalsPage() {
     )
   }, [baseGoals, view])
 
-  /* ✅ NORMALIZATION FIX */
-  const uiCategories: UiGoalCategory[] = useMemo(
+  /* ✅ NORMALIZE DB → UI ONCE */
+  const uiCategories: GoalCategory[] = useMemo(
     () =>
       categories.map((c) => ({
         id: c.id,
@@ -161,6 +164,30 @@ export default function GoalsPage() {
       })),
     [categories]
   )
+
+  const pieData = useMemo(() => {
+    const map: Record<string, number> = {}
+
+    filteredGoals.forEach((g: any) => {
+      if (!g.category_id) return
+      map[g.category_id] =
+        (map[g.category_id] ?? 0) + 1
+    })
+
+    return Object.entries(map).map(
+      ([categoryId, value]) => {
+        const cat = uiCategories.find(
+          (c) => c.id === categoryId
+        )
+        return {
+          name: cat?.name ?? 'Uncategorized',
+          value,
+          color: cat?.color ?? '#8884d8',
+          emoji: cat?.emoji ?? '📌',
+        }
+      }
+    )
+  }, [filteredGoals, uiCategories])
 
   return (
     <div className="p-4 space-y-6 max-w-4xl mx-auto">
@@ -179,33 +206,62 @@ export default function GoalsPage() {
             </TabsTrigger>
           </TabsList>
 
+          {/* OVERVIEW TAB */}
           <TabsContent value="overview">
-            <GoalsOverview
-              goals={filteredGoals}
-              categories={uiCategories}
-            />
+            <div className="border rounded-xl p-4 space-y-4">
+              {pieData.length > 0 ? (
+                <>
+                  <div className="h-56">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={50}
+                          outerRadius={80}
+                        >
+                          {pieData.map((e, i) => (
+                            <Cell key={i} fill={e.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {pieData.map((c) => (
+                      <div
+                        key={c.name}
+                        className="flex items-center gap-2"
+                      >
+                        <span
+                          className="w-3 h-3 rounded-full"
+                          style={{
+                            backgroundColor: c.color,
+                          }}
+                        />
+                        <span>
+                          {c.emoji} {c.name}
+                        </span>
+                        <span className="ml-auto text-muted-foreground">
+                          {c.value}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">
+                  No goals for this period
+                </div>
+              )}
+            </div>
           </TabsContent>
 
+          {/* GOALS TAB */}
           <TabsContent value="goals">
-            <Tabs
-              value={view}
-              onValueChange={(v) =>
-                setView(v as GoalView)
-              }
-            >
-              <TabsList className="grid grid-cols-3">
-                <TabsTrigger value="weekly">
-                  Weekly
-                </TabsTrigger>
-                <TabsTrigger value="quarterly">
-                  Quarterly
-                </TabsTrigger>
-                <TabsTrigger value="yearly">
-                  Yearly
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-
             <div className="grid md:grid-cols-2 gap-6 mt-6">
               <div>
                 <div className="flex justify-between mb-2">
