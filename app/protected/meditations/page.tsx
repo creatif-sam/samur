@@ -77,81 +77,103 @@ ${m.prayer}
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       {/* Header */}
-      <header className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1">
-            <h1 className="text-xl font-semibold tracking-tight">
-              Meditations
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Personal reflections and scripture insights
-            </p>
-          </div>
+      {/* Header */}
+<header className="space-y-4">
+  {/* Top row */}
+  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-1">
+      <h1 className="text-xl font-semibold tracking-tight">
+        Meditations
+      </h1>
+      <p className="text-sm text-muted-foreground">
+        Personal reflections and scripture insights
+      </p>
+    </div>
 
-          <div className="flex items-center gap-2">
-            <FeedSwitch />
+    {/* Actions */}
+    <div className="flex items-center gap-2 justify-end">
+      {/* Mobile actions */}
+      <div className="flex sm:hidden items-center gap-2">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() =>
+            setViewMode(viewMode === 'list' ? 'grid' : 'list')
+          }
+        >
+          {viewMode === 'list' ? (
+            <LayoutGrid className="h-5 w-5" />
+          ) : (
+            <List className="h-5 w-5" />
+          )}
+        </Button>
 
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={() =>
-                setViewMode(viewMode === 'list' ? 'grid' : 'list')
-              }
-            >
-              {viewMode === 'list' ? (
-                <LayoutGrid className="h-4 w-4" />
-              ) : (
-                <List className="h-4 w-4" />
-              )}
-            </Button>
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={() => setShowComposer(true)}
+        >
+          <Pencil className="h-5 w-5" />
+        </Button>
+      </div>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setShowComposer(true)}
-            >
-              Write meditation
-            </Button>
-          </div>
-        </div>
+      {/* Desktop actions */}
+      <div className="hidden sm:flex items-center gap-2">
+        <FeedSwitch />
 
-        <div className="flex gap-2">
-          <Input
-            placeholder="Search by title or scripture"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={() =>
+            setViewMode(viewMode === 'list' ? 'grid' : 'list')
+          }
+        >
+          {viewMode === 'list' ? (
+            <LayoutGrid className="h-4 w-4" />
+          ) : (
+            <List className="h-4 w-4" />
+          )}
+        </Button>
 
-          <select
-            className="border rounded-md px-3 text-sm"
-            value={visibilityFilter}
-            onChange={(e) =>
-              setVisibilityFilter(
-                e.target.value as 'all' | 'private' | 'shared'
-              )
-            }
-          >
-            <option value="all">All</option>
-            <option value="private">Private</option>
-            <option value="shared">Shared</option>
-          </select>
-        </div>
-      </header>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowComposer(true)}
+        >
+          Write meditation
+        </Button>
+      </div>
+    </div>
+  </div>
 
-      {(showComposer || editing) && (
-        <MeditationComposer
-          meditation={editing ?? undefined}
-          onClose={() => {
-            setShowComposer(false)
-            setEditing(null)
-          }}
-          onCreated={() => {
-            setShowComposer(false)
-            setEditing(null)
-            loadMeditations()
-          }}
-        />
-      )}
+  {/* Feed switch row (mobile first) */}
+  <div className="flex justify-between sm:justify-start">
+    <FeedSwitch />
+  </div>
+
+  {/* Search + filter */}
+  <div className="flex flex-col sm:flex-row gap-2">
+    <Input
+      placeholder="Search by title or scripture"
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+    />
+
+    <select
+      className="border rounded-md px-3 py-2 text-sm"
+      value={visibilityFilter}
+      onChange={(e) =>
+        setVisibilityFilter(
+          e.target.value as 'all' | 'private' | 'shared'
+        )
+      }
+    >
+      <option value="all">All</option>
+      <option value="private">Private</option>
+      <option value="shared">Shared</option>
+    </select>
+  </div>
+</header>
 
       {/* LIST VIEW */}
       {viewMode === 'list' ? (
