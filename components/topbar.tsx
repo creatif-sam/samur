@@ -139,7 +139,7 @@ export function Topbar() {
       }}
     >
       <h1 className="text-lg font-semibold tracking-tight text-white">
-        Together
+        SamUr🤍
       </h1>
 
       <div className="flex items-center gap-2">

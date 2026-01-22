@@ -77,8 +77,7 @@ ${m.prayer}
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       {/* Header */}
-      {/* Header */}
-<header className="space-y-4">
+      <header className="space-y-4">
   {/* Top row */}
   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
     <div className="space-y-1">
@@ -176,7 +175,7 @@ ${m.prayer}
 </header>
 
       {/* LIST VIEW */}
-      {viewMode === 'list' ? (
+      {viewMode === 'list' && (
         <section className="divide-y border rounded-md">
           {filteredMeditations.map((m) => (
             <div
@@ -229,53 +228,62 @@ ${m.prayer}
             </div>
           ))}
         </section>
-      ) : (
-        /* GRID VIEW */
+      )}
+
+      {/* GRID VIEW */}
+      {viewMode === 'grid' && (
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {filteredMeditations.map((m) => (
-            <div
-              key={m.id}
-              className="border rounded-md p-4 hover:bg-muted/40 transition"
-            >
-              <div className="space-y-2">
-                <Link href={`/protected/meditations/${m.id}`}>
-                  <h2 className="font-medium hover:underline">
-                    {m.title}
-                  </h2>
-                </Link>
+  {filteredMeditations.map((m) => (
+    <div
+      key={m.id}
+      className="group rounded-lg border bg-background active:bg-muted/60 transition"
+    >
+      {/* Main tap area */}
+      <Link
+        href={`/protected/meditations/${m.id}`}
+        className="block px-5 py-5 space-y-3"
+      >
+        <h2 className="text-base font-medium leading-snug group-hover:underline">
+          {m.title}
+        </h2>
 
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {m.scripture}
-                </p>
+        <p className="text-sm text-muted-foreground line-clamp-3">
+          {m.scripture}
+        </p>
+      </Link>
 
-                <div className="flex justify-between items-center text-xs text-muted-foreground">
-                  <span>{m.visibility}</span>
-                  <span>
-                    {new Date(m.created_at).toLocaleDateString()}
-                  </span>
-                </div>
+      {/* Divider */}
+      <div className="border-t" />
 
-                <div className="flex justify-end gap-1">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => setEditing(m)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+      {/* Action bar */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <span className="text-xs text-muted-foreground">
+          {new Date(m.created_at).toLocaleDateString()}
+        </span>
 
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => copyMeditation(m)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </section>
+        <div className="flex items-center gap-3">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9"
+            onClick={() => setEditing(m)}
+          >
+            <Pencil className="h-4 w-4" />
+          </Button>
+
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9"
+            onClick={() => copyMeditation(m)}
+          >
+            <Copy className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  ))}
+</section>
       )}
 
       {filteredMeditations.length === 0 && (
