@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Post, Profile } from '@/lib/types'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
+import MeditationButton from '@/components/posts/MeditationButton'
+import MeditationComposer from '@/components/meditations/MeditationComposer'
+import FeedSwitch from '@/components/feed/FeedSwitch'
 import {
   Select,
   SelectContent,
@@ -14,14 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  MessageSquare,
-  Heart,
-  Plus,
-  Pencil,
-  Trash2,
-} from 'lucide-react'
-import { format } from 'date-fns'
+import { Plus } from 'lucide-react'
 import PostCard from '@/components/posts/PostCard'
 
 type PostWithProfile = Post & { profiles: Profile }
@@ -29,53 +24,52 @@ type PostWithProfile = Post & { profiles: Profile }
 export default function PostsPage() {
   const [posts, setPosts] = useState<PostWithProfile[]>([])
   const [loading, setLoading] = useState(true)
-  const [showNewPost, setShowNewPost] = useState(false)
-  const [newPostContent, setNewPostContent] = useState('')
-  const [newPostVisibility, setNewPostVisibility] =
+  const [showComposer, setShowComposer] = useState(false)
+  const [showMeditationComposer, setShowMeditationComposer] =
+    useState(false)
+  const [content, setContent] = useState('')
+  const [visibility, setVisibility] =
     useState<'private' | 'shared'>('shared')
   const [userId, setUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchPosts()
+    loadPosts()
   }, [])
 
-  async function fetchPosts() {
+  async function loadPosts() {
     const supabase = createClient()
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) return
 
     setUserId(auth.user.id)
 
-    // Debug: Check all posts to see visibility
-    const { data: allPosts } = await supabase
-      .from('posts')
-      .select(`*, profiles:author_id (name, avatar_url)`)
-      .order('created_at', { ascending: false })
-      .limit(10)
-
-    console.log('All posts:', allPosts)
-
-    // Fetch shared posts that the user can see (all shared posts + posts shared specifically with this user)
     const { data } = await supabase
       .from('posts')
-      .select(`*, profiles:author_id (name, avatar_url)`)
+      .select(`
+        *,
+        profiles:author_id (name, avatar_url),
+        meditations (
+          id,
+          title,
+          scripture,
+          lesson
+        )
+      `)
       .or(`visibility.eq.shared,partner_id.eq.${auth.user.id}`)
       .order('created_at', { ascending: false })
 
-    console.log('Shared posts:', data)
     setPosts(data ?? [])
     setLoading(false)
   }
 
   async function createPost() {
-    if (!newPostContent.trim()) return
+    if (!content.trim()) return
     const supabase = createClient()
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) return
 
-    // Get user's partner if sharing
     let partnerId = null
-    if (newPostVisibility === 'shared') {
+    if (visibility === 'shared') {
       const { data: profile } = await supabase
         .from('profiles')
         .select('partner_id')
@@ -84,77 +78,97 @@ export default function PostsPage() {
       partnerId = profile?.partner_id
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('posts')
       .insert({
-        content: newPostContent,
-        visibility: newPostVisibility,
+        content,
+        visibility,
         author_id: auth.user.id,
         partner_id: partnerId,
       })
-      .select(`*, profiles:author_id (name, avatar_url)`)
+      .select(`
+        *,
+        profiles:author_id (name, avatar_url)
+      `)
       .single()
+
+    if (error) {
+      console.error(error)
+      return
+    }
 
     if (data) {
       setPosts([data, ...posts])
-      setNewPostContent('')
-      setShowNewPost(false)
+      setContent('')
+      setShowComposer(false)
     }
   }
 
-  async function updatePost(id: string, content: string) {
+  async function updatePost(id: string, updated: string) {
     const supabase = createClient()
-
-    await supabase
-      .from('posts')
-      .update({ content })
-      .eq('id', id)
+    await supabase.from('posts').update({ content: updated }).eq('id', id)
 
     setPosts((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, content } : p,
-      ),
+      prev.map((p) => (p.id === id ? { ...p, content: updated } : p)),
     )
   }
 
   async function deletePost(id: string) {
     const supabase = createClient()
-
     await supabase.from('posts').delete().eq('id', id)
-
     setPosts((prev) => prev.filter((p) => p.id !== id))
   }
 
   if (loading) {
-    return <div className="p-4">Loading...</div>
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        Loading posts
+      </div>
+    )
   }
 
   return (
-    <div className="p-4 space-y-6 max-w-3xl mx-auto">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Posts</h1>
-        <Button onClick={() => setShowNewPost(!showNewPost)} size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          New Post
-        </Button>
-      </div>
+    <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
+   <header className="flex items-center justify-between">
+  <h1 className="text-xl font-semibold tracking-tight">Posts</h1>
 
-      {showNewPost && (
-        <Card>
-          <CardContent className="p-4 space-y-4">
+  <div className="flex items-center gap-3">
+    <FeedSwitch />
+
+    <MeditationButton
+      onOpen={() => setShowMeditationComposer(true)}
+    />
+
+    <Button
+      size="sm"
+      variant="outline"
+      onClick={() => setShowComposer(!showComposer)}
+    >
+      <Plus className="w-4 h-4 mr-2" />
+      Write
+    </Button>
+  </div>
+</header>
+
+
+      {showComposer && (
+        <Card className="border-muted">
+          <CardContent className="p-5 space-y-4">
             <Textarea
-              placeholder="What is on your mind?"
-              value={newPostContent}
-              onChange={(e) => setNewPostContent(e.target.value)}
+              placeholder="Write thoughtfully"
+              className="min-h-[120px]"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
             />
-            <div className="flex justify-between items-center">
+
+            <div className="flex items-center justify-between">
               <Select
-                value={newPostVisibility}
+                value={visibility}
                 onValueChange={(v) =>
-                  setNewPostVisibility(v as 'private' | 'shared')
+                  setVisibility(v as 'private' | 'shared')
                 }
               >
-                <SelectTrigger className="w-32">
+                <SelectTrigger className="w-36">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -163,18 +177,28 @@ export default function PostsPage() {
                 </SelectContent>
               </Select>
 
-              <div className="space-x-2">
-                <Button variant="outline" onClick={() => setShowNewPost(false)}>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowComposer(false)}
+                >
                   Cancel
                 </Button>
-                <Button onClick={createPost}>Post</Button>
+                <Button onClick={createPost}>Publish</Button>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      <div className="space-y-4">
+      {showMeditationComposer && (
+        <MeditationComposer
+          onClose={() => setShowMeditationComposer(false)}
+          onCreated={loadPosts}
+        />
+      )}
+
+      <section className="space-y-5">
         {posts.map((post) => (
           <PostCard
             key={post.id}
@@ -184,7 +208,7 @@ export default function PostsPage() {
             onDelete={deletePost}
           />
         ))}
-      </div>
+      </section>
     </div>
   )
 }

@@ -10,6 +10,7 @@ import {
   MessageSquare,
   User,
   BookOpen,
+  Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -20,7 +21,7 @@ const navItems = [
   { href: '/protected', label: 'Home', icon: Home },
   { href: '/protected/goals', label: 'Goals', icon: Target },
   { href: '/protected/planner', label: 'Planner', icon: Calendar },
-  { href: '/protected/posts', label: 'Posts', icon: MessageSquare },
+  { href: '/protected/posts', label: 'Posts', icon: Plus },
   { href: '/protected/readapp', label: 'ReadApp', icon: BookOpen },
   { href: '/protected/profile', label: 'Profile', icon: User },
 ];
@@ -80,6 +81,10 @@ export function BottomNav(): JSX.Element {
                 ) : (
                   <User size={20} />
                 )
+              ) : item.label === 'Posts' ? (
+                <div className="bg-blue-600 rounded-full p-1">
+                  <Plus size={16} className="text-white" />
+                </div>
               ) : (
                 <item.icon size={20} />
               )}
