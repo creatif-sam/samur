@@ -173,6 +173,35 @@ export class PushNotificationService {
   }
 
 
+    async markAsRead(notificationId: string, userId: string) {
+    const supabase = await this.getSupabase()
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notificationId)
+      .eq('user_id', userId)
+
+    if (error) {
+      throw error
+    }
+  }
+
+  async markAllAsRead(userId: string) {
+    const supabase = await this.getSupabase()
+
+    const { error } = await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', userId)
+      .eq('read', false)
+
+    if (error) {
+      throw error
+    }
+  }
+
+
   private getPreferenceKey(type: string) {
     switch (type) {
       case 'message': return 'messages'
