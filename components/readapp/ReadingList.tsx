@@ -145,7 +145,7 @@ export default function ReadingList(): JSX.Element {
       </main>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-6 right-6 z-30">
+      <div className="fixed bottom-20 right-6 z-30">
         <button 
           onClick={() => setIsAddOpen(true)}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-white shadow-xl shadow-violet-200 active:scale-90 transition-all hover:bg-violet-700"
