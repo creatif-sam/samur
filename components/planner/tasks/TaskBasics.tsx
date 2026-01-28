@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { Target, ChevronRight } from 'lucide-react'
 
 type Goal = {
   id: string
@@ -9,21 +10,17 @@ type Goal = {
 }
 
 export function TaskBasics({
-  text,
-  end,
-  hour,
   goalId,
-  onTextChange,
-  onEndChange,
   onGoalChange,
+  hideTitle = true, // We'll hide title since it's in the professional modal header now
+  text,
+  onTextChange,
 }: {
-  text: string
-  end: number
-  hour: number
   goalId: string | null
-  onTextChange: (v: string) => void
-  onEndChange: (v: number) => void
   onGoalChange: (v: string | null) => void
+  hideTitle?: boolean
+  text?: string
+  onTextChange?: (v: string) => void
 }) {
   const supabase = createClient()
   const [goals, setGoals] = useState<Goal[]>([])
@@ -45,72 +42,57 @@ export function TaskBasics({
     loadGoals()
   }, [supabase])
 
-  const options = [
-    { label: '30 min', value: hour + 0.5 },
-    { label: '1 hour', value: hour + 1 },
-    { label: '1.5 hours', value: hour + 1.5 },
-    { label: '2 hours', value: hour + 2 },
-    { label: '2.5 hours', value: hour + 2.5 },
-    { label: '3 hours', value: hour + 3 },
-    { label: '3.5 hours', value: hour + 3.5 },
-    { label: '4 hours', value: hour + 4 },
-  ]
-
-  function formatTime(value: number) {
-    const h = Math.floor(value)
-    const m = value % 1 === 0.5 ? '30' : '00'
-    return `${h}:${m}`
-  }
-
   return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">
-          Task
-        </label>
-        <input
-          value={text}
-          onChange={(e) => onTextChange(e.target.value)}
-          placeholder="Task"
-          className="w-full border rounded-lg p-2 text-sm"
-        />
-      </div>
+    <div className="space-y-6">
+      {/* Title Input (Only if needed) */}
+      {!hideTitle && onTextChange && (
+        <div>
+          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-2 block">
+            Title
+          </label>
+          <input
+            value={text}
+            onChange={(e) => onTextChange(e.target.value)}
+            placeholder="Event Title"
+            className="w-full bg-slate-50 border-none rounded-2xl p-4 text-sm focus:ring-2 focus:ring-blue-100 transition-all"
+          />
+        </div>
+      )}
 
+      {/* Goal Link Section - Samsung List Style */}
       <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">
-          Link to goal
+        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1 mb-3 block">
+          Link to Goal
         </label>
-        <select
-          value={goalId ?? ''}
-          onChange={(e) =>
-            onGoalChange(e.target.value === '' ? null : e.target.value)
-          }
-          className="w-full border rounded-lg p-2 text-sm bg-white"
-        >
-          <option value="">No goal linked</option>
-          {goals.map((goal) => (
-            <option key={goal.id} value={goal.id}>
-              {goal.title}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">
-          Duration
-        </label>
-        <select
-          value={end}
-          onChange={(e) => onEndChange(Number(e.target.value))}
-          className="w-full border rounded-lg p-2 text-sm"
-        >
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              Ends at {formatTime(opt.value)} ({opt.label})
-            </option>
-          ))}
-        </select>
+        
+        <div className="bg-slate-50 rounded-[22px] overflow-hidden border border-slate-100/50">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="bg-blue-100 p-2 rounded-xl">
+              <Target size={18} className="text-blue-600" />
+            </div>
+            
+            <select
+              value={goalId ?? ''}
+              onChange={(e) => onGoalChange(e.target.value === '' ? null : e.target.value)}
+              className="flex-1 bg-transparent border-none text-[15px] font-medium focus:ring-0 cursor-pointer appearance-none outline-none"
+            >
+              <option value="">No goal linked</option>
+              {goals.map((goal) => (
+                <option key={goal.id} value={goal.id}>
+                  {goal.title}
+                </option>
+              ))}
+            </select>
+            
+            <ChevronRight size={18} className="text-slate-300" />
+          </div>
+        </div>
+        
+        {goalId && (
+          <p className="mt-2 px-2 text-[11px] text-blue-500 font-bold italic">
+            ✨ This event will count towards your goal progress.
+          </p>
+        )}
       </div>
     </div>
   )

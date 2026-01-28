@@ -168,6 +168,25 @@ export default function DailyPlanner() {
   </div>
 </div>
 
+{/* Morning Intention */}
+<div className="mb-8">
+  <div className="flex items-center gap-2 mb-3 px-1">
+    <div className="w-1 h-3 bg-blue-500 rounded-full" />
+    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.15em]">
+      Morning Intention
+    </label>
+  </div>
+  <textarea
+    value={morning}
+    placeholder="What's your main focus today?"
+    onChange={(e) => {
+      setMorning(e.target.value)
+      saveDay(tasks, e.target.value, reflection)
+    }}
+    className="w-full bg-slate-50 border-none rounded-[22px] p-4 text-[15px] focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 resize-none min-h-[85px]"
+  />
+</div>
+
         {/* Task List Section */}
         <div className="space-y-0 relative">
           {tasks
@@ -207,7 +226,7 @@ export default function DailyPlanner() {
           onClick={() => setTaskModalHour(new Date().getHours())}
           className="w-full bg-gray-100 text-gray-500 py-3 px-6 rounded-full mt-6 text-left text-sm font-medium"
         >
-          Add event on {selectedDate.getDate()}
+          Add event on {selectedDate.getDate()} (Please click here to add)
         </button>
       </div>
 
