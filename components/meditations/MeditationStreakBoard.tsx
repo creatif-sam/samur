@@ -194,10 +194,10 @@ export default function MeditationStreakBoard({
 <StreakCalendarModal
   open={showCalendar}
   onClose={() => setShowCalendar(false)}
-  days={days}
   groupedByDay={groupedByDay}
   accountCreatedAt={accountCreatedAt}
 />
+
 
 
     </div>
