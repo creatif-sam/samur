@@ -133,11 +133,11 @@ export function TaskModal({
         <div className="space-y-4 pt-2">
           <TaskBasics
             text={text}
-            hour={hour} // Kept for compatibility with your TaskBasics
+          
             goalId={goalId}
             onTextChange={setText}
             onGoalChange={setGoalId}
-            hideTimeInputs={true} // Suggest adding this prop to TaskBasics to avoid double inputs
+           
           />
 
           <TaskRecurrence

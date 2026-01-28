@@ -12,7 +12,7 @@ type Goal = {
 export function TaskBasics({
   goalId,
   onGoalChange,
-  hideTitle = true, // We'll hide title since it's in the professional modal header now
+  hideTitle = true,
   text,
   onTextChange,
 }: {
