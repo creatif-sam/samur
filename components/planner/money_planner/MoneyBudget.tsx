@@ -181,7 +181,8 @@ const [budgetTarget, setBudgetTarget] =
       )
     )
 
-    setEditingCategory(null)
+
+    
     setCategoryInput('')
   }
 
