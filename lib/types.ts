@@ -143,3 +143,15 @@ export type MeditationDB = {
   period: 'morning' | 'evening'
   created_at: string
 }
+
+
+export type MoneyEntry = {
+  id: string
+  user_id: string
+  title: string
+  amount: number
+  type: 'income' | 'expense'
+  category: string | null
+  entry_date: string
+  created_at: string
+}
