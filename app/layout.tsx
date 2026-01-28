@@ -11,13 +11,13 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Together Goals & Habits",
-  description: "A personal app for couples & boyfriend /girlfriend to share goals, plan, and connect",
+  title: "SamUr Goals & Habits",
+  description: "A personal app for couples & partners to share goals, plan, and connect",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "TGH",
+    title: "SamUr",
     startupImage: [
       {
         url: "/icon-512.png",

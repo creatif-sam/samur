@@ -22,7 +22,7 @@ export function TaskModal({
   // Store times as strings "HH:mm" for the native time picker
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
-  const [goalId, setGoalId] = useState<string | null>(null)
+  const [visionId, setVisionId] = useState<string | null>(null)
   const [recurring, setRecurring] = useState<PlannerTask['recurring'] | null>(null)
 
   useEffect(() => {
@@ -30,7 +30,7 @@ export function TaskModal({
       setText(existingTask.text)
       setStartTime(existingTask.start)
       setEndTime(existingTask.end)
-      setGoalId(existingTask.goal_id ?? null)
+      setVisionId(existingTask.vision_id ?? null)
       setRecurring(existingTask.recurring ?? null)
     } else {
       // Format the passed 'hour' prop into "HH:00"
@@ -39,7 +39,7 @@ export function TaskModal({
       setText('')
       setStartTime(`${hStart}:00`)
       setEndTime(`${hEnd}:00`)
-      setGoalId(null)
+      setVisionId(null)
       setRecurring(null)
     }
   }, [existingTask, hour])
@@ -65,7 +65,7 @@ export function TaskModal({
       start: startTime,
       end: endTime,
       completed: existingTask?.completed ?? false,
-      goal_id: goalId ?? undefined,
+      vision_id: visionId ?? undefined,
       recurring: recurring ?? undefined,
     })
   }
@@ -133,10 +133,9 @@ export function TaskModal({
         <div className="space-y-4 pt-2">
           <TaskBasics
             text={text}
-          
-            goalId={goalId}
+            visionId={visionId}
             onTextChange={setText}
-            onGoalChange={setGoalId}
+            onVisionChange={setVisionId}
            
           />
 

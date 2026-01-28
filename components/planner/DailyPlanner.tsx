@@ -15,7 +15,8 @@ export interface PlannerTask {
   start: string
   end: string
   completed: boolean
-  goal_id?: string
+  vision_id?: string
+  
   recurring?: {
     interval: number
     unit: 'day' | 'week'
@@ -76,7 +77,7 @@ export default function DailyPlanner() {
   const [showMoodPicker, setShowMoodPicker] = useState(false)
   const [taskModalHour, setTaskModalHour] = useState<number | null>(null)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
-  const [goalsMap, setGoalsMap] = useState<Record<string, string>>({})
+  const [visionsMap, setVisionsMap] = useState<Record<string, string>>({})
 
   const dateKey = selectedDate.toISOString().split('T')[0]
   const theme = moodThemes[mood] || moodThemes['default']
@@ -90,16 +91,16 @@ export default function DailyPlanner() {
 
   // Load Data
   useEffect(() => { loadDay() }, [dateKey])
-  useEffect(() => { loadGoals() }, [])
+  useEffect(() => { loadVisions() }, [])
 
-  async function loadGoals() {
+  async function loadVisions() {
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) return
-    const { data: goals } = await supabase.from('goals').select('id,title').eq('owner_id', auth.user.id)
-    if (goals) {
+    const { data: visions } = await supabase.from('visions').select('id,title').eq('owner_id', auth.user.id)
+    if (visions) {
       const map: Record<string, string> = {}
-      goals.forEach((g) => { map[g.id] = g.title })
-      setGoalsMap(map)
+      visions.forEach((v) => { map[v.id] = v.title })
+      setVisionsMap(map)
     }
   }
 
@@ -263,7 +264,7 @@ export default function DailyPlanner() {
                       {task.text}
                     </h3>
                     <p className="text-[13px] text-slate-400 font-medium mt-1">
-                      {task.start} — {task.end} {task.goal_id && `• ${goalsMap[task.goal_id]}`}
+                      {task.start} — {task.end} {task.vision_id && `• ${visionsMap[task.vision_id]}`}
                     </p>
                   </div>
                 </div>
