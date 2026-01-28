@@ -32,6 +32,8 @@ export default function MoneyBudget() {
 
   const [totalBudget, setTotalBudget] = useState<number | null>(null)
   const [totalInput, setTotalInput] = useState('')
+  // Inside your MoneyBudget component:
+const [editingCategory, setEditingCategory] = useState<string | null>(null);
 
 
 
