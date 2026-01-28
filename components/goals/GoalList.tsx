@@ -127,6 +127,11 @@ export function GoalList({ goals, onUpdated, onDeleted }: { goals: EnhancedGoal[
 function GoalCard({ goal, onUpdated, onDeleted }: { goal: EnhancedGoal, onUpdated: (goal: Goal) => void, onDeleted: (id: string) => void }) {
   const supabase = createClient()
   
+  // Format the date to be clean (e.g., "Jan 28")
+  const formattedDate = goal.due_date 
+    ? new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : 'NO DATE';
+
   async function updateStatus(newStatus: Goal['status']) {
     const prog = newStatus === 'done' ? 100 : newStatus === 'doing' ? 50 : 0;
     const { data } = await supabase
@@ -141,24 +146,46 @@ function GoalCard({ goal, onUpdated, onDeleted }: { goal: EnhancedGoal, onUpdate
 
   return (
     <Card className={`border-none shadow-sm ${goal.status === 'done' ? 'bg-primary/5' : 'bg-card'}`}>
-        <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex flex-col">
-                <span className={`text-sm font-bold ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
-                    {goal.title}
-                </span>
-                <span className="text-[9px] uppercase font-bold opacity-40">Milestone</span>
-            </div>
-            <Select value={goal.status} onValueChange={(v) => updateStatus(v as Goal['status'])}>
-                <SelectTrigger className="w-24 h-7 text-[10px] font-black border-none bg-secondary/50">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="to_do">TO DO</SelectItem>
-                    <SelectItem value="doing">DOING</SelectItem>
-                    <SelectItem value="done">DONE</SelectItem>
-                </SelectContent>
-            </Select>
-        </CardContent>
+      <CardContent className="p-3 flex items-center justify-between gap-4">
+        <div className="flex flex-col min-w-0 flex-1">
+          {/* CATEGORY & DEADLINE ROW */}
+          <div className="flex items-center gap-2 mb-1">
+            {goal.goal_categories && (
+              <span 
+                className="text-[8px] font-black px-1.5 py-0.5 rounded-full text-white uppercase italic"
+                style={{ backgroundColor: goal.goal_categories.color }}
+              >
+                {goal.goal_categories.emoji} {goal.goal_categories.name}
+              </span>
+            )}
+            <span className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+              📅 {formattedDate}
+            </span>
+          </div>
+
+          {/* GOAL TITLE */}
+          <span className={`text-sm font-bold truncate ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
+            {goal.title}
+          </span>
+
+          {/* VISION TITLE TAG */}
+          <span className="text-[9px] uppercase font-black text-primary italic mt-0.5 opacity-80">
+            {goal.visions?.title ? `✨ ${goal.visions.title}` : '✦ STANDALONE'}
+          </span>
+        </div>
+
+        {/* STATUS SELECT */}
+        <Select value={goal.status} onValueChange={(v) => updateStatus(v as Goal['status'])}>
+          <SelectTrigger className="w-20 h-7 text-[9px] font-black border-none bg-secondary/50 shrink-0">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="to_do">TO DO</SelectItem>
+            <SelectItem value="doing">DOING</SelectItem>
+            <SelectItem value="done">DONE</SelectItem>
+          </SelectContent>
+        </Select>
+      </CardContent>
     </Card>
   )
 }
