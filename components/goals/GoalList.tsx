@@ -1,14 +1,13 @@
 'use client'
 
 import { Goal } from '@/lib/types'
-import { GoalActions } from './GoalActions'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
-import { useState, useMemo, useEffect } from 'react'
-import { Flag, Zap, Trophy } from 'lucide-react'
-import confetti from 'canvas-confetti' // Make sure to install this!
+import { useMemo } from 'react'
+import { Flag, Zap, Trophy, Calendar } from 'lucide-react'
+import confetti from 'canvas-confetti'
 
 type EnhancedGoal = Goal & {
   visions?: { title: string; color: string; emoji: string } | null
@@ -41,71 +40,53 @@ export function GoalList({ goals, onUpdated, onDeleted }: { goals: EnhancedGoal[
   }, [goals])
 
   const triggerCelebration = (color: string) => {
-    const duration = 3 * 1000;
-    const end = Date.now() + duration;
-
-    (function frame() {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: [color, '#ffffff']
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: [color, '#ffffff']
-      });
-
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    }());
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: [color, '#ffffff']
+    });
   }
 
   return (
-    <div className="space-y-12 pb-20">
+    <div className="space-y-10 pb-24 px-4">
       {groupedGoals.map(({ vision, items, avgProgress }) => (
-        <div key={vision.title} className="space-y-5">
-          <header className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div 
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all duration-1000 ${avgProgress === 100 ? 'scale-110 rotate-12' : ''}`}
-                  style={{ backgroundColor: vision.color, boxShadow: `0 4px 14px ${vision.color}40` }}
-                >
-                  {avgProgress === 100 ? <Trophy className="w-5 h-5 animate-bounce" /> : <Flag className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h2 className="text-lg font-black uppercase tracking-tight italic flex items-center gap-2">
-                    {vision.emoji} {vision.title}
-                  </h2>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-                    <Zap className={`w-3 h-3 ${avgProgress === 100 ? 'text-yellow-500' : ''}`} /> 
-                    {avgProgress === 100 ? 'Vision Realized' : `${avgProgress}% Progress`}
-                  </p>
+        <div key={vision.title} className="space-y-4">
+          <header className="space-y-3 sticky top-0 bg-background/95 backdrop-blur-sm z-10 py-2">
+            <div className="flex items-center gap-3">
+              <div 
+                className={`w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform ${avgProgress === 100 ? 'scale-110 rotate-3' : ''}`}
+                style={{ backgroundColor: vision.color }}
+              >
+                {avgProgress === 100 ? <Trophy className="w-6 h-6 animate-pulse" /> : <Flag className="w-6 h-6" />}
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-base font-black uppercase tracking-tight italic truncate">
+                  {vision.emoji} {vision.title}
+                </h2>
+                <div className="flex items-center gap-2">
+                   <Zap className={`w-3 h-3 ${avgProgress === 100 ? 'text-yellow-500 fill-yellow-500' : 'text-muted-foreground'}`} /> 
+                   <span className="text-[10px] font-bold uppercase text-muted-foreground">
+                     {avgProgress === 100 ? 'Vision Realized' : `${avgProgress}% Progress`}
+                   </span>
                 </div>
               </div>
             </div>
-            
             <Progress 
                 value={avgProgress} 
-                className="h-2 bg-secondary" 
+                className="h-1.5 bg-secondary" 
                 style={{ '--progress-foreground': vision.color } as any}
             />
           </header>
 
-          <div className="grid gap-3 pl-4 border-l-2 border-muted ml-5">
+          {/* Reduced side margin for mobile screens */}
+          <div className="grid gap-3 pl-3 border-l-2 border-muted/50 ml-6">
             {items.map((goal) => (
               <GoalCard
                 key={goal.id}
                 goal={goal}
                 onUpdated={(updatedGoal) => {
                   onUpdated(updatedGoal);
-                  // Check if this update pushed the vision to 100%
                   if (updatedGoal.status === 'done') {
                     const group = groupedGoals.find(g => g.vision.title === vision.title);
                     if (group && group.items.every(i => i.id === updatedGoal.id ? true : i.status === 'done')) {
@@ -123,14 +104,12 @@ export function GoalList({ goals, onUpdated, onDeleted }: { goals: EnhancedGoal[
   )
 }
 
-// GoalCard component remains similar but simplified for focus...
-function GoalCard({ goal, onUpdated, onDeleted }: { goal: EnhancedGoal, onUpdated: (goal: Goal) => void, onDeleted: (id: string) => void }) {
+function GoalCard({ goal, onUpdated }: { goal: EnhancedGoal, onUpdated: (goal: Goal) => void, onDeleted: (id: string) => void }) {
   const supabase = createClient()
   
-  // Format the date to be clean (e.g., "Jan 28")
   const formattedDate = goal.due_date 
     ? new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : 'NO DATE';
+    : null;
 
   async function updateStatus(newStatus: Goal['status']) {
     const prog = newStatus === 'done' ? 100 : newStatus === 'doing' ? 50 : 0;
@@ -145,41 +124,40 @@ function GoalCard({ goal, onUpdated, onDeleted }: { goal: EnhancedGoal, onUpdate
   }
 
   return (
-    <Card className={`border-none shadow-sm ${goal.status === 'done' ? 'bg-primary/5' : 'bg-card'}`}>
-      <CardContent className="p-3 flex items-center justify-between gap-4">
-        <div className="flex flex-col min-w-0 flex-1">
-          {/* CATEGORY & DEADLINE ROW */}
-          <div className="flex items-center gap-2 mb-1">
+    <Card className={`border-none shadow-sm transition-all active:scale-[0.98] ${goal.status === 'done' ? 'bg-secondary/30' : 'bg-card'}`}>
+      <CardContent className="p-3 flex items-center justify-between gap-3">
+        <div className="flex flex-col min-w-0 flex-1 gap-1">
+          {/* Tag Row */}
+          <div className="flex flex-wrap items-center gap-2">
             {goal.goal_categories && (
               <span 
-                className="text-[8px] font-black px-1.5 py-0.5 rounded-full text-white uppercase italic"
+                className="text-[8px] font-black px-2 py-0.5 rounded-md text-white uppercase"
                 style={{ backgroundColor: goal.goal_categories.color }}
               >
                 {goal.goal_categories.emoji} {goal.goal_categories.name}
               </span>
             )}
-            <span className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-              📅 {formattedDate}
-            </span>
+            {formattedDate && (
+              <span className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                <Calendar className="w-2.5 h-2.5" /> {formattedDate}
+              </span>
+            )}
           </div>
 
-          {/* GOAL TITLE */}
-          <span className={`text-sm font-bold truncate ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
+          <span className={`text-[13px] leading-tight font-bold ${goal.status === 'done' ? 'text-muted-foreground/60 line-through' : 'text-foreground'}`}>
             {goal.title}
-          </span>
-
-          {/* VISION TITLE TAG */}
-          <span className="text-[9px] uppercase font-black text-primary italic mt-0.5 opacity-80">
-            {goal.visions?.title ? `✨ ${goal.visions.title}` : '✦ STANDALONE'}
           </span>
         </div>
 
-        {/* STATUS SELECT */}
+        {/* Status Dropdown - Optimized for thumb tapping */}
         <Select value={goal.status} onValueChange={(v) => updateStatus(v as Goal['status'])}>
-          <SelectTrigger className="w-20 h-7 text-[9px] font-black border-none bg-secondary/50 shrink-0">
+          <SelectTrigger className={cn(
+            "w-[75px] h-8 text-[10px] font-black border-none shrink-0 transition-colors",
+            goal.status === 'done' ? "bg-green-500/10 text-green-600" : "bg-secondary"
+          )}>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent align="end">
             <SelectItem value="to_do">TO DO</SelectItem>
             <SelectItem value="doing">DOING</SelectItem>
             <SelectItem value="done">DONE</SelectItem>
