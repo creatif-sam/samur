@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Menu, Calendar as CalendarIcon, Smile, Check, Info } from 'lucide-react'
+import { Plus, Menu, Calendar as CalendarIcon, Smile, Check } from 'lucide-react'
 
 import { TaskModal } from './tasks/TaskModal'
 import TopCalendar from './TopCalendar'
@@ -80,12 +80,15 @@ export default function DailyPlanner() {
 
   const dateKey = selectedDate.toISOString().split('T')[0]
   const theme = moodThemes[mood] || moodThemes['default']
+  const currentMoodLabel = moods.find(m => m.emoji === mood)?.label || ''
 
+  // Helpers
   function parseMinutes(time: string) {
     const [h, m] = time.split(':').map(Number)
     return h * 60 + (m || 0)
   }
 
+  // Load Data
   useEffect(() => { loadDay() }, [dateKey])
   useEffect(() => { loadGoals() }, [])
 
@@ -139,7 +142,7 @@ export default function DailyPlanner() {
 
   return (
     <div className={`min-h-screen transition-colors duration-1000 ${theme.bg} text-black font-sans pb-32`}>
-      {/* 1. Header (Search Removed) */}
+      {/* 1. Sticky Header */}
       <header className={`sticky top-0 transition-colors duration-1000 z-30 px-6 pt-12 pb-4 ${theme.bg} backdrop-blur-md`}>
         <div className="flex justify-between items-end">
           <div>
@@ -159,7 +162,7 @@ export default function DailyPlanner() {
             <div className="relative">
               <CalendarIcon className={`w-7 h-7 ${theme.text} opacity-80`} />
               <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold mt-0.5 ${theme.text}`}>
-                {selectedDate.getDate()}
+                {new Date().getDate()}
               </span>
             </div>
             <Menu className={`w-7 h-7 ${theme.text} opacity-80`} />
@@ -173,7 +176,7 @@ export default function DailyPlanner() {
       </div>
 
       <div className="mt-8 px-6">
-        {/* Date Header & Mood Picker with Tooltip */}
+        {/* Date Header & Mood Picker Section */}
         <div className="flex items-start justify-between mb-8">
           <div className="flex flex-col flex-1 pr-4">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">Daily Verse</span>
@@ -182,34 +185,38 @@ export default function DailyPlanner() {
             </p>
           </div>
           
-          <div className="relative pt-1">
-            <button 
-              onClick={() => setShowMoodPicker(!showMoodPicker)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm ${mood ? 'bg-white scale-110' : 'bg-slate-100'}`}
-            >
-              {mood ? <span className="text-2xl">{mood}</span> : <Smile className="w-6 h-6 text-slate-400" />}
-            </button>
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="relative pt-1">
+              <button 
+                onClick={() => setShowMoodPicker(!showMoodPicker)}
+                className={`w-12 h-12 rounded-full flex items-center justify-center transition-all shadow-sm ${mood ? 'bg-white scale-110' : 'bg-slate-100'}`}
+              >
+                {mood ? <span className="text-2xl">{mood}</span> : <Smile className="w-6 h-6 text-slate-400" />}
+              </button>
 
-            {showMoodPicker && (
-              <div className="absolute right-0 mt-3 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)] border border-slate-100 rounded-[28px] p-2 flex gap-2 z-50 animate-in fade-in zoom-in duration-200">
-                {moods.map((m) => (
-                  <button
-                    key={m.label}
-                    onClick={() => {
-                      setMood(m.emoji);
-                      setShowMoodPicker(false);
-                      saveDay(tasks, morning, reflection, m.emoji);
-                    }}
-                    className="group relative w-11 h-11 hover:bg-slate-50 rounded-full flex items-center justify-center text-xl active:scale-90 transition-transform"
-                  >
-                    {m.emoji}
-                    {/* Tiny Tooltip Label */}
-                    <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[9px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none uppercase tracking-tighter">
-                      {m.label}
-                    </span>
-                  </button>
-                ))}
-              </div>
+              {showMoodPicker && (
+                <div className="absolute right-0 mt-3 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.18)] border border-slate-100 rounded-[28px] p-2 flex gap-2 z-50 animate-in fade-in zoom-in duration-200">
+                  {moods.map((m) => (
+                    <button
+                      key={m.label}
+                      onClick={() => {
+                        setMood(m.emoji);
+                        setShowMoodPicker(false);
+                        saveDay(tasks, morning, reflection, m.emoji);
+                      }}
+                      className="w-11 h-11 hover:bg-slate-50 rounded-full flex items-center justify-center text-xl active:scale-90 transition-transform"
+                    >
+                      {m.emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {mood && (
+              <span className={`text-[10px] font-bold uppercase tracking-widest animate-in fade-in slide-in-from-top-1 duration-500 ${theme.text} opacity-60`}>
+                {currentMoodLabel}
+              </span>
             )}
           </div>
         </div>
@@ -232,7 +239,7 @@ export default function DailyPlanner() {
           </div>
           <textarea
             value={morning}
-            placeholder="What's your main focus today?"
+            placeholder="Focus of the day..."
             onChange={(e) => { setMorning(e.target.value); saveDay(tasks, e.target.value, reflection, mood); }}
             className="w-full bg-white/40 border-none rounded-[24px] p-5 text-[16px] focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 resize-none min-h-[90px]"
           />
