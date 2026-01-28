@@ -72,25 +72,32 @@ export default function MoneyBudget() {
 
     setTotalBudget(total?.amount ?? null)
 
-    const { data: cats } = await supabase
-      .from('money_category_budgets')
-      .select(
-        'amount, category_id, money_categories(id, name, icon)'
-      )
+  const { data: cats } = await supabase
+  .from('money_category_budgets')
+  .select(
+    'amount, category_id, money_categories!inner(id, name, icon)'
+  )
+
       .eq('user_id', user.id)
       .eq('scope', scope)
       .eq('period_start', periodStart.toISOString().slice(0, 10))
 
     setCategories(
-      (cats ?? []).map(c => ({
-        id: c.money_categories.id,
-        name: c.money_categories.name,
-        icon: c.money_categories.icon,
-        budget: c.amount,
-        spent: 0,
-      }))
-    )
-  }
+  (cats ?? []).map(c => {
+    const cat = Array.isArray(c.money_categories)
+      ? c.money_categories[0]
+      : c.money_categories
+
+    return {
+      id: cat.id,
+      name: cat.name,
+      icon: cat.icon,
+      budget: c.amount,
+      spent: 0,
+    }
+  })
+)
+
 
   async function loadSpending() {
     const {
