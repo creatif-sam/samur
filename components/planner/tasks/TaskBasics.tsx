@@ -34,7 +34,7 @@ export function TaskBasics({
       const { data } = await supabase
         .from('visions')
         .select('id, title')
-        .eq('user_id', auth.user.id) // Ensure column name matches your DB (user_id or owner_id)
+        .eq('owner_id', auth.user.id) // Ensure column name matches your DB (user_id or owner_id)
         .order('created_at')
 
       if (data) setVisions(data)

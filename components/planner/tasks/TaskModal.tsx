@@ -19,7 +19,6 @@ export function TaskModal({
   onSave: (t: PlannerTask) => void
 }) {
   const [text, setText] = useState('')
-  // Store times as strings "HH:mm" for the native time picker
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [visionId, setVisionId] = useState<string | null>(null)
@@ -33,7 +32,6 @@ export function TaskModal({
       setVisionId(existingTask.vision_id ?? null)
       setRecurring(existingTask.recurring ?? null)
     } else {
-      // Format the passed 'hour' prop into "HH:00"
       const hStart = hour.toString().padStart(2, '0')
       const hEnd = (hour + 1).toString().padStart(2, '0')
       setText('')
@@ -44,12 +42,11 @@ export function TaskModal({
     }
   }, [existingTask, hour])
 
-  // Helper to calculate duration for the UI
   function getDurationLabel() {
     const [sH, sM] = startTime.split(':').map(Number)
     const [eH, eM] = endTime.split(':').map(Number)
     let diff = (eH * 60 + eM) - (sH * 60 + sM)
-    if (diff < 0) diff += 1440 // Handle overnight
+    if (diff < 0) diff += 1440 
     
     const h = Math.floor(diff / 60)
     const m = diff % 60
@@ -65,7 +62,7 @@ export function TaskModal({
       start: startTime,
       end: endTime,
       completed: existingTask?.completed ?? false,
-      vision_id: visionId ?? undefined,
+      vision_id: visionId ?? undefined, // 'undefined' is fine, but ensures it's optional
       recurring: recurring ?? undefined,
     })
   }
@@ -88,14 +85,14 @@ export function TaskModal({
           <input
             autoFocus
             type="text"
-            placeholder="Title"
+            placeholder="What's happening?"
             value={text}
             onChange={(e) => setText(e.target.value)}
             className="w-full text-lg font-medium border-b-2 border-slate-100 focus:border-blue-500 transition-colors py-2 outline-none placeholder:text-slate-300"
           />
         </div>
 
-        {/* Professional Time Selector */}
+        {/* Time Selector */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1">
             <Clock size={14} />
@@ -103,7 +100,6 @@ export function TaskModal({
           </div>
           
           <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-[24px]">
-            {/* Start Time Block */}
             <div className="flex-1 bg-white rounded-[18px] p-3 shadow-sm border border-slate-100">
               <p className="text-[10px] text-blue-500 font-bold uppercase mb-1 text-center">Start</p>
               <input 
@@ -116,7 +112,6 @@ export function TaskModal({
 
             <ArrowRight className="text-slate-300 shrink-0" size={20} />
 
-            {/* End Time Block */}
             <div className="flex-1 bg-white rounded-[18px] p-3 shadow-sm border border-slate-100">
               <p className="text-[10px] text-purple-500 font-bold uppercase mb-1 text-center">End</p>
               <input 
@@ -129,14 +124,14 @@ export function TaskModal({
           </div>
         </div>
 
-        {/* Recurrence & Goals (Modularized) */}
+        {/* Modular Components */}
         <div className="space-y-4 pt-2">
           <TaskBasics
             text={text}
-            visionId={visionId}
+            visionId={visionId} // Matches the updated TaskBasics.tsx
             onTextChange={setText}
             onVisionChange={setVisionId}
-           
+            hideTitle={true} // We already have a title input above
           />
 
           <TaskRecurrence
@@ -145,7 +140,7 @@ export function TaskModal({
           />
         </div>
 
-        {/* Samsung Style Action Buttons */}
+        {/* Buttons */}
         <div className="flex gap-3 pt-4">
           <button
             onClick={onClose}

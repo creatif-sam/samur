@@ -15,14 +15,20 @@ export interface PlannerTask {
   start: string
   end: string
   completed: boolean
-  vision_id?: string
-  
+  vision_id?: string 
   recurring?: {
     interval: number
     unit: 'day' | 'week'
     daysOfWeek: number[]
     until?: string
   }
+}
+
+// Vision Type based on your Schema
+type Vision = {
+  id: string
+  title: string
+  emoji: string
 }
 
 const moodThemes: Record<string, { bg: string; text: string; accent: string; verse: string }> = {
@@ -68,7 +74,6 @@ const moods = [
 export default function DailyPlanner() {
   const supabase = createClient()
 
-  // State
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [tasks, setTasks] = useState<PlannerTask[]>([])
   const [morning, setMorning] = useState('')
@@ -77,36 +82,42 @@ export default function DailyPlanner() {
   const [showMoodPicker, setShowMoodPicker] = useState(false)
   const [taskModalHour, setTaskModalHour] = useState<number | null>(null)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
-  const [visionsMap, setVisionsMap] = useState<Record<string, string>>({})
+  
+  // Updated to store the whole vision object for emoji access
+  const [visionsMap, setVisionsMap] = useState<Record<string, Vision>>({})
 
   const dateKey = selectedDate.toISOString().split('T')[0]
   const theme = moodThemes[mood] || moodThemes['default']
   const currentMoodLabel = moods.find(m => m.emoji === mood)?.label || ''
 
-  // Helpers
   function parseMinutes(time: string) {
     const [h, m] = time.split(':').map(Number)
     return h * 60 + (m || 0)
   }
 
-  // Load Data
   useEffect(() => { loadDay() }, [dateKey])
   useEffect(() => { loadVisions() }, [])
 
   async function loadVisions() {
     const { data: auth } = await supabase.auth.getUser()
-    if (!auth.user) return
-    const { data: visions } = await supabase.from('visions').select('id,title').eq('owner_id', auth.user.id)
+    if (!auth?.user) return
+
+    // Changed to owner_id per your schema
+    const { data: visions } = await supabase
+      .from('visions')
+      .select('id, title, emoji')
+      .eq('owner_id', auth.user.id) 
+
     if (visions) {
-      const map: Record<string, string> = {}
-      visions.forEach((v) => { map[v.id] = v.title })
+      const map: Record<string, Vision> = {}
+      visions.forEach((v) => { map[v.id] = v })
       setVisionsMap(map)
     }
   }
 
   async function loadDay() {
     const { data: auth } = await supabase.auth.getUser()
-    if (!auth.user) return
+    if (!auth?.user) return
 
     const { data: today } = await supabase
       .from('planner_days')
@@ -120,20 +131,31 @@ export default function DailyPlanner() {
     setReflection(today?.reflection ?? '')
     setMood(today?.mood ?? '')
   }
+async function saveDay(
+  updatedTasks = tasks, 
+  updatedMorning = morning, 
+  updatedReflection = reflection, 
+  updatedMood = mood
+) {
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth?.user) return
 
-  async function saveDay(updatedTasks = tasks, updatedMorning = morning, updatedReflection = reflection, updatedMood = mood) {
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth.user) return
-    await supabase.from('planner_days').upsert({
+  const { error } = await supabase
+    .from('planner_days')
+    .upsert({
       day: dateKey, 
       user_id: auth.user.id, 
-      tasks: updatedTasks,
+      tasks: updatedTasks, // This JSONB column holds your vision_id
       morning: updatedMorning, 
       reflection: updatedReflection, 
       mood: updatedMood,
       visibility: 'private',
-    }, { onConflict: 'day,user_id' })
-  }
+    }, { 
+      onConflict: 'user_id,day' // This must match your unique index/constraint
+    })
+
+  if (error) console.error("Error saving day:", error.message)
+}
 
   function toggleComplete(taskId: string) {
     const updated = tasks.map((t) => t.id === taskId ? { ...t, completed: !t.completed } : t)
@@ -143,7 +165,6 @@ export default function DailyPlanner() {
 
   return (
     <div className={`min-h-screen transition-colors duration-1000 ${theme.bg} text-black font-sans pb-32`}>
-      {/* 1. Sticky Header */}
       <header className={`sticky top-0 transition-colors duration-1000 z-30 px-6 pt-12 pb-4 ${theme.bg} backdrop-blur-md`}>
         <div className="flex justify-between items-end">
           <div>
@@ -171,13 +192,11 @@ export default function DailyPlanner() {
         </div>
       </header>
 
-      {/* 2. Calendar Selection */}
       <div className="px-4 py-2 mt-4">
         <TopCalendar selectedDate={selectedDate} onChange={setSelectedDate} />
       </div>
 
       <div className="mt-8 px-6">
-        {/* Date Header & Mood Picker Section */}
         <div className="flex items-start justify-between mb-8">
           <div className="flex flex-col flex-1 pr-4">
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1 mb-1">Daily Verse</span>
@@ -213,7 +232,6 @@ export default function DailyPlanner() {
                 </div>
               )}
             </div>
-            
             {mood && (
               <span className={`text-[10px] font-bold uppercase tracking-widest animate-in fade-in slide-in-from-top-1 duration-500 ${theme.text} opacity-60`}>
                 {currentMoodLabel}
@@ -222,7 +240,6 @@ export default function DailyPlanner() {
           </div>
         </div>
 
-        {/* 3. Summary & Export */}
         <div className="space-y-3 mb-10">
           <div className="bg-white/70 backdrop-blur-sm rounded-[32px] p-6 border border-white/50 shadow-sm">
             <DaySummary tasks={tasks} />
@@ -232,7 +249,6 @@ export default function DailyPlanner() {
           </div>
         </div>
 
-        {/* 4. Morning Intention */}
         <div className="mb-10">
           <div className="flex items-center gap-2 mb-3 px-2">
             <div className={`w-1 h-3 rounded-full ${theme.accent}`} />
@@ -246,7 +262,6 @@ export default function DailyPlanner() {
           />
         </div>
 
-        {/* 5. The Timeline */}
         <div className="space-y-1 relative mb-10">
           {tasks
             .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start))
@@ -264,7 +279,14 @@ export default function DailyPlanner() {
                       {task.text}
                     </h3>
                     <p className="text-[13px] text-slate-400 font-medium mt-1">
-                      {task.start} — {task.end} {task.vision_id && `• ${visionsMap[task.vision_id]}`}
+                      {task.start} — {task.end} 
+                      {/* ENHANCED VISION DISPLAY WITH EMOJI */}
+                      {task.vision_id && visionsMap[task.vision_id] && (
+                        <span className="text-indigo-500 ml-1 inline-flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded-full text-[11px] font-bold">
+                          <span>{visionsMap[task.vision_id].emoji || '🔭'}</span>
+                          <span>{visionsMap[task.vision_id].title}</span>
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -278,7 +300,6 @@ export default function DailyPlanner() {
             ))}
         </div>
 
-        {/* 6. Action Pill */}
         <button 
           onClick={() => setTaskModalHour(new Date().getHours())}
           className="w-full bg-slate-900/5 text-slate-500 py-5 px-8 rounded-[28px] text-left text-[15px] font-semibold flex justify-between items-center active:bg-slate-900/10 transition-colors"
@@ -287,7 +308,6 @@ export default function DailyPlanner() {
           <Plus className="w-5 h-5 opacity-30" />
         </button>
 
-        {/* 7. Evening Reflection */}
         <div className="mt-14 pb-20">
           <div className="flex items-center gap-2 mb-3 px-2">
             <div className="w-1 h-3 bg-purple-500 rounded-full" />
@@ -302,7 +322,6 @@ export default function DailyPlanner() {
         </div>
       </div>
 
-      {/* Floating Action Button */}
       <button
         onClick={() => setTaskModalHour(new Date().getHours())}
         className="fixed bottom-[100px] right-6 w-16 h-16 bg-white shadow-[0_12px_40px_rgba(0,0,0,0.12)] border border-slate-50 rounded-full flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40"
@@ -310,7 +329,6 @@ export default function DailyPlanner() {
         <Plus className="w-9 h-9 text-slate-800" strokeWidth={1.5} />
       </button>
 
-      {/* Modals */}
       {(taskModalHour !== null || editingTask) && (
         <TaskModal
           hour={editingTask ? parseInt(editingTask.start.split(':')[0]) : taskModalHour!}
