@@ -132,7 +132,7 @@ export default function StreakCalendarModal({
 
         {/* Year summary */}
         <div className="mb-2 text-center text-xs text-muted-foreground">
-          {yearlyMeditationCount} days in this app this year
+          {yearlyMeditationCount} days of meditation in this app this year
         </div>
 
         {/* Weekday labels */}
@@ -218,7 +218,7 @@ export default function StreakCalendarModal({
 
           <div className="flex items-center gap-1">
             <span className="inline-block h-3 w-3 rounded-full bg-green-200" />
-            <span>Before joining</span>
+            <span>Days before joining</span>
           </div>
 
           <div className="flex items-center gap-1">
