@@ -320,7 +320,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
           Total {mode}
         </div>
         <div className="text-2xl font-semibold">
-          ₵{totalAmount.toFixed(2)}
+          {totalAmount.toFixed(2)} MAD
         </div>
       </div>
 
@@ -344,7 +344,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
                 </div>
               </div>
               <div className="text-sm font-medium">
-                ₵{c.total.toFixed(2)}
+                {c.total.toFixed(2)} MAD
               </div>
             </div>
 

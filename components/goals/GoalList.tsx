@@ -2,186 +2,163 @@
 
 import { Goal } from '@/lib/types'
 import { GoalActions } from './GoalActions'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
+import { Flag, Zap, Trophy } from 'lucide-react'
+import confetti from 'canvas-confetti' // Make sure to install this!
 
-export function GoalList({
-  title,
-  goals,
-  onUpdated,
-  onDeleted,
-}: {
-  title?: string
-  goals: Goal[]
-  onUpdated: (goal: Goal) => void
-  onDeleted: (id: string) => void
-}) {
+type EnhancedGoal = Goal & {
+  visions?: { title: string; color: string; emoji: string } | null
+  goal_categories?: { name: string; color: string; emoji: string } | null
+}
+
+export function GoalList({ goals, onUpdated, onDeleted }: { goals: EnhancedGoal[], onUpdated: (goal: Goal) => void, onDeleted: (id: string) => void }) {
   if (!goals.length) return null
 
-  const completed = goals.filter((g) => g.status === 'done').length
-  const inProgress = goals.length - completed
+  const groupedGoals = useMemo(() => {
+    const groups: Record<string, { vision: any; items: EnhancedGoal[]; avgProgress: number }> = {}
+    goals.forEach((goal) => {
+      const vId = goal.vision_id || 'unlinked'
+      if (!groups[vId]) {
+        groups[vId] = {
+          vision: goal.visions || { title: 'General Strategy', color: '#94a3b8', emoji: '🎯' },
+          items: [],
+          avgProgress: 0
+        }
+      }
+      groups[vId].items.push(goal)
+    })
+
+    Object.keys(groups).forEach(key => {
+      const total = groups[key].items.reduce((acc, curr) => acc + (curr.progress || 0), 0)
+      groups[key].avgProgress = Math.round(total / groups[key].items.length)
+    })
+
+    return Object.values(groups)
+  }, [goals])
+
+  const triggerCelebration = (color: string) => {
+    const duration = 3 * 1000;
+    const end = Date.now() + duration;
+
+    (function frame() {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: [color, '#ffffff']
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: [color, '#ffffff']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    }());
+  }
 
   return (
-    <div className="space-y-2">
-      {title && (
-        <div className="flex justify-between items-center text-sm font-semibold">
-          <span>{title}</span>
-          <span className="text-xs text-muted-foreground">
-            {completed} completed · {inProgress} in progress
-          </span>
-        </div>
-      )}
+    <div className="space-y-12 pb-20">
+      {groupedGoals.map(({ vision, items, avgProgress }) => (
+        <div key={vision.title} className="space-y-5">
+          <header className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div 
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all duration-1000 ${avgProgress === 100 ? 'scale-110 rotate-12' : ''}`}
+                  style={{ backgroundColor: vision.color, boxShadow: `0 4px 14px ${vision.color}40` }}
+                >
+                  {avgProgress === 100 ? <Trophy className="w-5 h-5 animate-bounce" /> : <Flag className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h2 className="text-lg font-black uppercase tracking-tight italic flex items-center gap-2">
+                    {vision.emoji} {vision.title}
+                  </h2>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                    <Zap className={`w-3 h-3 ${avgProgress === 100 ? 'text-yellow-500' : ''}`} /> 
+                    {avgProgress === 100 ? 'Vision Realized' : `${avgProgress}% Progress`}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <Progress 
+                value={avgProgress} 
+                className="h-2 bg-secondary" 
+                style={{ '--progress-foreground': vision.color } as any}
+            />
+          </header>
 
-      <div className="space-y-3">
-        {goals.map((goal) => (
-          <GoalCard
-            key={goal.id}
-            goal={goal}
-            onUpdated={onUpdated}
-            onDeleted={onDeleted}
-          />
-        ))}
-      </div>
+          <div className="grid gap-3 pl-4 border-l-2 border-muted ml-5">
+            {items.map((goal) => (
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                onUpdated={(updatedGoal) => {
+                  onUpdated(updatedGoal);
+                  // Check if this update pushed the vision to 100%
+                  if (updatedGoal.status === 'done') {
+                    const group = groupedGoals.find(g => g.vision.title === vision.title);
+                    if (group && group.items.every(i => i.id === updatedGoal.id ? true : i.status === 'done')) {
+                      triggerCelebration(vision.color);
+                    }
+                  }
+                }}
+                onDeleted={onDeleted}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
 
-function GoalCard({
-  goal,
-  onUpdated,
-  onDeleted,
-}: {
-  goal: Goal & {
-    goal_categories?: {
-      name: string
-      color: string
-      emoji: string
-    } | null
-  }
-  onUpdated: (goal: Goal) => void
-  onDeleted: (id: string) => void
-}) {
+// GoalCard component remains similar but simplified for focus...
+function GoalCard({ goal, onUpdated, onDeleted }: { goal: EnhancedGoal, onUpdated: (goal: Goal) => void, onDeleted: (id: string) => void }) {
   const supabase = createClient()
-  const [status, setStatus] = useState(goal.status)
-  const [progress, setProgress] = useState(goal.progress)
-
-  const overdue =
-    goal.due_date &&
-    goal.status !== 'done' &&
-    new Date(goal.due_date) <
-      new Date(new Date().toDateString())
-
-  const statusProgress: Record<Goal['status'], number> = {
-    to_do: 0,
-    doing: 49,
-    blocked: 75,
-    done: 100,
-  }
-
+  
   async function updateStatus(newStatus: Goal['status']) {
-    setStatus(newStatus)
-    setProgress(statusProgress[newStatus])
-
+    const prog = newStatus === 'done' ? 100 : newStatus === 'doing' ? 50 : 0;
     const { data } = await supabase
       .from('goals')
-      .update({
-        status: newStatus,
-        progress: statusProgress[newStatus],
-      })
+      .update({ status: newStatus, progress: prog })
       .eq('id', goal.id)
-      .select()
+      .select('*, visions(*), goal_categories(*)')
       .single()
 
-    if (data) {
-      onUpdated(data)
-    }
+    if (data) onUpdated(data)
   }
 
-  const category = goal.goal_categories
-
   return (
-    <Card
-      className={
-        overdue ? 'border-red-500 bg-red-50/20' : ''
-      }
-    >
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start gap-2">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">
-              {goal.title}
-            </CardTitle>
-
-            {category && (
-              <span
-                className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: `${category.color}20`,
-                  color: category.color,
-                }}
-              >
-                <span>{category.emoji}</span>
-                <span>{category.name}</span>
-              </span>
-            )}
-          </div>
-
-          <GoalActions
-            goal={goal}
-            onUpdated={onUpdated}
-            onDeleted={onDeleted}
-          />
-        </div>
-
-        <p
-          className={`text-xs ${
-            overdue
-              ? 'text-red-600 font-semibold'
-              : 'text-muted-foreground'
-          }`}
-        >
-          Deadline{' '}
-          {new Date(goal.due_date!).toLocaleDateString()}
-          {overdue && ' overdue'}
-        </p>
-      </CardHeader>
-
-      <CardContent className="space-y-3">
-        <Progress value={progress} className="h-2" />
-
-        <Select
-          value={status}
-          onValueChange={(v) =>
-            updateStatus(v as Goal['status'])
-          }
-        >
-          <SelectTrigger className="w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="to_do">To Do</SelectItem>
-            <SelectItem value="doing">Doing</SelectItem>
-            <SelectItem value="blocked">
-              Blocked
-            </SelectItem>
-            <SelectItem value="done">Done</SelectItem>
-          </SelectContent>
-        </Select>
-      </CardContent>
+    <Card className={`border-none shadow-sm ${goal.status === 'done' ? 'bg-primary/5' : 'bg-card'}`}>
+        <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex flex-col">
+                <span className={`text-sm font-bold ${goal.status === 'done' ? 'text-muted-foreground line-through' : ''}`}>
+                    {goal.title}
+                </span>
+                <span className="text-[9px] uppercase font-bold opacity-40">Milestone</span>
+            </div>
+            <Select value={goal.status} onValueChange={(v) => updateStatus(v as Goal['status'])}>
+                <SelectTrigger className="w-24 h-7 text-[10px] font-black border-none bg-secondary/50">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="to_do">TO DO</SelectItem>
+                    <SelectItem value="doing">DOING</SelectItem>
+                    <SelectItem value="done">DONE</SelectItem>
+                </SelectContent>
+            </Select>
+        </CardContent>
     </Card>
   )
 }
