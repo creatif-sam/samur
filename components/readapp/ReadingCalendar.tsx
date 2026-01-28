@@ -8,7 +8,6 @@ import { ReadingCategory, ReadingStatus } from '@/lib/types'
 
 type DayState = 'before' | 'read' | 'missed' | 'future'
 
-
 export interface Reading {
   id: string
   title: string
@@ -23,7 +22,6 @@ interface ReadingCalendarProps {
   readings: Reading[]
 }
 
-
 interface DayLog {
   pages_read: number
   note: string | null
@@ -35,7 +33,9 @@ interface CalendarDay {
   logs: DayLog[]
 }
 
-export default function ReadingCalendar() {
+export default function ReadingCalendar(
+  { readings }: ReadingCalendarProps
+) {
   const supabase = createClient()
 
   const [days, setDays] = useState<CalendarDay[]>([])
@@ -46,7 +46,7 @@ export default function ReadingCalendar() {
 
   useEffect(() => {
     void loadCalendar()
-  }, [viewDate])
+  }, [viewDate, readings])
 
   const toISODate = (d: Date) =>
     d.toLocaleDateString('en-CA')
@@ -106,9 +106,7 @@ export default function ReadingCalendar() {
       if (logMap.has(iso)) {
         currentStreak++
         streakCursor.setDate(streakCursor.getDate() - 1)
-      } else {
-        break
-      }
+      } else break
     }
 
     setStreak(currentStreak)
@@ -131,7 +129,6 @@ export default function ReadingCalendar() {
       const logsForDay = logMap.get(iso) ?? []
 
       let state: DayState
-
       if (date < start) state = 'before'
       else if (date > today) state = 'future'
       else if (logsForDay.length > 0) state = 'read'
@@ -161,12 +158,7 @@ export default function ReadingCalendar() {
     <>
       <div className="rounded-xl border p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <button
-            onClick={() => changeMonth(-1)}
-            className="text-sm text-muted-foreground"
-          >
-            Prev
-          </button>
+          <button onClick={() => changeMonth(-1)}>Prev</button>
 
           <div className="text-center">
             <div className="text-lg font-semibold">
@@ -175,20 +167,15 @@ export default function ReadingCalendar() {
                 year: 'numeric',
               })}
             </div>
-            <div className="text-xs text-muted-foreground">
+            <div className="text-xs">
               Streak {streak} day{streak === 1 ? '' : 's'}
             </div>
           </div>
 
-          <button
-            onClick={() => changeMonth(1)}
-            className="text-sm text-muted-foreground"
-          >
-            Next
-          </button>
+          <button onClick={() => changeMonth(1)}>Next</button>
         </div>
 
-        <div className="grid grid-cols-7 text-xs text-center text-muted-foreground">
+        <div className="grid grid-cols-7 text-xs text-center">
           {['S','M','T','W','T','F','S'].map(d => (
             <div key={d}>{d}</div>
           ))}
@@ -224,10 +211,9 @@ export default function ReadingCalendar() {
         </div>
       </div>
 
-    {selectedDay && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-    <div className="bg-white w-[90%] max-w-md rounded-xl p-4 max-h-[70vh] overflow-y-auto">
-
+      {selectedDay && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-[90%] max-w-md rounded-xl p-4 max-h-[70vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold">
                 {selectedDay.date.toDateString()}
@@ -238,15 +224,12 @@ export default function ReadingCalendar() {
             </div>
 
             {selectedDay.logs.map((log, idx) => (
-              <div
-                key={idx}
-                className="border rounded-lg p-3 mb-2 text-sm"
-              >
+              <div key={idx} className="border rounded-lg p-3 mb-2 text-sm">
                 <div className="font-medium">
                   {log.pages_read} pages
                 </div>
                 {log.note && (
-                  <div className="text-muted-foreground mt-1">
+                  <div className="mt-1">
                     {log.note}
                   </div>
                 )}
