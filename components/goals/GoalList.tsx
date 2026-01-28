@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useMemo } from 'react'
 import { Flag, Zap, Trophy, Calendar } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import { cn } from '@/lib/utils' // <--- Add this line!
 
 type EnhancedGoal = Goal & {
   visions?: { title: string; color: string; emoji: string } | null
