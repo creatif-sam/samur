@@ -151,7 +151,13 @@ export type MoneyEntry = {
   title: string
   amount: number
   type: 'income' | 'expense'
-  category: string | null
+  category_id: string | null
   entry_date: string
   created_at: string
+
+  money_categories?: {
+    id: string
+    name: string
+    icon: string
+  } | null
 }
