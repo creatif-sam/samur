@@ -19,7 +19,7 @@ import {
 import { Plus, BookOpen, MessageSquare, Loader2, NotebookPen } from 'lucide-react' 
 import PostCard from '@/components/posts/PostCard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs' 
-import { ThoughtBook } from '@/components/note/Notebook' 
+import { ThoughtBook } from '@/components/note/ThoughtBook' 
 
 type PostWithProfile = Post & { profiles: Profile }
 

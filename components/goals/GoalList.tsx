@@ -4,7 +4,7 @@ import { JSX, useMemo, useState } from 'react'
 import { Goal } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-  import {
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -23,12 +23,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet"
 import { createClient } from '@/lib/supabase/client'
 import { 
   Flag, 
@@ -39,6 +33,7 @@ import {
   Pencil, 
   Trash2 
 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import confetti from 'canvas-confetti'
 import { cn } from '@/lib/utils'
 import { NewGoalForm } from './NewGoalForm'
@@ -50,20 +45,24 @@ type EnhancedGoal = Goal & {
 
 interface GoalListProps {
   goals: EnhancedGoal[]
-  visions: any[]      // Added missing definition
-  categories: any[]   // Added missing definition
+  visions: any[]
+  categories: any[]
   onUpdated: (goal: Goal) => void
   onDeleted: (id: string) => void
 }
 
 export function GoalList({ 
   goals, 
-  visions,    // Added missing prop
-  categories, // Added missing prop
+  visions, 
+  categories, 
   onUpdated, 
   onDeleted 
 }: GoalListProps) {
   const [editingGoal, setEditingGoal] = useState<EnhancedGoal | null>(null)
+  const [goalToDelete, setGoalToDelete] = useState<EnhancedGoal | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  
+  const supabase = createClient()
 
   const groupedGoals = useMemo(() => {
     const groups: Record<string, { vision: any; items: EnhancedGoal[]; avgProgress: number }> = {}
@@ -94,6 +93,20 @@ export function GoalList({
       origin: { y: 0.6 },
       colors: [color, '#ffffff']
     })
+  }
+
+  async function handleConfirmDelete() {
+    if (!goalToDelete) return
+    setIsDeleting(true)
+    try {
+      const { error } = await supabase.from('goals').delete().eq('id', goalToDelete.id)
+      if (!error) {
+        onDeleted(goalToDelete.id)
+        setGoalToDelete(null)
+      }
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   if (!goals.length) return null
@@ -146,39 +159,92 @@ export function GoalList({
                     }
                   }
                 }}
-                onDeleted={onDeleted}
                 onEditInitiated={() => setEditingGoal(goal)}
+                onDeleteInitiated={() => setGoalToDelete(goal)}
               />
             ))}
           </div>
         </div>
       ))}
 
-      {/* Edit Goal Drawer */}
-   
+      {/* Edit Goal Dialog */}
+      <Dialog open={!!editingGoal} onOpenChange={(open) => !open && setEditingGoal(null)}>
+        <DialogContent className="sm:max-w-[500px] p-6 gap-6 outline-none rounded-[32px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black uppercase italic tracking-tight">
+              Edit Goal
+            </DialogTitle>
+          </DialogHeader>
+          
+          {editingGoal && (
+            <NewGoalForm 
+              key={editingGoal.id}
+              initialData={editingGoal} 
+              visions={visions} 
+              categories={categories}
+              onCreated={(updated) => {
+                onUpdated(updated)
+                setEditingGoal(null)
+              }}
+              onCancel={() => setEditingGoal(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
+      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
+<Dialog open={!!goalToDelete} onOpenChange={(open) => !open && !isDeleting && setGoalToDelete(null)}>
+  <DialogContent className="max-w-[380px] p-6 outline-none rounded-[32px] border-none shadow-2xl overflow-hidden">
+    {/* CSS for the Pulsing Effect */}
+    <style jsx global>{`
+      @keyframes shadow-pulse {
+        0% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.4); }
+        70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0); }
+      }
+      .animate-danger-pulse {
+        animation: shadow-pulse 2s infinite;
+      }
+    `}</style>
 
-<Dialog open={!!editingGoal} onOpenChange={(open) => !open && setEditingGoal(null)}>
-  <DialogContent className="sm:max-w-[500px] p-6 gap-6 outline-none">
-    <DialogHeader>
-      <DialogTitle className="text-xl font-black uppercase italic tracking-tight">
-        Edit Goal
-      </DialogTitle>
-    </DialogHeader>
-    
-    {editingGoal && (
-      <NewGoalForm 
-        key={editingGoal.id}
-        initialData={editingGoal} 
-        visions={visions} 
-        categories={categories}
-        onCreated={(updated) => {
-          onUpdated(updated)
-          setEditingGoal(null)
-        }}
-        onCancel={() => setEditingGoal(null)}
-      />
-    )}
+    <div className="flex flex-col items-center text-center space-y-4">
+      <div className="w-14 h-14 bg-destructive/10 rounded-full flex items-center justify-center">
+        <Trash2 className="w-7 h-7 text-destructive" />
+      </div>
+      
+      <DialogHeader>
+        <DialogTitle className="text-xl font-black uppercase italic tracking-tight">
+          Confirm Delete
+        </DialogTitle>
+      </DialogHeader>
+
+      <p className="text-sm text-muted-foreground leading-relaxed px-2">
+        Are you sure you want to delete <span className="font-bold text-foreground">"{goalToDelete?.title}"</span>? This action is permanent.
+      </p>
+
+      <div className="flex w-full gap-3 pt-2">
+        <Button 
+          variant="outline" 
+          className="flex-1 rounded-2xl font-bold uppercase text-[10px] tracking-widest border-muted hover:bg-secondary"
+          onClick={() => setGoalToDelete(null)}
+          disabled={isDeleting}
+        >
+          Cancel
+        </Button>
+        <Button 
+          variant="destructive" 
+          className={cn(
+            "flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all",
+            !isDeleting && "animate-danger-pulse shadow-lg shadow-destructive/20"
+          )}
+          onClick={handleConfirmDelete}
+          disabled={isDeleting}
+        >
+          {isDeleting ? 'Deleting...' : 'Delete'}
+        </Button>
+      </div>
+    </div>
   </DialogContent>
 </Dialog>
     </div>
@@ -188,13 +254,13 @@ export function GoalList({
 function GoalCard({ 
   goal, 
   onUpdated, 
-  onDeleted, 
-  onEditInitiated 
+  onEditInitiated,
+  onDeleteInitiated 
 }: { 
   goal: EnhancedGoal, 
   onUpdated: (goal: Goal) => void, 
-  onDeleted: (id: string) => void,
-  onEditInitiated: () => void
+  onEditInitiated: () => void,
+  onDeleteInitiated: () => void
 }) {
   const supabase = createClient()
   
@@ -212,12 +278,6 @@ function GoalCard({
       .single()
 
     if (data) onUpdated(data)
-  }
-
-  async function handleDelete() {
-    if (!window.confirm('Are you sure you want to delete this goal?')) return
-    const { error } = await supabase.from('goals').delete().eq('id', goal.id)
-    if (!error) onDeleted(goal.id)
   }
 
   return (
@@ -274,7 +334,7 @@ function GoalCard({
               <DropdownMenuItem onClick={onEditInitiated} className="gap-2 text-xs font-medium cursor-pointer">
                 <Pencil className="w-3.5 h-3.5" /> Edit Goal
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDelete} className="gap-2 text-xs font-medium text-destructive focus:text-destructive cursor-pointer">
+              <DropdownMenuItem onClick={onDeleteInitiated} className="gap-2 text-xs font-medium text-destructive focus:text-destructive cursor-pointer">
                 <Trash2 className="w-3.5 h-3.5" /> Delete
               </DropdownMenuItem>
             </DropdownMenuContent>

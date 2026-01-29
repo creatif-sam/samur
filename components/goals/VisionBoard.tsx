@@ -4,9 +4,14 @@ import { useMemo, useState } from 'react'
 import { Goal } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+// 1. Define the joined type so the build passes
+type EnhancedGoal = Goal & {
+  visions?: { title: string; color: string; emoji: string } | null
+}
+
 type Scope = 'day' | 'week' | 'month' | 'year'
 
-export function VisionBoard({ goals }: { goals: Goal[] }) {
+export function VisionBoard({ goals }: { goals: EnhancedGoal[] }) {
   const [scope, setScope] = useState<Scope>('month')
 
   const now = new Date()
@@ -32,6 +37,7 @@ export function VisionBoard({ goals }: { goals: Goal[] }) {
 
       if (!inScope) return
 
+      // Use vision_id to group, but pull display data from the visions join
       const vId = g.vision_id || 'unlinked'
       if (!stats[vId]) {
         stats[vId] = {
@@ -47,10 +53,11 @@ export function VisionBoard({ goals }: { goals: Goal[] }) {
     })
 
     return Object.values(stats).map(v => {
-      // Determine Status Color
-      let statusColor = "#ef4444" // Default Red (0 goals)
+      // 2. Health-based color logic
+      let statusColor = "#ef4444" // RED: Vision exists but has 0 goals in this scope
       if (v.count > 0) {
-        statusColor = v.totalProgress > 0 ? "#22c55e" : "#eab308" // Green if progress > 0, else Yellow
+        // YELLOW: Has goals but 0% progress | GREEN: Has progress
+        statusColor = v.totalProgress > 0 ? "#22c55e" : "#eab308"
       }
 
       return { ...v, statusColor }
@@ -59,21 +66,27 @@ export function VisionBoard({ goals }: { goals: Goal[] }) {
 
   return (
     <div className="w-full space-y-8 py-2">
+      {/* 3. Floating Animation CSS */}
       <style jsx global>{`
         @keyframes float {
-          0% { transform: translate(0px, 0px); }
-          50% { transform: translate(0px, -10px); }
-          100% { transform: translate(0px, 0px); }
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-12px); }
+          100% { transform: translateY(0px); }
         }
         .animate-float {
           animation: float 6s ease-in-out infinite;
         }
       `}</style>
 
+      {/* Header with Health Legend */}
       <div className="flex items-center justify-between px-2">
-        <div>
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-primary italic">Vision/Prophecy Board</h3>
-          <p className="text-[9px] text-muted-foreground font-bold uppercase">Health: Red (Empty) • Yellow (Static) • Green (Active)</p>
+        <div className="space-y-1">
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-primary italic">Strategic Gravity</h3>
+          <div className="flex gap-3">
+            <span className="text-[8px] font-bold text-red-500 uppercase">● Empty</span>
+            <span className="text-[8px] font-bold text-yellow-500 uppercase">● Stagnant</span>
+            <span className="text-[8px] font-bold text-green-500 uppercase">● Active</span>
+          </div>
         </div>
 
         <div className="flex bg-secondary/50 p-1 rounded-full border border-primary/10">
@@ -92,12 +105,15 @@ export function VisionBoard({ goals }: { goals: Goal[] }) {
         </div>
       </div>
 
-      <div className="relative min-h-[220px] flex flex-wrap justify-center items-center gap-8 px-4">
+      {/* 4. The Floating Blobs */}
+      <div className="relative min-h-[240px] flex flex-wrap justify-center items-center gap-10 px-4">
         {visionStats.length === 0 ? (
-          <div className="text-[10px] font-bold uppercase text-muted-foreground italic animate-pulse">No focus data found</div>
+          <div className="text-[10px] font-bold uppercase text-muted-foreground italic tracking-widest animate-pulse">
+            Establishing focal points...
+          </div>
         ) : (
           visionStats.map((v, i) => {
-            const size = Math.min(150, 90 + v.count * 12)
+            const size = Math.min(160, 100 + v.count * 10)
             
             return (
               <div
@@ -106,32 +122,32 @@ export function VisionBoard({ goals }: { goals: Goal[] }) {
                 style={{ 
                   width: size, 
                   height: size,
-                  animationDelay: `${i * 0.5}s`,
-                  animationDuration: `${5 + (i % 3)}s`
+                  animationDelay: `${i * 0.7}s`, // Staggered start
+                  animationDuration: `${5 + (i % 4)}s` // Variation in speed
                 }}
               >
-                <div className="relative group w-full h-full flex items-center justify-center transition-transform hover:scale-105">
-                  {/* BLOB GLOW */}
+                <div className="relative group w-full h-full flex items-center justify-center transition-transform hover:scale-110 duration-500">
+                  {/* Glowing Aura based on Health */}
                   <div 
-                    className="absolute inset-0 opacity-20 blur-2xl group-hover:opacity-40 transition-opacity rounded-full"
+                    className="absolute inset-0 opacity-20 blur-3xl group-hover:opacity-50 transition-opacity rounded-full"
                     style={{ backgroundColor: v.statusColor }}
                   />
                   
-                  {/* THE CORE */}
+                  {/* Glassmorphism Blob */}
                   <div 
-                    className="relative z-10 flex flex-col items-center justify-center text-center p-4 rounded-full border backdrop-blur-md bg-background/60 shadow-2xl"
+                    className="relative z-10 flex flex-col items-center justify-center text-center p-5 rounded-full border shadow-2xl backdrop-blur-xl bg-background/40"
                     style={{ 
-                      width: '90%', 
-                      height: '90%', 
-                      borderColor: `${v.statusColor}60`,
+                      width: '95%', 
+                      height: '95%', 
+                      borderColor: `${v.statusColor}40`,
                     }}
                   >
-                    <span className="text-xl mb-1">{v.emoji}</span>
-                    <span className="text-[9px] font-black uppercase italic tracking-tighter line-clamp-2 px-2">
+                    <span className="text-2xl mb-1 group-hover:scale-125 transition-transform">{v.emoji}</span>
+                    <h4 className="text-[10px] font-black uppercase italic tracking-tighter leading-none mb-2">
                       {v.title}
-                    </span>
+                    </h4>
                     <div 
-                      className="mt-2 px-2 py-0.5 rounded-full text-[7px] font-black text-white uppercase"
+                      className="px-2 py-0.5 rounded-full text-[7px] font-black text-white uppercase tracking-tighter"
                       style={{ backgroundColor: v.statusColor }}
                     >
                       {v.count} {v.count === 1 ? 'Goal' : 'Goals'}
