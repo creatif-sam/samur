@@ -72,7 +72,7 @@ export function VisionBoard({ goals }: { goals: Goal[] }) {
 
       <div className="flex items-center justify-between px-2">
         <div>
-          <h3 className="text-[10px] font-black uppercase tracking-widest text-primary italic">Strategic Gravity</h3>
+          <h3 className="text-[10px] font-black uppercase tracking-widest text-primary italic">Vision/Prophecy Board</h3>
           <p className="text-[9px] text-muted-foreground font-bold uppercase">Health: Red (Empty) • Yellow (Static) • Green (Active)</p>
         </div>
 
