@@ -87,36 +87,38 @@ export default function ProfilePage() {
     }
   }
 
-  const uploadAvatar = async (file: File) => {
-    if (!profile) return
-    setUploading(true)
+ const uploadAvatar = async (file: File) => {
+  if (!profile) return
+  setUploading(true)
 
-    const supabase = createClient()
-    const ext = file.name.split('.').pop()
-    const path = `${profile.id}.${ext}`
+  const supabase = createClient()
+  const ext = file.name.split('.').pop()
+  
+  // Create a unique path using a timestamp
+  const path = `${profile.id}/${Date.now()}.${ext}`
 
-    const { error } = await supabase.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true })
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file) // Remove upsert: true since the path is now unique
 
-    if (error) {
-      setUploading(false)
-      return
-    }
-
-    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-
-    if (data?.publicUrl) {
-      await supabase
-        .from('profiles')
-        .update({ avatar_url: data.publicUrl })
-        .eq('id', profile.id)
-
-      setProfile({ ...profile, avatar_url: data.publicUrl })
-    }
-
+  if (error) {
+    console.error("Upload error:", error)
     setUploading(false)
+    return
   }
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+
+  if (data?.publicUrl) {
+    await supabase
+      .from('profiles')
+      .update({ avatar_url: data.publicUrl })
+      .eq('id', profile.id)
+
+    setProfile({ ...profile, avatar_url: data.publicUrl })
+  }
+  setUploading(false)
+}
 
   const handleLogout = async () => {
     const supabase = createClient()

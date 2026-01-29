@@ -62,20 +62,20 @@ export function TaskModal({
       start: startTime,
       end: endTime,
       completed: existingTask?.completed ?? false,
-      vision_id: visionId ?? undefined, // 'undefined' is fine, but ensures it's optional
+      vision_id: visionId ?? undefined,
       recurring: recurring ?? undefined,
     })
   }
 
   return (
     <Modal onClose={onClose}>
-      <div className="space-y-6 pb-2">
+      <div className="space-y-6 pb-2 text-slate-900 dark:text-slate-100">
         {/* Header */}
         <div className="flex justify-between items-center px-1">
-          <h3 className="text-xl font-bold tracking-tight text-slate-900">
+          <h3 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
             {existingTask ? 'Edit Event' : 'New Event'}
           </h3>
-          <span className="text-[12px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase tracking-tighter">
+          <span className="text-[12px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400 px-3 py-1 rounded-full uppercase tracking-tighter">
             {getDurationLabel()}
           </span>
         </div>
@@ -88,37 +88,37 @@ export function TaskModal({
             placeholder="What's happening?"
             value={text}
             onChange={(e) => setText(e.target.value)}
-            className="w-full text-lg font-medium border-b-2 border-slate-100 focus:border-blue-500 transition-colors py-2 outline-none placeholder:text-slate-300"
+            className="w-full text-lg font-medium border-b-2 border-slate-100 dark:border-slate-800 bg-transparent focus:border-blue-500 transition-colors py-2 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600 dark:text-white"
           />
         </div>
 
         {/* Time Selector */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 uppercase tracking-widest px-1">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">
             <Clock size={14} />
             <span>Time Period</span>
           </div>
           
-          <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-[24px]">
-            <div className="flex-1 bg-white rounded-[18px] p-3 shadow-sm border border-slate-100">
-              <p className="text-[10px] text-blue-500 font-bold uppercase mb-1 text-center">Start</p>
+          <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-[24px]">
+            <div className="flex-1 bg-white dark:bg-slate-800 rounded-[18px] p-3 shadow-sm border border-slate-100 dark:border-slate-700">
+              <p className="text-[10px] text-blue-500 dark:text-blue-400 font-bold uppercase mb-1 text-center">Start</p>
               <input 
                 type="time" 
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full text-center font-bold text-lg bg-transparent border-none focus:ring-0 cursor-pointer"
+                className="w-full text-center font-bold text-lg bg-transparent border-none focus:ring-0 cursor-pointer dark:text-white [color-scheme:dark]"
               />
             </div>
 
-            <ArrowRight className="text-slate-300 shrink-0" size={20} />
+            <ArrowRight className="text-slate-300 dark:text-slate-600 shrink-0" size={20} />
 
-            <div className="flex-1 bg-white rounded-[18px] p-3 shadow-sm border border-slate-100">
-              <p className="text-[10px] text-purple-500 font-bold uppercase mb-1 text-center">End</p>
+            <div className="flex-1 bg-white dark:bg-slate-800 rounded-[18px] p-3 shadow-sm border border-slate-100 dark:border-slate-700">
+              <p className="text-[10px] text-purple-500 dark:text-purple-400 font-bold uppercase mb-1 text-center">End</p>
               <input 
                 type="time" 
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full text-center font-bold text-lg bg-transparent border-none focus:ring-0 cursor-pointer"
+                className="w-full text-center font-bold text-lg bg-transparent border-none focus:ring-0 cursor-pointer dark:text-white [color-scheme:dark]"
               />
             </div>
           </div>
@@ -128,10 +128,10 @@ export function TaskModal({
         <div className="space-y-4 pt-2">
           <TaskBasics
             text={text}
-            visionId={visionId} // Matches the updated TaskBasics.tsx
+            visionId={visionId}
             onTextChange={setText}
             onVisionChange={setVisionId}
-            hideTitle={true} // We already have a title input above
+            hideTitle={true}
           />
 
           <TaskRecurrence
@@ -144,13 +144,13 @@ export function TaskModal({
         <div className="flex gap-3 pt-4">
           <button
             onClick={onClose}
-            className="flex-1 bg-slate-100 text-slate-600 font-bold rounded-full py-4 hover:bg-slate-200 transition-all active:scale-95"
+            className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold rounded-full py-4 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all active:scale-95"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 bg-blue-600 text-white font-bold rounded-full py-4 shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all active:scale-95"
+            className="flex-1 bg-blue-600 text-white font-bold rounded-full py-4 shadow-lg shadow-blue-200 dark:shadow-none hover:bg-blue-700 transition-all active:scale-95"
           >
             Save
           </button>
