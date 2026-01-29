@@ -59,30 +59,42 @@ export function NewGoalForm({
   categories,
   visions,
   initialVisionId, // 1. Add this here
+  initialData, // Add this to receive the goal being edited
 }: {
   onCancel: () => void
   onCreated: (goal: any) => void
   categories: GoalCategory[]
   visions: Vision[]
-  initialVisionId?: string // 2. And here
+  initialVisionId?: string
+  initialData?: any 
 }) {
 
   const supabase = createClient()
 
   // 3. Use initialVisionId as the default state value
-  const [visionId, setVisionId] = useState<string>(initialVisionId || 'none')
+  // const [visionId, setVisionId] = useState<string>(initialVisionId || 'none')
 
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [deliverable, setDeliverable] = useState('')
-  const [dueDate, setDueDate] = useState('')
-  const [categoryId, setCategoryId] = useState('')
-  // const [visionId, setVisionId] = useState<string>('none') 
+  // 3. Use initialVisionId OR initialData as the default state value
+  const [title, setTitle] = useState(initialData?.title || '')
+  const [description, setDescription] = useState(initialData?.description || '')
+  const [deliverable, setDeliverable] = useState(initialData?.deliverable || '')
+  
+  // Date formatting is important: HTML date inputs need YYYY-MM-DD
+  const [dueDate, setDueDate] = useState(
+    initialData?.due_date ? initialData.due_date.split('T')[0] : ''
+  )
+  
+  const [categoryId, setCategoryId] = useState(initialData?.category_id || '')
+  const [visionId, setVisionId] = useState<string>(
+    initialData?.vision_id || initialVisionId || 'none'
+  )
 
-  const [goalType, setGoalType] =
-    useState<'single' | 'combined'>('single')
-  const [visibility, setVisibility] =
-    useState<'private' | 'shared'>('private')
+  const [goalType, setGoalType] = useState<'single' | 'combined'>(
+    initialData?.goal_type || 'single'
+  )
+  const [visibility, setVisibility] = useState<'private' | 'shared'>(
+    initialData?.visibility || 'private'
+  )
 
   const [showCategoryInput, setShowCategoryInput] =
     useState(false)
@@ -98,6 +110,12 @@ export function NewGoalForm({
     Boolean(title.trim()) &&
     Boolean(dueDate) &&
     Boolean(categoryId)
+
+
+
+
+
+
 
 
 
@@ -138,46 +156,73 @@ export function NewGoalForm({
     setShowCategoryInput(false)
   }
 
-  async function createGoal() {
-    if (!valid) return
+ async function handleSubmit() {
+  if (!valid) return
 
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth.user) return
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) return
 
-    let partnerId = null
+  let partnerId = null
 
-    if (visibility === 'shared') {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('partner_id')
-        .eq('id', auth.user.id)
-        .single()
+  // Fetch partner_id if visibility is shared
+  if (visibility === 'shared') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('partner_id')
+      .eq('id', auth.user.id)
+      .single()
 
-      partnerId = profile?.partner_id ?? null
-    }
+    partnerId = profile?.partner_id ?? null
+  }
 
+  // Prepare the data payload
+  const goalPayload = {
+    title: title.trim(),
+    description: description.trim(),
+    deliverable: deliverable.trim() || null,
+    due_date: dueDate,
+    category_id: categoryId,
+    vision_id: visionId === 'none' ? null : visionId,
+    goal_type: goalType,
+    visibility,
+    partner_id: partnerId,
+  }
+
+  const isEditing = Boolean(initialData?.id)
+
+  if (isEditing) {
+    // --- UPDATE LOGIC ---
     const { data, error } = await supabase
       .from('goals')
-      .insert({
-        title: title.trim(),
-        description: description.trim(),
-        deliverable: deliverable.trim() || null,
-        due_date: dueDate,
-        category_id: categoryId,
-        vision_id: visionId === 'none' ? null : visionId,
-        goal_type: goalType,
-        visibility,
-        owner_id: auth.user.id,
-        partner_id: partnerId,
-      })
-      .select()
+      .update(goalPayload)
+      .eq('id', initialData.id)
+      .select('*, visions(*), goal_categories(*)')
       .single()
 
     if (error) {
-      console.error(error)
+      console.error('Update error:', error)
       return
     }
 
+    // Call the success callback for editing
+    onCreated(data) 
+  } else {
+    // --- CREATE LOGIC ---
+    const { data, error } = await supabase
+      .from('goals')
+      .insert({
+        ...goalPayload,
+        owner_id: auth.user.id, // Only add owner_id on creation
+      })
+      .select('*, visions(*), goal_categories(*)')
+      .single()
+
+    if (error) {
+      console.error('Insert error:', error)
+      return
+    }
+
+    // Reset form fields only on creation
     setTitle('')
     setDescription('')
     setDeliverable('')
@@ -186,6 +231,7 @@ export function NewGoalForm({
 
     onCreated(data)
   }
+}
 
   return (
     <Card>
@@ -340,9 +386,9 @@ export function NewGoalForm({
           <Button variant="outline" onClick={onCancel}>
             Cancel
           </Button>
-          <Button disabled={!valid} onClick={createGoal}>
-            Create Goal
-          </Button>
+          <Button disabled={!valid} onClick={handleSubmit}>
+  {initialData?.id ? 'Save Changes' : 'Create Goal'}
+</Button>
         </div>
       </CardContent>
     </Card>

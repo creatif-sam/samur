@@ -1,9 +1,11 @@
 'use client'
 
 import { JSX, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
 import ReadingCard from './ReadingCard'
 import AddReading from './AddReading'
+import ReadingCalendar from './ReadingCalendar'
 
 import {
   BookOpen,
@@ -14,7 +16,6 @@ import {
   Library,
   X
 } from 'lucide-react'
-import ReadingCalendar from './ReadingCalendar'
 
 type ReadingStatus = 'to_read' | 'reading' | 'done' | 'applied'
 type ReadingCategory = 'faith' | 'self_development' | 'skill' | 'philosophy' | 'psychology' | 'leadership' | 'productivity' | 'miscellaneous'
@@ -33,6 +34,13 @@ export default function ReadingList(): JSX.Element {
   const [readings, setReadings] = useState<Reading[]>([])
   const [loading, setLoading] = useState(true)
   const [isAddOpen, setIsAddOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure portal only renders on the client
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   useEffect(() => {
     void loadReadings()
@@ -106,7 +114,7 @@ export default function ReadingList(): JSX.Element {
       </header>
 
       <main className="p-4 space-y-6 max-w-md mx-auto">
-        {/* Status Stats - Horizontal Scroll */}
+        {/* Status Stats */}
         <section className="flex gap-3 overflow-x-auto pb-2 no-scrollbar -mx-4 px-4">
           <Stat icon={<BookOpen className="w-4 h-4" />} label="To Read" value={statusStats.toRead} color="bg-blue-50 text-blue-600" />
           <Stat icon={<BookMarked className="w-4 h-4" />} label="Reading" value={statusStats.reading} color="bg-orange-50 text-orange-600" />
@@ -154,24 +162,33 @@ export default function ReadingList(): JSX.Element {
         </button>
       </div>
 
-      {/* Add Reading Sheet (Mobile Optimized Modal) */}
-      {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
+      {/* MODAL PORTAL: This renders at the end of <body> to bypass all layout constraints */}
+      {mounted && isAddOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-end justify-center">
           {/* Backdrop */}
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsAddOpen(false)} />
+          <div 
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" 
+            onClick={() => setIsAddOpen(false)} 
+          />
           
           {/* Sheet Content */}
-          <div className="relative bg-white w-full max-w-lg rounded-t-[32px] p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 ease-out">
-            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6" onClick={() => setIsAddOpen(false)} />
+          <div className="relative bg-white w-full max-w-lg rounded-t-[32px] p-6 pb-12 shadow-2xl animate-in slide-in-from-bottom duration-300 ease-out">
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 cursor-pointer" onClick={() => setIsAddOpen(false)} />
             
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-slate-900">Add New Book</h3>
-              <button onClick={() => setIsAddOpen(false)} className="p-1 bg-slate-100 rounded-full text-slate-400"><X className="w-5 h-5" /></button>
+              <button 
+                onClick={() => setIsAddOpen(false)} 
+                className="p-1 bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
             <AddReading onCreated={() => { loadReadings(); setIsAddOpen(false); }} />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

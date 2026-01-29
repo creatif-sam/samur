@@ -247,6 +247,8 @@ export default function GoalsPage() {
           <div className="bg-card border rounded-xl p-4">
             <GoalList
               goals={filteredGoals}
+              visions={visions}         // <--- FIX: Added visions prop
+              categories={uiCategories} // <--- FIX: Added categories prop
               onUpdated={goal =>
                 setGoals(g => g.map(x => (x.id === goal.id ? goal : x)))
               }
