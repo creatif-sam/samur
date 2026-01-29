@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Vision } from '@/app/protected/goals/page'
@@ -106,16 +107,29 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
         </DialogHeader>
         
         <div className="space-y-6 pt-2">
+          {/* Vision Title */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Vision Title</label>
             <Input 
-              placeholder="e.g. Total Financial Freedom" 
+              placeholder="e.g. Financial Freedom[Less words)" 
               value={newVision.title}
               onChange={(e) => setNewVision({...newVision, title: e.target.value})}
               className="text-base border-0 bg-secondary/50 focus-visible:ring-primary font-bold h-12"
             />
           </div>
 
+          {/* Vision Description */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Vision Description</label>
+            <Textarea 
+              placeholder="Describe the details of your vision..." 
+              value={newVision.description}
+              onChange={(e) => setNewVision({...newVision, description: e.target.value})}
+              className="text-base border-0 bg-secondary/50 focus-visible:ring-primary min-h-[100px] resize-none"
+            />
+          </div>
+
+          {/* Identity Color */}
           <div className="space-y-3">
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Identity Color</label>
             <div className="flex flex-wrap gap-3 justify-between">
@@ -133,6 +147,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
             </div>
           </div>
 
+          {/* Target Date */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Date</label>
             <Input 
@@ -143,6 +158,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
             />
           </div>
 
+          {/* Icon/Emoji */}
           <div className="space-y-3">
             <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Icon</label>
             <div className="grid grid-cols-4 gap-3">
