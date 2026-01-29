@@ -3,22 +3,26 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
-export default async function CardPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+export default async function CardPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
 
-  const { data: card } = await supabase
+  const { data: card, error } = await supabase
     .from('business_cards')
     .select('name,email,phone,linkedin,business_title,avatar_url')
-    .eq('user_id', params.id)
+    // Ensure params.id is the USER's uuid, not the CARD's uuid
+    .eq('user_id', params.id) 
     .single()
 
-  if (!card) {
-    return <div className="p-6">Card not found</div>
+  if (error) {
+    console.error("Supabase Error:", error.message)
+    // This will tell you if it's an RLS issue or a "Row not found" issue
+    return <div className="p-6">Error: {error.message} (ID: {params.id})</div>
   }
+
+  if (!card) {
+    return <div className="p-6">Card not found in database.</div>
+  }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted p-4">
