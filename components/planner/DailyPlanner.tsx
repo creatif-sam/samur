@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Calendar as CalendarIcon, Check, RefreshCw, Target } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3 } from 'lucide-react'
+import Link from 'next/link'
 
 import { TaskModal } from './tasks/TaskModal'
 import TopCalendar from './TopCalendar'
@@ -139,9 +140,17 @@ export default function DailyPlanner() {
               <span className={`text-lg font-semibold uppercase opacity-40 ${theme.text}`}>{selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}</span>
             </div>
           </div>
-          <div className="relative">
-            <CalendarIcon className={`w-7 h-7 ${theme.text} opacity-80`} />
-            <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold mt-0.5 ${theme.text}`}>{new Date().getDate()}</span>
+          
+          <div className="flex items-center gap-5">
+            {/* Analytics Link Icon */}
+            <Link href="/protected/analytics" className="transition-transform active:scale-90">
+              <BarChart3 className={`w-7 h-7 ${theme.text} opacity-80`} />
+            </Link>
+
+            <div className="relative">
+              <CalendarIcon className={`w-7 h-7 ${theme.text} opacity-80`} />
+              <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold mt-0.5 ${theme.text}`}>{new Date().getDate()}</span>
+            </div>
           </div>
         </div>
       </header>
@@ -178,7 +187,6 @@ export default function DailyPlanner() {
           />
         </div>
 
-        {/* TASK LIST WITH INTEGRATED VISION DISPLAY */}
         <div className="space-y-2 relative mb-10">
           {tasks
             .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start))
@@ -214,7 +222,6 @@ export default function DailyPlanner() {
                     </button>
                   </div>
 
-                  {/* SPECIFIC VISION UNDER THE TASK */}
                   {vision && (
                     <div className="ml-16 flex items-center gap-1.5 py-1 px-3 bg-white/40 dark:bg-black/5 rounded-full w-fit animate-in fade-in slide-in-from-left-1 duration-500">
                       <span className="text-xs">{vision.emoji}</span>
