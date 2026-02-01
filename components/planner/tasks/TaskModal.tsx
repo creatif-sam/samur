@@ -51,48 +51,63 @@ export function TaskModal({
 
   return (
     <Modal onClose={onClose}>
-      {/* WIDER CONTAINER: max-w-4xl (900px) on PC */}
-      <div className="w-full max-w-4xl bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
+      {/* Container: max-w-4xl for PC, w-[95vw] for mobile to prevent overflow */}
+      <div className="w-[95vw] md:w-full md:max-w-4xl bg-white dark:bg-slate-900 rounded-[28px] md:rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800 mx-auto">
         
-        {/* Header - Wide Style */}
-        <div className="px-8 pt-8 pb-4 flex justify-between items-start border-b border-slate-50 dark:border-slate-800">
-          <div className="flex-1">
+        {/* Header */}
+        <div className="px-5 md:px-8 pt-6 md:pt-8 pb-4 flex justify-between items-start border-b border-slate-50 dark:border-slate-800">
+          <div className="flex-1 min-w-0">
             <input
               autoFocus
               type="text"
-              placeholder="Communion with the Great..."
+              placeholder="What's happening?"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full text-3xl font-bold bg-transparent border-none outline-none placeholder:text-slate-200 dark:placeholder:text-slate-700 dark:text-white"
+              className="w-full text-xl md:text-3xl font-bold bg-transparent border-none outline-none placeholder:text-slate-200 dark:placeholder:text-slate-700 dark:text-white truncate"
             />
-            <p className="text-[11px] font-bold text-blue-500 uppercase tracking-widest mt-1">
-              {existingTask ? 'Modify Existing Event' : 'Planning New Activity'}
+            <p className="text-[9px] md:text-[11px] font-bold text-blue-500 uppercase tracking-widest mt-1">
+              {existingTask ? 'Modify Schedule' : 'New Plan'}
             </p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full ml-4">
-            <X className="w-6 h-6 text-slate-400" />
+          <button onClick={onClose} className="p-1.5 md:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full ml-2">
+            <X className="w-5 h-5 md:w-6 md:h-6 text-slate-400" />
           </button>
         </div>
 
-        {/* 2-COLUMN CONTENT: Side by side on PC, stacked on Mobile */}
-        <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-10">
+        {/* Content Grid */}
+        <div className="p-5 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10">
           
           {/* LEFT COLUMN: Time & Vision */}
-          <div className="space-y-8">
-            <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[24px] p-6 border border-slate-100 dark:border-slate-700">
-              <div className="flex justify-between items-center mb-4">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Clock size={14} /> Timeline
+          <div className="space-y-6 md:space-y-8">
+            <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[20px] md:rounded-[24px] p-4 md:p-6 border border-slate-100 dark:border-slate-700">
+              <div className="flex justify-between items-center mb-3">
+                <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Clock size={12} /> Timeline
                 </label>
-                <span className="text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded">
+                <span className="text-[9px] md:text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded">
                   {getDurationLabel()}
                 </span>
               </div>
               
-              <div className="flex items-center gap-4">
-                <input type="time" value={startTime} onChange={(e)=>setStartTime(e.target.value)} className="flex-1 bg-white dark:bg-slate-800 rounded-xl p-3 text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white" />
-                <ArrowRight className="text-slate-300" />
-                <input type="time" value={endTime} onChange={(e)=>setEndTime(e.target.value)} className="flex-1 bg-white dark:bg-slate-800 rounded-xl p-3 text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white" />
+              {/* FIXED TIME ROW: Uses smaller text and padding on mobile */}
+              <div className="flex items-center gap-2 md:gap-4">
+                <div className="flex-1 min-w-0">
+                  <input 
+                    type="time" 
+                    value={startTime} 
+                    onChange={(e)=>setStartTime(e.target.value)} 
+                    className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" 
+                  />
+                </div>
+                <ArrowRight className="text-slate-300 shrink-0" size={16} />
+                <div className="flex-1 min-w-0">
+                  <input 
+                    type="time" 
+                    value={endTime} 
+                    onChange={(e)=>setEndTime(e.target.value)} 
+                    className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" 
+                  />
+                </div>
               </div>
             </div>
 
@@ -107,8 +122,8 @@ export function TaskModal({
 
           {/* RIGHT COLUMN: Recurrence */}
           <div className="lg:border-l lg:pl-10 lg:border-slate-100 lg:dark:border-slate-800">
-            <div className="flex items-center gap-2 mb-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <CalendarIcon size={14} /> Recurrence Rules
+            <div className="flex items-center gap-2 mb-4 text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <CalendarIcon size={12} /> Recurrence Rules
             </div>
             <TaskRecurrence
               value={recurring}
@@ -118,15 +133,15 @@ export function TaskModal({
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="px-8 py-6 bg-slate-50 dark:bg-slate-800/20 flex flex-col md:flex-row gap-4 justify-end">
-          <button onClick={onClose} className="px-8 py-3 text-sm font-bold text-slate-400 hover:text-slate-600">
+        <div className="px-5 md:px-8 py-4 md:py-6 bg-slate-50 dark:bg-slate-800/20 flex flex-row gap-3 justify-end">
+          <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
             Discard
           </button>
           <button 
             onClick={() => text.trim() && onSave({ id: existingTask?.id ?? crypto.randomUUID(), text, start: startTime, end: endTime, completed: existingTask?.completed ?? false, vision_id: visionId ?? undefined, recurring: recurring ?? undefined })}
-            className={`px-12 py-4 rounded-2xl font-bold text-sm shadow-lg transition-all ${text.trim() ? 'bg-blue-600 text-white hover:scale-[1.02] shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+            className={`flex-1 md:flex-none md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg transition-all ${text.trim() ? 'bg-blue-600 text-white active:scale-95 shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
           >
-            {existingTask ? 'Save Changes' : 'Confirm Plan'}
+            {existingTask ? 'Save Changes' : 'Confirm'}
           </button>
         </div>
       </div>
