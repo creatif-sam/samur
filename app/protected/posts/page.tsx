@@ -27,6 +27,7 @@ export default function PostsPage() {
   const [posts, setPosts] = useState<PostWithProfile[]>([])
   const [notebooks, setNotebooks] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false) // Added for loading state
   const [showComposer, setShowComposer] = useState(false)
   const [showMeditationComposer, setShowMeditationComposer] = useState(false)
   const [content, setContent] = useState('')
@@ -70,17 +71,35 @@ export default function PostsPage() {
     setLoading(false)
   }
 
+  // --- Corrected createPost Function ---
   async function createPost() {
-    if (!content.trim()) return
-    const res = await fetch('/api/posts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, visibility }),
-    })
-    if (!res.ok) return
-    setContent('')
-    setShowComposer(false)
-    await loadData()
+    if (!content.trim() || isSubmitting) return
+    setIsSubmitting(true)
+
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, visibility: visibility.toLowerCase() }),
+      })
+
+      const result = await res.json()
+
+      if (!res.ok) {
+        console.error("❌ Post Creation Failed:", result.error)
+        alert(`Error: ${result.error || 'Failed to publish post'}`)
+        return
+      }
+
+      setContent('')
+      setShowComposer(false)
+      await loadData()
+    } catch (err) {
+      console.error("📡 Network error while posting:", err)
+      alert("Network error. Please check your connection.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   async function updatePost(id: string, updated: string) {
@@ -106,7 +125,6 @@ export default function PostsPage() {
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
       <Tabs defaultValue="posts" className="space-y-6">
-        {/* CLEAN TAB NAVIGATION */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
           <div className="flex items-center gap-2">
             <NotebookPen className="w-6 h-6 text-primary" />
@@ -142,9 +160,14 @@ export default function PostsPage() {
                   className="min-h-[140px] border-none focus-visible:ring-0 resize-none p-0 text-base placeholder:text-muted-foreground/50"
                   value={content}
                   onChange={e => setContent(e.target.value)}
+                  disabled={isSubmitting}
                 />
                 <div className="flex items-center justify-between border-t pt-4">
-                  <Select value={visibility} onValueChange={v => setVisibility(v as 'private' | 'shared')}>
+                  <Select 
+                    disabled={isSubmitting}
+                    value={visibility} 
+                    onValueChange={v => setVisibility(v as 'private' | 'shared')}
+                  >
                     <SelectTrigger className="w-[130px] h-8 text-xs border-muted/60">
                       <SelectValue />
                     </SelectTrigger>
@@ -154,8 +177,24 @@ export default function PostsPage() {
                     </SelectContent>
                   </Select>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setShowComposer(false)} className="text-xs">Cancel</Button>
-                    <Button size="sm" onClick={createPost} className="text-xs px-6">Publish</Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowComposer(false)} 
+                      className="text-xs"
+                      disabled={isSubmitting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={createPost} 
+                      disabled={isSubmitting || !content.trim()} 
+                      className="text-xs px-6"
+                    >
+                      {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
+                      {isSubmitting ? 'Publishing...' : 'Publish'}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
