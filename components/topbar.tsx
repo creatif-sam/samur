@@ -39,15 +39,19 @@ export function Topbar() {
   useEffect(() => {
     if (!mounted) return
 
+    let channel: any
+
     const setup = async () => {
+      // 1. Initial Load
       await fetchNotifications()
 
+      // 2. Get current user for the real-time filter
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // REAL-TIME LISTENER: Updates SamUr bar when new push events occur
-      const channel = supabase
-        .channel('notifications')
+      // REAL-TIME LISTENER: Instantly updates when your partner interacts
+      channel = supabase
+        .channel('notifications-live')
         .on(
           'postgres_changes',
           {
@@ -58,18 +62,24 @@ export function Topbar() {
           },
           payload => {
             const newNotif = payload.new as Notification
+            // Add to the top of the list and increment badge
             setNotifications(prev => [newNotif, ...prev])
             setUnreadCount(prev => prev + 1)
+            
+            // Optional: Play a subtle notification sound here
+            if ('Notification' in window && Notification.permission === 'granted') {
+               new Notification(newNotif.title, { body: newNotif.body });
+            }
           }
         )
         .subscribe()
-
-      return () => {
-        supabase.removeChannel(channel)
-      }
     }
 
     setup()
+
+    return () => {
+      if (channel) supabase.removeChannel(channel)
+    }
   }, [mounted])
 
   const fetchNotifications = async () => {
@@ -88,35 +98,36 @@ export function Topbar() {
   }
 
   const markAsRead = async (id: string) => {
+    // Optimistic UI update
+    setNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, read: true } : n))
+    )
+    setUnreadCount(c => Math.max(0, c - 1))
+
     await fetch('/api/notifications/mark-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ notificationId: id }),
     })
-
-    setNotifications(prev =>
-      prev.map(n => (n.id === id ? { ...n, read: true } : n))
-    )
-    setUnreadCount(c => Math.max(0, c - 1))
   }
 
   const markAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    setUnreadCount(0)
+
     await fetch('/api/notifications/mark-read', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ markAll: true }),
     })
-
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
-    setUnreadCount(0)
   }
 
   const iconFor = (type: string) => {
     switch (type) {
-      case 'message': return '💬'
+      case 'comment': return '💬' // Added for professional interactions
+      case 'message': return '✉️'
       case 'planner_reminder': return '📅'
       case 'goal_deadline': return '🎯'
-      case 'goal_progress': return '📈'
       case 'post': return '📝'
       default: return '🔔'
     }
@@ -132,19 +143,18 @@ export function Topbar() {
       </h1>
 
       <div className="flex items-center gap-1">
-        {/* NOTIFICATION DROPDOWN */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/10 relative rounded-full"
+              className="text-white hover:bg-white/10 relative rounded-full focus-visible:ring-0"
             >
               <Bell className="w-5 h-5" />
               {mounted && unreadCount > 0 && (
                 <Badge 
                   variant="destructive" 
-                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-bold border-2 border-indigo-600 rounded-full"
+                  className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-bold border-2 border-indigo-600 rounded-full animate-in zoom-in"
                 >
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </Badge>
@@ -152,53 +162,54 @@ export function Topbar() {
             </Button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-80 mt-2 rounded-2xl p-2 shadow-2xl">
+          <DropdownMenuContent align="end" className="w-80 mt-2 rounded-2xl p-2 shadow-2xl border-muted/20">
             <div className="flex justify-between items-center px-2 py-2">
-              <span className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                Center
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                Notifications
               </span>
               {unreadCount > 0 && (
                 <button 
                   onClick={markAllAsRead}
-                  className="text-[10px] font-bold text-blue-600 hover:text-blue-700 uppercase"
+                  className="text-[10px] font-bold text-primary hover:underline uppercase"
                 >
-                  Clear All
+                  Mark all as read
                 </button>
               )}
             </div>
 
-            <DropdownMenuSeparator className="opacity-50" />
+            <DropdownMenuSeparator />
 
             <div className="max-h-[400px] overflow-y-auto">
-              {!mounted || loading ? (
+              {loading ? (
                 <div className="px-2 py-8 text-center text-sm text-slate-400 italic">
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />
                   Syncing SamUr...
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="px-2 py-8 text-center text-sm text-slate-400">
-                  You're all caught up
+                <div className="px-2 py-10 text-center text-sm text-slate-400">
+                  No new updates yet.
                 </div>
               ) : (
                 notifications.map(n => (
                   <DropdownMenuItem
                     key={n.id}
                     onClick={() => !n.read && markAsRead(n.id)}
-                    className={`px-3 py-3 mb-1 rounded-xl transition-colors cursor-pointer ${
+                    className={`px-3 py-3 mb-1 rounded-xl transition-all cursor-pointer ${
                       !n.read 
-                        ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500' 
-                        : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                        ? 'bg-primary/5 border-l-4 border-primary' 
+                        : 'opacity-70'
                     }`}
                   >
                     <div className="flex gap-3 w-full">
-                      <span className="text-lg shrink-0">{iconFor(n.type)}</span>
+                      <span className="text-xl shrink-0">{iconFor(n.type)}</span>
                       <div className="flex-1 min-w-0">
-                        <p className={`text-sm ${!n.read ? 'font-bold' : 'font-medium'} truncate`}>
+                        <p className={`text-sm ${!n.read ? 'font-bold' : 'font-medium'} truncate text-foreground`}>
                           {n.title}
                         </p>
-                        <p className="text-xs text-slate-500 line-clamp-2 leading-snug">
+                        <p className="text-xs text-muted-foreground line-clamp-2 leading-snug">
                           {n.body}
                         </p>
-                        <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-tighter">
+                        <p className="text-[10px] text-slate-400 mt-1 font-medium">
                           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                         </p>
                       </div>
@@ -219,5 +230,24 @@ export function Topbar() {
         </Button>
       </div>
     </header>
+  )
+}
+
+function Loader2({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
   )
 }
