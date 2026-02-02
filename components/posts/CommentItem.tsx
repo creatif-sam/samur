@@ -73,8 +73,13 @@ export function CommentItem({
                   className="text-sm min-h-[60px] bg-background"
                 />
                 <div className="flex gap-2">
-                  <Button size="xs" onClick={handleSaveEdit} disabled={loading}>Save</Button>
-                  <Button size="xs" variant="ghost" onClick={() => setIsEditing(false)}>Cancel</Button>
+                  {/* Updated size to "xs" to match button variants */}
+                  <Button size="xs" onClick={handleSaveEdit} disabled={loading}>
+                    Save
+                  </Button>
+                  <Button size="xs" variant="ghost" onClick={() => setIsEditing(false)}>
+                    Cancel
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -84,7 +89,6 @@ export function CommentItem({
             )}
           </div>
 
-          {/* Comment Actions */}
           {!isEditing && (
             <div className="flex items-center space-x-4 mt-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
@@ -115,7 +119,6 @@ export function CommentItem({
         </div>
       </div>
 
-      {/* Reply Input Field */}
       {showReplyInput && (
         <div className="ml-11 flex items-start gap-2 animate-in zoom-in-95 duration-200">
           <CornerDownRight className="w-4 h-4 text-muted-foreground mt-2" />
@@ -128,16 +131,18 @@ export function CommentItem({
               rows={1}
             />
             <div className="flex gap-2">
+              {/* Updated size to "xs" */}
               <Button size="xs" onClick={handleReplySubmit} disabled={!replyContent.trim() || loading}>
                 Post Reply
               </Button>
-              <Button size="xs" variant="ghost" onClick={() => setShowReplyInput(false)}>Cancel</Button>
+              <Button size="xs" variant="ghost" onClick={() => setShowReplyInput(false)}>
+                Cancel
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Nested Replies Rendering */}
       {comment.replies && comment.replies.length > 0 && (
         <div className="ml-11 space-y-4 pt-2 border-l-2 border-muted/30">
           {comment.replies.map((reply) => (
