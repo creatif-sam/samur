@@ -61,7 +61,8 @@ export async function POST(request: Request) {
     })
 
     // 4. Dispatch Push Notifications (to all registered devices)
-    let pushResults = []
+    // FIX: Explicitly typed as any[] to satisfy TypeScript build requirements
+    let pushResults: any[] = [] 
     if (subs && subs.length > 0) {
       pushResults = await Promise.allSettled(
         subs.map(sub => webpush.sendNotification(sub.subscription, payload))
@@ -69,7 +70,6 @@ export async function POST(request: Request) {
     }
 
     // 5. CRITICAL: Insert into the notifications table for UI display
-    // We do this even if push fails so they see it in-app later
     const { error: dbError } = await supabase
       .from('notifications')
       .insert({
