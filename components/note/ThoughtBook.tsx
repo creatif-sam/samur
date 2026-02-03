@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react' // Added useEffect
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Toaster, toast } from 'sonner'
 import { ThoughtBookHeader } from './ThoughtBookHeader'
@@ -27,21 +27,45 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
   const [isAddingSection, setIsAddingSection] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  
-  // FIX: Safety check for Toaster to prevent "update while rendering" error
   const [isMounted, setIsMounted] = useState(false)
 
   const supabase = createClient()
 
+  // --- PERSISTENCE LOGIC (Fixes the Refresh Issue) ---
   useEffect(() => {
     setIsMounted(true)
+    const savedNb = localStorage.getItem('active_notebook')
+    const savedSect = localStorage.getItem('active_section')
+    
+    if (savedNb) setActiveNotebook(JSON.parse(savedNb))
+    if (savedSect) setActiveSection(JSON.parse(savedSect))
   }, [])
+
+  const handleSelectNotebook = (nb: any) => {
+    setActiveNotebook(nb)
+    localStorage.setItem('active_notebook', JSON.stringify(nb))
+  }
+
+  const handleSelectSection = (sect: any) => {
+    setActiveSection(sect)
+    localStorage.setItem('active_section', JSON.stringify(sect))
+  }
+
+  const handleClearNavigation = () => {
+    setActiveSection(null)
+    setActiveNotebook(null)
+    localStorage.removeItem('active_notebook')
+    localStorage.removeItem('active_section')
+  }
 
   const handleRefresh = async () => {
     const result = await onRefresh();
     if (result?.data && activeNotebook) {
       const updated = result.data.find((n: any) => n.id === activeNotebook.id);
-      if (updated) setActiveNotebook(updated);
+      if (updated) {
+        setActiveNotebook(updated)
+        localStorage.setItem('active_notebook', JSON.stringify(updated))
+      }
     }
   };
 
@@ -135,21 +159,20 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f172a] max-w-2xl mx-auto flex flex-col font-poppins transition-colors duration-500 relative">
-      {/* FIX: Only render Toaster after mount to avoid Render Errors */}
       {isMounted && <Toaster position="bottom-center" richColors theme="dark" />}
 
       <ThoughtBookHeader 
         activeNotebook={activeNotebook} 
         activeSection={activeSection} 
         isProcessing={isProcessing}
-        onBack={() => activeSection ? setActiveSection(null) : setActiveNotebook(null)}
+        onBack={() => activeSection ? (setActiveSection(null), localStorage.removeItem('active_section')) : handleClearNavigation()}
         onAdd={() => activeSection ? handleAddPage() : (setIsAddingSection(true), setNewTitle(''))}
       />
 
       {!activeNotebook ? (
         <NotebookLibrary 
           notebooks={notebooks} 
-          onSelect={setActiveNotebook} 
+          onSelect={handleSelectNotebook} 
           onAdd={() => setShowAddNotebook(true)} 
           onDelete={setNotebookToDelete}
           onRename={(nb: any) => { setItemToRename(nb); setNewTitle(nb.title); }}
@@ -157,7 +180,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
       ) : !activeSection ? (
         <SectionList 
           notebook={activeNotebook} 
-          onSelect={setActiveSection} 
+          onSelect={handleSelectSection} 
           onDeleteSection={setSectionToDelete}
           onRenameSection={(s: any) => { setItemToRename(s); setNewTitle(s.title); }}
         />
@@ -169,8 +192,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
         />
       )}
 
-      {/* --- DIALOGS --- */}
-
+      {/* DIALOGS REMAIN THE SAME AS PREVIOUS TURN */}
       <Dialog open={!!notebookToDelete} onOpenChange={() => setNotebookToDelete(null)}>
         <DialogContent className="max-w-[340px] rounded-[32px] p-8 text-center bg-white dark:bg-slate-950 border-none shadow-2xl">
           <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -194,7 +216,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
           <DialogDescription className="text-slate-500 mt-2 text-xs">All content inside will be removed.</DialogDescription>
           <div className="flex gap-2 mt-6">
             <Button variant="ghost" onClick={() => setSectionToDelete(null)} className="rounded-full flex-1">Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteSection} disabled={isProcessing} className="rounded-full flex-1 text-xs">Delete Section</Button>
+            <Button variant="destructive" onClick={handleDeleteSection} disabled={isProcessing} className="rounded-full flex-1">Delete</Button>
           </div>
         </DialogContent>
       </Dialog>

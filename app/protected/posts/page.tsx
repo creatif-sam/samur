@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation' // Added for URL persistence
 import { createClient } from '@/lib/supabase/client'
 import { Post, Profile } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
@@ -24,10 +25,16 @@ import { ThoughtBook } from '@/components/note/ThoughtBook'
 type PostWithProfile = Post & { profiles: Profile }
 
 export default function PostsPage() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // URL Persistence: Read the current tab from the URL (?tab=...)
+  const activeTab = searchParams.get('tab') || 'posts'
+
   const [posts, setPosts] = useState<PostWithProfile[]>([])
   const [notebooks, setNotebooks] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false) // Added for loading state
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [showComposer, setShowComposer] = useState(false)
   const [showMeditationComposer, setShowMeditationComposer] = useState(false)
   const [content, setContent] = useState('')
@@ -71,7 +78,13 @@ export default function PostsPage() {
     setLoading(false)
   }
 
-  // --- Corrected createPost Function ---
+  // Persist Tab Change to URL
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', value)
+    router.push(`?${params.toString()}`, { scroll: false })
+  }
+
   async function createPost() {
     if (!content.trim() || isSubmitting) return
     setIsSubmitting(true)
@@ -86,7 +99,6 @@ export default function PostsPage() {
       const result = await res.json()
 
       if (!res.ok) {
-        console.error("❌ Post Creation Failed:", result.error)
         alert(`Error: ${result.error || 'Failed to publish post'}`)
         return
       }
@@ -124,7 +136,8 @@ export default function PostsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
-      <Tabs defaultValue="posts" className="space-y-6">
+      {/* CONTROLLED TABS: value and onValueChange handle the URL sync */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
           <div className="flex items-center gap-2">
             <NotebookPen className="w-6 h-6 text-primary" />
@@ -132,16 +145,16 @@ export default function PostsPage() {
           </div>
           
           <TabsList className="bg-muted/50 p-1 rounded-lg border h-10">
-            <TabsTrigger value="posts" className="rounded-md px-4 text-xs font-medium gap-2">
+            <TabsTrigger value="posts" className="rounded-md px-4 text-xs font-medium gap-2 transition-all">
               <MessageSquare className="w-3.5 h-3.5" /> Feed
             </TabsTrigger>
-            <TabsTrigger value="thoughty" className="rounded-md px-4 text-xs font-medium gap-2">
+            <TabsTrigger value="thoughty" className="rounded-md px-4 text-xs font-medium gap-2 transition-all">
               <BookOpen className="w-3.5 h-3.5" /> Notebooks
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="posts" className="space-y-6 mt-0 outline-none focus-visible:ring-0">
+        <TabsContent value="posts" className="space-y-6 mt-0 outline-none focus-visible:ring-0 animate-in fade-in duration-300">
           <header className="flex items-center justify-between">
             <FeedSwitch />
             <div className="flex items-center gap-2">
@@ -153,7 +166,7 @@ export default function PostsPage() {
           </header>
 
           {showComposer && (
-            <Card className="shadow-sm border-muted-foreground/20 animate-in fade-in duration-200">
+            <Card className="shadow-sm border-muted-foreground/20">
               <CardContent className="p-4 space-y-4">
                 <Textarea
                   placeholder="Capture a thought..."
@@ -177,22 +190,10 @@ export default function PostsPage() {
                     </SelectContent>
                   </Select>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setShowComposer(false)} 
-                      className="text-xs"
-                      disabled={isSubmitting}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setShowComposer(false)} className="text-xs" disabled={isSubmitting}>
                       Cancel
                     </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={createPost} 
-                      disabled={isSubmitting || !content.trim()} 
-                      className="text-xs px-6"
-                    >
-                      {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
+                    <Button size="sm" onClick={createPost} disabled={isSubmitting || !content.trim()} className="text-xs px-6">
                       {isSubmitting ? 'Publishing...' : 'Publish'}
                     </Button>
                   </div>
@@ -218,8 +219,8 @@ export default function PostsPage() {
           </section>
         </TabsContent>
 
-        <TabsContent value="thoughty" className="mt-0 outline-none focus-visible:ring-0">
-          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-1">
+        <TabsContent value="thoughty" className="mt-0 outline-none focus-visible:ring-0 animate-in fade-in duration-300">
+          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-1 min-h-[600px]">
              <ThoughtBook 
                notebooks={notebooks} 
                onRefresh={loadData} 
