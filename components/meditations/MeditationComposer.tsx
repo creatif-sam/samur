@@ -99,10 +99,10 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         }
         await supabase.from('posts').insert({
           author_id: user.id, partner_id: partnerId, visibility, meditation_id: data.id,
-          content: `🧘 Just finished a ${period} meditation: "${title}"`,
+          content: `🧘 Meditated on: "${title}"`,
         })
       }
-      toast.success("Journal synced to Heaven! 🤍")
+      toast.success("Journal synced! 🤍")
       onCreated?.()
       onClose()
     } catch (err: any) {
@@ -113,91 +113,83 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
   if (!editor) return null
 
   return (
-    <div className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center p-0 md:p-4 bg-black/20 backdrop-blur-sm">
-      <Card className="w-full h-full md:h-auto md:max-w-2xl border-none shadow-2xl md:rounded-[40px] rounded-none bg-white/95 flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500">
-        <CardContent className="p-0 flex flex-col h-full">
-          
-          {/* Header - Fixed on Mobile */}
-          <div className="bg-[#7c3aed] p-5 md:p-6 text-white flex justify-between items-center shrink-0">
-            <div>
-              <h2 className="text-xl md:text-2xl font-black tracking-tight leading-none">Daily Bread</h2>
-              <p className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-70 mt-1">
-                {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-              </p>
-            </div>
-            <button onClick={onClose} className="bg-white/10 p-2 rounded-full hover:bg-white/20 transition-colors">
-              <X size={20} />
-            </button>
+    <div className="fixed inset-0 z-[100] md:flex md:items-center md:justify-center bg-black/40 backdrop-blur-sm">
+      <Card className="w-full h-full md:h-auto md:max-w-2xl border-none shadow-2xl md:rounded-[40px] rounded-none bg-white flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500">
+        
+        {/* Fixed Header */}
+        <div className="bg-[#7c3aed] p-5 md:p-6 text-white flex justify-between items-center shrink-0">
+          <div>
+            <h2 className="text-xl md:text-2xl font-black tracking-tight leading-none">Daily Bread</h2>
+            <p className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-70 mt-1">
+              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </p>
           </div>
+          <button onClick={onClose} className="bg-white/10 p-2 rounded-full hover:bg-white/20">
+            <X size={20} />
+          </button>
+        </div>
 
-          {/* Scrollable Form Content */}
-          <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 pb-32">
-            <Input 
-              placeholder="Focus of the Revelation..." 
-              value={title} 
-              onChange={(e) => setTitle(e.target.value)}
-              className="rounded-2xl border-slate-100 bg-slate-50/50 h-12 text-md font-bold px-4 focus:ring-violet-200"
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-5 md:p-8 space-y-6 pb-40">
+          <Input 
+            placeholder="Focus of the Revelation..." 
+            value={title} 
+            onChange={(e) => setTitle(e.target.value)}
+            className="rounded-2xl border-slate-100 bg-slate-50/50 h-12 font-bold px-4"
+          />
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Scripture</label>
+            <Textarea 
+              placeholder="e.g., Matthew 6:33" 
+              value={scripture} 
+              onChange={(e) => setScripture(e.target.value)}
+              className="rounded-2xl border-slate-100 bg-slate-50/50 min-h-[60px] px-4 py-3 italic text-sm"
             />
-
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">The Word (Scripture)</label>
-              <Textarea 
-                placeholder="e.g., Matthew 6:33" 
-                value={scripture} 
-                onChange={(e) => setScripture(e.target.value)}
-                className="rounded-2xl border-slate-100 bg-slate-50/50 min-h-[60px] px-4 py-3 italic text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Revelation & Lesson</label>
-               <div className="border-2 border-violet-50 rounded-[24px] overflow-hidden shadow-inner bg-white">
-                  {/* Sticky Toolbar for Mobile */}
-                  <div className="flex items-center gap-1 p-2 border-b border-violet-50 bg-violet-50/20 sticky top-0 z-10 backdrop-blur-sm">
-                    <RichButton icon={<Bold size={16}/>} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} />
-                    <RichButton icon={<Italic size={16}/>} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} />
-                    <RichButton icon={<ListOrdered size={16}/>} onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} />
-                    <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-                    <RichButton icon={<BookOpen size={16}/>} onClick={setBibleLink} active={editor.isActive('link')} />
-                  </div>
-                  <EditorContent editor={editor} />
-               </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Life Application</label>
-                <Textarea placeholder="How will you walk this out?" value={application} onChange={(e) => setApplication(e.target.value)} className="rounded-2xl border-slate-100 bg-slate-50/50 min-h-[80px]" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Prayer</label>
-                <Textarea placeholder="Seal it in prayer..." value={prayer} onChange={(e) => setPrayer(e.target.value)} className="rounded-2xl border-slate-100 bg-slate-50/50 min-h-[80px]" />
-              </div>
-            </div>
           </div>
 
-          {/* Footer - Fixed on Mobile Bottom */}
-          <div className="fixed bottom-0 left-0 right-0 md:relative bg-white/80 backdrop-blur-md p-5 md:p-6 border-t border-slate-100 flex items-center justify-between gap-4 shrink-0">
-            <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
-              <SelectTrigger className="w-[120px] rounded-xl border-slate-200 font-bold text-xs h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="rounded-2xl">
-                <SelectItem value="private">🔒 Private</SelectItem>
-                <SelectItem value="shared">❤️ Shared</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Button 
-              onClick={saveMeditation} 
-              disabled={saving}
-              className="flex-1 md:flex-none rounded-full bg-[#7c3aed] hover:bg-[#6d28d9] px-6 h-12 font-black text-md shadow-xl shadow-violet-200 transition-all active:scale-95"
-            >
-              {saving ? <Loader2 className="animate-spin h-5 w-5"/> : 'Sync Journal'}
-            </Button>
+          <div className="space-y-2">
+             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Revelation</label>
+             <div className="border-2 border-violet-50 rounded-[24px] overflow-hidden bg-white">
+                <div className="flex items-center gap-1 p-2 border-b border-violet-50 bg-violet-50/20 sticky top-0 z-10">
+                  <RichButton icon={<Bold size={16}/>} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} />
+                  <RichButton icon={<Italic size={16}/>} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} />
+                  <RichButton icon={<ListOrdered size={16}/>} onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} />
+                  <div className="w-[1px] h-4 bg-slate-200 mx-1" />
+                  <RichButton icon={<BookOpen size={16}/>} onClick={setBibleLink} active={editor.isActive('link')} />
+                </div>
+                <EditorContent editor={editor} />
+             </div>
           </div>
 
-        </CardContent>
+          <div className="grid grid-cols-1 gap-4">
+            <Textarea placeholder="Application" value={application} onChange={(e) => setApplication(e.target.value)} className="rounded-2xl border-slate-100 bg-slate-50/50 min-h-[80px]" />
+            <Textarea placeholder="Prayer" value={prayer} onChange={(e) => setPrayer(e.target.value)} className="rounded-2xl border-slate-100 bg-slate-50/50 min-h-[80px]" />
+          </div>
+        </div>
+
+        {/* Footer - Optimization: Removed overflow-hidden from footer container */}
+        <div className="bg-white p-5 md:p-6 border-t border-slate-100 flex items-center justify-between gap-4 shrink-0 pb-safe">
+          <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
+            <SelectTrigger className="w-[130px] rounded-xl border-slate-200 font-bold text-xs h-10 bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            {/* Optimization: Ensure the list is on top of everything */}
+            <SelectContent className="z-[110] rounded-2xl shadow-xl border-slate-100">
+              <SelectItem value="private" className="font-medium">🔒 Private</SelectItem>
+              <SelectItem value="shared" className="font-medium">❤️ Shared</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button 
+            onClick={saveMeditation} 
+            disabled={saving}
+            className="flex-1 md:flex-none rounded-full bg-[#7c3aed] px-6 h-12 font-black text-md shadow-lg shadow-violet-200 active:scale-95"
+          >
+            {saving ? <Loader2 className="animate-spin h-5 w-5"/> : 'Save Meditation'}
+          </Button>
+        </div>
+
       </Card>
     </div>
   )
@@ -205,11 +197,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
 function RichButton({ icon, onClick, active }: any) {
   return (
-    <button 
-      type="button"
-      onClick={onClick}
-      className={`p-2 rounded-xl transition-all ${active ? 'bg-white text-[#7c3aed] shadow-sm' : 'text-slate-400'}`}
-    >
+    <button type="button" onClick={onClick} className={`p-2 rounded-xl ${active ? 'bg-white text-[#7c3aed] shadow-sm' : 'text-slate-400'}`}>
       {icon}
     </button>
   )
