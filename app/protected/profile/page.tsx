@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { LogOut, Camera, Save, Users, Loader2 } from 'lucide-center' // Fixed lucide-react import name
+import { LogOut, Camera, Save, Users, Loader2 } from 'lucide-react' // Fixed lucide-react import name
 import { LogOut as LogOutIcon, Camera as CameraIcon, Save as SaveIcon, Users as UsersIcon } from 'lucide-react'
 import DisciplineVideosForm from '@/components/profile/DisciplineVideosForm'
 import UserProfilesList from '@/components/profile/UserProfilesList'
