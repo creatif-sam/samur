@@ -15,13 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { LogOut, Camera, Save, Users, Loader2 } from 'lucide-react'
+import { LogOut, Camera, Save, Users, Loader2 } from 'lucide-center' // Fixed lucide-react import name
+import { LogOut as LogOutIcon, Camera as CameraIcon, Save as SaveIcon, Users as UsersIcon } from 'lucide-react'
 import DisciplineVideosForm from '@/components/profile/DisciplineVideosForm'
 import UserProfilesList from '@/components/profile/UserProfilesList'
 import PushNotificationManager from '@/components/PushNotificationManager'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null) // State to store email from Auth
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
@@ -43,6 +45,9 @@ export default function ProfilePage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
+
+    // Email lives in auth.user, not typically in the public.profiles table
+    setUserEmail(user.email ?? null)
 
     const { data } = await supabase
       .from('profiles')
@@ -140,7 +145,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground transition-colors duration-300">
         <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
         <p className="mt-4 text-xs font-black uppercase tracking-widest text-muted-foreground">Preparing Profile</p>
       </div>
@@ -156,7 +161,7 @@ export default function ProfilePage() {
         onClick={handleLogout}
         className="fixed top-4 right-4 z-50 rounded-full bg-background/50 backdrop-blur-md border border-border/40 hover:bg-muted"
       >
-        <LogOut className="w-5 h-5" />
+        <LogOutIcon className="w-5 h-5" />
       </Button>
 
       {/* Hero Header */}
@@ -194,7 +199,7 @@ export default function ProfilePage() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
-                {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Camera className="w-5 h-5" />}
+                {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CameraIcon className="w-5 h-5" />}
               </Button>
             </div>
 
@@ -207,9 +212,9 @@ export default function ProfilePage() {
                     className="rounded-xl bg-muted/50 border-none h-12 focus-visible:ring-violet-500"
                   />
                   <Button onClick={updateProfile} className="h-12 w-12 rounded-xl bg-violet-600">
-                    <Save className="w-5 h-5" />
+                    <SaveIcon className="w-5 h-5" />
                   </Button>
-                  <Button variant="outline" onClick={() => setEditing(false)} className="h-12 rounded-xl border-border">
+                  <Button variant="outline" onClick={() => setEditing(false)} className="h-12 rounded-xl border-border text-foreground">
                     Cancel
                   </Button>
                 </div>
@@ -217,9 +222,10 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <h1 className="text-3xl font-black tracking-tighter uppercase italic">{name || 'Unnamed User'}</h1>
-                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{profile?.email || 'SamUr Member'}</p>
+                    {/* Fixed build error: using userEmail state instead of profile.email */}
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{userEmail || 'SamUr Member'}</p>
                   </div>
-                  <Button variant="outline" onClick={() => setEditing(true)} className="rounded-full border-border">
+                  <Button variant="outline" onClick={() => setEditing(true)} className="rounded-full border-border text-foreground">
                     Edit Profile
                   </Button>
                 </div>
@@ -244,7 +250,7 @@ export default function ProfilePage() {
         {/* Partner Selection Card */}
         <div className="bg-card dark:bg-zinc-900/40 backdrop-blur-md rounded-3xl p-6 border border-border">
           <Label className="flex items-center gap-2 mb-4 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
-            <Users className="w-4 h-4 text-violet-500" />
+            <UsersIcon className="w-4 h-4 text-violet-500" />
             Connection Settings
           </Label>
 
@@ -255,7 +261,6 @@ export default function ProfilePage() {
             <SelectTrigger className="h-14 rounded-2xl bg-muted/50 border-none focus:ring-violet-500 text-foreground">
               <SelectValue placeholder="Select partner" />
             </SelectTrigger>
-            {/* FIX: Ensure dropdown renders correctly in all themes with high z-index */}
             <SelectContent 
               position="popper" 
               sideOffset={4} 
@@ -274,7 +279,6 @@ export default function ProfilePage() {
           </p>
         </div>
 
-        {/* Additional Sections */}
         <div className="grid gap-6">
           <BusinessCardSection />
           <DisciplineVideosForm />
