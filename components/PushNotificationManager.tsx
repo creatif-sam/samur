@@ -154,6 +154,35 @@ export default function PushNotificationManager() {
     }
   }
 
+  const sendTestNotification = async () => {
+    setActionLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const response = await fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: user.id,
+          title: 'Test Notification',
+          body: 'This is a test push notification from SamUr!',
+          url: '/protected'
+        })
+      })
+
+      if (response.ok) {
+        toast.success('Test notification sent! Check your phone.')
+      } else {
+        toast.error('Failed to send test notification')
+      }
+    } catch (error) {
+      toast.error('Error sending test notification')
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) return (
     <div className="flex items-center justify-center p-12 bg-card rounded-[32px] border">
       <Loader2 className="h-6 w-6 animate-spin text-[#7c3aed]" />
@@ -229,6 +258,20 @@ export default function PushNotificationManager() {
             ))}
           </div>
         </div>
+
+        {isSubscribed && (
+          <div className="px-1">
+            <Button
+              onClick={sendTestNotification}
+              disabled={actionLoading}
+              variant="outline"
+              className="w-full rounded-2xl py-3 font-bold"
+            >
+              {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+              Test Push Notification
+            </Button>
+          </div>
+        )}
 
         {permission === 'denied' && (
           <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-600 text-[10px] font-bold uppercase">
