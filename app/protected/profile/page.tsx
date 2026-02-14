@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { LogOut, Camera, Save, Users } from 'lucide-react'
-import DisciplineVideosForm from '@/components/profile/DisciplineVideosForm'
+
 import UserProfilesList from '@/components/profile/UserProfilesList'
 import PushNotificationManager from '@/components/PushNotificationManager'
 
