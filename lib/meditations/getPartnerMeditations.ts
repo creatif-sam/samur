@@ -32,6 +32,7 @@ export async function getPartnerMeditations() {
     .from('meditations')
     .select('author_id, created_at, period')
     .in('author_id', userIds)
+    .eq('visibility', 'shared') // Only fetch shared meditations for partner visibility
 
   return {
     meId: me.id,

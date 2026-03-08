@@ -64,6 +64,59 @@ export class NotificationTriggers {
   }
 
   /**
+   * Send notification when new goal is created
+   */
+  async notifyGoalCreated(userId: string, goalTitle: string, partnerId?: string) {
+    // Notify the user
+    await pushNotificationService.sendToUser(userId, {
+      title: 'Goal Created! 🎯',
+      body: `Keep focused on: ${goalTitle}`,
+      data: { type: 'goal_created', goalTitle },
+      url: '/protected/goals',
+    }, 'goal_created');
+
+    // If shared with partner, notify them too
+    if (partnerId) {
+      const supabase = await this.getSupabase();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      const userName = profile?.full_name || 'Your partner';
+
+      await pushNotificationService.sendToUser(partnerId, {
+        title: 'Shared Goal Created',
+        body: `${userName} created a new goal: ${goalTitle}`,
+        data: { type: 'partner_goal_created', goalTitle, fromUserId: userId },
+        url: '/protected/goals',
+      }, 'goal_created');
+    }
+  }
+
+  /**
+   * Send notification when partner updates goal progress
+   */
+  async notifyPartnerGoalProgress(userId: string, partnerId: string, goalTitle: string, progressPercent: number) {
+    const supabase = await this.getSupabase();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', userId)
+      .single();
+
+    const userName = profile?.full_name || 'Your partner';
+
+    await pushNotificationService.sendToUser(partnerId, {
+      title: 'Partner Goal Progress',
+      body: `${userName} made progress on ${goalTitle} - ${progressPercent}% complete!`,
+      data: { type: 'partner_goal_progress', goalTitle, progressPercent, fromUserId: userId },
+      url: '/protected/goals',
+    }, 'goal_progress');
+  }
+
+  /**
    * Send notification for new posts
    */
   async notifyNewPost(userId: string, authorName: string, postPreview: string) {
@@ -110,6 +163,43 @@ export class NotificationTriggers {
       data: { ...data, fromUserId: userId },
       url: '/protected',
     }, 'message');
+  }
+
+  /**
+   * Send notification when partner completes meditation
+   */
+  async notifyPartnerMeditation(userId: string, partnerId: string, userName: string) {
+    await pushNotificationService.sendToUser(partnerId, {
+      title: 'Partner Meditation',
+      body: `${userName} completed their meditation today! 🙏`,
+      data: { type: 'partner_meditation', fromUserId: userId },
+      url: '/protected/meditations',
+    }, 'meditation');
+  }
+
+  /**
+   * Send notification when user starts meditation streak
+   */
+  async notifyMeditationStreak(userId: string, days: number) {
+    await pushNotificationService.sendToUser(userId, {
+      title: 'Meditation Streak! 🔥',
+      body: `You've meditated for ${days} days in a row. Keep it up!`,
+      data: { type: 'meditation_streak', days },
+      url: '/protected/meditations',
+    }, 'meditation');
+  }
+
+  /**
+   * Send reminder for daily meditation
+   */
+  async notifyMeditationReminder(userId: string, period: 'morning' | 'evening') {
+    const timeText = period === 'morning' ? 'Start your day' : 'End your day';
+    await pushNotificationService.sendToUser(userId, {
+      title: 'Time for Meditation',
+      body: `${timeText} with scripture and reflection 📖`,
+      data: { type: 'meditation_reminder', period },
+      url: '/protected/meditations',
+    }, 'meditation');
   }
 
   /**

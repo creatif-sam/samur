@@ -23,11 +23,12 @@ export default function TaskItem({
   };
 
   return (
-    <div className="bg-violet-50 rounded-md p-2">
+    <div className="bg-violet-50 rounded-md p-2 w-full max-w-full">
       <Input
         value={task.title}
         placeholder="What will I do?"
         onChange={(e) => updateTitle(e.target.value)}
+        className="w-full text-sm"
       />
     </div>
   );

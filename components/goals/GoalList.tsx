@@ -277,7 +277,58 @@ function GoalCard({
       .select('*, visions(*), goal_categories(*)')
       .single()
 
-    if (data) onUpdated(data)
+    if (data) {
+      onUpdated(data)
+      
+      // Send notification for goal completion
+      if (newStatus === 'done') {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          // Notify partner if shared
+          if (goal.visibility === 'shared' && goal.partner_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', user.id)
+              .single()
+
+            fetch('/api/notifications/send', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                targetUserId: goal.partner_id,
+                title: 'Partner Goal Progress',
+                body: `${profile?.full_name || 'Your partner'} completed: ${goal.title}! 🎯`,
+                url: '/protected/goals'
+              })
+            }).catch(err => console.error('Failed to send partner notification:', err))
+          }
+        }
+      }
+      
+      // Notify on progress update if doing
+      if (newStatus === 'doing') {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user && goal.visibility === 'shared' && goal.partner_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single()
+
+          fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUserId: goal.partner_id,
+              title: 'Partner Goal Progress',
+              body: `${profile?.full_name || 'Your partner'} is working on: ${goal.title}`,
+              url: '/protected/goals'
+            })
+          }).catch(err => console.error('Failed to send partner notification:', err))
+        }
+      }
+    }
   }
 
   return (

@@ -34,7 +34,7 @@ export default function HourBlock({
   };
 
   return (
-    <div className="border-l-2 border-violet-600 pl-4 py-2">
+    <div className="border-l-2 border-violet-600 pl-4 py-2 w-full max-w-full overflow-hidden">
       <div className="flex justify-between items-center mb-1">
         <span className="text-xs text-muted-foreground">{hour}</span>
         <Button size="icon" variant="ghost" onClick={addTask}>

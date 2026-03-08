@@ -40,6 +40,7 @@ export default function DailyPlanner() {
   const [taskModalHour, setTaskModalHour] = useState<number | null>(null)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
   const [visionsMap, setVisionsMap] = useState<Record<string, Vision>>({})
+  const [userId, setUserId] = useState<string | null>(null)
 
   const dateKey = selectedDate.toISOString().split('T')[0]
   const theme = moodThemes[mood] || moodThemes['default']
@@ -75,6 +76,63 @@ export default function DailyPlanner() {
   useEffect(() => { loadDay() }, [dateKey])
   useEffect(() => { loadVisions() }, [])
 
+  // 5-minute task reminder notification
+  useEffect(() => {
+    // Only check for today's tasks and when userId is available
+    if (!userId) return
+    
+    const today = new Date().toISOString().split('T')[0]
+    if (dateKey !== today) return
+
+    const checkUpcomingTasks = () => {
+      const now = new Date()
+      const currentHours = now.getHours()
+      const currentMinutes = now.getMinutes()
+      const currentTotalMinutes = currentHours * 60 + currentMinutes
+      
+      tasks.forEach(task => {
+        // Skip completed tasks
+        if (completedTaskIds.includes(task.id)) return
+        
+        const taskStartMinutes = parseMinutes(task.start)
+        const minutesUntilTask = taskStartMinutes - currentTotalMinutes
+        
+        // If task starts in 5 minutes (between 4.5 and 5.5 to account for check intervals)
+        if (minutesUntilTask >= 4 && minutesUntilTask <= 6) {
+          // Check if we've already notified for this task today
+          const notifiedKey = `task-notified-${task.id}-${dateKey}`
+          if (localStorage.getItem(notifiedKey)) return
+          
+          // Mark as notified
+          localStorage.setItem(notifiedKey, 'true')
+          
+          // Send notification
+          const vision = task.vision_id ? visionsMap[task.vision_id] : null
+          const visionEmoji = vision?.emoji || '⏰'
+          
+          fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUserId: userId,
+              title: `${visionEmoji} Task in 5 minutes`,
+              body: `${task.text} starts at ${task.start}`,
+              url: '/protected/planner'
+            })
+          }).catch(err => console.error('Failed to send task reminder:', err))
+        }
+      })
+    }
+
+    // Check immediately
+    checkUpcomingTasks()
+    
+    // Check every minute
+    const interval = setInterval(checkUpcomingTasks, 60000)
+    
+    return () => clearInterval(interval)
+  }, [tasks, completedTaskIds, dateKey, visionsMap, userId])
+
   async function loadVisions() {
     const { data: auth } = await supabase.auth.getUser()
     if (!auth?.user) return
@@ -89,6 +147,9 @@ export default function DailyPlanner() {
   async function loadDay() {
     const { data: auth } = await supabase.auth.getUser()
     if (!auth?.user) return
+    
+    setUserId(auth.user.id)
+    
     const { data: todayData } = await supabase
       .from('planner_days')
       .select('tasks, morning, reflection, mood, completed_task_ids')

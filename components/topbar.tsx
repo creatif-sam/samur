@@ -1,6 +1,5 @@
 'use client'
 
-import { HelpCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -92,10 +91,6 @@ export function Topbar() {
           
           {/* Theme Switcher added here */}
           <ThemeSwitcher />
-
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full">
-            <HelpCircle className="w-5 h-5" />
-          </Button>
         </div>
       </header>
     </>

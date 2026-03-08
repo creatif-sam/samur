@@ -222,6 +222,41 @@ export function NewGoalForm({
       return
     }
 
+    // Send notification for goal creation
+    if (data) {
+      // Notify partner if shared
+      if (visibility === 'shared' && partnerId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', auth.user.id)
+          .single()
+
+        fetch('/api/notifications/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            targetUserId: partnerId,
+            title: 'Shared Goal Created',
+            body: `${profile?.full_name || 'Your partner'} created a new goal: ${title.trim()}`,
+            url: '/protected/goals'
+          })
+        }).catch(err => console.error('Failed to send partner notification:', err))
+      }
+
+      // Notify self about goal creation
+      fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: auth.user.id,
+          title: 'Goal Created! 🎯',
+          body: `Keep focused on: ${title.trim()}`,
+          url: '/protected/goals'
+        })
+      }).catch(err => console.error('Failed to send self notification:', err))
+    }
+
     // Reset form fields only on creation
     setTitle('')
     setDescription('')
