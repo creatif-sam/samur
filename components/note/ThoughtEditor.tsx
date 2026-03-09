@@ -3,13 +3,18 @@
 import { useState, useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
 import { 
   ChevronLeft, Trash2, Calendar, Clock, 
-  Bold, Italic, List, ListOrdered, Heading2 
+  Bold, Italic, List, ListOrdered, Heading2, Plus, 
+  CheckSquare, Underline as UnderlineIcon, Type
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export function ThoughtEditor({ page, onBack, onRefresh }: any) {
   const [title, setTitle] = useState(page.title)
@@ -18,7 +23,14 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
 
   // --- TIPTAP CONFIGURATION ---
   const editor = useEditor({
-    extensions: [StarterKit],
+    extensions: [
+      StarterKit,
+      Underline,
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+    ],
     content: page.content || '',
     immediatelyRender: false, 
     editorProps: {
@@ -55,7 +67,13 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
       })
       .eq('id', page.id)
 
-    if (!error) await onRefresh()
+    if (!error) {
+      // Update the page object immediately for instant UI feedback
+      page.content = currentContent
+      page.title = currentTitle
+      page.updated_at = new Date().toISOString()
+      await onRefresh()
+    }
     setIsSaving(false)
   }
 
@@ -81,11 +99,59 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
 
       {/* RICH TEXT TOOLBAR */}
       <div className="flex items-center gap-1 px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
-        <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} icon={<Bold size={16}/>} />
-        <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} icon={<Italic size={16}/>} />
-        <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading')} icon={<Heading2 size={16}/>} />
+        {/* Add new item button */}
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().insertContent('<p></p>').run()} 
+          active={false} 
+          icon={<Plus size={16}/>} 
+        />
+        
         <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
-        <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} icon={<List size={16}/>} />
+        
+        {/* List types */}
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().toggleTaskList().run()} 
+          active={editor.isActive('taskList')} 
+          icon={<CheckSquare size={16}/>} 
+        />
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().toggleBulletList().run()} 
+          active={editor.isActive('bulletList')} 
+          icon={<List size={16}/>} 
+        />
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().toggleOrderedList().run()} 
+          active={editor.isActive('orderedList')} 
+          icon={<ListOrdered size={16}/>} 
+        />
+        
+        <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+        
+        {/* Text style */}
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} 
+          active={editor.isActive('heading')} 
+          icon={<Type size={16}/>} 
+        />
+        
+        <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+        
+        {/* Text formatting */}
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().toggleBold().run()} 
+          active={editor.isActive('bold')} 
+          icon={<Bold size={16}/>} 
+        />
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().toggleItalic().run()} 
+          active={editor.isActive('italic')} 
+          icon={<Italic size={16}/>} 
+        />
+        <ToolbarButton 
+          onClick={() => editor.chain().focus().toggleUnderline().run()} 
+          active={editor.isActive('underline')} 
+          icon={<UnderlineIcon size={16}/>} 
+        />
       </div>
 
       <main className="flex-grow overflow-y-auto bg-white dark:bg-[#0f172a] flex flex-col">

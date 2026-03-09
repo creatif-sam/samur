@@ -341,7 +341,22 @@ export default function DailyPlanner() {
             saveDay(updated, morning, reflection, mood, completedTaskIds)
             setTaskModalHour(null)
             setEditingTask(null)
-          }} 
+          }}
+          onDelete={(taskId, deleteAll) => {
+            if (deleteAll && editingTask?.recurring) {
+              // Delete all recurring instances - remove the task template
+              const updated = tasks.filter((t) => t.id !== taskId)
+              setTasks(updated)
+              saveDay(updated, morning, reflection, mood, completedTaskIds)
+            } else {
+              // Delete only this instance - just remove from this day
+              const updated = tasks.filter((t) => t.id !== taskId)
+              setTasks(updated)
+              saveDay(updated, morning, reflection, mood, completedTaskIds)
+            }
+            setTaskModalHour(null)
+            setEditingTask(null)
+          }}
         />
       )}
     </div>

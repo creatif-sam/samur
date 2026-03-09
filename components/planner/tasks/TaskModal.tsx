@@ -5,24 +5,28 @@ import type { PlannerTask } from '../DailyPlanner'
 import { TaskBasics } from './TaskBasics'
 import { TaskRecurrence } from './TaskRecurrence'
 import { Modal } from './Modal'
-import { Clock, ArrowRight, X, Calendar as CalendarIcon } from 'lucide-react'
+import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function TaskModal({
   hour,
   existingTask,
   onClose,
   onSave,
+  onDelete,
 }: {
   hour: number
   existingTask?: PlannerTask | null
   onClose: () => void
   onSave: (t: PlannerTask) => void
+  onDelete?: (taskId: string, deleteAll: boolean) => void
 }) {
   const [text, setText] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [visionId, setVisionId] = useState<string | null>(null)
   const [recurring, setRecurring] = useState<PlannerTask['recurring'] | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   useEffect(() => {
     if (existingTask) {
@@ -38,6 +42,55 @@ export function TaskModal({
       setEndTime(`${hEnd}:00`)
     }
   }, [existingTask, hour])
+
+  function handleDelete(deleteAll: boolean) {
+    if (existingTask && onDelete) {
+      onDelete(existingTask.id, deleteAll)
+      toast.success(deleteAll ? 'All recurring events deleted' : 'Event deleted')
+      onClose()
+    }
+  }
+
+  function handleSave() {
+    if (!text.trim()) return
+    
+    if (existingTask && existingTask.recurring && JSON.stringify(recurring) !== JSON.stringify(existingTask.recurring)) {
+      // Recurring settings changed - ask if they want to update all
+      toast.warning('Update recurring event?', {
+        description: 'This is a recurring event',
+        action: {
+          label: 'Update All',
+          onClick: () => {
+            saveTask()
+            toast.success('All recurring events updated')
+          }
+        },
+        cancel: {
+          label: 'This Only',
+          onClick: () => {
+            saveTask()
+            toast.success('Event updated')
+          }
+        },
+        duration: 10000
+      })
+    } else {
+      saveTask()
+    }
+  }
+
+  function saveTask() {
+    onSave({
+      id: existingTask?.id ?? crypto.randomUUID(),
+      text,
+      start: startTime,
+      end: endTime,
+      completed: existingTask?.completed ?? false,
+      vision_id: visionId ?? undefined,
+      recurring: recurring ?? undefined
+    })
+    onClose()
+  }
 
   function getDurationLabel() {
     const [sH, sM] = startTime.split(':').map(Number)
@@ -133,16 +186,63 @@ export function TaskModal({
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="px-5 md:px-8 py-4 md:py-6 bg-slate-50 dark:bg-slate-800/20 flex flex-row gap-3 justify-end">
-          <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
-            Discard
-          </button>
-          <button 
-            onClick={() => text.trim() && onSave({ id: existingTask?.id ?? crypto.randomUUID(), text, start: startTime, end: endTime, completed: existingTask?.completed ?? false, vision_id: visionId ?? undefined, recurring: recurring ?? undefined })}
-            className={`flex-1 md:flex-none md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg transition-all ${text.trim() ? 'bg-blue-600 text-white active:scale-95 shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-          >
-            {existingTask ? 'Save Changes' : 'Confirm'}
-          </button>
+        <div className="px-5 md:px-8 py-4 md:py-6 bg-slate-50 dark:bg-slate-800/20 flex flex-row gap-3 justify-between items-center">
+          {existingTask && onDelete ? (
+            <button
+              onClick={() => {
+                if (existingTask.recurring) {
+                  // Ask if they want to delete this or all recurring events
+                  toast.warning(`Delete "${existingTask.text}"?`, {
+                    description: 'This is a recurring event',
+                    action: {
+                      label: 'Delete All',
+                      onClick: () => handleDelete(true)
+                    },
+                    cancel: {
+                      label: 'This Only',
+                      onClick: () => handleDelete(false)
+                    },
+                    duration: 10000
+                  })
+                } else {
+                  // Simple delete confirmation
+                  toast.warning(`Delete "${existingTask.text}"?`, {
+                    description: 'This action cannot be undone',
+                    action: {
+                      label: 'Delete',
+                      onClick: () => handleDelete(false)
+                    },
+                    cancel: {
+                      label: 'Cancel',
+                      onClick: () => toast.dismiss()
+                    },
+                    duration: 10000
+                  })
+                }
+              }}
+              className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+            >
+              <Trash2 size={20} />
+            </button>
+          ) : (
+            <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
+              Discard
+            </button>
+          )}
+          
+          <div className="flex gap-3">
+            {existingTask && (
+              <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
+                Cancel
+              </button>
+            )}
+            <button 
+              onClick={handleSave}
+              className={`flex-1 md:flex-none md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg transition-all ${text.trim() ? 'bg-blue-600 text-white active:scale-95 shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+            >
+              {existingTask ? 'Save Changes' : 'Confirm'}
+            </button>
+          </div>
         </div>
       </div>
     </Modal>
