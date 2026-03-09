@@ -63,7 +63,7 @@ export class PushNotificationService {
   async sendToUser(
     userId: string,
     payload: PushNotificationPayload,
-    type: 'message' | 'planner_reminder' | 'goal_deadline' | 'goal_progress' | 'goal_created' | 'meditation' | 'post' | 'system' = 'system'
+    type: 'message' | 'planner_reminder' | 'task_reminder' | 'goal_deadline' | 'goal_progress' | 'goal_created' | 'meditation' | 'post' | 'system' = 'system'
   ) {
     try {
       const supabase = await this.getSupabase()

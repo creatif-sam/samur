@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     const bodyData = await request.json()
-    const { targetUserId, type, title, body, url } = bodyData
+    const { targetUserId, type, title, body, url, data } = bodyData
 
     // 1. Create in-app notification
     const { data: notification, error: dbError } = await supabase
@@ -58,6 +58,7 @@ export async function POST(request: Request) {
         type: type || 'general',
         title: title,
         body: body,
+        data: data || {},
         read: false
       })
       .select()

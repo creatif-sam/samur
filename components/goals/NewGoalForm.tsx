@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
@@ -145,10 +146,12 @@ export function NewGoalForm({
       .single()
 
     if (error) {
+      toast.error('Failed to create category')
       console.error(error)
       return
     }
 
+    toast.success('Category created')
     setLocalCategories((c) => [...c, data])
     setCategoryId(data.id)
     setNewCategoryName('')
@@ -200,10 +203,12 @@ export function NewGoalForm({
       .single()
 
     if (error) {
+      toast.error('Failed to update goal')
       console.error('Update error:', error)
       return
     }
 
+    toast.success('Goal updated successfully')
     // Call the success callback for editing
     onCreated(data) 
   } else {
@@ -218,9 +223,12 @@ export function NewGoalForm({
       .single()
 
     if (error) {
+      toast.error('Failed to create goal')
       console.error('Insert error:', error)
       return
     }
+
+    toast.success('Goal created successfully!')
 
     // Send notification for goal creation
     if (data) {

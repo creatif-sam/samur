@@ -2,6 +2,8 @@ name: Scheduled Notifications
 
 on:
   schedule:
+    # Task reminders - Every 5 minutes
+    - cron: '*/5 * * * *'
     # Morning planner reminder - 9:00 AM Casablanca (8:00 UTC)
     - cron: '0 8 * * *'
     # Goal deadline check - 8:00 AM Casablanca (7:00 UTC)
@@ -19,6 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Task Reminders (Every 5 minutes)
+        if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -X GET https://samur.gen116.com/api/cron/task-reminders
+      
       - name: Morning Planner Reminder (9am Casablanca)
         if: github.event.schedule == '0 8 * * *' || github.event_name == 'workflow_dispatch'
         run: |

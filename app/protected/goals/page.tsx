@@ -125,7 +125,7 @@ export default function GoalsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center text-muted-foreground animate-pulse font-black italic uppercase">
+      <div className="flex h-screen items-center justify-center text-muted-foreground animate-pulse font-black uppercase">
         Loading Architecture
       </div>
     )
@@ -135,10 +135,10 @@ export default function GoalsPage() {
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-8">
       <header className="flex flex-col gap-4">
         <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter italic uppercase">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">
             Goals & Vision
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground italic">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             "Write the vision and make it plain." Habakkuk 2:2
           </p>
         </div>
@@ -147,7 +147,7 @@ export default function GoalsPage() {
           <VisionCreator onCreated={loadAll} />
           <Button
             onClick={() => setShowNew(true)}
-            className="w-full sm:w-auto h-10 font-bold uppercase italic text-xs"
+            className="w-full sm:w-auto h-10 font-bold uppercase text-xs"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Goal
@@ -162,7 +162,7 @@ export default function GoalsPage() {
         </div>
 
         <Select value={selectedVisionId} onValueChange={setSelectedVisionId}>
-          <SelectTrigger className="w-full h-10 font-bold italic">
+          <SelectTrigger className="w-full h-10 font-bold">
             <SelectValue placeholder="All Active Visions" />
           </SelectTrigger>
           <SelectContent>

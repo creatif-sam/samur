@@ -7,6 +7,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from 'sonner'
 import {
   Select,
   SelectContent,
@@ -49,10 +50,12 @@ export function GoalActions({
       .single()
 
     if (error) {
+      toast.error('Failed to update goal')
       console.error('Update goal error', error)
       return
     }
 
+    toast.success('Goal updated successfully')
     onUpdated(data)
     setOpen(false)
   }
@@ -67,10 +70,12 @@ export function GoalActions({
       .eq('id', goal.id)
 
     if (error) {
+      toast.error('Failed to delete goal')
       console.error('Delete goal error', error)
       return
     }
 
+    toast.success('Goal deleted')
     onDeleted(goal.id)
   }
 
