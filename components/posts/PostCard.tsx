@@ -139,6 +139,24 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
       if (data) {
         setReactions(prev => [...prev, data]);
         setUserReaction(data);
+        
+        // Send notification to post author if it's not the current user liking their own post
+        if (post.author_id && post.author_id !== currentUserId) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const userName = user?.user_metadata?.name || 'Your partner';
+          
+          fetch('/api/notifications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUserId: post.author_id,
+              type: 'post',
+              title: 'New Like ❤️',
+              body: `${userName} liked your post`,
+              url: '/protected/posts'
+            })
+          }).catch(err => console.error('Failed to send notification:', err));
+        }
       }
     }
     setLoading(false);

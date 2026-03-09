@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { detectMentions, getPartnerId } from '@/lib/mentions'
 
 export async function POST(req: Request) {
   try {
@@ -30,11 +31,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: dbError.message }, { status: 500 })
     }
 
-    // 2. Notification Logic (Your bridge to the partner)
+    const senderName = sender.user_metadata?.name || 'Your partner'
+    const origin = new URL(req.url).origin
+
+    // 2. Notification to post owner (if not commenting on own post)
     const postOwnerId = (comment.post as any)?.author_id
     if (postOwnerId && postOwnerId !== sender.id) {
-      const senderName = sender.user_metadata?.name || 'Your partner'
-      await fetch(`${new URL(req.url).origin}/api/notifications`, {
+      await fetch(`${origin}/api/notifications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -45,6 +48,39 @@ export async function POST(req: Request) {
           url: `/protected/posts` 
         })
       })
+    }
+
+    // 3. Check for @ mentions and notify mentioned users
+    const mentions = detectMentions(content)
+    if (mentions.length > 0) {
+      const partnerId = await getPartnerId(supabase, sender.id)
+      if (partnerId && partnerId !== postOwnerId) {
+        // Get partner's name to check if they were mentioned
+        const { data: partnerProfile } = await supabase
+          .from('profiles')
+          .select('name, full_name')
+          .eq('id', partnerId)
+          .single()
+
+        const partnerMentioned = mentions.some(mention => 
+          mention.toLowerCase() === partnerProfile?.name?.toLowerCase() ||
+          mention.toLowerCase() === partnerProfile?.full_name?.toLowerCase()
+        )
+
+        if (partnerMentioned) {
+          await fetch(`${origin}/api/notifications`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUserId: partnerId,
+              type: 'mention',
+              title: `${senderName} mentioned you 📣`,
+              body: `"${content.slice(0, 50)}..."`,
+              url: `/protected/posts`
+            })
+          })
+        }
+      }
     }
 
     return NextResponse.json({ success: true, comment })

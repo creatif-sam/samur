@@ -208,7 +208,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
             disabled={saving}
             className="w-full sm:flex-1 md:flex-none rounded-full bg-[#7c3aed] px-10 h-12 font-semibold text-md shadow-lg shadow-violet-200 dark:shadow-none active:scale-95 transition-all"
           >
-            {saving ? <Loader2 className="animate-spin h-5 w-5"/> : 'Sync Journal'}
+            {saving ? <Loader2 className="animate-spin h-5 w-5"/> : 'Amen'}
           </Button>
         </div>
 

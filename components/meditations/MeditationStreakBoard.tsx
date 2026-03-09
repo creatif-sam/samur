@@ -68,9 +68,10 @@ export default function MeditationStreakBoard({
   const [activeDay, setActiveDay] = useState<string | null>(null)
   const [showCalendar, setShowCalendar] = useState(false)
 
+  // Use ALL meditations (both private and shared) for streak tracking - OR logic
   const scopedMeditations = useMemo(
-    () => meditations.filter((m) => m.author_id === ownerId),
-    [meditations, ownerId],
+    () => meditations, // Include all meditations, not just own
+    [meditations],
   )
 
   const days = useMemo(

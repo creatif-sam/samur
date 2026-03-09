@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -20,6 +20,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
   const [title, setTitle] = useState(page.title)
   const [isSaving, setIsSaving] = useState(false)
   const supabase = createClient()
+  const editorAreaRef = useRef<HTMLDivElement>(null)
 
   // --- TIPTAP CONFIGURATION ---
   const editor = useEditor({
@@ -52,6 +53,18 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
     }, 1500)
     return () => clearTimeout(timer)
   }, [title, editor]) // REMOVED 'content' reference to fix ReferenceError
+
+  // --- SCROLL EDITOR INTO VIEW ON MOUNT ---
+  useEffect(() => {
+    if (editor && editorAreaRef.current) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        editorAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        editor.commands.focus('end') // Focus cursor at end of content
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [editor])
 
   async function handleAutoSave(currentTitle: string, currentContent: string) {
     // Prevent saving if nothing actually changed from the original DB record
@@ -172,6 +185,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
 
         {/* RULED PAPER WRITING AREA - OPTIMIZED FOR DARK SCREEN */}
         <div 
+          ref={editorAreaRef}
           className="flex-grow px-6 pb-20 cursor-text"
           onClick={() => editor.commands.focus()}
           style={{
