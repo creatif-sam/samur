@@ -24,29 +24,35 @@ jobs:
       - name: Task Reminders (Every 5 minutes)
         if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -X GET https://samur.gen116.com/api/cron/task-reminders
+          curl -X GET https://samur.gen116.com/api/cron/task-reminders \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
       
       - name: Morning Planner Reminder (9am Casablanca)
         if: github.event.schedule == '0 8 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -X GET https://samur.gen116.com/api/cron/morning-planner
+          curl -X GET https://samur.gen116.com/api/cron/morning-planner \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
       
       - name: Goal Deadlines Check (8am Casablanca)
         if: github.event.schedule == '0 7 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -X GET https://samur.gen116.com/api/cron/goal-deadlines
+          curl -X GET https://samur.gen116.com/api/cron/goal-deadlines \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
       
       - name: Reading Reminder (2pm Casablanca)
         if: github.event.schedule == '0 13 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -X GET https://samur.gen116.com/api/cron/reading-reminder
+          curl -X GET https://samur.gen116.com/api/cron/reading-reminder \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
       
       - name: Evening Reflection (11:30pm Casablanca)
         if: github.event.schedule == '30 22 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -X GET https://samur.gen116.com/api/cron/evening-reflection
+          curl -X GET https://samur.gen116.com/api/cron/evening-reflection \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
       
       - name: Work Log Reminder (11:30pm Casablanca)
         if: github.event.schedule == '30 22 * * *' || github.event_name == 'workflow_dispatch'
         run: |
-          curl -X GET https://samur.gen116.com/api/cron/work-log-reminder
+          curl -X GET https://samur.gen116.com/api/cron/work-log-reminder \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

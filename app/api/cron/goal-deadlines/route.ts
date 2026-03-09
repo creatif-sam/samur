@@ -1,9 +1,21 @@
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
+    // Verify CRON_SECRET
+    const authHeader = request.headers.get('authorization')
+    const cronSecret = process.env.CRON_SECRET
+
+    if (!cronSecret) {
+      return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
+    }
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const serviceSupabase = createServiceClient();
     
     // Calculate dates
     const now = new Date();
@@ -21,7 +33,7 @@ export async function GET() {
     let notificationsSent = 0;
 
     // 1. Check goals with approaching deadlines
-    const { data: goals } = await supabase
+    const { data: goals } = await serviceSupabase
       .from('goals')
       .select('*, owner:owner_id(id, name)')
       .not('due_date', 'is', null)
@@ -43,9 +55,12 @@ export async function GET() {
         }
 
         if (message && goal.owner_id) {
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications`, {
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${cronSecret}`
+            },
             body: JSON.stringify({
               targetUserId: goal.owner_id,
               type: 'goal_deadline',
@@ -60,7 +75,7 @@ export async function GET() {
     }
 
     // 2. Check visions with approaching target dates
-    const { data: visions } = await supabase
+    const { data: visions } = await serviceSupabase
       .from('visions')
       .select('*, owner:owner_id(id, name)')
       .not('target_date', 'is', null)
@@ -81,9 +96,12 @@ export async function GET() {
         }
 
         if (message && vision.owner_id) {
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications`, {
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${cronSecret}`
+            },
             body: JSON.stringify({
               targetUserId: vision.owner_id,
               type: 'goal_deadline',

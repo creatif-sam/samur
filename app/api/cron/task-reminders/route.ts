@@ -1,16 +1,26 @@
-import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const supabase = await createClient();
-    const serviceSupabase = await createServiceClient();
+    // Verify CRON_SECRET
+    const authHeader = request.headers.get('authorization')
+    const cronSecret = process.env.CRON_SECRET
+
+    if (!cronSecret) {
+      return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 503 })
+    }
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const serviceSupabase = createServiceClient();
     
     // Get all users
-    const { data: users, error: usersError } = await supabase.auth.admin.listUsers();
+    const { data: { users }, error: usersError } = await serviceSupabase.auth.admin.listUsers();
     
-    if (usersError || !users?.users) {
+    if (usersError || !users) {
       console.error('Error fetching users:', usersError);
       return NextResponse.json({ ok: false, error: 'Failed to fetch users' });
     }
@@ -23,7 +33,7 @@ export async function GET() {
     const currentTotalMinutes = currentHours * 60 + currentMinutes;
 
     // For each user, check their tasks for today
-    for (const user of users.users) {
+    for (const user of users) {
       // Fetch today's planner data
       const { data: plannerDay } = await serviceSupabase
         .from('planner_days')
@@ -76,10 +86,13 @@ export async function GET() {
             if (vision?.emoji) visionEmoji = vision.emoji;
           }
 
-          // Send notification
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications`, {
+          // Send notification using internal endpoint
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${cronSecret}`
+            },
             body: JSON.stringify({
               targetUserId: user.id,
               type: 'task_reminder',
