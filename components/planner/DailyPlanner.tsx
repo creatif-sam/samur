@@ -250,12 +250,12 @@ export default function DailyPlanner() {
         </div>
 
         <div className="mb-10">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 block px-2">Morning Intention</label>
+          <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-3 block px-2">Morning Intention</label>
           <textarea
             value={morning}
             placeholder="Focus of the day..."
             onChange={(e) => { setMorning(e.target.value); saveDay(tasks, e.target.value, reflection, mood, completedTaskIds); }}
-            className="w-full bg-white/40 border-none rounded-[24px] p-5 text-[16px] focus:ring-2 focus:ring-blue-100 transition-all resize-none min-h-[90px]"
+            className="w-full bg-white/40 dark:bg-slate-800/40 border-none rounded-[24px] p-5 text-[16px] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all resize-none min-h-[90px]"
           />
         </div>
 
@@ -270,25 +270,25 @@ export default function DailyPlanner() {
                 <div 
                   key={task.id} 
                   onClick={() => setEditingTask(task)} 
-                  className="flex flex-col gap-1 p-4 rounded-[28px] active:bg-white/50 transition-all active:scale-[0.98] group"
+                  className="flex flex-col gap-1 p-4 rounded-[28px] active:bg-white/50 dark:active:bg-slate-800/50 transition-all active:scale-[0.98] group"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-14 text-sm font-bold text-slate-900 tabular-nums">{task.start}</div>
+                    <div className="w-14 text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">{task.start}</div>
                     <div className="flex-1 flex items-center gap-3">
-                      <div className={`w-1.5 h-10 rounded-full transition-colors duration-1000 ${isDone ? 'bg-slate-200' : theme.accent}`} />
+                      <div className={`w-1.5 h-10 rounded-full transition-colors duration-1000 ${isDone ? 'bg-slate-200 dark:bg-slate-700' : theme.accent}`} />
                       <div className="flex-1">
-                        <h3 className={`text-[17px] font-semibold flex items-center gap-2 ${isDone ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                        <h3 className={`text-[17px] font-semibold flex items-center gap-2 ${isDone ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>
                           {task.text} 
                           {task.recurring && <RefreshCw className="w-3.5 h-3.5 opacity-30" />}
                         </h3>
-                        <p className="text-[13px] text-slate-400 font-medium">
+                        <p className="text-[13px] text-slate-400 dark:text-slate-500 font-medium">
                           {task.start} — {task.end}
                         </p>
                       </div>
                     </div>
                     <button 
                       onClick={(e) => { e.stopPropagation(); toggleComplete(task.id); }} 
-                      className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-blue-600 border-blue-600' : 'border-slate-200'}`}
+                      className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-blue-600 border-blue-600' : 'border-slate-200 dark:border-slate-700'}`}
                     >
                       {isDone && <Check className="text-white w-4 h-4 stroke-[3]" />}
                     </button>
@@ -309,25 +309,25 @@ export default function DailyPlanner() {
 
         <button 
           onClick={() => setTaskModalHour(new Date().getHours())} 
-          className="w-full bg-slate-900/5 text-slate-500 py-5 px-8 rounded-[28px] text-left text-[15px] font-semibold flex justify-between items-center active:bg-slate-900/10 transition-colors"
+          className="w-full bg-slate-900/5 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 py-5 px-8 rounded-[28px] text-left text-[15px] font-semibold flex justify-between items-center active:bg-slate-900/10 dark:active:bg-slate-800/70 transition-colors"
         >
           Add event on {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
           <Plus className="w-5 h-5 opacity-30" />
         </button>
 
         <div className="mt-14 pb-20">
-          <label className="text-[11px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-3 block px-2">Evening Reflection</label>
+          <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-3 block px-2">Evening Reflection</label>
           <textarea
             value={reflection}
             placeholder="How did you finish your day?"
             onChange={(e) => { setReflection(e.target.value); saveDay(tasks, morning, e.target.value, mood, completedTaskIds); }}
-            className="w-full bg-purple-50/20 border-none rounded-[24px] p-5 text-[16px] focus:ring-2 focus:ring-purple-100 transition-all resize-none min-h-[120px]"
+            className="w-full bg-purple-50/20 dark:bg-purple-900/10 border-none rounded-[24px] p-5 text-[16px] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-purple-100 dark:focus:ring-purple-900 transition-all resize-none min-h-[120px]"
           />
         </div>
       </div>
 
-      <button onClick={() => setTaskModalHour(new Date().getHours())} className="fixed bottom-[100px] right-6 w-16 h-16 bg-white shadow-[0_12px_40_rgba(0,0,0,0.12)] border border-slate-50 rounded-full flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40">
-        <Plus className="w-9 h-9 text-slate-800" strokeWidth={1.5} />
+      <button onClick={() => setTaskModalHour(new Date().getHours())} className="fixed bottom-[100px] right-6 w-16 h-16 bg-white dark:bg-slate-800 shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] border border-slate-50 dark:border-slate-700 rounded-full flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40">
+        <Plus className="w-9 h-9 text-slate-800 dark:text-slate-200" strokeWidth={1.5} />
       </button>
 
       {(taskModalHour !== null || editingTask) && (

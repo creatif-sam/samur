@@ -7,6 +7,7 @@ import MoneyAddModal from './MoneyAddModal'
 import MoneyEditModal from './MoneyEditModal'
 import { MoneyEntry } from '@/lib/types'
 import { Pencil, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 type Grouped = {
   dateLabel: string
@@ -47,9 +48,33 @@ export default function MoneyLog({
     setEntries(data ?? [])
   }
 
-  async function deleteEntry(id: string) {
-    await supabase.from('money_entries').delete().eq('id', id)
-    fetchEntries()
+  async function deleteEntry(id: string, title: string) {
+    // Show confirmation toast with action buttons
+    toast.warning(`Delete "${title}"?`, {
+      description: 'This action cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          const { error } = await supabase.from('money_entries').delete().eq('id', id)
+          
+          if (error) {
+            toast.error('Failed to delete entry', {
+              description: error.message
+            })
+          } else {
+            toast.success('Entry deleted successfully')
+            fetchEntries()
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancel',
+        onClick: () => {
+          toast.dismiss()
+        },
+      },
+      duration: 10000,
+    })
   }
 
   const grouped = useMemo<Grouped[]>(() => {
@@ -78,25 +103,17 @@ export default function MoneyLog({
   }, [entries])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="flex flex-col gap-4">
       <CurrencySelector onChange={setSymbol} />
 
       {grouped.length === 0 ? (
-        <div style={{ textAlign: 'center', opacity: 0.6 }}>
+        <div className="text-center opacity-60 dark:text-slate-400">
           No money activity today
         </div>
       ) : (
         grouped.map(group => (
           <div key={group.dateLabel}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                fontSize: 13,
-                opacity: 0.7,
-                marginBottom: 8,
-              }}
-            >
+            <div className="flex justify-between text-[13px] opacity-70 mb-2 dark:text-slate-400">
               <span>{group.dateLabel}</span>
               <span>
                 Expenses {symbol}
@@ -104,69 +121,33 @@ export default function MoneyLog({
               </span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {group.items.map(e => (
                 <div
                   key={e.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: 12,
-                    borderRadius: 12,
-                    background: '#ffffff',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  }}
+                  className="flex justify-between items-center p-3 rounded-xl bg-white dark:bg-slate-800 shadow-sm border border-slate-100 dark:border-slate-700 hover:shadow-md dark:hover:border-slate-600 transition-all"
                 >
-                  <div style={{ display: 'flex', gap: 12, flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        background: '#f3f3f3',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 18,
-                        flexShrink: 0,
-                      }}
-                    >
+                  <div className="flex gap-3 flex-1 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-lg shrink-0">
                       {e.money_categories?.icon ?? '💰'}
                     </div>
 
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium overflow-hidden text-ellipsis whitespace-nowrap dark:text-white">
                         {e.title}
                       </div>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 6,
-                          marginTop: 2,
-                        }}
-                      >
-                        <span style={{ fontSize: 12, opacity: 0.6 }}>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs opacity-60 dark:text-slate-400">
                           {e.money_categories?.name}
                         </span>
 
                         <span
-                          style={{
-                            fontSize: 11,
-                            padding: '2px 6px',
-                            borderRadius: 999,
-                            background:
-                              e.type === 'income'
-                                ? '#dcfce7'
-                                : '#fee2e2',
-                            color:
-                              e.type === 'income'
-                                ? '#166534'
-                                : '#991b1b',
-                            fontWeight: 500,
-                          }}
+                          className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                            e.type === 'income'
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                              : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                          }`}
                         >
                           {e.type}
                         </span>
@@ -174,56 +155,31 @@ export default function MoneyLog({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  <div className="flex items-center gap-2 shrink-0">
                     <div
-                      style={{
-                        fontWeight: 600,
-                        color:
-                          e.type === 'income'
-                            ? '#16a34a'
-                            : '#dc2626',
-                        fontSize: 14,
-                      }}
+                      className={`font-semibold text-sm ${
+                        e.type === 'income'
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}
                     >
                       {symbol}
                       {e.amount}
                     </div>
                     
                     {/* Action buttons */}
-                    <div style={{ display: 'flex', gap: 4 }}>
+                    <div className="flex gap-1">
                       <button
                         onClick={() => setEditingEntry(e)}
-                        style={{
-                          padding: 6,
-                          borderRadius: 6,
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#6b7280',
-                        }}
-                        onMouseEnter={(ev) => ev.currentTarget.style.background = '#f3f4f6'}
-                        onMouseLeave={(ev) => ev.currentTarget.style.background = 'transparent'}
+                        className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors"
+                        aria-label="Edit entry"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
-                        onClick={() => deleteEntry(e.id)}
-                        style={{
-                          padding: 6,
-                          borderRadius: 6,
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#ef4444',
-                        }}
-                        onMouseEnter={(ev) => ev.currentTarget.style.background = '#fee2e2'}
-                        onMouseLeave={(ev) => ev.currentTarget.style.background = 'transparent'}
+                        onClick={() => deleteEntry(e.id, e.title)}
+                        className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 transition-colors"
+                        aria-label="Delete entry"
                       >
                         <Trash2 size={14} />
                       </button>

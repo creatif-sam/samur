@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
+import { toast } from 'sonner'
 
 export default function MoneyAddModal({
   open,
@@ -36,7 +37,10 @@ export default function MoneyAddModal({
   }, [open, today])
 
   async function save() {
-    if (!title || !amount || !categoryId || !date) return
+    if (!title || !amount || !categoryId || !date) {
+      toast.error('Please fill all fields')
+      return
+    }
 
     const {
       data: { user },
@@ -44,7 +48,7 @@ export default function MoneyAddModal({
 
     if (!user) return
 
-    await supabase.from('money_entries').insert({
+    const { error } = await supabase.from('money_entries').insert({
       user_id: user.id,
       title,
       amount: Number(amount),
@@ -53,6 +57,17 @@ export default function MoneyAddModal({
       entry_date: date,
     })
 
+    if (error) {
+      toast.error('Failed to add entry', {
+        description: error.message
+      })
+      return
+    }
+
+    toast.success(`${type === 'income' ? 'Income' : 'Expense'} added successfully`, {
+      description: `${title} - ${amount}`
+    })
+    
     onAdded()
     onClose()
   }

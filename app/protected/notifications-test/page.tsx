@@ -87,11 +87,17 @@ export default function NotificationTestPage() {
         })
       })
 
+      const result = await response.json()
+
       if (response.ok) {
-        toast.success('Test notification sent! Check your screen.')
+        const deviceText = result.total > 1 ? `${result.sent} device${result.sent > 1 ? 's' : ''}` : 'your device'
+        toast.success(`Test notification sent to ${deviceText}!`, {
+          description: result.total > 1 ? `${result.sent} succeeded, ${result.failed} failed` : 'Check your screen'
+        })
       } else {
-        const error = await response.json()
-        toast.error(`Failed: ${error.error}`)
+        toast.error(`Failed: ${result.error}`, {
+          description: result.details
+        })
       }
     } catch (error: any) {
       toast.error(`Error: ${error.message}`)

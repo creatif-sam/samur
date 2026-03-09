@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowDownCircle, ArrowUpCircle, X, Trash2 } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
 import { MoneyEntry } from '@/lib/types'
+import { toast } from 'sonner'
 
 export default function MoneyEditModal({
   entry,
@@ -39,9 +40,12 @@ export default function MoneyEditModal({
   }, [entry])
 
   async function save() {
-    if (!title || !amount || !categoryId || !date || !entry) return
+    if (!title || !amount || !categoryId || !date || !entry) {
+      toast.error('Please fill all fields')
+      return
+    }
 
-    await supabase
+    const { error } = await supabase
       .from('money_entries')
       .update({
         title,
@@ -52,6 +56,15 @@ export default function MoneyEditModal({
       })
       .eq('id', entry.id)
 
+    if (error) {
+      toast.error('Failed to update entry', {
+        description: error.message
+      })
+      return
+    }
+
+    toast.success('Entry updated successfully')
+    
     onUpdated()
     onClose()
   }
@@ -59,11 +72,20 @@ export default function MoneyEditModal({
   async function handleDelete() {
     if (!entry) return
 
-    await supabase
+    const { error } = await supabase
       .from('money_entries')
       .delete()
       .eq('id', entry.id)
 
+    if (error) {
+      toast.error('Failed to delete entry', {
+        description: error.message
+      })
+      return
+    }
+
+    toast.success('Entry deleted successfully')
+    
     onDeleted()
     onClose()
   }

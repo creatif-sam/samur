@@ -26,36 +26,79 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // 3. Get the Target User's subscription
-    const { data: subData, error: dbError } = await supabase
+    // 3. Get ALL subscriptions for the target user (may have multiple devices)
+    const { data: subscriptions, error: dbError } = await supabase
       .from('push_subscriptions')
-      .select('subscription')
+      .select('*')
       .eq('user_id', targetUserId)
-      .maybeSingle()
 
-    if (dbError || !subData) {
+    if (dbError) {
+      console.error("❌ Database Error:", dbError)
+      return NextResponse.json({ error: 'Database error', details: dbError.message }, { status: 500 })
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.error("❌ No subscriptions found for user:", targetUserId)
       return NextResponse.json({ error: 'Recipient not subscribed' }, { status: 404 })
     }
 
-    // 4. PREPARE THE PAYLOAD & SUBSCRIPTION
+    console.log(`📤 Sending push to ${subscriptions.length} device(s)`)
+
+    // 4. PREPARE THE PAYLOAD
     const payload = JSON.stringify({
       title: title || `SamUr: Message from ${sender.email}`,
       body: body || 'New update in SamUr',
       url: url || '/protected/posts'
     })
 
-    // CRITICAL FIX: Ensure subscription is an object, not a string
-    const pushSubscription = typeof subData.subscription === 'string' 
-      ? JSON.parse(subData.subscription) 
-      : subData.subscription
+    // 5. SEND NOTIFICATION TO ALL DEVICES
+    const sendResults = await Promise.allSettled(
+      subscriptions.map(async (subData) => {
+        try {
+          // Parse subscription data
+          let subscriptionData = subData.subscription
+          if (typeof subscriptionData === 'string') {
+            subscriptionData = JSON.parse(subscriptionData)
+          }
 
-    // 5. SEND NOTIFICATION
-    try {
-      await webpush.sendNotification(pushSubscription, payload)
-    } catch (pushErr: any) {
-      console.error("WebPush Error Details:", pushErr.statusCode, pushErr.body)
-      // If the subscription is no longer valid, we should ideally delete it here
-      return NextResponse.json({ error: 'Push service rejected request' }, { status: 502 })
+          // Ensure we have the proper structure for web-push
+          const pushSubscription = {
+            endpoint: subscriptionData.endpoint || subData.endpoint,
+            keys: subscriptionData.keys || {
+              p256dh: subData.keys?.p256dh,
+              auth: subData.keys?.auth
+            }
+          }
+
+          await webpush.sendNotification(pushSubscription, payload)
+          console.log("✅ Sent to:", pushSubscription.endpoint?.substring(0, 50) + "...")
+          return { success: true, endpoint: pushSubscription.endpoint }
+        } catch (pushErr: any) {
+          console.error("❌ Push failed:", pushErr.statusCode, pushErr.body)
+          
+          // If subscription is invalid (410 Gone or 404 Not Found), delete it
+          if (pushErr.statusCode === 404 || pushErr.statusCode === 410) {
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .eq('id', subData.id)
+            console.log("🗑️ Removed invalid subscription")
+          }
+          
+          throw pushErr
+        }
+      })
+    )
+
+    // Check if at least one notification was sent successfully
+    const successCount = sendResults.filter(r => r.status === 'fulfilled').length
+    const failCount = sendResults.filter(r => r.status === 'rejected').length
+
+    if (successCount === 0) {
+      return NextResponse.json({ 
+        error: 'All push notifications failed',
+        details: `Failed to send to all ${subscriptions.length} device(s)`
+      }, { status: 502 })
     }
 
     // 6. LOG IN DB (For in-app dropdown)
@@ -67,7 +110,14 @@ export async function POST(request: Request) {
       read: false
     })
 
-    return NextResponse.json({ success: true })
+    console.log(`✅ Push sent to ${successCount}/${subscriptions.length} device(s)`)
+
+    return NextResponse.json({ 
+      success: true,
+      sent: successCount,
+      failed: failCount,
+      total: subscriptions.length
+    })
 
   } catch (err: any) {
     console.error("Global Route Error:", err)

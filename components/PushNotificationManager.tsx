@@ -112,11 +112,23 @@ export default function PushNotificationManager() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      await supabase.from('push_subscriptions').upsert({
+      const subscriptionJSON = subscription.toJSON()
+      
+      // Store subscription with proper structure
+      const { error: upsertError } = await supabase.from('push_subscriptions').upsert({
         user_id: user.id,
         endpoint: subscription.endpoint,
-        subscription: subscription.toJSON()
+        keys: subscriptionJSON.keys,
+        subscription: subscriptionJSON
+      }, {
+        onConflict: 'user_id,endpoint'
       })
+
+      if (upsertError) {
+        console.error('Failed to save subscription:', upsertError)
+        toast.error('Failed to save subscription to database')
+        return
+      }
 
       setIsSubscribed(true)
       toast.success('SamUr Connect: Notifications Active 🤍')
@@ -171,13 +183,20 @@ export default function PushNotificationManager() {
         })
       })
 
+      const result = await response.json()
+
       if (response.ok) {
-        toast.success('Test notification sent! Check your phone.')
+        const deviceText = result.total > 1 ? `${result.sent} of ${result.total} devices` : 'your device'
+        toast.success(`Test notification sent to ${deviceText}!`)
       } else {
-        toast.error('Failed to send test notification')
+        console.error('Push notification error:', result)
+        toast.error(`Failed: ${result.error}`, {
+          description: result.details
+        })
       }
-    } catch (error) {
-      toast.error('Error sending test notification')
+    } catch (error: any) {
+      console.error('Test notification error:', error)
+      toast.error(`Error: ${error.message}`)
     } finally {
       setActionLoading(false)
     }
