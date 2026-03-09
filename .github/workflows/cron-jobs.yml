@@ -1,0 +1,45 @@
+name: Scheduled Notifications
+
+on:
+  schedule:
+    # Morning planner reminder - 9:00 AM Casablanca (8:00 UTC)
+    - cron: '0 8 * * *'
+    # Goal deadline check - 8:00 AM Casablanca (7:00 UTC)
+    - cron: '0 7 * * *'
+    # Reading reminder - 2:00 PM Casablanca (13:00 UTC)
+    - cron: '0 13 * * *'
+    # Evening reflection & work log - 11:30 PM Casablanca (22:30 UTC)
+    - cron: '30 22 * * *'
+  
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+
+jobs:
+  send-notifications:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Morning Planner Reminder (9am Casablanca)
+        if: github.event.schedule == '0 8 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -X GET https://samur.gen116.com/api/cron/morning-planner
+      
+      - name: Goal Deadlines Check (8am Casablanca)
+        if: github.event.schedule == '0 7 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -X GET https://samur.gen116.com/api/cron/goal-deadlines
+      
+      - name: Reading Reminder (2pm Casablanca)
+        if: github.event.schedule == '0 13 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -X GET https://samur.gen116.com/api/cron/reading-reminder
+      
+      - name: Evening Reflection (11:30pm Casablanca)
+        if: github.event.schedule == '30 22 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -X GET https://samur.gen116.com/api/cron/evening-reflection
+      
+      - name: Work Log Reminder (11:30pm Casablanca)
+        if: github.event.schedule == '30 22 * * *' || github.event_name == 'workflow_dispatch'
+        run: |
+          curl -X GET https://samur.gen116.com/api/cron/work-log-reminder

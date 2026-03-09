@@ -6,8 +6,15 @@ export function PushInitializer() {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker
-        .register('/sw.js')
-        .then((reg) => console.log('SamUr Service Worker registered', reg.scope))
+        .register('/sw.js', { 
+          scope: '/',
+          updateViaCache: 'none'
+        })
+        .then((reg) => {
+          console.log('SamUr Service Worker registered', reg.scope)
+          // For iOS, we need to explicitly update the service worker
+          reg.update().catch(err => console.log('SW update check:', err))
+        })
         .catch((err) => console.error('Service Worker failed', err));
     }
   }, []);

@@ -36,7 +36,11 @@ export function NotificationCenter({
       case 'comment': return '💬'
       case 'meditation': return '🧘'
       case 'post': return '📝'
+      case 'mention': return '📣'
       case 'planner_reminder': return '📅'
+      case 'goal_deadline': return '⏰'
+      case 'reading_reminder': return '📚'
+      case 'work_log_reminder': return '📝'
       default: return '🔔'
     }
   }

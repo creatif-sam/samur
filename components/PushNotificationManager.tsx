@@ -90,6 +90,12 @@ export default function PushNotificationManager() {
   const subscribe = async () => {
     setActionLoading(true)
     try {
+      // Check if iOS Safari
+      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
+      
+      console.log('Device info:', { isIOS, isSafari, userAgent: navigator.userAgent })
+      
       const result = await Notification.requestPermission()
       setPermission(result)
       if (result !== 'granted') {
@@ -97,23 +103,39 @@ export default function PushNotificationManager() {
         return
       }
 
+      // Play audio to warm up audio context (helps with iOS)
       const audio = new Audio('/sounds/notification.mp3')
       await audio.play().catch(() => console.log("Audio context warmed up"))
 
+      // Wait for service worker to be ready
+      console.log('Waiting for service worker...')
       const registration = await navigator.serviceWorker.ready
+      console.log('Service worker ready:', registration.scope)
+      
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-      if (!vapidKey) throw new Error('VAPID Key missing')
+      if (!vapidKey) {
+        console.error('VAPID key is missing')
+        throw new Error('VAPID Key missing')
+      }
+      
+      console.log('VAPID key loaded, subscribing...')
 
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey)
       })
 
+      console.log('Push subscription successful:', subscription.endpoint)
+
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        console.error('User not authenticated')
+        throw new Error('User not authenticated')
+      }
 
       const subscriptionJSON = subscription.toJSON()
       
+      console.log('Saving subscription to database...')
       // Store subscription with proper structure
       const { error: upsertError } = await supabase.from('push_subscriptions').upsert({
         user_id: user.id,
@@ -126,15 +148,20 @@ export default function PushNotificationManager() {
 
       if (upsertError) {
         console.error('Failed to save subscription:', upsertError)
-        toast.error('Failed to save subscription to database')
+        toast.error(`Failed to save subscription: ${upsertError.message}`)
         return
       }
 
+      console.log('Subscription saved successfully')
       setIsSubscribed(true)
       toast.success('SamUr Connect: Notifications Active 🤍')
-    } catch (error) {
-      toast.error('Failed to link device.')
-    } finally { setActionLoading(false) }
+    } catch (error: any) {
+      console.error('Subscription error:', error)
+      console.error('Error stack:', error.stack)
+      toast.error(`Failed to subscribe: ${error.message || 'Unknown error'}`)
+    } finally { 
+      setActionLoading(false) 
+    }
   }
 
   const unsubscribe = async () => {
@@ -296,6 +323,28 @@ export default function PushNotificationManager() {
           <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-600 text-[10px] font-bold uppercase">
             <AlertCircle size={14} />
             Permissions blocked. Reset in site settings.
+          </div>
+        )}
+
+        {/* iOS Troubleshooting */}
+        {typeof window !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent) && (
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2">
+            <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm font-bold">
+              <AlertCircle size={16} />
+              iOS Setup Tips
+            </div>
+            <ul className="text-xs space-y-1 text-blue-900 dark:text-blue-200">
+              <li>• Requires iOS 16.4+ and Safari browser</li>
+              <li>• Add app to Home Screen first (Share → Add to Home Screen)</li>
+              <li>• Open from Home Screen icon, not Safari</li>
+              <li>• Enable in Settings → Safari → Advanced → Experimental Features → "Notifications"</li>
+              <li>• If still failing, delete app from Home Screen and re-add</li>
+            </ul>
+            {!isSubscribed && (
+              <div className="pt-2 text-xs text-blue-700 dark:text-blue-300 font-medium">
+                Current browser: {/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent) ? '✅ Safari' : '❌ Not Safari (use Safari)'}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

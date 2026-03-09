@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
 import { Reply, Edit, Trash2, CornerDownRight } from 'lucide-react';
+import { FormattedContent } from './FormattedContent';
 
 interface CommentItemProps {
   comment: PostComment;
@@ -84,7 +85,7 @@ export function CommentItem({
               </div>
             ) : (
               <p className="text-sm text-foreground/90 leading-relaxed break-words">
-                {comment.content}
+                <FormattedContent content={comment.content} />
               </p>
             )}
           </div>

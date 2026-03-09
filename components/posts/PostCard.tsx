@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { PostHeader } from './PostHeader';
 import { PostActions } from './PostActions';
 import { CommentSection } from './CommentSection';
+import { FormattedContent } from './FormattedContent';
 
 type PostWithProfile = Post & { profiles: Profile };
 
@@ -172,7 +173,9 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
       />
       
       <CardContent className="pt-0">
-        <p className="text-sm mb-4 whitespace-pre-wrap px-1">{post.content}</p>
+        <p className="text-sm mb-4 whitespace-pre-wrap px-1">
+          <FormattedContent content={post.content} />
+        </p>
       </CardContent>
 
       <PostActions 

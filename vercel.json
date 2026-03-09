@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/morning-planner",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/evening-reflection",
+      "schedule": "30 23 * * *"
+    },
+    {
+      "path": "/api/cron/goal-deadlines",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/reading-reminder",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/work-log-reminder",
+      "schedule": "30 23 * * *"
+    }
+  ]
+}

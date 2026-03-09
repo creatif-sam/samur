@@ -92,13 +92,58 @@ export default function MeditationStreakBoard({
     return map
   }, [scopedMeditations])
 
-  const streakCount = useMemo(() => {
-    let count = 0
-    for (let i = days.length - 1; i >= 0; i--) {
-      if (groupedByDay[formatDay(days[i].date)]) count++
-      else break
+  const streakStats = useMemo(() => {
+    // Calculate current streak (from today backwards)
+    let currentStreak = 0
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    // Check if user meditated today or yesterday (grace period)
+    const todayKey = formatDay(today)
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayKey = formatDay(yesterday)
+    
+    // Start counting from today if there's a meditation, otherwise from yesterday
+    let startIndex = days.length - 1
+    if (!groupedByDay[todayKey]) {
+      // If no meditation today, check yesterday for grace period
+      if (groupedByDay[yesterdayKey]) {
+        startIndex = days.length - 2
+      } else {
+        // No grace period, streak is broken
+        currentStreak = 0
+        startIndex = -1
+      }
     }
-    return count
+    
+    // Count consecutive days backwards
+    if (startIndex >= 0) {
+      for (let i = startIndex; i >= 0; i--) {
+        if (groupedByDay[formatDay(days[i].date)]) {
+          currentStreak++
+        } else {
+          break
+        }
+      }
+    }
+    
+    // Calculate longest streak ever (scan all history)
+    let longestStreak = 0
+    let tempStreak = 0
+    
+    for (let i = 0; i < days.length; i++) {
+      if (groupedByDay[formatDay(days[i].date)]) {
+        tempStreak++
+        if (tempStreak > longestStreak) {
+          longestStreak = tempStreak
+        }
+      } else {
+        tempStreak = 0
+      }
+    }
+    
+    return { currentStreak, longestStreak }
   }, [days, groupedByDay])
 
   if (!days.length) return null
@@ -107,8 +152,15 @@ export default function MeditationStreakBoard({
     <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="text-sm font-medium">
-          Streak {streakCount}
+        <div className="space-y-1">
+          <div className="text-sm font-medium">
+            🔥 Current Streak: {streakStats.currentStreak} {streakStats.currentStreak === 1 ? 'day' : 'days'}
+          </div>
+          {streakStats.longestStreak > streakStats.currentStreak && (
+            <div className="text-xs text-muted-foreground">
+              🏆 Best: {streakStats.longestStreak} days
+            </div>
+          )}
         </div>
 
       <button
