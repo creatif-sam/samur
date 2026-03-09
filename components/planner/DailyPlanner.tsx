@@ -18,6 +18,9 @@ export interface PlannerTask {
   end: string
   completed: boolean
   vision_id?: string 
+  visibility?: 'private' | 'shared'
+  owner_id?: string
+  source_day?: string // The day this recurring task was originally created
   recurring?: {
     interval: number
     unit: 'day' | 'week' | 'month' 
@@ -27,6 +30,7 @@ export interface PlannerTask {
 }
 
 type Vision = { id: string; title: string; emoji: string }
+type UserProfile = { id: string; name?: string; avatar_url?: string }
 
 export default function DailyPlanner() {
   const supabase = createClient()
@@ -41,6 +45,8 @@ export default function DailyPlanner() {
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
   const [visionsMap, setVisionsMap] = useState<Record<string, Vision>>({})
   const [userId, setUserId] = useState<string | null>(null)
+  const [partnerId, setPartnerId] = useState<string | null>(null)
+  const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({})
 
   const dateKey = selectedDate.toISOString().split('T')[0]
   const theme = moodThemes[mood] || moodThemes['default']
@@ -74,7 +80,40 @@ export default function DailyPlanner() {
   }
 
   useEffect(() => { loadDay() }, [dateKey])
-  useEffect(() => { loadVisions() }, [])
+  useEffect(() => { 
+    loadVisions()
+    loadUserProfile()
+  }, [])
+
+  async function loadUserProfile() {
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user) return
+    
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url, partner_id')
+      .eq('id', auth.user.id)
+      .single()
+    
+    if (profile) {
+      setPartnerId(profile.partner_id || null)
+      
+      // Load both user and partner profiles
+      const profileIds = [auth.user.id]
+      if (profile.partner_id) profileIds.push(profile.partner_id)
+      
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, avatar_url')
+        .in('id', profileIds)
+      
+      if (profiles) {
+        const map: Record<string, UserProfile> = {}
+        profiles.forEach((p) => { map[p.id] = p })
+        setProfilesMap(map)
+      }
+    }
+  }
 
   async function loadVisions() {
     const { data: auth } = await supabase.auth.getUser()
@@ -93,6 +132,14 @@ export default function DailyPlanner() {
     
     setUserId(auth.user.id)
     
+    // Get user's partner_id
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('partner_id')
+      .eq('id', auth.user.id)
+      .single()
+    
+    // Load today's data for current user
     const { data: todayData } = await supabase
       .from('planner_days')
       .select('tasks, morning, reflection, mood, completed_task_ids')
@@ -100,16 +147,45 @@ export default function DailyPlanner() {
       .eq('user_id', auth.user.id)
       .maybeSingle()
 
-    const { data: allDays } = await supabase.from('planner_days').select('tasks').eq('user_id', auth.user.id).not('tasks', 'is', null)
+    // Load all days to find recurring tasks - include both user and partner
+    const userIds = [auth.user.id]
+    if (profile?.partner_id) userIds.push(profile.partner_id)
+    
+    const { data: allDays } = await supabase
+      .from('planner_days')
+      .select('tasks, user_id, day')
+      .in('user_id', userIds)
+      .not('tasks', 'is', null)
 
     const allUniqueTasks = new Map<string, PlannerTask>();
-    if (Array.isArray(todayData?.tasks)) todayData.tasks.forEach((t: PlannerTask) => allUniqueTasks.set(t.id, t));
     
-    allDays?.forEach(day => {
-      if (Array.isArray(day.tasks)) {
-        day.tasks.forEach((t: PlannerTask) => {
+    // Add today's tasks
+    if (Array.isArray(todayData?.tasks)) {
+      todayData.tasks.forEach((t: PlannerTask) => {
+        // Ensure owner_id is set for existing tasks
+        if (!t.owner_id) t.owner_id = auth.user.id
+        if (t.visibility === undefined) t.visibility = 'private'
+        allUniqueTasks.set(t.id, t)
+      })
+    }
+    
+    // Add recurring tasks from all days (both user and partner)
+    allDays?.forEach(dayRecord => {
+      if (Array.isArray(dayRecord.tasks)) {
+        dayRecord.tasks.forEach((t: PlannerTask) => {
           if (t.recurring && !allUniqueTasks.has(t.id)) {
-            if (shouldShowTask(t, selectedDate)) allUniqueTasks.set(t.id, t);
+            // Check if task should show on this date
+            if (shouldShowTask(t, selectedDate)) {
+              // Ensure owner_id is set
+              if (!t.owner_id) t.owner_id = dayRecord.user_id
+              if (!t.source_day) t.source_day = dayRecord.day
+              if (t.visibility === undefined) t.visibility = 'private'
+              
+              // Only show partner tasks if they're shared
+              if (dayRecord.user_id === auth.user.id || t.visibility === 'shared') {
+                allUniqueTasks.set(t.id, t)
+              }
+            }
           }
         });
       }
@@ -131,11 +207,85 @@ export default function DailyPlanner() {
   ) {
     const { data: auth } = await supabase.auth.getUser()
     if (!auth?.user) return
+    
+    // Separate user's tasks from partner's tasks
+    const userTasks = updatedTasks.filter(t => !t.owner_id || t.owner_id === auth.user.id)
+    
+    // Save current day data with only user's tasks
     await supabase.from('planner_days').upsert({
-      day: dateKey, user_id: auth.user.id, tasks: updatedTasks,
-      completed_task_ids: updatedCompletedIds, morning: updatedMorning, 
-      reflection: updatedReflection, mood: updatedMood, visibility: 'private',
+      day: dateKey, 
+      user_id: auth.user.id, 
+      tasks: userTasks,
+      completed_task_ids: updatedCompletedIds, 
+      morning: updatedMorning, 
+      reflection: updatedReflection, 
+      mood: updatedMood, 
+      visibility: 'private',
     }, { onConflict: 'user_id,day' })
+  }
+  
+  async function updateRecurringTask(task: PlannerTask) {
+    // Update the recurring task at its source day
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user) return
+    if (!task.source_day || task.owner_id !== auth.user.id) return
+    
+    // Load the source day
+    const { data: sourceData } = await supabase
+      .from('planner_days')
+      .select('tasks')
+      .eq('day', task.source_day)
+      .eq('user_id', auth.user.id)
+      .maybeSingle()
+    
+    if (sourceData && Array.isArray(sourceData.tasks)) {
+      // Update the task in the source day
+      const updatedSourceTasks = sourceData.tasks.map((t: PlannerTask) => 
+        t.id === task.id ? task : t
+      )
+      
+      await supabase
+        .from('planner_days')
+        .update({ tasks: updatedSourceTasks })
+        .eq('day', task.source_day)
+        .eq('user_id', auth.user.id)
+    }
+  }
+  
+  async function deleteRecurringTask(taskId: string, ownerId: string) {
+    // Delete recurring task from all days
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user || ownerId !== auth.user.id) return
+    
+    // Load all the user's days
+    const { data: allDays } = await supabase
+      .from('planner_days')
+      .select('day, tasks')
+      .eq('user_id', auth.user.id)
+      .not('tasks', 'is', null)
+    
+    if (allDays) {
+      // Remove the task from all days
+      const updates = allDays
+        .map(dayRecord => {
+          if (!Array.isArray(dayRecord.tasks)) return null
+          const filtered = dayRecord.tasks.filter((t: PlannerTask) => t.id !== taskId)
+          if (filtered.length === dayRecord.tasks.length) return null // No change
+          return { day: dayRecord.day, tasks: filtered }
+        })
+        .filter(Boolean)
+      
+      // Batch update all affected days
+      for (const update of updates) {
+        if (update) {
+          await supabase
+            .from('planner_days')
+            .update({ tasks: update.tasks })
+            .eq('day', update.day)
+            .eq('user_id', auth.user.id)
+        }
+      }
+    }
   }
 
   function toggleComplete(taskId: string) {
@@ -208,12 +358,13 @@ export default function DailyPlanner() {
             .map((task) => {
               const isDone = completedTaskIds.includes(task.id);
               const vision = task.vision_id ? visionsMap[task.vision_id] : null;
+              const isPartnerTask = task.owner_id && task.owner_id !== userId;
 
               return (
                 <div 
                   key={task.id} 
-                  onClick={() => setEditingTask(task)} 
-                  className="flex flex-col gap-1 p-4 rounded-[28px] active:bg-white/50 dark:active:bg-slate-800/50 transition-all active:scale-[0.98] group"
+                  onClick={() => !isPartnerTask && setEditingTask(task)} 
+                  className={`flex flex-col gap-1 p-4 rounded-[28px] ${!isPartnerTask ? 'active:bg-white/50 dark:active:bg-slate-800/50 active:scale-[0.98] cursor-pointer' : 'opacity-75 cursor-default'} transition-all group`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-14 text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">{task.start}</div>
@@ -229,12 +380,14 @@ export default function DailyPlanner() {
                         </p>
                       </div>
                     </div>
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); toggleComplete(task.id); }} 
-                      className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-blue-600 border-blue-600' : 'border-slate-200 dark:border-slate-700'}`}
-                    >
-                      {isDone && <Check className="text-white w-4 h-4 stroke-[3]" />}
-                    </button>
+                    {!isPartnerTask && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); toggleComplete(task.id); }} 
+                        className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-blue-600 border-blue-600' : 'border-slate-200 dark:border-slate-700'}`}
+                      >
+                        {isDone && <Check className="text-white w-4 h-4 stroke-[3]" />}
+                      </button>
+                    )}
                   </div>
 
                   {vision && (
@@ -242,6 +395,25 @@ export default function DailyPlanner() {
                       <span className="text-xs">{vision.emoji}</span>
                       <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                         {vision.title}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {task.owner_id && task.owner_id !== userId && profilesMap[task.owner_id] && (
+                    <div className="ml-16 flex items-center gap-2 py-1 px-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-full w-fit animate-in fade-in slide-in-from-left-1 duration-500">
+                      {profilesMap[task.owner_id].avatar_url ? (
+                        <img 
+                          src={profilesMap[task.owner_id].avatar_url} 
+                          alt={profilesMap[task.owner_id].name || 'Partner'} 
+                          className="w-4 h-4 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full bg-blue-200 dark:bg-blue-700 flex items-center justify-center text-[8px] font-bold text-blue-700 dark:text-blue-200">
+                          {(profilesMap[task.owner_id].name || 'P')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
+                        {profilesMap[task.owner_id].name || 'Partner'}
                       </span>
                     </div>
                   )}
@@ -277,22 +449,44 @@ export default function DailyPlanner() {
         <TaskModal 
           hour={editingTask ? parseInt(editingTask.start.split(':')[0]) : taskModalHour!} 
           existingTask={editingTask} 
+          userId={userId}
           onClose={() => { setTaskModalHour(null); setEditingTask(null); }} 
-          onSave={(task) => {
-            const updated = editingTask ? tasks.map((t) => (t.id === task.id ? task : t)) : [...tasks, task]
-            setTasks(updated)
-            saveDay(updated, morning, reflection, mood, completedTaskIds)
+          onSave={async (task) => {
+            // Ensure new tasks have correct owner_id and source_day
+            if (!task.owner_id) task.owner_id = userId || undefined
+            if (task.recurring && !task.source_day) task.source_day = dateKey
+            
+            if (editingTask) {
+              // Editing existing task
+              if (task.recurring && editingTask.recurring) {
+                // Recurring task being edited - update at source
+                await updateRecurringTask(task)
+                // Reload to get fresh data
+                await loadDay()
+              } else {
+                // Non-recurring or converted from/to recurring
+                const updated = tasks.map((t) => (t.id === task.id ? task : t))
+                setTasks(updated)
+                saveDay(updated, morning, reflection, mood, completedTaskIds)
+              }
+            } else {
+              // New task
+              const updated = [...tasks, task]
+              setTasks(updated)
+              saveDay(updated, morning, reflection, mood, completedTaskIds)
+            }
+            
             setTaskModalHour(null)
             setEditingTask(null)
           }}
-          onDelete={(taskId, deleteAll) => {
-            if (deleteAll && editingTask?.recurring) {
-              // Delete all recurring instances - remove the task template
-              const updated = tasks.filter((t) => t.id !== taskId)
-              setTasks(updated)
-              saveDay(updated, morning, reflection, mood, completedTaskIds)
+          onDelete={async (taskId, deleteAll) => {
+            if (deleteAll && editingTask?.recurring && editingTask.owner_id) {
+              // Delete all recurring instances
+              await deleteRecurringTask(taskId, editingTask.owner_id)
+              // Reload to get fresh data
+              await loadDay()
             } else {
-              // Delete only this instance - just remove from this day
+              // Delete only from current day
               const updated = tasks.filter((t) => t.id !== taskId)
               setTasks(updated)
               saveDay(updated, morning, reflection, mood, completedTaskIds)

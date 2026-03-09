@@ -5,18 +5,20 @@ import type { PlannerTask } from '../DailyPlanner'
 import { TaskBasics } from './TaskBasics'
 import { TaskRecurrence } from './TaskRecurrence'
 import { Modal } from './Modal'
-import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2 } from 'lucide-react'
+import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
 export function TaskModal({
   hour,
   existingTask,
+  userId,
   onClose,
   onSave,
   onDelete,
 }: {
   hour: number
   existingTask?: PlannerTask | null
+  userId: string | null
   onClose: () => void
   onSave: (t: PlannerTask) => void
   onDelete?: (taskId: string, deleteAll: boolean) => void
@@ -26,7 +28,11 @@ export function TaskModal({
   const [endTime, setEndTime] = useState('')
   const [visionId, setVisionId] = useState<string | null>(null)
   const [recurring, setRecurring] = useState<PlannerTask['recurring'] | null>(null)
+  const [visibility, setVisibility] = useState<'private' | 'shared'>('private')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  
+  // Determine if user can edit this task
+  const canEdit = !existingTask || !existingTask.owner_id || existingTask.owner_id === userId
 
   useEffect(() => {
     if (existingTask) {
@@ -35,11 +41,13 @@ export function TaskModal({
       setEndTime(existingTask.end)
       setVisionId(existingTask.vision_id ?? null)
       setRecurring(existingTask.recurring ?? null)
+      setVisibility(existingTask.visibility || 'private')
     } else {
       const hStart = hour.toString().padStart(2, '0')
       const hEnd = (hour + 1).toString().padStart(2, '0')
       setStartTime(`${hStart}:00`)
       setEndTime(`${hEnd}:00`)
+      setVisibility('private')
     }
   }, [existingTask, hour])
 
@@ -87,7 +95,10 @@ export function TaskModal({
       end: endTime,
       completed: existingTask?.completed ?? false,
       vision_id: visionId ?? undefined,
-      recurring: recurring ?? undefined
+      recurring: recurring ?? undefined,
+      visibility: visibility,
+      owner_id: existingTask?.owner_id ?? userId ?? undefined,
+      source_day: existingTask?.source_day
     })
     onClose()
   }
@@ -116,10 +127,11 @@ export function TaskModal({
               placeholder="What's happening?"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              className="w-full text-xl md:text-3xl font-bold bg-transparent border-none outline-none placeholder:text-slate-200 dark:placeholder:text-slate-700 dark:text-white truncate"
+              disabled={!canEdit}
+              className="w-full text-xl md:text-3xl font-bold bg-transparent border-none outline-none placeholder:text-slate-200 dark:placeholder:text-slate-700 dark:text-white truncate disabled:opacity-60"
             />
             <p className="text-[9px] md:text-[11px] font-bold text-blue-500 uppercase tracking-widest mt-1">
-              {existingTask ? 'Modify Schedule' : 'New Plan'}
+              {existingTask ? (canEdit ? 'Modify Schedule' : 'View Schedule') : 'New Plan'}
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 md:p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full ml-2">
@@ -149,7 +161,8 @@ export function TaskModal({
                     type="time" 
                     value={startTime} 
                     onChange={(e)=>setStartTime(e.target.value)} 
-                    className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" 
+                    disabled={!canEdit}
+                    className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed" 
                   />
                 </div>
                 <ArrowRight className="text-slate-300 shrink-0" size={16} />
@@ -158,7 +171,8 @@ export function TaskModal({
                     type="time" 
                     value={endTime} 
                     onChange={(e)=>setEndTime(e.target.value)} 
-                    className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500" 
+                    disabled={!canEdit}
+                    className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed" 
                   />
                 </div>
               </div>
@@ -171,6 +185,42 @@ export function TaskModal({
               onVisionChange={setVisionId}
               hideTitle={true}
             />
+            
+            {/* Visibility Toggle */}
+            {canEdit && (
+              <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[20px] md:rounded-[24px] p-4 md:p-6 border border-slate-100 dark:border-slate-700">
+                <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">
+                  Task Visibility
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setVisibility('private')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold text-sm transition-all ${
+                      visibility === 'private' 
+                        ? 'bg-slate-700 text-white dark:bg-slate-200 dark:text-slate-900' 
+                        : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'
+                    }`}
+                  >
+                    <EyeOff className="w-4 h-4 inline mr-1" />
+                    Private
+                  </button>
+                  <button
+                    onClick={() => setVisibility('shared')}
+                    className={`flex-1 py-2 px-4 rounded-lg font-semibold text-sm transition-all ${
+                      visibility === 'shared' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'
+                    }`}
+                  >
+                    <Eye className="w-4 h-4 inline mr-1" />
+                    Shared
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">
+                  {visibility === 'shared' ? 'Your partner can see this task' : 'Only you can see this task'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* RIGHT COLUMN: Recurrence */}
@@ -187,62 +237,75 @@ export function TaskModal({
 
         {/* FOOTER ACTIONS */}
         <div className="px-5 md:px-8 py-4 md:py-6 bg-slate-50 dark:bg-slate-800/20 flex flex-row gap-3 justify-between items-center">
-          {existingTask && onDelete ? (
-            <button
-              onClick={() => {
-                if (existingTask.recurring) {
-                  // Ask if they want to delete this or all recurring events
-                  toast.warning(`Delete "${existingTask.text}"?`, {
-                    description: 'This is a recurring event',
-                    action: {
-                      label: 'Delete All',
-                      onClick: () => handleDelete(true)
-                    },
-                    cancel: {
-                      label: 'This Only',
-                      onClick: () => handleDelete(false)
-                    },
-                    duration: 10000
-                  })
-                } else {
-                  // Simple delete confirmation
-                  toast.warning(`Delete "${existingTask.text}"?`, {
-                    description: 'This action cannot be undone',
-                    action: {
-                      label: 'Delete',
-                      onClick: () => handleDelete(false)
-                    },
-                    cancel: {
-                      label: 'Cancel',
-                      onClick: () => toast.dismiss()
-                    },
-                    duration: 10000
-                  })
-                }
-              }}
-              className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
-            >
-              <Trash2 size={20} />
-            </button>
-          ) : (
-            <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
-              Discard
-            </button>
-          )}
-          
-          <div className="flex gap-3">
-            {existingTask && (
-              <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
-                Cancel
+          {!canEdit ? (
+            <>
+              <div className="flex-1 text-sm text-slate-500 dark:text-slate-400 italic">
+                You can only view this task
+              </div>
+              <button onClick={onClose} className="px-8 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white">
+                Close
               </button>
-            )}
-            <button 
-              onClick={handleSave}
-              className={`flex-1 md:flex-none md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg transition-all ${text.trim() ? 'bg-blue-600 text-white active:scale-95 shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-            >
-              {existingTask ? 'Save Changes' : 'Confirm'}
-            </button>
-          </div>
+            </>
+          ) : (
+            <>
+              {existingTask && onDelete ? (
+                <button
+                  onClick={() => {
+                    if (existingTask.recurring) {
+                      // Ask if they want to delete this or all recurring events
+                      toast.warning(`Delete "${existingTask.text}"?`, {
+                        description: 'This is a recurring event',
+                        action: {
+                          label: 'Delete All',
+                          onClick: () => handleDelete(true)
+                        },
+                        cancel: {
+                          label: 'This Only',
+                          onClick: () => handleDelete(false)
+                        },
+                        duration: 10000
+                      })
+                    } else {
+                      // Simple delete confirmation
+                      toast.warning(`Delete "${existingTask.text}"?`, {
+                        description: 'This action cannot be undone',
+                        action: {
+                          label: 'Delete',
+                          onClick: () => handleDelete(false)
+                        },
+                        cancel: {
+                          label: 'Cancel',
+                          onClick: () => toast.dismiss()
+                        },
+                        duration: 10000
+                      })
+                    }
+                  }}
+                  className="p-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+                >
+                  <Trash2 size={20} />
+                </button>
+              ) : (
+                <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
+                  Discard
+                </button>
+              )}
+              
+              <div className="flex gap-3">
+                {existingTask && (
+                  <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
+                    Cancel
+                  </button>
+                )}
+                <button 
+                  onClick={handleSave}
+                  className={`flex-1 md:flex-none md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg transition-all ${text.trim() ? 'bg-blue-600 text-white active:scale-95 shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                >
+                  {existingTask ? 'Save Changes' : 'Confirm'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </Modal>
