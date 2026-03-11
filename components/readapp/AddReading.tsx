@@ -2,6 +2,7 @@
 
 import { JSX, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,9 +38,15 @@ export default function AddReading({ onCreated }: Props): JSX.Element {
   const [loading, setLoading] = useState(false)
 
   const createReading = async (): Promise<void> => {
-    if (!title.trim()) return
+    if (!title.trim()) {
+      toast.error('Please enter a book title')
+      return
+    }
     const pages = Number(totalPages)
-    if (!pages || pages <= 0) return
+    if (!pages || pages <= 0) {
+      toast.error('Please enter a valid number of pages')
+      return
+    }
 
     setLoading(true)
     const supabase = createClient()
@@ -47,6 +54,7 @@ export default function AddReading({ onCreated }: Props): JSX.Element {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (!user || authError) {
+      toast.error('Please sign in to add books')
       setLoading(false)
       return
     }
@@ -63,15 +71,20 @@ export default function AddReading({ onCreated }: Props): JSX.Element {
       pages_remaining: pages,
     })
 
-    if (!error) {
-      setTitle('')
-      setAuthor('')
-      setSource('')
-      setTotalPages('')
-      setVisibility('private')
-      setCategory('self_development')
-      onCreated()
+    if (error) {
+      toast.error('Failed to add book')
+      setLoading(false)
+      return
     }
+
+    toast.success('Book added to shelf! 📚')
+    setTitle('')
+    setAuthor('')
+    setSource('')
+    setTotalPages('')
+    setVisibility('private')
+    setCategory('self_development')
+    onCreated()
     setLoading(false)
   }
 

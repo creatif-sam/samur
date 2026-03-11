@@ -150,8 +150,22 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
         section_id: activeSection.id, title: 'Untitled Page', content: '' 
       }).select().single()
       if (error) throw error
-      setEditingPage(newPage); handleRefresh()
-    } catch (err) { toast.error("Failed to create page") }
+      
+      // Immediately update activeSection to show the new page
+      const updatedSection = {
+        ...activeSection,
+        pages: [...(activeSection.pages || []), newPage]
+      }
+      setActiveSection(updatedSection)
+      localStorage.setItem('active_section', JSON.stringify(updatedSection))
+      
+      toast.success('Page created!')
+      // Open the editor after a brief moment to let the UI update
+      setTimeout(() => setEditingPage(newPage), 100)
+      handleRefresh()
+    } catch (err) { 
+      toast.error("Failed to create page") 
+    }
     finally { setIsProcessing(false) }
   }
 
