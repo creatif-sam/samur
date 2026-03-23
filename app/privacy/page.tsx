@@ -1,5 +1,6 @@
 import React from 'react';
 import { Shield, Lock, Users, Database, Trash2, Mail } from 'lucide-react';
+import Link from 'next/link';
 
 const PrivacyPolicy = () => {
   const lastUpdated = "March 23, 2026";
@@ -101,11 +102,30 @@ const PrivacyPolicy = () => {
           <p className="text-sm text-gray-500 mt-4 italic">Rabat, Morocco</p>
         </section>
 
+        {/* Back to Home */}
+        <div className="mt-12 text-center">
+          <Link 
+            href="/" 
+            className="inline-block px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-full transition-colors"
+          >
+            Back to Home
+          </Link>
+        </div>
+
       </main>
 
       {/* Footer */}
       <footer className="bg-gray-50 py-8 text-center text-gray-400 text-sm border-t border-gray-100">
-        &copy; {new Date().getFullYear()} Espirito. All rights reserved.
+        <div className="flex justify-center gap-6 mb-4">
+          <Link href="/privacy" className="hover:text-purple-600 transition-colors">
+            Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link href="/terms" className="hover:text-purple-600 transition-colors">
+            Terms & Conditions
+          </Link>
+        </div>
+        <p>&copy; {new Date().getFullYear()} Espirito. All rights reserved.</p>
       </footer>
     </div>
   );

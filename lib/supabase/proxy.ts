@@ -47,15 +47,25 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if (
-    request.nextUrl.pathname !== "/" &&
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
+  // Public routes that don't require authentication
+  const publicRoutes = ['/', '/privacy', '/terms', '/auth/login', '/auth/sign-up', '/auth/sign-up-success', '/auth/error', '/auth/forgot-password', '/auth/update-password', '/auth/confirm'];
+  const isPublicRoute = publicRoutes.some(route => 
+    request.nextUrl.pathname === route || 
+    request.nextUrl.pathname.startsWith('/auth/') ||
+    request.nextUrl.pathname.startsWith('/card/')
+  );
+
+  // If trying to access protected route without authentication, redirect to login
+  if (!user && request.nextUrl.pathname.startsWith('/protected')) {
     const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
+    url.pathname = '/auth/login';
+    return NextResponse.redirect(url);
+  }
+
+  // If logged in and trying to access auth pages (except confirm), redirect to protected area
+  if (user && request.nextUrl.pathname.startsWith('/auth/') && !request.nextUrl.pathname.startsWith('/auth/confirm')) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/protected';
     return NextResponse.redirect(url);
   }
 

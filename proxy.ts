@@ -22,7 +22,8 @@ export const config = {
      * - sw.js: Service Worker
      * - _next/static & _next/image: Next.js internals
      * - favicon.ico & images: static assets
+     * - privacy & terms: public pages
      */
-    "/((?!api|card|manifest\\.json|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api|card|privacy|terms|manifest\\.json|sw\\.js|_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

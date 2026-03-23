@@ -142,6 +142,11 @@ export default function Home() {
               {t.privacy}
             </Button>
           </Link>
+          <Link href="/terms">
+            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              {t.terms}
+            </Button>
+          </Link>
           <LanguageSwitcher currentLanguage={language} onLanguageChange={handleLanguageChange} />
           <ThemeSwitcher />
         </div>
@@ -403,6 +408,10 @@ export default function Home() {
         <div className="flex justify-center gap-6 mb-4">
           <Link href="/privacy" className="hover:text-foreground transition-colors">
             {t.privacyPolicy}
+          </Link>
+          <span>•</span>
+          <Link href="/terms" className="hover:text-foreground transition-colors">
+            {t.termsConditions}
           </Link>
           <span>•</span>
           <Link href="/auth/login" className="hover:text-foreground transition-colors">

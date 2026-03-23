@@ -3,6 +3,7 @@ export const translations = {
   en: {
     // Navbar
     privacy: "Privacy",
+    terms: "Terms",
     
     // Hero Section
     tagline: "✨ Your Spiritual Growth Companion",
@@ -68,17 +69,19 @@ export const translations = {
     
     // CTA Section
     ctaTitle: "Start Your Journey Today",
-    ctaDescription: "Join thousands of partners growing together spiritually and achieving their goals.",
+    ctaDescription: "Begin your spiritual growth journey with your partner. Set goals, build habits, and celebrate achievements together.",
     ctaButton: "Create Free Account",
     
     // Footer
     privacyPolicy: "Privacy Policy",
+    termsConditions: "Terms & Conditions",
     signUp: "Sign Up",
     copyright: "Espirito. All rights reserved."
   },
   
   fr: {
     // Navbar
+    terms: "Conditions",
     privacy: "Confidentialité",
     
     // Hero Section
@@ -145,10 +148,11 @@ export const translations = {
     
     // CTA Section
     ctaTitle: "Commencez Votre Voyage Aujourd'hui",
-    ctaDescription: "Rejoignez des milliers de partenaires qui grandissent ensemble spirituellement et atteignent leurs objectifs.",
+    ctaDescription: "Commencez votre parcours de croissance spirituelle avec votre partenaire. Fixez des objectifs, construisez des habitudes et célébrez les réussites ensemble.",
     ctaButton: "Créer un Compte Gratuit",
     
     // Footer
+    termsConditions: "Conditions Générales",
     privacyPolicy: "Politique de Confidentialité",
     signUp: "S'inscrire",
     copyright: "Espirito. Tous droits réservés."
