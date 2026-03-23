@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeSwitcher } from '@/components/theme-switcher';
+import { LanguageSwitcher, Language } from '@/components/language-switcher';
+import { translations } from '@/lib/translations';
 import { 
   Target, 
   Calendar, 
@@ -41,6 +43,22 @@ export default function Home() {
   const router = useRouter();
   const [bibleVerse, setBibleVerse] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [language, setLanguage] = useState<Language>('en');
+
+  // Load language preference from localStorage
+  useEffect(() => {
+    const savedLang = localStorage.getItem('language') as Language;
+    if (savedLang && (savedLang === 'en' || savedLang === 'fr')) {
+      setLanguage(savedLang);
+    }
+  }, []);
+
+  const handleLanguageChange = (lang: Language) => {
+    setLanguage(lang);
+    localStorage.setItem('language', lang);
+  };
+
+  const t = translations[language];
 
   useEffect(() => {
     const fetchBibleVerse = async () => {
@@ -67,36 +85,12 @@ export default function Home() {
   }, [router]);
 
   const features = [
-    {
-      icon: Target,
-      title: "Goals & Vision Boards",
-      description: "Set personal and shared goals with your partner. Create inspiring vision boards with images and track your progress together."
-    },
-    {
-      icon: Calendar,
-      title: "Daily Planner",
-      description: "Plan your day with morning intentions, task timelines, and evening reflections. Never miss what matters most."
-    },
-    {
-      icon: Brain,
-      title: "Meditation & Scripture",
-      description: "Daily Bible verses, meditation tracking, and streak calendars. Build spiritual habits with your partner."
-    },
-    {
-      icon: Heart,
-      title: "Partner Collaboration",
-      description: "Share goals, encourage each other, and grow together. Accountability meets partnership."
-    },
-    {
-      icon: TrendingUp,
-      title: "Progress Analytics",
-      description: "Beautiful charts and insights showing your growth journey. See how far you've come."
-    },
-    {
-      icon: Users,
-      title: "Social Feed",
-      description: "Share updates, celebrate wins, and connect with your community. Stay motivated together."
-    }
+    { icon: Target },
+    { icon: Calendar },
+    { icon: Brain },
+    { icon: Heart },
+    { icon: TrendingUp },
+    { icon: Users }
   ];
 
   return (
@@ -142,12 +136,13 @@ export default function Home() {
           ESPIRITO<span className="text-violet-500">.</span>
         </motion.h1>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <Link href="/privacy">
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-              Privacy
+              {t.privacy}
             </Button>
           </Link>
+          <LanguageSwitcher currentLanguage={language} onLanguageChange={handleLanguageChange} />
           <ThemeSwitcher />
         </div>
       </nav>
@@ -167,7 +162,7 @@ export default function Home() {
             className="mb-4 inline-block"
           >
             <span className="bg-violet-500/10 dark:bg-violet-500/20 text-violet-600 dark:text-violet-400 px-4 py-2 rounded-full text-sm font-semibold border border-violet-500/20">
-              ✨ Your Spiritual Growth Companion
+              {t.tagline}
             </span>
           </motion.div>
 
@@ -177,7 +172,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            Welcome to <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-blue-500 dark:from-violet-400 dark:to-blue-400">Espirito</span>
+            {t.welcomeTo} <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-blue-500 dark:from-violet-400 dark:to-blue-400">Espirito</span>
           </motion.h2>
           
           <motion.p 
@@ -186,8 +181,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            Plan your days, achieve your goals, and grow spiritually with your partner. 
-            Track progress, build habits, and celebrate milestones together.
+            {t.heroDescription}
           </motion.p>
 
           <motion.div 
@@ -201,7 +195,7 @@ export default function Home() {
                 className="bg-violet-600 hover:bg-violet-500 text-white px-10 py-7 text-lg font-semibold rounded-full shadow-[0_0_20px_rgba(124,58,237,0.4)] transition-all"
                 onClick={() => router.push('/auth/sign-up')}
               >
-                Get Started for Free
+                {t.getStarted}
                 <ChevronRight className="ml-2 w-5 h-5" />
               </Button>
             </motion.div>
@@ -212,7 +206,7 @@ export default function Home() {
                 className="px-10 py-7 text-lg font-semibold rounded-full border-2"
                 onClick={() => router.push('/auth/login')}
               >
-                Sign In
+                {t.signIn}
               </Button>
             </motion.div>
           </motion.div>
@@ -230,7 +224,7 @@ export default function Home() {
             >
               <p className="text-xs font-bold uppercase tracking-widest text-violet-500 dark:text-violet-400 mb-3 flex items-center justify-center gap-2">
                 <Sparkles className="w-3 h-3" />
-                Daily Inspiration
+                {t.dailyInspiration}
               </p>
               <p className="text-foreground/80 dark:text-slate-300 italic leading-relaxed">"{bibleVerse}"</p>
             </motion.div>
@@ -249,10 +243,10 @@ export default function Home() {
             className="text-center mb-16"
           >
             <h3 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Everything You Need in One Place
+              {t.featuresTitle}
             </h3>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Comprehensive tools designed to help you and your partner grow together spiritually and personally.
+              {t.featuresSubtitle}
             </p>
           </motion.div>
 
@@ -263,7 +257,7 @@ export default function Home() {
             viewport={{ once: true }}
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
-            {features.map((feature, index) => (
+            {t.features.map((feature, index) => (
               <motion.div
                 key={index}
                 variants={item}
@@ -271,7 +265,10 @@ export default function Home() {
                 className="p-6 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-black/5 dark:border-white/10 shadow-sm hover:shadow-lg transition-all"
               >
                 <div className="w-12 h-12 rounded-xl bg-violet-500/10 dark:bg-violet-500/20 flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-violet-600 dark:text-violet-400" />
+                  {(() => {
+                    const Icon = features[index].icon;
+                    return <Icon className="w-6 h-6 text-violet-600 dark:text-violet-400" />;
+                  })()}
                 </div>
                 <h4 className="text-xl font-bold text-foreground mb-2">{feature.title}</h4>
                 <p className="text-muted-foreground">{feature.description}</p>
@@ -291,10 +288,10 @@ export default function Home() {
             className="text-center mb-12"
           >
             <h3 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-              Available on Your Device
+              {t.platformTitle}
             </h3>
             <p className="text-lg text-muted-foreground">
-              Access Espirito anywhere, anytime
+              {t.platformSubtitle}
             </p>
           </motion.div>
 
@@ -311,13 +308,13 @@ export default function Home() {
               className="p-8 rounded-2xl bg-gradient-to-br from-green-500/10 to-green-600/5 border-2 border-green-500/20 dark:border-green-400/20"
             >
               <Smartphone className="w-12 h-12 text-green-600 dark:text-green-400 mb-4" />
-              <h4 className="text-2xl font-bold mb-2 text-foreground">Android App</h4>
+              <h4 className="text-2xl font-bold mb-2 text-foreground">{t.androidTitle}</h4>
               <p className="text-muted-foreground mb-4">
-                Download from Google Play Store. Full native experience with offline support.
+                {t.androidDescription}
               </p>
               <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-semibold">
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Live on Play Store</span>
+                <span>{t.androidBadge}</span>
               </div>
             </motion.div>
 
@@ -327,13 +324,13 @@ export default function Home() {
               className="p-8 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-2 border-blue-500/20 dark:border-blue-400/20"
             >
               <Apple className="w-12 h-12 text-blue-600 dark:text-blue-400 mb-4" />
-              <h4 className="text-2xl font-bold mb-2 text-foreground">iOS (PWA)</h4>
+              <h4 className="text-2xl font-bold mb-2 text-foreground">{t.iosTitle}</h4>
               <p className="text-muted-foreground mb-4">
-                Install as Progressive Web App. Tap the share button → "Add to Home Screen"
+                {t.iosDescription}
               </p>
               <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 font-semibold">
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Works on iOS 16.4+</span>
+                <span>{t.iosBadge}</span>
               </div>
             </motion.div>
 
@@ -343,13 +340,13 @@ export default function Home() {
               className="p-8 rounded-2xl bg-gradient-to-br from-violet-500/10 to-violet-600/5 border-2 border-violet-500/20 dark:border-violet-400/20"
             >
               <Monitor className="w-12 h-12 text-violet-600 dark:text-violet-400 mb-4" />
-              <h4 className="text-2xl font-bold mb-2 text-foreground">Desktop</h4>
+              <h4 className="text-2xl font-bold mb-2 text-foreground">{t.desktopTitle}</h4>
               <p className="text-muted-foreground mb-4">
-                Install as PWA on Windows, Mac, or Linux. Full desktop experience in your browser.
+                {t.desktopDescription}
               </p>
               <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400 font-semibold">
                 <CheckCircle2 className="w-5 h-5" />
-                <span>Install from browser</span>
+                <span>{t.desktopBadge}</span>
               </div>
             </motion.div>
           </motion.div>
@@ -361,20 +358,14 @@ export default function Home() {
             transition={{ delay: 0.4 }}
             className="mt-12 p-6 rounded-2xl bg-violet-500/5 dark:bg-violet-500/10 border border-violet-500/20"
           >
-            <h4 className="text-lg font-bold mb-3 text-foreground text-center">📱 How to Install PWA on iOS or Desktop:</h4>
+            <h4 className="text-lg font-bold mb-3 text-foreground text-center">{t.pwaInstructionsTitle}</h4>
             <ol className="space-y-2 text-muted-foreground max-w-2xl mx-auto">
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">1</span>
-                <span>Open Espirito in Safari (iOS) or Chrome/Edge (Desktop)</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">2</span>
-                <span>Tap the Share button (iOS) or click the install icon in the address bar (Desktop)</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">3</span>
-                <span>Select "Add to Home Screen" and confirm</span>
-              </li>
+              {t.pwaSteps.map((step, index) => (
+                <li key={index} className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-violet-500 text-white flex items-center justify-center text-sm font-bold">{index + 1}</span>
+                  <span>{step}</span>
+                </li>
+              ))}
             </ol>
           </motion.div>
         </div>
@@ -389,10 +380,10 @@ export default function Home() {
           className="max-w-4xl mx-auto text-center p-12 rounded-3xl bg-gradient-to-br from-violet-500/10 to-blue-500/10 border border-violet-500/20 backdrop-blur-sm"
         >
           <h3 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
-            Start Your Journey Today
+            {t.ctaTitle}
           </h3>
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of partners growing together spiritually and achieving their goals.
+            {t.ctaDescription}
           </p>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
@@ -400,7 +391,7 @@ export default function Home() {
               className="bg-violet-600 hover:bg-violet-500 text-white px-12 py-7 text-xl font-semibold rounded-full shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all"
               onClick={() => router.push('/auth/sign-up')}
             >
-              Create Free Account
+              {t.ctaButton}
               <ChevronRight className="ml-2 w-6 h-6" />
             </Button>
           </motion.div>
@@ -411,18 +402,18 @@ export default function Home() {
       <footer className="relative z-10 py-8 text-center text-muted-foreground text-sm border-t border-black/5 dark:border-white/10">
         <div className="flex justify-center gap-6 mb-4">
           <Link href="/privacy" className="hover:text-foreground transition-colors">
-            Privacy Policy
+            {t.privacyPolicy}
           </Link>
           <span>•</span>
           <Link href="/auth/login" className="hover:text-foreground transition-colors">
-            Sign In
+            {t.signIn}
           </Link>
           <span>•</span>
           <Link href="/auth/sign-up" className="hover:text-foreground transition-colors">
-            Sign Up
+            {t.signUp}
           </Link>
         </div>
-        <p>&copy; {new Date().getFullYear()} Espirito. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} {t.copyright}</p>
       </footer>
     </div>
   );
