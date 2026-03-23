@@ -16,10 +16,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { LogOut, Camera, Save, Users } from 'lucide-react'
+import { LogOut, Camera, Save, Users, Trash2, AlertTriangle } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 import UserProfilesList from '@/components/profile/UserProfilesList'
 import PushNotificationManager from '@/components/PushNotificationManager'
+import { useRouter } from 'next/navigation'
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -31,7 +42,10 @@ export default function ProfilePage() {
   const [postCount, setPostCount] = useState(0)
   const [availablePartners, setAvailablePartners] = useState<Profile[]>([])
   const [selectedPartnerId, setSelectedPartnerId] = useState('')
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteType, setDeleteType] = useState<'account' | 'data' | null>(null)
 
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -286,7 +300,97 @@ export default function ProfilePage() {
         <BusinessCardSection />
         <PushNotificationManager />
         <UserProfilesList />
+
+        {/* Account & Data Management */}
+        <div className="bg-background rounded-2xl p-6 shadow border-2 border-destructive/20">
+          <Label className="flex items-center gap-2 mb-4 text-destructive">
+            <Trash2 className="w-4 h-4" />
+            Account & Data Management
+          </Label>
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 border-orange-500 text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950"
+                onClick={() => {
+                  setDeleteType('data')
+                  setShowDeleteDialog(true)
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Specific Data
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={() => {
+                  setDeleteType('account')
+                  setShowDeleteDialog(true)
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete My Account
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              These actions are permanent and comply with GDPR requirements
+            </p>
+          </div>
+        </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              {deleteType === 'account' ? 'Delete Account' : 'Delete Specific Data'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteType === 'account' ? (
+                <>
+                  You are about to permanently delete your entire account. This will remove:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Your profile and all personal information</li>
+                    <li>All goals, posts, meditations, and notes</li>
+                    <li>All planner data and partner connections</li>
+                  </ul>
+                  <p className="mt-3 font-semibold">
+                    You will need to confirm your name on the next page. Do you want to continue?
+                  </p>
+                </>
+              ) : (
+                <>
+                  You can select specific types of data to delete while keeping your account active.
+                  <p className="mt-3 font-semibold">
+                    Do you want to continue to the data selection page?
+                  </p>
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteType(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowDeleteDialog(false)
+                if (deleteType === 'account') {
+                  router.push('/protected/delete-account')
+                } else {
+                  router.push('/protected/delete-data')
+                }
+                setDeleteType(null)
+              }}
+              className={deleteType === 'account' ? 'bg-destructive hover:bg-destructive/90' : ''}
+            >
+              Continue
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
