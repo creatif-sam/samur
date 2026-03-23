@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
     // 4. PREPARE THE PAYLOAD
     const payload = JSON.stringify({
-      title: title || 'SamUr Notification',
+      title: title || 'Espirito Notification',
       body: body || '',
       url: url || '/protected'
     })

@@ -13,13 +13,13 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "SamUr Goals & Habits",
+  title: "Espirito Goals & Habits",
   description: "A personal app for couples & partners to share goals, plan, and connect",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "SamUr",
+    title: "Espirito",
     startupImage: [
       {
         url: "/icon-512.png",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   other: {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "SamUr",
+    "apple-mobile-web-app-title": "Espirito",
     "format-detection": "telephone=no",
     "mobile-web-app-capable": "yes",
   },

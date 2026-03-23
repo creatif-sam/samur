@@ -43,7 +43,7 @@ export default function AnalyticsPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Analytics</h1>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">SamUr Performance Lab</p>
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Espirito Performance Lab</p>
         </div>
       </header>
 

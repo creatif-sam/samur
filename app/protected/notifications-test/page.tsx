@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 
 export default function NotificationTestPage() {
   const [title, setTitle] = useState('Test Notification 🔔')
-  const [body, setBody] = useState('This is a test push notification from SamUr!')
+  const [body, setBody] = useState('This is a test push notification from Espirito!')
   const [loading, setLoading] = useState(false)
   const [testResults, setTestResults] = useState<{
     permission: boolean

@@ -1,6 +1,6 @@
 {
-  "name": "SamUr",
-  "short_name": "SamUr",
+  "name": "Espirito",
+  "short_name": "Espirito",
   "description": "A personal app for partners to share goals, plan, and connect",
   "start_url": "/",
   "display": "standalone",

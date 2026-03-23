@@ -78,7 +78,7 @@ export function Topbar() {
       <NotificationToast notification={activePreview} onClose={() => setActivePreview(null)} />
       
       <header className="sticky top-0 z-50 w-full px-4 py-3 flex items-center justify-between shadow-lg" style={{ background: 'linear-gradient(90deg, #7c3aed 0%, #000 100%)' }}>
-        <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">SamUr🤍</h1>
+        <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Espirito🤍</h1>
 
         <div className="flex items-center gap-1">
           <NotificationCenter 

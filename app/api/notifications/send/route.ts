@@ -46,8 +46,8 @@ export async function POST(request: Request) {
 
     // 4. PREPARE THE PAYLOAD
     const payload = JSON.stringify({
-      title: title || `SamUr: Message from ${sender.email}`,
-      body: body || 'New update in SamUr',
+      title: title || `Espirito: Message from ${sender.email}`,
+      body: body || 'New update in Espirito',
       url: url || '/protected/posts'
     })
 
