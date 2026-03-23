@@ -208,10 +208,10 @@ export default function DeleteAccountPage() {
           <p className="text-xs text-center text-muted-foreground">
             Need help? Contact us at{" "}
             <a
-              href="mailto:support@espirito.app"
+              href="mailto:tech@espirito.samuelgyasi.com"
               className="underline hover:text-foreground"
             >
-              support@espirito.app
+              tech@espirito.samuelgyasi.com
             </a>
           </p>
         </div>
