@@ -122,8 +122,8 @@ const [budgetTarget, setBudgetTarget] =
       .select('amount, category_id')
       .eq('user_id', user.id)
       .eq('type', 'expense')
-      .gte('entry_date', periodStart.toISOString())
-      .lt('entry_date', periodEnd.toISOString())
+      .gte('entry_date', periodStart.toISOString().slice(0, 10))
+      .lt('entry_date', periodEnd.toISOString().slice(0, 10))
 
     const totals: Record<string, number> = {}
 

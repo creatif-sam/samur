@@ -93,18 +93,32 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
       </div>
 
       <div className="flex gap-1.5">
-        <div
-          className={`flex-1 h-2 rounded-full transition-colors ${
-            doneToday?.morning ? 'bg-amber-400 shadow-sm shadow-amber-400/50' : 'bg-muted'
-          }`}
-          title="Morning"
-        />
-        <div
-          className={`flex-1 h-2 rounded-full transition-colors ${
-            doneToday?.evening ? 'bg-violet-500 shadow-sm shadow-violet-500/50' : 'bg-muted'
-          }`}
-          title="Evening"
-        />
+        <div className="flex-1 flex flex-col items-center gap-0.5">
+          <div
+            className={`w-full h-2 rounded-full transition-colors ${
+              doneToday?.morning ? 'bg-amber-400 shadow-sm shadow-amber-400/50' : 'bg-muted'
+            }`}
+            title="Morning"
+          />
+          {doneToday?.morning && (
+            <span className="text-[8px] text-muted-foreground">
+              {doneToday.morningVisibility === 'shared' ? '👥' : '🔒'}
+            </span>
+          )}
+        </div>
+        <div className="flex-1 flex flex-col items-center gap-0.5">
+          <div
+            className={`w-full h-2 rounded-full transition-colors ${
+              doneToday?.evening ? 'bg-violet-500 shadow-sm shadow-violet-500/50' : 'bg-muted'
+            }`}
+            title="Evening"
+          />
+          {doneToday?.evening && (
+            <span className="text-[8px] text-muted-foreground">
+              {doneToday.eveningVisibility === 'shared' ? '👥' : '🔒'}
+            </span>
+          )}
+        </div>
       </div>
       
       <div className="flex justify-between text-[10px] text-muted-foreground font-medium">

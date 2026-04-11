@@ -164,13 +164,18 @@ export default function StreakCalendarModal({
                   const isBeforeJoin = date < createdDate
                   const isJoinDay = formatDay(date) === formatDay(createdDate)
                   const done = Boolean(entries)
+                  const today = new Date()
+                  const isFuture = date > new Date(today.getFullYear(), today.getMonth(), today.getDate())
+                  const isMissed = !isBeforeJoin && !done && !isFuture && date < today
 
                   return (
                     <div key={key} className="flex justify-center">
                       <div
-                        className={`relative h-10 w-10 rounded-full overflow-hidden flex items-center justify-center border-2
+                        className={`relative h-10 w-10 rounded-full overflow-hidden flex flex-col items-center justify-center border-2
                           ${isBeforeJoin ? 'bg-green-50 border-green-100 text-green-600' : 'bg-muted border-transparent'}
                           ${isJoinDay ? 'ring-2 ring-green-500 ring-offset-2' : ''}
+                          ${done && !isBeforeJoin ? 'bg-gradient-to-br from-violet-500 to-indigo-500 text-white' : ''}
+                          ${isMissed ? 'bg-red-50 border-red-200' : ''}
                         `}
                       >
                         {!isBeforeJoin && (
@@ -185,8 +190,11 @@ export default function StreakCalendarModal({
                         )}
 
                         <span className={`relative z-10 text-xs font-bold ${done && !isBeforeJoin ? 'text-white drop-shadow-sm' : ''}`}>
-                          {isBeforeJoin ? date.getDate() : done ? '🔥' : '😈'}
+                          {date.getDate()}
                         </span>
+                        {isMissed && (
+                          <span className="relative z-10 text-[10px] -mt-0.5">😈</span>
+                        )}
                       </div>
                     </div>
                   )

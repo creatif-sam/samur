@@ -18,6 +18,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
   const [activeNotebook, setActiveNotebook] = useState<any | null>(null)
   const [activeSection, setActiveSection] = useState<any | null>(null)
   const [editingPage, setEditingPage] = useState<any | null>(null)
+  const [navigationSource, setNavigationSource] = useState<'recent' | 'normal'>('normal')
   
   const [showAddNotebook, setShowAddNotebook] = useState(false)
   const [notebookToDelete, setNotebookToDelete] = useState<any | null>(null)
@@ -169,7 +170,17 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
     finally { setIsProcessing(false) }
   }
 
-  if (editingPage) return <ThoughtEditor page={editingPage} onBack={() => setEditingPage(null)} onRefresh={onRefresh} />
+  if (editingPage) return <ThoughtEditor page={editingPage} onBack={() => {
+    if (navigationSource === 'recent') {
+      // If opened from recent view, clear all navigation and return to recent view
+      handleClearNavigation()
+      setEditingPage(null)
+      setNavigationSource('normal')
+    } else {
+      // If opened from notebook navigation, just close the editor
+      setEditingPage(null)
+    }
+  }} onRefresh={onRefresh} />
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f172a] max-w-2xl mx-auto flex flex-col font-poppins transition-colors duration-500 relative">
@@ -181,10 +192,11 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
         isProcessing={isProcessing}
         onBack={() => activeSection ? (setActiveSection(null), localStorage.removeItem('active_section')) : handleClearNavigation()}
         onAdd={() => activeSection ? handleAddPage() : (setIsAddingSection(true), setNewTitle(''))}
-      />
-
-      {!activeNotebook ? (
-        <NotebookLibrary 
+      /> from recent view
+            handleSelectNotebook(notebook)
+            handleSelectSection(section)
+            setEditingPage(page)
+            setNavigationSource('recent') // Track that this was opened from recent view
           notebooks={notebooks} 
           onSelect={handleSelectNotebook} 
           onAdd={() => setShowAddNotebook(true)} 

@@ -106,49 +106,62 @@ export default function MeditationList() {
         />
       )}
 
-      {meditations.map((m) => (
-        <Card key={m.id}>
-          <CardContent className="p-5 space-y-2">
-            <div className="flex justify-between items-start">
-              <h3 className="font-semibold">{m.title}</h3>
-              <span className="text-xs text-muted-foreground">
-                {m.visibility}
-              </span>
-            </div>
+      {meditations.map((m) => {
+        const meditationTime = new Date(m.created_at).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
 
-            <p className="text-sm text-muted-foreground">
-              {m.scripture}
-            </p>
+        return (
+          <Card key={m.id}>
+            <CardContent className="p-5 space-y-2">
+              <div className="flex justify-between items-start gap-2">
+                <h3 className="font-semibold flex-1">{m.title}</h3>
+                <div className="flex flex-col items-end gap-1">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-700 dark:text-violet-300 font-semibold">
+                    {meditationTime}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {m.visibility}
+                  </span>
+                </div>
+              </div>
 
-            <div className="flex gap-2 pt-3">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setEditing(m)}
-              >
-                Edit
-              </Button>
+              <p className="text-sm text-muted-foreground">
+                {m.scripture}
+              </p>
 
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={sharingId === m.id}
-                onClick={() => shareToFeed(m)}
-              >
-                {sharingId === m.id ? 'Sharing' : 'Share to feed'}
-              </Button>
+              <div className="flex gap-2 pt-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditing(m)}
+                >
+                  Edit
+                </Button>
 
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => deleteMeditation(m.id)}
-              >
-                Delete
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={sharingId === m.id}
+                  onClick={() => shareToFeed(m)}
+                >
+                  {sharingId === m.id ? 'Sharing' : 'Share to feed'}
+                </Button>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => deleteMeditation(m.id)}
+                >
+                  Delete
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }

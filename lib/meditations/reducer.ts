@@ -4,6 +4,8 @@ type Period = 'morning' | 'evening'
 interface ReducedDay {
   morning: boolean
   evening: boolean
+  morningVisibility?: 'private' | 'shared'
+  eveningVisibility?: 'private' | 'shared'
 }
 
 export function reduceMeditations(meditations: any[]) {
@@ -19,8 +21,14 @@ export function reduceMeditations(meditations: any[]) {
       byUser[m.author_id][day] = { morning: false, evening: false }
     }
 
-    if (m.period === 'morning') byUser[m.author_id][day].morning = true
-    if (m.period === 'evening') byUser[m.author_id][day].evening = true
+    if (m.period === 'morning') {
+      byUser[m.author_id][day].morning = true
+      byUser[m.author_id][day].morningVisibility = m.visibility || 'private'
+    }
+    if (m.period === 'evening') {
+      byUser[m.author_id][day].evening = true
+      byUser[m.author_id][day].eveningVisibility = m.visibility || 'private'
+    }
   })
 
   return byUser

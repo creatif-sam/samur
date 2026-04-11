@@ -30,9 +30,9 @@ export async function getPartnerMeditations() {
 
   const { data: meditations } = await supabase
     .from('meditations')
-    .select('author_id, created_at, period')
+    .select('author_id, created_at, period, visibility')
     .in('author_id', userIds)
-    .eq('visibility', 'shared') // Only fetch shared meditations for partner visibility
+    // Fetch all meditations (shared and private) to calculate accurate streaks
 
   return {
     meId: me.id,
