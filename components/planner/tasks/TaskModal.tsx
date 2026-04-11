@@ -160,7 +160,15 @@ export function TaskModal({
                   <input 
                     type="time" 
                     value={startTime} 
-                    onChange={(e)=>setStartTime(e.target.value)} 
+                    onChange={(e) => {
+                      const newStartTime = e.target.value
+                      setStartTime(newStartTime)
+                      // Auto-adjust end time to one hour later
+                      const [hours, minutes] = newStartTime.split(':').map(Number)
+                      const newEndHour = (hours + 1) % 24
+                      const newEndTime = `${newEndHour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+                      setEndTime(newEndTime)
+                    }}
                     disabled={!canEdit}
                     className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed" 
                   />

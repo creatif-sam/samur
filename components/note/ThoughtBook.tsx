@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Toaster, toast } from 'sonner'
 import { ThoughtBookHeader } from './ThoughtBookHeader'
 import { NotebookLibrary } from './NotebookLibrary'
+import { NotebookSearch } from './NotebookSearch'
 import { SectionList } from './SectionList'
 import { PageList } from './PageList'
 import { ThoughtEditor } from './ThoughtEditor'
@@ -185,6 +186,17 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f172a] max-w-2xl mx-auto flex flex-col font-poppins transition-colors duration-500 relative">
       {isMounted && <Toaster position="bottom-center" richColors theme="dark" />}
+
+      {/* Notebook Search Component */}
+      <NotebookSearch
+        notebooks={notebooks}
+        onSelectPage={(page: any, section: any, notebook: any) => {
+          handleSelectNotebook(notebook)
+          handleSelectSection(section)
+          setEditingPage(page)
+          setNavigationSource('recent')
+        }}
+      />
 
       <ThoughtBookHeader 
         activeNotebook={activeNotebook} 

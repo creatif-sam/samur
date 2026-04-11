@@ -64,8 +64,11 @@ const [budgetTarget, setBudgetTarget] =
       : new Date(periodStart.getTime() + 7 * 86400000)
 
   useEffect(() => {
-    loadBudgets()
-    loadSpending()
+    async function loadData() {
+      await loadBudgets()
+      await loadSpending()
+    }
+    loadData()
   }, [scope, month, year])
 
   async function loadBudgets() {
