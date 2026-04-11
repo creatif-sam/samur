@@ -192,21 +192,21 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
         isProcessing={isProcessing}
         onBack={() => activeSection ? (setActiveSection(null), localStorage.removeItem('active_section')) : handleClearNavigation()}
         onAdd={() => activeSection ? handleAddPage() : (setIsAddingSection(true), setNewTitle(''))}
-      /> from recent view
-            handleSelectNotebook(notebook)
-            handleSelectSection(section)
-            setEditingPage(page)
-            setNavigationSource('recent') // Track that this was opened from recent view
+      />
+
+      {!activeNotebook ? (
+        <NotebookLibrary 
           notebooks={notebooks} 
           onSelect={handleSelectNotebook} 
           onAdd={() => setShowAddNotebook(true)} 
           onDelete={setNotebookToDelete}
           onRename={(nb: any) => { setItemToRename(nb); setNewTitle(nb.title); }}
           onSelectPage={(page: any, section: any, notebook: any) => {
-            // Navigate directly to the page editor
+            // Navigate directly to the page editor from recent view
             handleSelectNotebook(notebook)
             handleSelectSection(section)
             setEditingPage(page)
+            setNavigationSource('recent') // Track that this was opened from recent view
           }}
         />
       ) : !activeSection ? (
