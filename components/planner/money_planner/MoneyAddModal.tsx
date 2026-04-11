@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
 import { toast } from 'sonner'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 export default function MoneyAddModal({
   open,
@@ -18,6 +19,7 @@ export default function MoneyAddModal({
   onAdded: () => void
 }) {
   const supabase = createClient()
+  const { t } = useTranslation()
   const today = new Date().toISOString().slice(0, 10)
 
   const [title, setTitle] = useState('')
@@ -38,7 +40,7 @@ export default function MoneyAddModal({
 
   async function save() {
     if (!title || !amount || !categoryId || !date) {
-      toast.error('Please fill all fields')
+      toast.error(t.money.fillAllFields)
       return
     }
 
@@ -58,13 +60,14 @@ export default function MoneyAddModal({
     })
 
     if (error) {
-      toast.error('Failed to add entry', {
+      toast.error(t.error, {
         description: error.message
       })
       return
     }
 
-    toast.success(`${type === 'income' ? 'Income' : 'Expense'} added successfully`, {
+    const typeLabel = type === 'income' ? t.money.income : t.money.expense
+    toast.success(t.money.addSuccess.replace('{type}', typeLabel), {
       description: `${title} - ${amount}`
     })
     
@@ -97,7 +100,7 @@ export default function MoneyAddModal({
             }`}
           >
             <ArrowDownCircle size={16} />
-            Expense
+            {t.money.expense}
           </Button>
 
           <Button
@@ -110,13 +113,13 @@ export default function MoneyAddModal({
             }`}
           >
             <ArrowUpCircle size={16} />
-            Income
+            {t.money.income}
           </Button>
         </div>
 
         {/* TITLE */}
         <Input
-          placeholder="What for"
+          placeholder={t.money.title}
           value={title}
           onChange={e => setTitle(e.target.value)}
         />
@@ -124,7 +127,7 @@ export default function MoneyAddModal({
         {/* AMOUNT */}
         <Input
           type="number"
-          placeholder="Amount"
+          placeholder={t.money.amount}
           value={amount}
           onChange={e => setAmount(e.target.value)}
         />
@@ -149,13 +152,13 @@ export default function MoneyAddModal({
             onClick={onClose}
             className="flex-1"
           >
-            Cancel
+            {t.cancel}
           </Button>
           <Button
             onClick={save}
             className="flex-1 bg-violet-600"
           >
-            Save
+            {t.save}
           </Button>
         </div>
       </div>

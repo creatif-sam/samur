@@ -8,6 +8,7 @@ import { ArrowDownCircle, ArrowUpCircle, X, Trash2 } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
 import { MoneyEntry } from '@/lib/types'
 import { toast } from 'sonner'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 export default function MoneyEditModal({
   entry,
@@ -21,6 +22,7 @@ export default function MoneyEditModal({
   onDeleted: () => void
 }) {
   const supabase = createClient()
+  const { t } = useTranslation()
 
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
@@ -41,7 +43,7 @@ export default function MoneyEditModal({
 
   async function save() {
     if (!title || !amount || !categoryId || !date || !entry) {
-      toast.error('Please fill all fields')
+      toast.error(t.money.fillAllFields)
       return
     }
 
@@ -57,13 +59,13 @@ export default function MoneyEditModal({
       .eq('id', entry.id)
 
     if (error) {
-      toast.error('Failed to update entry', {
+      toast.error(t.error, {
         description: error.message
       })
       return
     }
 
-    toast.success('Entry updated successfully')
+    toast.success(t.money.updateSuccess)
     
     onUpdated()
     onClose()
@@ -78,13 +80,13 @@ export default function MoneyEditModal({
       .eq('id', entry.id)
 
     if (error) {
-      toast.error('Failed to delete entry', {
+      toast.error(t.error, {
         description: error.message
       })
       return
     }
 
-    toast.success('Entry deleted successfully')
+    toast.success(t.money.deleteSuccess)
     
     onDeleted()
     onClose()

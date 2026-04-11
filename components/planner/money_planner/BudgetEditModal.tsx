@@ -45,13 +45,23 @@ export default function BudgetEditModal({
           onChange={e => onChange(e.target.value)}
         />
 
-        {/* ACTION */}
-        <Button
-          onClick={onSave}
-          className="w-full bg-violet-600"
-        >
-          Save
-        </Button>
+        {/* ACTIONS */}
+        <div className="flex gap-2">
+          <Button
+            onClick={onClose}
+            variant="outline"
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onSave}
+            className="flex-1 bg-violet-600"
+            disabled={!amount || Number(amount) <= 0}
+          >
+            Save Budget
+          </Button>
+        </div>
       </div>
     </div>
   )

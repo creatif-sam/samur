@@ -6,8 +6,10 @@ import CurrencySelector from './CurrencySelector'
 import MoneyAddModal from './MoneyAddModal'
 import MoneyEditModal from './MoneyEditModal'
 import { MoneyEntry } from '@/lib/types'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Trash2, Download } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 type Grouped = {
   dateLabel: string
@@ -18,11 +20,14 @@ type Grouped = {
 export default function MoneyLog({
   open,
   setOpen,
+  onEntriesChanged,
 }: {
   open: boolean
   setOpen: (v: boolean) => void
+  onEntriesChanged?: () => void
 }) {
   const supabase = createClient()
+  const { t } = useTranslation()
   const [entries, setEntries] = useState<MoneyEntry[]>([])
   const [symbol, setSymbol] = useState('₵')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
@@ -46,34 +51,82 @@ export default function MoneyLog({
       .order('created_at', { ascending: false })
 
     setEntries(data ?? [])
+    
+    // Notify parent that entries have changed
+    if (onEntriesChanged) {
+      onEntriesChanged()
+    }
   }
 
   async function deleteEntry(id: string, title: string) {
     // Show confirmation toast with action buttons
-    toast.warning(`Delete "${title}"?`, {
-      description: 'This action cannot be undone.',
+    toast.warning(t.money.deleteConfirm.replace('{title}', title), {
+      description: t.money.deleteWarning,
       action: {
-        label: 'Delete',
+        label: t.delete,
         onClick: async () => {
           const { error } = await supabase.from('money_entries').delete().eq('id', id)
           
           if (error) {
-            toast.error('Failed to delete entry', {
+            toast.error(t.error, {
               description: error.message
             })
           } else {
-            toast.success('Entry deleted successfully')
+            toast.success(t.money.deleteSuccess)
             fetchEntries()
+            // Notify parent that entries have changed
+            if (onEntriesChanged) {
+              onEntriesChanged()
+            }
           }
         },
       },
       cancel: {
-        label: 'Cancel',
+        label: t.cancel,
         onClick: () => {
           toast.dismiss()
         },
       },
       duration: 10000,
+    })
+  }
+
+  function exportToExcel() {
+    if (entries.length === 0) {
+      toast.error(t.money.exportError)
+      return
+    }
+
+    // Create CSV content
+    const headers = [t.money.date, t.money.title, t.money.category, t.money.type, t.money.amount, t.money.currency]
+    const csvRows = [headers.join(',')]
+
+    entries.forEach(entry => {
+      const row = [
+        entry.entry_date,
+        `"${entry.title.replace(/"/g, '""')}"`, // Escape quotes
+        `"${entry.money_categories?.name || 'Uncategorized'}"`,
+        entry.type === 'income' ? t.money.income : t.money.expense,
+        entry.amount,
+        symbol
+      ]
+      csvRows.push(row.join(','))
+    })
+
+    const csvContent = csvRows.join('\\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    
+    link.setAttribute('href', url)
+    link.setAttribute('download', `money-log-${new Date().toISOString().slice(0, 10)}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast.success(t.money.exportSuccess, {
+      description: `${entries.length} ${t.money.entriesExported}`
     })
   }
 
@@ -104,11 +157,25 @@ export default function MoneyLog({
 
   return (
     <div className="flex flex-col gap-4">
-      <CurrencySelector onChange={setSymbol} />
+      <div className="flex justify-between items-center gap-2">
+        <div className="flex-1">
+          <CurrencySelector onChange={setSymbol} />
+        </div>
+        <Button
+          onClick={exportToExcel}
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          disabled={entries.length === 0}
+        >
+          <Download size={16} />
+          <span className="hidden sm:inline">{t.money.export}</span>
+        </Button>
+      </div>
 
       {grouped.length === 0 ? (
         <div className="text-center opacity-60 dark:text-slate-400">
-          No money activity today
+          {t.money.noEntries}
         </div>
       ) : (
         grouped.map(group => (

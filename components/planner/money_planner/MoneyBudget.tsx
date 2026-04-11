@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 type Scope = 'week' | 'month'
 
@@ -24,6 +25,7 @@ type CategoryBudget = {
 
 export default function MoneyBudget() {
   const supabase = createClient()
+  const { t } = useTranslation()
   const now = new Date()
 
   const [scope, setScope] = useState<Scope>('month')
@@ -218,7 +220,7 @@ const [budgetTarget, setBudgetTarget] =
                 : 'text-muted-foreground'
             }`}
           >
-            {s}
+            {s === 'week' ? t.money.week : t.money.month}
           </Button>
         ))}
       </div>
@@ -282,23 +284,23 @@ const [budgetTarget, setBudgetTarget] =
       {/* TOTAL */}
       <div className="text-center space-y-1">
         <div className="text-sm">
-          Remaining {percent}%
+          {t.money.remaining} {percent}%
         </div>
         <div className="text-xs text-muted-foreground">
-          Budget {totalBudget ?? 0} | Spent {spentTotal}
+          {t.money.budget} {totalBudget ?? 0} | {t.money.spent} {spentTotal}
         </div>
       </div>
 
    <Button
   variant="outline"
   onClick={() => {
-    setBudgetModalTitle('Set total budget')
+    setBudgetModalTitle(t.money.setTotalBudget)
     setBudgetTarget('total')
     setTotalInput(totalBudget?.toString() ?? '')
     setBudgetModalOpen(true)
   }}
 >
-  Set total budget
+  {t.money.setTotalBudget}
 </Button>
 
 
@@ -327,13 +329,13 @@ const [budgetTarget, setBudgetTarget] =
   size="sm"
   variant="outline"
   onClick={() => {
-    setBudgetModalTitle(`Set ${c.name} budget`)
+    setBudgetModalTitle(`${t.money.setBudget} ${c.name}`)
     setBudgetTarget(c.id)
     setCategoryInput(c.budget.toString())
     setBudgetModalOpen(true)
   }}
 >
-  Set
+  {t.money.setBudget}
 </Button>
 
               </div>
@@ -344,12 +346,12 @@ const [budgetTarget, setBudgetTarget] =
                 </span>
                 {ratio >= 1 && (
                   <span className="text-red-600">
-                    Over budget
+                    {t.money.overBudget}
                   </span>
                 )}
                 {ratio >= 0.8 && ratio < 1 && (
                   <span className="text-yellow-600">
-                    Near limit
+                    {t.money.nearLimit}
                   </span>
                 )}
               </div>

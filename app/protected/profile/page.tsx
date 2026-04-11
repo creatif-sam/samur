@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import BusinessCardSection from '@/components/profile/BusinessCardSection'
+import { useTranslation } from '@/contexts/TranslationContext'
+import { LanguageSwitcher } from '@/components/language-switcher'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -47,6 +49,7 @@ export default function ProfilePage() {
 
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const { language, setLanguage, t } = useTranslation()
 
   useEffect(() => {
     fetchProfile()
@@ -249,22 +252,22 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <h1 className="text-2xl font-bold">{name || 'Unnamed User'}</h1>
                   <Button variant="outline" onClick={() => setEditing(true)}>
-                    Edit Profile
+                    {t.profile.editProfile}
                   </Button>
                 </div>
               )}
 
               <div className="flex gap-10 pt-4">
-                <Stat label="Goals" value={goalStats.total} />
+                <Stat label={t.profile.goals} value={goalStats.total} />
                 <Stat
-                  label="Completed"
+                  label={t.profile.completed}
                   value={
                     goalStats.total === 0
                       ? '0%'
                       : `${Math.round((goalStats.completed / goalStats.total) * 100)}%`
                   }
                 />
-                <Stat label="Posts" value={postCount} />
+                <Stat label={t.profile.posts} value={postCount} />
               </div>
             </div>
           </div>
@@ -274,7 +277,7 @@ export default function ProfilePage() {
         <div className="bg-background rounded-2xl p-6 shadow">
           <Label className="flex items-center gap-2 mb-2">
             <Users className="w-4 h-4" />
-            Partner
+            {t.profile.partner}
           </Label>
 
           <Select
@@ -284,10 +287,10 @@ export default function ProfilePage() {
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="Select partner" />
+              <SelectValue placeholder={t.profile.selectPartner} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">No partner</SelectItem>
+              <SelectItem value="none">{t.profile.noPartner}</SelectItem>
               {availablePartners.map(partner => (
                 <SelectItem key={partner.id} value={partner.id}>
                   {partner.name || 'Unnamed User'}
@@ -295,6 +298,14 @@ export default function ProfilePage() {
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Language Settings */}
+        <div className="bg-background rounded-2xl p-6 shadow">
+          <Label className="flex items-center gap-2 mb-3">
+            {t.profile.language}
+          </Label>
+          <LanguageSwitcher currentLanguage={language} onLanguageChange={setLanguage} />
         </div>
 
         <BusinessCardSection />
@@ -305,7 +316,7 @@ export default function ProfilePage() {
         <div className="bg-background rounded-2xl p-6 shadow border-2 border-destructive/20">
           <Label className="flex items-center gap-2 mb-4 text-destructive">
             <Trash2 className="w-4 h-4" />
-            Account & Data Management
+            {t.profile.accountManagement}
           </Label>
           <div className="space-y-3">
             <div className="flex flex-col sm:flex-row gap-2">
@@ -318,7 +329,7 @@ export default function ProfilePage() {
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete Specific Data
+                {t.profile.deleteData}
               </Button>
               <Button
                 variant="destructive"
@@ -329,11 +340,11 @@ export default function ProfilePage() {
                 }}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete My Account
+                {t.profile.deleteAccount}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground text-center">
-              These actions are permanent and comply with GDPR requirements
+              {t.profile.gdprNote}
             </p>
           </div>
         </div>

@@ -7,32 +7,40 @@ import MoneyLog from './MoneyLog'
 
 import MoneyBudget from './MoneyBudget'
 import MoneyCharts from './MoneyCharts'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 type Tab = 'log' | 'charts' | 'budget'
 
 export default function MoneyTabs() {
   const [tab, setTab] = useState<Tab>('log')
   const [open, setOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
+  const { t } = useTranslation()
+
+  const handleEntriesChanged = () => {
+    // Trigger refresh in budget component
+    setRefreshKey(prev => prev + 1)
+  }
 
   return (
     <div className="relative pb-24">
       {/* MONEY SUB TABS */}
       <div className="flex gap-2 rounded-xl bg-muted p-1 mb-4">
         <TabButton active={tab === 'log'} onClick={() => setTab('log')}>
-          Log
+          {t.money.log}
         </TabButton>
         <TabButton active={tab === 'charts'} onClick={() => setTab('charts')}>
-          Charts
+          {t.money.charts}
         </TabButton>
         <TabButton active={tab === 'budget'} onClick={() => setTab('budget')}>
-          Budget
+          {t.money.budget}
         </TabButton>
       </div>
 
       {/* CONTENT */}
-      {tab === 'log' && <MoneyLog open={open} setOpen={setOpen} />}
+      {tab === 'log' && <MoneyLog open={open} setOpen={setOpen} onEntriesChanged={handleEntriesChanged} />}
      {tab === 'charts' && <MoneyCharts />}
-      {tab === 'budget' && <MoneyBudget />}
+      {tab === 'budget' && <MoneyBudget key={refreshKey} />}
 
       {/* FLOATING PLUS */}
       {tab === 'log' && (
