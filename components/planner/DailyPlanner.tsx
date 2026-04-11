@@ -296,7 +296,7 @@ export default function DailyPlanner() {
   }
 
   return (
-    <div className={`min-h-screen transition-colors duration-1000 ${theme.bg} text-black font-sans pb-32`}>
+    <div className={`min-h-screen transition-colors duration-1000 ${theme.bg} font-sans pb-32`}>
       <header className={`sticky top-0 transition-colors duration-1000 z-30 px-6 pt-12 pb-4 ${theme.bg} backdrop-blur-md`}>
         <div className="flex justify-between items-end">
           <div>
@@ -334,7 +334,7 @@ export default function DailyPlanner() {
         />
 
         <div className="space-y-3 mb-6">
-          <div className="bg-white/70 backdrop-blur-sm rounded-[32px] p-6 border border-white/50 shadow-sm">
+          <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-[32px] p-6 border border-white/50 dark:border-slate-700/50 shadow-sm">
             <DaySummary tasks={tasks} completedTaskIds={completedTaskIds} visions={visionsMap} />
           </div>
           <div className="flex justify-start px-2">
@@ -364,7 +364,7 @@ export default function DailyPlanner() {
                 <div 
                   key={task.id} 
                   onClick={() => !isPartnerTask && setEditingTask(task)} 
-                  className={`flex flex-col gap-1 p-4 rounded-[28px] ${!isPartnerTask ? 'active:bg-white/50 dark:active:bg-slate-800/50 active:scale-[0.98] cursor-pointer' : 'opacity-75 cursor-default'} transition-all group`}
+                  className={`flex flex-col gap-1 p-4 rounded-[28px] bg-white/30 dark:bg-slate-800/30 ${!isPartnerTask ? 'active:bg-white/60 dark:active:bg-slate-700/60 active:scale-[0.98] cursor-pointer' : 'opacity-75 cursor-default'} transition-all group`}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-14 text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">{task.start}</div>

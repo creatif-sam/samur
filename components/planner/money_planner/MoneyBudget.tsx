@@ -282,13 +282,28 @@ const [budgetTarget, setBudgetTarget] =
       </div>
 
       {/* TOTAL */}
-      <div className="text-center space-y-1">
-        <div className="text-sm">
-          {t.money.remaining} {percent}%
+      <div className="text-center space-y-2">
+        <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">
+          {remaining}
         </div>
-        <div className="text-xs text-muted-foreground">
-          {t.money.budget} {totalBudget ?? 0} | {t.money.spent} {spentTotal}
+        <div className="text-sm text-muted-foreground">
+          {t.money.remaining} ({percent}%)
         </div>
+        <div className="grid grid-cols-2 gap-4 mt-3 p-3 bg-muted/50 rounded-lg">
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground mb-1">{t.money.budget}</div>
+            <div className="text-lg font-semibold text-green-600 dark:text-green-400">{totalBudget ?? 0}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-muted-foreground mb-1">{t.money.spent}</div>
+            <div className="text-lg font-semibold text-red-600 dark:text-red-400">{spentTotal}</div>
+          </div>
+        </div>
+        {totalBudget && totalBudget > 0 && (
+          <div className="text-xs text-muted-foreground mt-2">
+            {Math.round((spentTotal / totalBudget) * 100)}% of budget used
+          </div>
+        )}
       </div>
 
    <Button

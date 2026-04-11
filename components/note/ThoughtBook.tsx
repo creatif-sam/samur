@@ -190,6 +190,12 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
           onAdd={() => setShowAddNotebook(true)} 
           onDelete={setNotebookToDelete}
           onRename={(nb: any) => { setItemToRename(nb); setNewTitle(nb.title); }}
+          onSelectPage={(page: any, section: any, notebook: any) => {
+            // Navigate directly to the page editor
+            handleSelectNotebook(notebook)
+            handleSelectSection(section)
+            setEditingPage(page)
+          }}
         />
       ) : !activeSection ? (
         <SectionList 
