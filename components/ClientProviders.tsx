@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { TranslationProvider } from '@/contexts/TranslationContext';
 
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
@@ -22,9 +23,8 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <>
-   
+    <TranslationProvider>
       {children}
-    </>
+    </TranslationProvider>
   );
 }

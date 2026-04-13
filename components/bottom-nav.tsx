@@ -14,19 +14,21 @@ import {
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import Image from 'next/image'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 const navItems = [
-  { href: '/protected', label: 'Home', icon: Home },
-  { href: '/protected/goals', label: 'Goals', icon: Target },
-  { href: '/protected/planner', label: 'Planner', icon: Calendar },
-  { href: '/protected/posts', label: 'Posts', icon: Plus },
-  { href: '/protected/readapp', label: 'ReadApp', icon: BookOpen },
-  { href: '/protected/profile', label: 'Profile', icon: User },
+  { href: '/protected', key: 'home', icon: Home },
+  { href: '/protected/goals', key: 'goals', icon: Target },
+  { href: '/protected/planner', key: 'planner', icon: Calendar },
+  { href: '/protected/posts', key: 'posts', icon: Plus },
+  { href: '/protected/readapp', key: 'readApp', icon: BookOpen },
+  { href: '/protected/profile', key: 'profile', icon: User },
 ]
 
 export function BottomNav(): JSX.Element {
   const pathname = usePathname()
   const supabase = createClient()
+  const { t } = useTranslation()
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
@@ -64,7 +66,7 @@ export function BottomNav(): JSX.Element {
                   : 'text-white hover:bg-violet-500'
               )}
             >
-              {item.label === 'Profile' ? (
+              {item.key === 'profile' ? (
                 avatarUrl ? (
                   <Image
                     src={avatarUrl}
@@ -86,7 +88,7 @@ export function BottomNav(): JSX.Element {
               )}
 
               <span className="text-xs mt-1">
-                {item.label}
+                {t.nav[item.key as keyof typeof t.nav]}
               </span>
             </Link>
           )

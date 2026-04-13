@@ -11,6 +11,8 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/contexts/TranslationContext'
 
+type Scope = 'week' | 'month' | 'all'
+
 type Grouped = {
   dateLabel: string
   total: number
@@ -28,13 +30,19 @@ export default function MoneyLog({
 }) {
   const supabase = createClient()
   const { t } = useTranslation()
+  const now = new Date()
+  
   const [entries, setEntries] = useState<MoneyEntry[]>([])
   const [symbol, setSymbol] = useState('₵')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
+  const [scope, setScope] = useState<Scope>('all')
+  const [month, setMonth] = useState(now.getMonth())
+  const [year, setYear] = useState(now.getFullYear())
+  const [weekOffset, setWeekOffset] = useState(0)
 
   useEffect(() => {
     fetchEntries()
-  }, [])
+  }, [scope, month, year, weekOffset])
 
   async function fetchEntries() {
     const {
@@ -43,10 +51,32 @@ export default function MoneyLog({
 
     if (!user) return
 
-    const { data } = await supabase
+    let query = supabase
       .from('money_entries')
       .select('*, money_categories(name, icon)')
       .eq('user_id', user.id)
+
+    // Apply date filtering based on scope
+    if (scope === 'week') {
+      const base = new Date(now)
+      base.setDate(now.getDate() - now.getDay() + weekOffset * 7)
+      const start = new Date(base)
+      const end = new Date(base)
+      end.setDate(base.getDate() + 7)
+      
+      query = query
+        .gte('entry_date', start.toISOString())
+        .lt('entry_date', end.toISOString())
+    } else if (scope === 'month') {
+      const start = new Date(year, month, 1)
+      const end = new Date(year, month + 1, 1)
+      
+      query = query
+        .gte('entry_date', start.toISOString())
+        .lt('entry_date', end.toISOString())
+    }
+
+    const { data } = await query
       .order('entry_date', { ascending: false })
       .order('created_at', { ascending: false })
 
@@ -56,6 +86,28 @@ export default function MoneyLog({
     if (onEntriesChanged) {
       onEntriesChanged()
     }
+  }
+
+  function formatWeekRange(baseDate: Date, offset: number) {
+    const start = new Date(baseDate)
+    start.setDate(baseDate.getDate() - baseDate.getDay() + offset * 7)
+
+    const end = new Date(start)
+    end.setDate(start.getDate() + 6)
+
+    const startLabel = start.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })
+
+    const endLabel = end.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+    })
+
+    return `${startLabel} to ${endLabel}`
   }
 
   async function deleteEntry(id: string, title: string) {
@@ -97,29 +149,89 @@ export default function MoneyLog({
       return
     }
 
-    // Create CSV content
-    const headers = [t.money.date, t.money.title, t.money.category, t.money.type, t.money.amount, t.money.currency]
-    const csvRows = [headers.join(',')]
-
-    entries.forEach(entry => {
-      const row = [
-        entry.entry_date,
-        `"${entry.title.replace(/"/g, '""')}"`, // Escape quotes
-        `"${entry.money_categories?.name || 'Uncategorized'}"`,
-        entry.type === 'income' ? t.money.income : t.money.expense,
-        entry.amount,
-        symbol
-      ]
-      csvRows.push(row.join(','))
+    // Sort entries by date and type
+    const sortedEntries = [...entries].sort((a, b) => {
+      const dateCompare = new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime()
+      if (dateCompare !== 0) return dateCompare
+      return a.type.localeCompare(b.type)
     })
 
-    const csvContent = csvRows.join('\\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    // Calculate totals
+    const totalIncome = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0)
+    const totalExpense = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0)
+    const balance = totalIncome - totalExpense
+
+    // Create CSV content with better formatting
+    const csvRows: string[] = []
+    
+    // Title and Period
+    csvRows.push(`"Money Log Export - ${new Date().toLocaleDateString()}"`)
+    csvRows.push('')
+    
+    // Summary Section
+    csvRows.push('"=== SUMMARY ==="')
+    csvRows.push(`"Period:","${scope === 'all' ? 'All Time' : scope === 'week' ? weekLabel : `${new Date(year, month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`}"`)
+    csvRows.push(`"Total Income:","${symbol}${totalIncome.toFixed(2)}"`)
+    csvRows.push(`"Total Expenses:","${symbol}${totalExpense.toFixed(2)}"`)
+    csvRows.push(`"Balance:","${symbol}${balance.toFixed(2)}"`)
+    csvRows.push(`"Total Entries:","${entries.length}"`)
+    csvRows.push('')
+    
+    // Column Headers
+    csvRows.push('"=== DETAILED TRANSACTIONS ==="')
+    const headers = [t.money.date, t.money.title, t.money.category, t.money.type, `${t.money.amount} (${symbol})`]
+    csvRows.push(headers.map(h => `"${h}"`).join(','))
+    csvRows.push('') // Separator line
+
+    // Income Entries
+    const incomeEntries = sortedEntries.filter(e => e.type === 'income')
+    if (incomeEntries.length > 0) {
+      csvRows.push(`"--- ${t.money.income.toUpperCase()} ---"`)
+      incomeEntries.forEach(entry => {
+        const row = [
+          new Date(entry.entry_date).toLocaleDateString(),
+          entry.title.replace(/"/g, '""'),
+          entry.money_categories?.name || 'Uncategorized',
+          t.money.income,
+          entry.amount.toFixed(2)
+        ]
+        csvRows.push(row.map(cell => `"${cell}"`).join(','))
+      })
+      csvRows.push(`"","","","${t.money.income} Total:","${totalIncome.toFixed(2)}"`)
+      csvRows.push('')
+    }
+
+    // Expense Entries
+    const expenseEntries = sortedEntries.filter(e => e.type === 'expense')
+    if (expenseEntries.length > 0) {
+      csvRows.push(`"--- ${t.money.expenses.toUpperCase()} ---"`)
+      expenseEntries.forEach(entry => {
+        const row = [
+          new Date(entry.entry_date).toLocaleDateString(),
+          entry.title.replace(/"/g, '""'),
+          entry.money_categories?.name || 'Uncategorized',
+          t.money.expense,
+          entry.amount.toFixed(2)
+        ]
+        csvRows.push(row.map(cell => `"${cell}"`).join(','))
+      })
+      csvRows.push(`"","","","${t.money.expenses} Total:","${totalExpense.toFixed(2)}"`)
+      csvRows.push('')
+    }
+
+    // Footer
+    csvRows.push('')
+    csvRows.push(`"Generated on:","${new Date().toLocaleString()}"`)
+    csvRows.push(`"Currency:","${symbol}"`)
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
     
+    const periodLabel = scope === 'all' ? 'all' : scope === 'week' ? `week-${weekOffset}` : `${year}-${String(month + 1).padStart(2, '0')}`
     link.setAttribute('href', url)
-    link.setAttribute('download', `money-log-${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute('download', `money-log-${periodLabel}-${new Date().toISOString().slice(0, 10)}.csv`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
@@ -155,6 +267,20 @@ export default function MoneyLog({
     return Object.values(map)
   }, [entries])
 
+  const totals = useMemo(() => {
+    const income = entries
+      .filter(e => e.type === 'income')
+      .reduce((sum, e) => sum + e.amount, 0)
+    
+    const expense = entries
+      .filter(e => e.type === 'expense')
+      .reduce((sum, e) => sum + e.amount, 0)
+    
+    return { income, expense, balance: income - expense }
+  }, [entries])
+
+  const weekLabel = formatWeekRange(now, weekOffset)
+
   return (
     <div className="flex flex-col gap-4">
       {/* Header Actions */}
@@ -173,6 +299,134 @@ export default function MoneyLog({
           <span className="hidden sm:inline">{t.money.export}</span>
         </Button>
       </div>
+
+      {/* SCOPE TOGGLE */}
+      <div className="flex gap-2 rounded-xl bg-muted p-1">
+        {(['all', 'week', 'month'] as const).map(s => (
+          <Button
+            key={s}
+            variant="ghost"
+            onClick={() => setScope(s)}
+            className={`flex-1 rounded-lg capitalize ${
+              scope === s
+                ? 'bg-background text-foreground shadow'
+                : 'text-muted-foreground'
+            }`}
+          >
+            {s === 'all' ? t.all : s === 'week' ? t.money.week : t.money.month}
+          </Button>
+        ))}
+      </div>
+
+      {/* DATE CONTROLS FOR WEEK */}
+      {scope === 'week' && (
+        <>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setWeekOffset(weekOffset - 1)}
+              className="flex-1"
+            >
+              {t.previous}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setWeekOffset(0)}
+              className="flex-1"
+            >
+              {t.planner.thisWeek}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setWeekOffset(weekOffset + 1)}
+              className="flex-1"
+            >
+              {t.next}
+            </Button>
+          </div>
+          <div className="text-center text-sm text-muted-foreground">
+            {weekLabel}
+          </div>
+        </>
+      )}
+
+      {/* DATE CONTROLS FOR MONTH */}
+      {scope === 'month' && (
+        <div className="flex gap-2">
+          <select
+            value={month}
+            onChange={e => setMonth(Number(e.target.value))}
+            className="flex-1 border rounded-lg px-2 py-1 dark:bg-slate-900"
+          >
+            {Array.from({ length: 12 }).map((_, i) => (
+              <option key={i} value={i}>
+                {new Date(0, i).toLocaleString(undefined, {
+                  month: 'long',
+                })}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+            className="flex-1 border rounded-lg px-2 py-1 dark:bg-slate-900"
+          >
+            {Array.from({ length: 5 }).map((_, i) => {
+              const y = now.getFullYear() - i
+              return (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              )
+            })}
+          </select>
+        </div>
+      )}
+
+      {/* TOTALS DISPLAY */}
+      {entries.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
+            <div className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wide">
+              {t.money.income}
+            </div>
+            <div className="text-lg font-bold text-green-700 dark:text-green-300 mt-1">
+              {symbol}{totals.income.toFixed(2)}
+            </div>
+          </div>
+          
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <div className="text-xs text-red-600 dark:text-red-400 font-medium uppercase tracking-wide">
+              {t.money.expenses}
+            </div>
+            <div className="text-lg font-bold text-red-700 dark:text-red-300 mt-1">
+              {symbol}{totals.expense.toFixed(2)}
+            </div>
+          </div>
+          
+          <div className={`border rounded-lg p-3 ${
+            totals.balance >= 0
+              ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+              : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+          }`}>
+            <div className={`text-xs font-medium uppercase tracking-wide ${
+              totals.balance >= 0
+                ? 'text-blue-600 dark:text-blue-400'
+                : 'text-amber-600 dark:text-amber-400'
+            }`}>
+              {t.money.balance}
+            </div>
+            <div className={`text-lg font-bold mt-1 ${
+              totals.balance >= 0
+                ? 'text-blue-700 dark:text-blue-300'
+                : 'text-amber-700 dark:text-amber-300'
+            }`}>
+              {symbol}{totals.balance.toFixed(2)}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Entries List */}
       {grouped.length === 0 ? (

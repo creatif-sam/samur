@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus } from 'lucide-react'
 import { seedMoneyCategories } from '@/lib/seedMoneyCategories'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 type Category = {
   id: string
@@ -23,6 +24,7 @@ export default function MoneyCategorySelector({
   onChange: (id: string) => void
 }) {
   const supabase = createClient()
+  const { t } = useTranslation()
   const [categories, setCategories] = useState<Category[]>([])
   const [newName, setNewName] = useState('')
   const [newIcon, setNewIcon] = useState('💰')
@@ -101,7 +103,7 @@ export default function MoneyCategorySelector({
 
       <div className="flex gap-2 items-center">
         <Input
-          placeholder="New category"
+          placeholder={t.planner.newCategory}
           value={newName}
           onChange={e => setNewName(e.target.value)}
         />
