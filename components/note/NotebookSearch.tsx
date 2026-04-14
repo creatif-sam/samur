@@ -159,7 +159,7 @@ export function NotebookSearch({ notebooks, onSelectPage }: NotebookSearchProps)
 
                       {/* Date */}
                       <p className="text-[10px] text-slate-400 dark:text-slate-600 mt-2">
-                        Last updated: {new Date(page.updated_at || page.created_at).toLocaleDateString()}
+                        Created: {new Date(page.created_at).toLocaleDateString()}
                       </p>
                     </button>
                   ))

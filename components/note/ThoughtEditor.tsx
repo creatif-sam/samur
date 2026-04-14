@@ -75,8 +75,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
       .from('pages')
       .update({ 
         title: currentTitle, 
-        content: currentContent,
-        updated_at: new Date().toISOString() 
+        content: currentContent
       })
       .eq('id', page.id)
 
@@ -84,7 +83,6 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
       // Update the page object immediately for instant UI feedback
       page.content = currentContent
       page.title = currentTitle
-      page.updated_at = new Date().toISOString()
       await onRefresh()
     }
     setIsSaving(false)

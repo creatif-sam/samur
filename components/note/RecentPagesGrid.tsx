@@ -23,11 +23,11 @@ export function RecentPagesGrid({ notebooks, onSelectPage }: RecentPagesGridProp
     })
   })
 
-  // Sort by updated_at (most recent first)
+  // Sort by created_at (most recent first)
   const recentPages = allPages
     .sort((a, b) => {
-      const dateA = new Date(a.page.updated_at || a.page.created_at).getTime()
-      const dateB = new Date(b.page.updated_at || b.page.created_at).getTime()
+      const dateA = new Date(a.page.created_at).getTime()
+      const dateB = new Date(b.page.created_at).getTime()
       return dateB - dateA
     })
     .slice(0, 12) // Show most recent 12 pages
@@ -105,7 +105,7 @@ export function RecentPagesGrid({ notebooks, onSelectPage }: RecentPagesGridProp
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                <span>{formatDate(page.updated_at || page.created_at)}</span>
+                <span>{formatDate(page.created_at)}</span>
               </div>
             </div>
           </button>

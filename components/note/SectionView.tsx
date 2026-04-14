@@ -58,7 +58,7 @@ export function SectionView({ notebook, activeSection, onBack, onAdd, onSelectSe
                 <div className="flex flex-col overflow-hidden">
                   <span className="text-sm font-bold uppercase italic truncate">{p.title}</span>
                   <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">
-                    Sync: {new Date(p.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    Created: {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               </div>

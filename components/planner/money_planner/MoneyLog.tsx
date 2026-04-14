@@ -391,8 +391,8 @@ export default function MoneyLog({
             <div className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wide">
               {t.money.income}
             </div>
-            <div className="text-lg font-bold text-green-700 dark:text-green-300 mt-1">
-              {symbol}{totals.income.toFixed(2)}
+            <div className="text-sm font-bold text-green-700 dark:text-green-300 mt-1">
+              {totals.income.toFixed(2)}
             </div>
           </div>
           
@@ -400,8 +400,8 @@ export default function MoneyLog({
             <div className="text-xs text-red-600 dark:text-red-400 font-medium uppercase tracking-wide">
               {t.money.expenses}
             </div>
-            <div className="text-lg font-bold text-red-700 dark:text-red-300 mt-1">
-              {symbol}{totals.expense.toFixed(2)}
+            <div className="text-sm font-bold text-red-700 dark:text-red-300 mt-1">
+              {totals.expense.toFixed(2)}
             </div>
           </div>
           
@@ -417,12 +417,12 @@ export default function MoneyLog({
             }`}>
               {t.money.balance}
             </div>
-            <div className={`text-lg font-bold mt-1 ${
+            <div className={`text-sm font-bold mt-1 ${
               totals.balance >= 0
                 ? 'text-blue-700 dark:text-blue-300'
                 : 'text-amber-700 dark:text-amber-300'
             }`}>
-              {symbol}{totals.balance.toFixed(2)}
+              {totals.balance.toFixed(2)}
             </div>
           </div>
         </div>
