@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
+import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
 import { toast } from 'sonner'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -70,6 +71,8 @@ export default function MoneyAddModal({
     toast.success(t.money.addSuccess.replace('{type}', typeLabel), {
       description: `${title} - ${amount}`
     })
+
+    await checkMonthlyBudgetAlerts()
     
     onAdded()
     onClose()

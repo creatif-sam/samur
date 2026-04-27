@@ -57,7 +57,7 @@ export default function BudgetEditModal({
           <Button
             onClick={onSave}
             className="flex-1 bg-violet-600"
-            disabled={!amount || Number(amount) <= 0}
+            disabled={amount === '' || Number(amount) < 0}
           >
             Save Budget
           </Button>

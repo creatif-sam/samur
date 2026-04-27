@@ -1,19 +1,21 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import BudgetEditModal from './BudgetEditModal'
-import {
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-} from 'recharts'
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useTranslation } from '@/contexts/TranslationContext'
+import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
+import { toast } from 'sonner'
 
 type Scope = 'week' | 'month'
+
+type MoneyCategory = {
+  id: string
+  name: string
+  icon: string
+}
 
 type CategoryBudget = {
   id: string
@@ -32,21 +34,16 @@ export default function MoneyBudget() {
   const [month, setMonth] = useState(now.getMonth())
   const [year, setYear] = useState(now.getFullYear())
 
+  const [budgetId, setBudgetId] = useState<string | null>(null)
   const [totalBudget, setTotalBudget] = useState<number | null>(null)
   const [totalInput, setTotalInput] = useState('')
-  // Inside your MoneyBudget component:
-const [editingCategory, setEditingCategory] = useState<string | null>(null);
-
-
-
-const [budgetModalOpen, setBudgetModalOpen] = useState(false)
-const [budgetModalTitle, setBudgetModalTitle] = useState('')
-const [budgetTarget, setBudgetTarget] =
-  useState<'total' | string | null>(null)
+  const [budgetModalOpen, setBudgetModalOpen] = useState(false)
+  const [budgetModalTitle, setBudgetModalTitle] = useState('')
+  const [budgetTarget, setBudgetTarget] =
+    useState<'total' | string | null>(null)
 
 
   const [categories, setCategories] = useState<CategoryBudget[]>([])
-  
   const [categoryInput, setCategoryInput] = useState('')
 
   const periodStart =
@@ -62,59 +59,90 @@ const [budgetTarget, setBudgetTarget] =
     scope === 'month'
       ? new Date(year, month + 1, 1)
       : new Date(periodStart.getTime() + 7 * 86400000)
+  const periodStartKey = periodStart.toISOString().slice(0, 10)
+  const periodEndKey = periodEnd.toISOString().slice(0, 10)
 
-  useEffect(() => {
-    async function loadData() {
-      await loadBudgets()
-      await loadSpending()
-    }
-    loadData()
-  }, [scope, month, year])
-
-  async function loadBudgets() {
+  const loadBudgetState = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return
 
-    const { data: total } = await supabase
-      .from('money_budgets')
-      .select('amount')
+    const [{ data: budget, error: budgetError }, { data: baseCategories, error: categoriesError }] = await Promise.all([
+      supabase
+        .from('money_budget_periods')
+        .select('id, total_budget')
+        .eq('user_id', user.id)
+        .eq('scope', scope)
+        .eq('period_start', periodStartKey)
+        .maybeSingle(),
+      supabase
+        .from('money_categories')
+        .select('id, name, icon')
+        .eq('user_id', user.id)
+        .order('name'),
+    ])
+
+    if (budgetError) {
+      toast.error('Failed to load budget', {
+        description: budgetError.message,
+      })
+      return
+    }
+
+    if (categoriesError) {
+      toast.error('Failed to load categories', {
+        description: categoriesError.message,
+      })
+      return
+    }
+
+    setBudgetId(budget?.id ?? null)
+    setTotalBudget(budget?.total_budget ?? null)
+
+    const safeCategories = (baseCategories ?? []) as MoneyCategory[]
+
+    if (!budget?.id) {
+      setCategories(
+        safeCategories.map(category => ({
+          ...category,
+          budget: 0,
+          spent: 0,
+        }))
+      )
+      return
+    }
+
+    const { data: allocations, error: allocationsError } = await supabase
+      .from('money_budget_allocations')
+      .select('amount, category_id')
       .eq('user_id', user.id)
-      .eq('scope', scope)
-      .eq('period_start', periodStart.toISOString().slice(0, 10))
-      .single()
+      .eq('budget_period_id', budget.id)
 
-    setTotalBudget(total?.amount ?? null)
+    if (allocationsError) {
+      toast.error('Failed to load sub-budgets', {
+        description: allocationsError.message,
+      })
+      return
+    }
 
-  const { data: cats } = await supabase
-  .from('money_category_budgets')
-  .select(
-    'amount, category_id, money_categories!inner(id, name, icon)'
-  )
-
-      .eq('user_id', user.id)
-      .eq('scope', scope)
-      .eq('period_start', periodStart.toISOString().slice(0, 10))
+    const allocationMap = new Map(
+      (allocations ?? []).map(allocation => [
+        allocation.category_id,
+        allocation.amount,
+      ])
+    )
 
     setCategories(
-  (cats ?? []).map(c => {
-    const cat = Array.isArray(c.money_categories)
-      ? c.money_categories[0]
-      : c.money_categories
+      safeCategories.map(category => ({
+        ...category,
+        budget: allocationMap.get(category.id) ?? 0,
+        spent: 0,
+      }))
+    )
+  }, [periodStartKey, scope, supabase])
 
-    return {
-      id: cat.id,
-      name: cat.name,
-      icon: cat.icon,
-      budget: c.amount,
-      spent: 0,
-    }
-  })
-)
-  }
-
-  async function loadSpending() {
+  const loadSpending = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -125,8 +153,8 @@ const [budgetTarget, setBudgetTarget] =
       .select('amount, category_id')
       .eq('user_id', user.id)
       .eq('type', 'expense')
-      .gte('entry_date', periodStart.toISOString().slice(0, 10))
-      .lt('entry_date', periodEnd.toISOString().slice(0, 10))
+      .gte('entry_date', periodStartKey)
+      .lt('entry_date', periodEndKey)
 
     const totals: Record<string, number> = {}
 
@@ -143,53 +171,135 @@ const [budgetTarget, setBudgetTarget] =
         spent: totals[c.id] ?? 0,
       }))
     )
-  }
+  }, [periodEndKey, periodStartKey, supabase])
+
+  const loadData = useCallback(async () => {
+    await loadBudgetState()
+    await loadSpending()
+  }, [loadBudgetState, loadSpending])
+
+  useEffect(() => {
+    void loadData()
+  }, [loadData])
 
   async function saveTotalBudget() {
-    if (!totalInput) return
+    if (totalInput === '') return
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return
 
-    await supabase.from('money_budgets').upsert({
+    const payload = {
       user_id: user.id,
       scope,
-      period_start: periodStart.toISOString().slice(0, 10),
-      amount: Number(totalInput),
-    })
+      period_start: periodStartKey,
+      period_end: periodEndKey,
+      total_budget: Number(totalInput),
+    }
 
-    setTotalBudget(Number(totalInput))
+    const query = budgetId
+      ? supabase
+          .from('money_budget_periods')
+          .update(payload)
+          .eq('id', budgetId)
+          .eq('user_id', user.id)
+          .select('id, total_budget')
+          .single()
+      : supabase
+          .from('money_budget_periods')
+          .insert(payload)
+          .select('id, total_budget')
+          .single()
+
+    const { data, error } = await query
+
+    if (error) {
+      toast.error('Failed to save budget', {
+        description: error.message,
+      })
+      return
+    }
+
+    setBudgetId(data.id)
+    setTotalBudget(data.total_budget)
     setTotalInput('')
+    await checkMonthlyBudgetAlerts()
   }
 
   async function saveCategoryBudget(categoryId: string) {
-    if (!categoryInput) return
+    if (categoryInput === '') return
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) return
 
-    await supabase.from('money_category_budgets').upsert({
-      user_id: user.id,
-      category_id: categoryId,
-      scope,
-      period_start: periodStart.toISOString().slice(0, 10),
-      amount: Number(categoryInput),
-    })
+    let nextBudgetId = budgetId
+
+    if (!nextBudgetId) {
+      const { data: createdBudget, error: createdBudgetError } = await supabase
+        .from('money_budget_periods')
+        .insert({
+          user_id: user.id,
+          scope,
+          period_start: periodStartKey,
+          period_end: periodEndKey,
+          total_budget: totalBudget ?? 0,
+        })
+        .select('id')
+        .single()
+
+      if (createdBudgetError) {
+        toast.error('Failed to create budget period', {
+          description: createdBudgetError.message,
+        })
+        return
+      }
+
+      nextBudgetId = createdBudget.id
+      setBudgetId(createdBudget.id)
+    }
+
+    const amount = Number(categoryInput)
+
+    const query =
+      amount <= 0
+        ? supabase
+            .from('money_budget_allocations')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('budget_period_id', nextBudgetId)
+            .eq('category_id', categoryId)
+        : supabase.from('money_budget_allocations').upsert(
+            {
+              user_id: user.id,
+              budget_period_id: nextBudgetId,
+              category_id: categoryId,
+              amount,
+            },
+            {
+              onConflict: 'budget_period_id,category_id',
+            }
+          )
+
+    const { error } = await query
+
+    if (error) {
+      toast.error('Failed to save sub-budget', {
+        description: error.message,
+      })
+      return
+    }
 
     setCategories(prev =>
       prev.map(c =>
         c.id === categoryId
-          ? { ...c, budget: Number(categoryInput) }
+          ? { ...c, budget: amount > 0 ? amount : 0 }
           : c
       )
     )
 
-
-    setEditingCategory(null)
     setCategoryInput('')
   }
 
@@ -197,11 +307,17 @@ const [budgetTarget, setBudgetTarget] =
     (a, b) => a + b.spent,
     0
   )
+  const allocatedTotal = categories.reduce(
+    (sum, category) => sum + category.budget,
+    0
+  )
 
   const remaining =
     totalBudget !== null
       ? Math.max(0, totalBudget - spentTotal)
       : 0
+  const unallocated =
+    totalBudget !== null ? totalBudget - allocatedTotal : 0
 
   const percent =
     totalBudget && totalBudget > 0
@@ -303,23 +419,33 @@ const [budgetTarget, setBudgetTarget] =
           </div>
         </div>
         {totalBudget && totalBudget > 0 && (
-          <div className="text-xs text-muted-foreground mt-2">
-            {Math.round((spentTotal / totalBudget) * 100)}% of budget used
-          </div>
+          <>
+            <div className="text-xs text-muted-foreground mt-2">
+              {Math.round((spentTotal / totalBudget) * 100)}% of budget used
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {allocatedTotal} allocated to sub-budgets
+            </div>
+            <div className={`text-xs ${unallocated < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
+              {unallocated < 0
+                ? `${Math.abs(unallocated)} over-allocated across categories`
+                : `${unallocated} still unallocated`}
+            </div>
+          </>
         )}
       </div>
 
-   <Button
-  variant="outline"
-  onClick={() => {
-    setBudgetModalTitle(t.money.setTotalBudget)
-    setBudgetTarget('total')
-    setTotalInput(totalBudget?.toString() ?? '')
-    setBudgetModalOpen(true)
-  }}
->
-  {t.money.setTotalBudget}
-</Button>
+      <Button
+        variant="outline"
+        onClick={() => {
+          setBudgetModalTitle(t.money.setTotalBudget)
+          setBudgetTarget('total')
+          setTotalInput(totalBudget?.toString() ?? '')
+          setBudgetModalOpen(true)
+        }}
+      >
+        {t.money.setTotalBudget}
+      </Button>
 
 
       {/* CATEGORY ROWS */}
@@ -343,18 +469,18 @@ const [budgetTarget, setBudgetTarget] =
                   <span className="text-sm">{c.name}</span>
                 </div>
 
-               <Button
-  size="sm"
-  variant="outline"
-  onClick={() => {
-    setBudgetModalTitle(`${t.money.setBudget} ${c.name}`)
-    setBudgetTarget(c.id)
-    setCategoryInput(c.budget.toString())
-    setBudgetModalOpen(true)
-  }}
->
-  {t.money.setBudget}
-</Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setBudgetModalTitle(`${t.money.setBudget} ${c.name}`)
+                    setBudgetTarget(c.id)
+                    setCategoryInput(c.budget.toString())
+                    setBudgetModalOpen(true)
+                  }}
+                >
+                  {t.money.setBudget}
+                </Button>
 
               </div>
 
@@ -393,28 +519,28 @@ const [budgetTarget, setBudgetTarget] =
 
         {/* BUDGET MODAL */}
         <BudgetEditModal
-  open={budgetModalOpen}
-  title={budgetModalTitle}
-  amount={
-    budgetTarget === 'total'
-      ? totalInput
-      : categoryInput
-  }
-  onChange={v =>
-    budgetTarget === 'total'
-      ? setTotalInput(v)
-      : setCategoryInput(v)
-  }
-  onSave={async () => {
-    if (budgetTarget === 'total') {
-      await saveTotalBudget()
-    } else if (budgetTarget) {
-      await saveCategoryBudget(budgetTarget)
-    }
-    setBudgetModalOpen(false)
-  }}
-  onClose={() => setBudgetModalOpen(false)}
-/>
+          open={budgetModalOpen}
+          title={budgetModalTitle}
+          amount={
+            budgetTarget === 'total'
+              ? totalInput
+              : categoryInput
+          }
+          onChange={v =>
+            budgetTarget === 'total'
+              ? setTotalInput(v)
+              : setCategoryInput(v)
+          }
+          onSave={async () => {
+            if (budgetTarget === 'total') {
+              await saveTotalBudget()
+            } else if (budgetTarget) {
+              await saveCategoryBudget(budgetTarget)
+            }
+            setBudgetModalOpen(false)
+          }}
+          onClose={() => setBudgetModalOpen(false)}
+        />
 
 
     </div>

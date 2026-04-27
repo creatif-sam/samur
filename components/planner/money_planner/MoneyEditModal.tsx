@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowDownCircle, ArrowUpCircle, X, Trash2 } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
 import { MoneyEntry } from '@/lib/types'
+import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
 import { toast } from 'sonner'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -66,6 +67,7 @@ export default function MoneyEditModal({
     }
 
     toast.success(t.money.updateSuccess)
+    await checkMonthlyBudgetAlerts()
     
     onUpdated()
     onClose()
@@ -87,6 +89,7 @@ export default function MoneyEditModal({
     }
 
     toast.success(t.money.deleteSuccess)
+    await checkMonthlyBudgetAlerts()
     
     onDeleted()
     onClose()

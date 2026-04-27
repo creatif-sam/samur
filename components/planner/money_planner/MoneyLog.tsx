@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import CurrencySelector from './CurrencySelector'
 import MoneyAddModal from './MoneyAddModal'
 import MoneyEditModal from './MoneyEditModal'
 import { MoneyEntry } from '@/lib/types'
+import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
 import { Pencil, Trash2, Download } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -30,21 +31,17 @@ export default function MoneyLog({
 }) {
   const supabase = createClient()
   const { t } = useTranslation()
-  const now = new Date()
+  const initialDate = new Date()
   
   const [entries, setEntries] = useState<MoneyEntry[]>([])
   const [symbol, setSymbol] = useState('₵')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
   const [scope, setScope] = useState<Scope>('all')
-  const [month, setMonth] = useState(now.getMonth())
-  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(initialDate.getMonth())
+  const [year, setYear] = useState(initialDate.getFullYear())
   const [weekOffset, setWeekOffset] = useState(0)
 
-  useEffect(() => {
-    fetchEntries()
-  }, [scope, month, year, weekOffset])
-
-  async function fetchEntries() {
+  const fetchEntries = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -58,6 +55,7 @@ export default function MoneyLog({
 
     // Apply date filtering based on scope
     if (scope === 'week') {
+      const now = new Date()
       const base = new Date(now)
       base.setDate(now.getDate() - now.getDay() + weekOffset * 7)
       const start = new Date(base)
@@ -86,7 +84,11 @@ export default function MoneyLog({
     if (onEntriesChanged) {
       onEntriesChanged()
     }
-  }
+  }, [month, onEntriesChanged, scope, supabase, weekOffset, year])
+
+  useEffect(() => {
+    void fetchEntries()
+  }, [fetchEntries])
 
   function formatWeekRange(baseDate: Date, offset: number) {
     const start = new Date(baseDate)
@@ -125,6 +127,7 @@ export default function MoneyLog({
             })
           } else {
             toast.success(t.money.deleteSuccess)
+            await checkMonthlyBudgetAlerts()
             fetchEntries()
             // Notify parent that entries have changed
             if (onEntriesChanged) {
