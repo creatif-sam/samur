@@ -27,6 +27,7 @@ interface Meditation {
   application: string
   prayer: string
   visibility: 'private' | 'shared'
+  period: 'morning' | 'evening'
   created_at: string
 }
 
@@ -38,6 +39,21 @@ export default function MeditationViewPage() {
   const [meditation, setMeditation] = useState<Meditation | null>(null)
   const [editing, setEditing] = useState(false)
   const [sharingToFeed, setSharingToFeed] = useState(false)
+
+  const formattedDate = meditation
+    ? new Date(meditation.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })
+    : ''
+  const formattedTime = meditation
+    ? new Date(meditation.created_at).toLocaleTimeString([], {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : ''
+  const periodLabel = meditation
+    ? meditation.period === 'morning'
+      ? 'Morning'
+      : 'Evening'
+    : ''
 
   useEffect(() => {
     loadMeditation()
@@ -189,9 +205,20 @@ export default function MeditationViewPage() {
               <div className="flex items-center justify-center gap-3">
                 <span className="h-[1px] w-10 bg-violet-200 dark:bg-violet-900" />
                 <p className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">
-                  {new Date(meditation.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })}
+                  {formattedDate}
                 </p>
                 <span className="h-[1px] w-10 bg-violet-200 dark:bg-violet-900" />
+              </div>
+              <div>
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold tracking-wide ${
+                    meditation.period === 'morning'
+                      ? 'bg-violet-500/15 text-violet-700 dark:text-violet-300'
+                      : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'
+                  }`}
+                >
+                  {formattedTime} • {periodLabel}
+                </span>
               </div>
             </div>
 
