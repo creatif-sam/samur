@@ -43,7 +43,7 @@ export default function MoneyEditModal({
   }, [entry])
 
   async function save() {
-    if (!title || !amount || !categoryId || !date || !entry) {
+    if (!title || !amount || !date || !entry) {
       toast.error(t.money.fillAllFields)
       return
     }

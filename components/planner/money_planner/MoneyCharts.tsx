@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
   PieChart,
@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 
 type Mode = 'expense' | 'income'
 type Scope = 'week' | 'month' | 'year'
@@ -21,6 +21,25 @@ type CategoryTotal = {
   total: number
   percent: number
   color: string
+}
+
+type MoneyChartEntry = {
+  id: string
+  title: string
+  amount: number
+  entry_date: string
+  money_categories:
+    | {
+        id: string
+        name: string
+        icon: string
+      }
+    | {
+        id: string
+        name: string
+        icon: string
+      }[]
+    | null
 }
 
 const COLORS = [
@@ -35,22 +54,20 @@ const COLORS = [
 
 export default function MoneyCharts() {
   const supabase = createClient()
-  const now = new Date()
+  const initialDate = new Date()
 
   const [mode, setMode] = useState<Mode>('expense')
   const [scope, setScope] = useState<Scope>('month')
-  const [month, setMonth] = useState(now.getMonth())
-  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(initialDate.getMonth())
+  const [year, setYear] = useState(initialDate.getFullYear())
   const [weekOffset, setWeekOffset] = useState(0)
-  const weekLabel = formatWeekRange(now, weekOffset)
+  const weekLabel = formatWeekRange(new Date(), weekOffset)
+  const [selectedCategory, setSelectedCategory] =
+    useState<CategoryTotal | null>(null)
 
-  const [entries, setEntries] = useState<any[]>([])
+  const [entries, setEntries] = useState<MoneyChartEntry[]>([])
 
-  useEffect(() => {
-    fetchData()
-  }, [mode, scope, month, year, weekOffset])
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -60,8 +77,11 @@ export default function MoneyCharts() {
     let end: Date
 
     if (scope === 'week') {
-      const base = new Date(now)
-      base.setDate(now.getDate() - now.getDay() + weekOffset * 7)
+      const currentDate = new Date()
+      const base = new Date(currentDate)
+      base.setDate(
+        currentDate.getDate() - currentDate.getDay() + weekOffset * 7
+      )
       start = new Date(base)
       end = new Date(base)
       end.setDate(base.getDate() + 7)
@@ -75,20 +95,26 @@ export default function MoneyCharts() {
 
     const { data } = await supabase
       .from('money_entries')
-      .select('amount, type, money_categories(id, name, icon)')
+      .select('id, title, amount, entry_date, money_categories(id, name, icon)')
       .eq('user_id', user.id)
       .eq('type', mode)
       .gte('entry_date', start.toISOString())
       .lt('entry_date', end.toISOString())
 
-    setEntries(data ?? [])
-  }
+    setEntries((data ?? []) as MoneyChartEntry[])
+  }, [mode, month, scope, supabase, weekOffset, year])
+
+  useEffect(() => {
+    void fetchData()
+  }, [fetchData])
 
   const categories = useMemo<CategoryTotal[]>(() => {
     const map: Record<string, CategoryTotal> = {}
 
     entries.forEach(e => {
-      const c = e.money_categories
+      const c = Array.isArray(e.money_categories)
+        ? e.money_categories[0]
+        : e.money_categories
       if (!c) return
 
       if (!map[c.id]) {
@@ -125,6 +151,24 @@ export default function MoneyCharts() {
     (a, b) => a + b.total,
     0
   )
+
+  const selectedCategoryCosts = useMemo(() => {
+    if (!selectedCategory) return []
+
+    return entries
+      .filter(entry => {
+        const category = Array.isArray(entry.money_categories)
+          ? entry.money_categories[0]
+          : entry.money_categories
+
+        return category?.id === selectedCategory.id
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.entry_date).getTime() -
+          new Date(a.entry_date).getTime()
+      )
+  }, [entries, selectedCategory])
 
 function formatWeekRange(baseDate: Date, offset: number) {
   const start = new Date(baseDate)
@@ -261,7 +305,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
             className="flex-1 border rounded-lg px-2 py-1"
           >
             {Array.from({ length: 5 }).map((_, i) => {
-              const y = now.getFullYear() - i
+              const y = initialDate.getFullYear() - i
               return (
                 <option key={y} value={y}>
                   {y}
@@ -279,7 +323,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
           className="w-full border rounded-lg px-2 py-1"
         >
           {Array.from({ length: 5 }).map((_, i) => {
-            const y = now.getFullYear() - i
+            const y = initialDate.getFullYear() - i
             return (
               <option key={y} value={y}>
                 {y}
@@ -327,7 +371,12 @@ function formatWeekRange(baseDate: Date, offset: number) {
       {/* CATEGORY LIST */}
       <div className="space-y-3">
         {categories.map(c => (
-          <div key={c.id} className="space-y-1">
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setSelectedCategory(c)}
+            className="w-full space-y-1 rounded-lg p-2 text-left transition-colors hover:bg-muted/40"
+          >
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div
@@ -357,9 +406,64 @@ function formatWeekRange(baseDate: Date, offset: number) {
                 }}
               />
             </div>
-          </div>
+          </button>
         ))}
       </div>
+
+      {selectedCategory && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+          <div className="bg-background w-[92%] max-w-md rounded-2xl p-4 space-y-4 mb-24 relative max-h-[80vh] overflow-y-auto">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className="absolute right-3 top-3 text-muted-foreground"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="pr-8">
+              <div className="text-sm text-muted-foreground">
+                {mode === 'expense' ? 'Expenses in category' : 'Income in category'}
+              </div>
+              <div className="text-base font-semibold flex items-center gap-2">
+                <span>{selectedCategory.icon}</span>
+                <span>{selectedCategory.name}</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {selectedCategory.total.toFixed(2)} MAD total
+              </div>
+            </div>
+
+            {selectedCategoryCosts.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-4 text-center">
+                No costs found for this category in the selected period.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedCategoryCosts.map(item => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border p-3 flex justify-between items-start gap-2"
+                  >
+                    <div>
+                      <div className="text-sm font-medium">{item.title}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(item.entry_date).toLocaleDateString(undefined, {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </div>
+                    </div>
+                    <div className="text-sm font-semibold">
+                      {item.amount.toFixed(2)} MAD
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

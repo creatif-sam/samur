@@ -40,7 +40,7 @@ export default function MoneyAddModal({
   }, [open, today])
 
   async function save() {
-    if (!title || !amount || !categoryId || !date) {
+    if (!title || !amount || !date) {
       toast.error(t.money.fillAllFields)
       return
     }
