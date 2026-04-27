@@ -282,7 +282,7 @@ export default function MoneyLog({
     return { income, expense, balance: income - expense }
   }, [entries])
 
-  const weekLabel = formatWeekRange(now, weekOffset)
+  const weekLabel = formatWeekRange(new Date(), weekOffset)
 
   return (
     <div className="flex flex-col gap-4">
@@ -376,7 +376,7 @@ export default function MoneyLog({
             className="flex-1 border rounded-lg px-2 py-1 dark:bg-slate-900"
           >
             {Array.from({ length: 5 }).map((_, i) => {
-              const y = now.getFullYear() - i
+              const y = initialDate.getFullYear() - i
               return (
                 <option key={y} value={y}>
                   {y}
