@@ -152,80 +152,28 @@ export default function MoneyLog({
       return
     }
 
-    // Sort entries by date and type
-    const sortedEntries = [...entries].sort((a, b) => {
-      const dateCompare = new Date(b.entry_date).getTime() - new Date(a.entry_date).getTime()
-      if (dateCompare !== 0) return dateCompare
-      return a.type.localeCompare(b.type)
-    })
+    // Sort entries chronologically (oldest first)
+    const sortedEntries = [...entries].sort(
+      (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
+    )
 
-    // Calculate totals
-    const totalIncome = entries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0)
-    const totalExpense = entries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0)
-    const balance = totalIncome - totalExpense
+    const escape = (val: string) => `"${String(val).replace(/"/g, '""')}"`
 
-    // Create CSV content with better formatting
     const csvRows: string[] = []
-    
-    // Title and Period
-    csvRows.push(`"Money Log Export - ${new Date().toLocaleDateString()}"`)
-    csvRows.push('')
-    
-    // Summary Section
-    csvRows.push('"=== SUMMARY ==="')
-    csvRows.push(`"Period:","${scope === 'all' ? 'All Time' : scope === 'week' ? weekLabel : `${new Date(year, month).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`}"`)
-    csvRows.push(`"Total Income:","${symbol}${totalIncome.toFixed(2)}"`)
-    csvRows.push(`"Total Expenses:","${symbol}${totalExpense.toFixed(2)}"`)
-    csvRows.push(`"Balance:","${symbol}${balance.toFixed(2)}"`)
-    csvRows.push(`"Total Entries:","${entries.length}"`)
-    csvRows.push('')
-    
-    // Column Headers
-    csvRows.push('"=== DETAILED TRANSACTIONS ==="')
-    const headers = [t.money.date, t.money.title, t.money.category, t.money.type, `${t.money.amount} (${symbol})`]
-    csvRows.push(headers.map(h => `"${h}"`).join(','))
-    csvRows.push('') // Separator line
 
-    // Income Entries
-    const incomeEntries = sortedEntries.filter(e => e.type === 'income')
-    if (incomeEntries.length > 0) {
-      csvRows.push(`"--- ${t.money.income.toUpperCase()} ---"`)
-      incomeEntries.forEach(entry => {
-        const row = [
-          new Date(entry.entry_date).toLocaleDateString(),
-          entry.title.replace(/"/g, '""'),
-          entry.money_categories?.name || 'Uncategorized',
-          t.money.income,
-          entry.amount.toFixed(2)
-        ]
-        csvRows.push(row.map(cell => `"${cell}"`).join(','))
-      })
-      csvRows.push(`"","","","${t.money.income} Total:","${totalIncome.toFixed(2)}"`)
-      csvRows.push('')
-    }
+    // Column headers
+    csvRows.push(['Date', 'Title', `Amount (${symbol})`, 'Type'].map(escape).join(','))
 
-    // Expense Entries
-    const expenseEntries = sortedEntries.filter(e => e.type === 'expense')
-    if (expenseEntries.length > 0) {
-      csvRows.push(`"--- ${t.money.expenses.toUpperCase()} ---"`)
-      expenseEntries.forEach(entry => {
-        const row = [
-          new Date(entry.entry_date).toLocaleDateString(),
-          entry.title.replace(/"/g, '""'),
-          entry.money_categories?.name || 'Uncategorized',
-          t.money.expense,
-          entry.amount.toFixed(2)
-        ]
-        csvRows.push(row.map(cell => `"${cell}"`).join(','))
-      })
-      csvRows.push(`"","","","${t.money.expenses} Total:","${totalExpense.toFixed(2)}"`)
-      csvRows.push('')
-    }
-
-    // Footer
-    csvRows.push('')
-    csvRows.push(`"Generated on:","${new Date().toLocaleString()}"`)
-    csvRows.push(`"Currency:","${symbol}"`)
+    // One row per entry
+    sortedEntries.forEach(entry => {
+      const row = [
+        new Date(entry.entry_date).toLocaleDateString(),
+        entry.title,
+        entry.amount.toFixed(2),
+        entry.type === 'income' ? 'Income' : 'Expense',
+      ]
+      csvRows.push(row.map(escape).join(','))
+    })
 
     const csvContent = csvRows.join('\n')
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
