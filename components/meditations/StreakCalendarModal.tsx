@@ -164,6 +164,8 @@ export default function StreakCalendarModal({
                   const isBeforeJoin = date < createdDate
                   const isJoinDay = formatDay(date) === formatDay(createdDate)
                   const done = Boolean(entries)
+                  const hasMorning = Boolean(entries?.some((m) => m.period === 'morning'))
+                  const hasEvening = Boolean(entries?.some((m) => m.period === 'evening'))
                   const today = new Date()
                   const isFuture = date > new Date(today.getFullYear(), today.getMonth(), today.getDate())
                   const isMissed = !isBeforeJoin && !done && !isFuture && date < today
@@ -174,17 +176,23 @@ export default function StreakCalendarModal({
                         className={`relative h-10 w-10 rounded-full overflow-hidden flex flex-col items-center justify-center border-2
                           ${isBeforeJoin ? 'bg-green-50 border-green-100 text-green-600' : 'bg-muted border-transparent'}
                           ${isJoinDay ? 'ring-2 ring-green-500 ring-offset-2' : ''}
-                          ${done && !isBeforeJoin ? 'bg-gradient-to-br from-violet-500 to-indigo-500 text-white' : ''}
+                          ${done && !isBeforeJoin ? 'text-white' : ''}
                           ${isMissed ? 'bg-red-50 border-red-200' : ''}
                         `}
                       >
                         {!isBeforeJoin && (
                           <>
-                            {entries?.some((m) => m.period === 'morning') && (
-                              <div className="absolute top-0 h-1/2 w-full bg-violet-500/90" />
+                            {hasMorning && !hasEvening && (
+                              <div className="absolute inset-0 bg-violet-500/90" />
                             )}
-                            {entries?.some((m) => m.period === 'evening') && (
-                              <div className="absolute bottom-0 h-1/2 w-full bg-indigo-500/90" />
+                            {hasEvening && !hasMorning && (
+                              <div className="absolute inset-0 bg-indigo-500/90" />
+                            )}
+                            {hasMorning && hasEvening && (
+                              <>
+                                <div className="absolute top-0 h-1/2 w-full bg-violet-500/90" />
+                                <div className="absolute bottom-0 h-1/2 w-full bg-indigo-500/90" />
+                              </>
                             )}
                           </>
                         )}
@@ -205,6 +213,21 @@ export default function StreakCalendarModal({
               <div className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-3 text-[10px] text-muted-foreground font-medium">
                 <div className="flex items-center gap-1.5"><span className="text-sm">🔥</span><span>Meditated</span></div>
                 <div className="flex items-center gap-1.5"><span className="text-sm">😈</span><span>Missed</span></div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-3 w-3 rounded-sm bg-violet-500" />
+                  <span>Morning only</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-3 w-3 rounded-sm bg-indigo-500" />
+                  <span>Evening only</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex h-3 w-3 overflow-hidden rounded-sm border border-muted-foreground/20">
+                    <span className="h-full w-full bg-violet-500" />
+                    <span className="h-full w-full bg-indigo-500" />
+                  </span>
+                  <span>Morning + Evening</span>
+                </div>
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block h-3 w-3 rounded-full bg-green-200" />
                   <span>Pre-Join</span>
