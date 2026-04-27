@@ -143,6 +143,54 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
     finally { setIsProcessing(false) }
   }
 
+  const handleQuickAddNote = async () => {
+    if (isProcessing) return
+    setIsProcessing(true)
+    try {
+      // Find or create "General" notebook
+      let generalNotebook = notebooks.find((nb: any) => nb.title.toLowerCase() === 'general')
+
+      if (!generalNotebook) {
+        const { data: newNb, error: nbError } = await supabase
+          .from('notebooks')
+          .insert({ user_id: userId, title: 'General', emoji: '📝', color: '#7719aa' })
+          .select().single()
+        if (nbError) throw nbError
+        generalNotebook = { ...newNb, sections: [] }
+      }
+
+      // Find or create "Notes" section
+      let notesSection = generalNotebook.sections?.find((s: any) => s.title.toLowerCase() === 'notes')
+
+      if (!notesSection) {
+        const { data: newSect, error: sectError } = await supabase
+          .from('sections')
+          .insert({ notebook_id: generalNotebook.id, title: 'Notes' })
+          .select().single()
+        if (sectError) throw sectError
+        notesSection = { ...newSect, pages: [] }
+      }
+
+      // Create blank page
+      const { data: newPage, error: pageError } = await supabase
+        .from('pages')
+        .insert({ section_id: notesSection.id, title: 'Untitled', content: '' })
+        .select().single()
+      if (pageError) throw pageError
+
+      handleSelectNotebook(generalNotebook)
+      handleSelectSection(notesSection)
+      setNavigationSource('normal')
+      setTimeout(() => setEditingPage(newPage), 100)
+      await onRefresh()
+      toast.success('Note created in General')
+    } catch (err: any) {
+      toast.error('Failed to create note')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
   const handleAddPage = async () => {
     if (!activeSection) return
     setIsProcessing(true)
@@ -199,6 +247,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
           notebooks={notebooks} 
           onSelect={handleSelectNotebook} 
           onAdd={() => setShowAddNotebook(true)} 
+          onQuickAdd={handleQuickAddNote}
           onDelete={setNotebookToDelete}
           onRename={(nb: any) => { setItemToRename(nb); setNewTitle(nb.title); }}
           onSelectPage={(page: any, section: any, notebook: any) => {

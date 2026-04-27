@@ -1,16 +1,84 @@
 'use client'
 
-import { useState } from 'react'
-import { FileText, MoreHorizontal, Trash2, Search, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { FileText, Pencil, Trash2, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-export function PageList({ section, onSelect, onDeletePage }: any) {
+const LONG_PRESS_MS = 500
+
+type PageItem = {
+  id: string
+  title: string
+}
+
+type SectionWithPages = {
+  pages?: PageItem[]
+}
+
+type PageListProps = {
+  section: SectionWithPages
+  onSelect: (page: PageItem) => void
+  onDeletePage: (page: PageItem) => void
+}
+
+export function PageList({ section, onSelect, onDeletePage }: PageListProps) {
   const [searchQuery, setSearchQuery] = useState('')
+  const [actionPage, setActionPage] = useState<PageItem | null>(null)
+  const longPressTimerRef = useRef<number | null>(null)
+  const didLongPressRef = useRef(false)
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current !== null) {
+        window.clearTimeout(longPressTimerRef.current)
+      }
+    }
+  }, [])
+
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  function handlePagePointerDown(page: PageItem) {
+    didLongPressRef.current = false
+    clearLongPressTimer()
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      didLongPressRef.current = true
+      setActionPage(page)
+    }, LONG_PRESS_MS)
+  }
+
+  function handlePagePointerUp(page: PageItem) {
+    clearLongPressTimer()
+    if (!didLongPressRef.current) {
+      onSelect(page)
+    }
+  }
+
+  function handlePagePointerCancel() {
+    clearLongPressTimer()
+  }
+
+  function handleEditFromActions() {
+    if (!actionPage) return
+    onSelect(actionPage)
+    setActionPage(null)
+  }
+
+  function handleDeleteFromActions() {
+    if (!actionPage) return
+    onDeletePage(actionPage)
+    setActionPage(null)
+  }
 
   // Filter logic for pages
-  const filteredPages = section.pages?.filter((p: any) =>
+  const filteredPages = section.pages?.filter((p: PageItem) =>
     p.title.toLowerCase().includes(searchQuery.toLowerCase())
   ) || []
 
@@ -40,34 +108,34 @@ export function PageList({ section, onSelect, onDeletePage }: any) {
 
       {/* PAGE ITEMS */}
       <div className="px-2 pb-20">
+        {filteredPages.length > 0 && (
+          <div className="px-4 pt-2 pb-1">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
+              Long press a note for actions
+            </p>
+          </div>
+        )}
+
         {filteredPages.length > 0 ? (
-          filteredPages.map((p: any) => (
+          filteredPages.map((p: PageItem) => (
             <div 
               key={p.id} 
-              className="group px-4 py-4 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between active:bg-slate-50 dark:active:bg-slate-900 rounded-xl transition-all"
+              onPointerDown={() => handlePagePointerDown(p)}
+              onPointerUp={() => handlePagePointerUp(p)}
+              onPointerLeave={handlePagePointerCancel}
+              onPointerCancel={handlePagePointerCancel}
+              onContextMenu={(e) => {
+                e.preventDefault()
+                setActionPage(p)
+              }}
+              className="group px-4 py-4 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between active:bg-slate-50 dark:active:bg-slate-900 rounded-xl transition-all cursor-pointer select-none"
             >
-              <div onClick={() => onSelect(p)} className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
                 <FileText className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600" />
                 <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate tracking-tight">
                   {p.title}
                 </span>
               </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 text-slate-300 hover:text-slate-600 dark:hover:text-slate-100">
-                    <MoreHorizontal size={18} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-2xl p-2 min-w-[130px] shadow-2xl bg-white dark:bg-slate-900 border-none font-poppins">
-                  <DropdownMenuItem 
-                    onClick={() => onDeletePage(p)} 
-                    className="rounded-xl font-semibold text-[11px] uppercase py-3 text-red-500 cursor-pointer"
-                  >
-                    <Trash2 size={14} className="mr-2" /> Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
           ))
         ) : (
@@ -78,6 +146,34 @@ export function PageList({ section, onSelect, onDeletePage }: any) {
           </div>
         )}
       </div>
+
+      <Dialog open={!!actionPage} onOpenChange={() => setActionPage(null)}>
+        <DialogContent className="max-w-[320px] rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              {actionPage?.title}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={handleEditFromActions}
+            >
+              <Pencil className="w-4 h-4" /> Edit note
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 text-red-600 hover:text-red-700"
+              onClick={handleDeleteFromActions}
+            >
+              <Trash2 className="w-4 h-4" /> Delete note
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }

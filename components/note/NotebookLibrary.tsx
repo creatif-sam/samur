@@ -9,7 +9,7 @@ const PINNED_NOTEBOOKS_STORAGE_KEY = 'pinned_notebook_ids'
 const MAX_PINNED_NOTEBOOKS = 3
 const LONG_PRESS_MS = 500
 
-export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onSelectPage }: any) {
+export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onSelectPage, onQuickAdd }: any) {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
@@ -322,7 +322,14 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           </>
         )}
       </main>
-      <div className="fixed bottom-32 right-6 z-50">
+      <div className="fixed bottom-32 right-6 z-50 flex flex-col gap-3 items-end">
+        <Button
+          onClick={onQuickAdd}
+          title="Quick note"
+          className="h-12 w-12 rounded-2xl bg-violet-500 dark:bg-violet-600 shadow-xl active:scale-95 border-none"
+        >
+          <Pencil className="w-5 h-5 text-white" />
+        </Button>
         <Button onClick={onAdd} className="h-12 w-12 rounded-2xl bg-[#7719aa] dark:bg-[#7c3aed] shadow-2xl active:scale-95 border-none"><Book className="w-6 h-6 text-white" /></Button>
       </div>
 
