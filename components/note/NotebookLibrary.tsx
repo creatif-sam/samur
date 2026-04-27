@@ -1,15 +1,138 @@
-import { Search, Book, MoreHorizontal, Grid, List, X } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { Search, Book, Grid, List, X, Pin, PinOff, Pencil, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { RecentPagesGrid } from './RecentPagesGrid'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { toast } from 'sonner'
+
+const PINNED_NOTEBOOKS_STORAGE_KEY = 'pinned_notebook_ids'
+const MAX_PINNED_NOTEBOOKS = 3
+const LONG_PRESS_MS = 500
 
 export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onSelectPage }: any) {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
-  
-  const filtered = notebooks.filter((n: any) => n.title.toLowerCase().includes(query.toLowerCase()))
+  const [pinnedNotebookIds, setPinnedNotebookIds] = useState<string[]>([])
+  const [actionNotebook, setActionNotebook] = useState<any | null>(null)
+  const longPressTimerRef = useRef<number | null>(null)
+  const didLongPressRef = useRef(false)
+
+  useEffect(() => {
+    const savedPinned = localStorage.getItem(PINNED_NOTEBOOKS_STORAGE_KEY)
+    if (!savedPinned) return
+
+    try {
+      const parsed = JSON.parse(savedPinned)
+      if (Array.isArray(parsed)) {
+        setPinnedNotebookIds(parsed.slice(0, MAX_PINNED_NOTEBOOKS))
+      }
+    } catch {
+      localStorage.removeItem(PINNED_NOTEBOOKS_STORAGE_KEY)
+    }
+  }, [])
+
+  useEffect(() => {
+    const validIds = new Set(notebooks.map((nb: any) => nb.id))
+
+    setPinnedNotebookIds(prev => {
+      const cleaned = prev.filter(id => validIds.has(id)).slice(0, MAX_PINNED_NOTEBOOKS)
+      localStorage.setItem(PINNED_NOTEBOOKS_STORAGE_KEY, JSON.stringify(cleaned))
+      return cleaned
+    })
+  }, [notebooks])
+
+  const sortedNotebooks = useMemo(
+    () =>
+      [...notebooks].sort((a: any, b: any) =>
+        a.title.localeCompare(b.title, undefined, {
+          sensitivity: 'base',
+        })
+      ),
+    [notebooks]
+  )
+
+  const filtered = useMemo(
+    () =>
+      sortedNotebooks.filter((n: any) =>
+        n.title.toLowerCase().includes(query.toLowerCase())
+      ),
+    [query, sortedNotebooks]
+  )
+
+  const orderedFiltered = useMemo(() => {
+    const pinnedSet = new Set(pinnedNotebookIds)
+    const pinned = filtered.filter((nb: any) => pinnedSet.has(nb.id))
+    const others = filtered.filter((nb: any) => !pinnedSet.has(nb.id))
+    return [...pinned, ...others]
+  }, [filtered, pinnedNotebookIds])
+
+  function clearLongPressTimer() {
+    if (longPressTimerRef.current !== null) {
+      window.clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
+
+  function handleNotebookPointerDown(nb: any) {
+    didLongPressRef.current = false
+    clearLongPressTimer()
+
+    longPressTimerRef.current = window.setTimeout(() => {
+      didLongPressRef.current = true
+      setActionNotebook(nb)
+    }, LONG_PRESS_MS)
+  }
+
+  function handleNotebookPointerUp(nb: any) {
+    clearLongPressTimer()
+    if (!didLongPressRef.current) {
+      onSelect(nb)
+    }
+  }
+
+  function handleNotebookPointerCancel() {
+    clearLongPressTimer()
+  }
+
+  function togglePin(nb: any) {
+    setPinnedNotebookIds(prev => {
+      const isPinned = prev.includes(nb.id)
+
+      if (isPinned) {
+        const next = prev.filter(id => id !== nb.id)
+        localStorage.setItem(PINNED_NOTEBOOKS_STORAGE_KEY, JSON.stringify(next))
+        return next
+      }
+
+      if (prev.length >= MAX_PINNED_NOTEBOOKS) {
+        toast.error('You can pin up to 3 notebooks')
+        return prev
+      }
+
+      const next = [...prev, nb.id]
+      localStorage.setItem(PINNED_NOTEBOOKS_STORAGE_KEY, JSON.stringify(next))
+      return next
+    })
+  }
+
+  function handleRenameFromActions() {
+    if (!actionNotebook) return
+    onRename(actionNotebook)
+    setActionNotebook(null)
+  }
+
+  function handleDeleteFromActions() {
+    if (!actionNotebook) return
+    onDelete(actionNotebook)
+    setActionNotebook(null)
+  }
+
+  function handlePinFromActions() {
+    if (!actionNotebook) return
+    togglePin(actionNotebook)
+    setActionNotebook(null)
+  }
   
   // Full-text search across all pages
   const searchResults = useMemo(() => {
@@ -161,31 +284,91 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           />
         ) : (
           <>
-            {filtered.map((nb: any) => (
-              <div key={nb.id} onClick={() => onSelect(nb)} className="flex items-center gap-4 px-4 py-5 border-b border-slate-50 dark:border-slate-800 cursor-pointer active:bg-slate-50 dark:active:bg-slate-900 transition-all rounded-xl relative group">
+            <div className="px-4 pt-2 pb-1">
+              <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500">
+                Long press a notebook for actions
+              </p>
+            </div>
+
+            {orderedFiltered.map((nb: any) => {
+              const isPinned = pinnedNotebookIds.includes(nb.id)
+
+              return (
+              <div
+                key={nb.id}
+                onPointerDown={() => handleNotebookPointerDown(nb)}
+                onPointerUp={() => handleNotebookPointerUp(nb)}
+                onPointerLeave={handleNotebookPointerCancel}
+                onPointerCancel={handleNotebookPointerCancel}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  setActionNotebook(nb)
+                }}
+                className="flex items-center gap-4 px-4 py-5 border-b border-slate-50 dark:border-slate-800 cursor-pointer active:bg-slate-50 dark:active:bg-slate-900 transition-all rounded-xl relative group select-none"
+              >
                 <div className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full" style={{ backgroundColor: nb.color || '#7719aa' }} />
                 <div className="w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">{nb.emoji || '📓'}</div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-[15px] text-slate-800 dark:text-slate-100 uppercase truncate">{nb.title}</h3>
+                  <h3 className="font-semibold text-[15px] text-slate-800 dark:text-slate-100 uppercase truncate flex items-center gap-2">
+                    <span className="truncate">{nb.title}</span>
+                    {isPinned && (
+                      <Pin className="w-3.5 h-3.5 text-violet-500 shrink-0" />
+                    )}
+                  </h3>
                   <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-widest">{nb.sections?.length || 0} SECTIONS</p>
                 </div>
-                <div onClick={(e) => e.stopPropagation()}>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="text-slate-300"><MoreHorizontal size={20}/></Button></DropdownMenuTrigger>
-                    <DropdownMenuContent className="rounded-2xl p-2 min-w-[140px] border-none shadow-2xl bg-white dark:bg-slate-900">
-                      <DropdownMenuItem onClick={() => onRename(nb)} className="rounded-xl font-semibold text-[11px] uppercase py-3 cursor-pointer">Rename</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onDelete(nb)} className="rounded-xl font-semibold text-[11px] uppercase py-3 text-red-500 cursor-pointer">Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
               </div>
-            ))}
+            )})}
           </>
         )}
       </main>
       <div className="fixed bottom-32 right-6 z-50">
         <Button onClick={onAdd} className="h-12 w-12 rounded-2xl bg-[#7719aa] dark:bg-[#7c3aed] shadow-2xl active:scale-95 border-none"><Book className="w-6 h-6 text-white" /></Button>
       </div>
+
+      <Dialog open={!!actionNotebook} onOpenChange={() => setActionNotebook(null)}>
+        <DialogContent className="max-w-[320px] rounded-3xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              {actionNotebook?.title}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={handlePinFromActions}
+            >
+              {actionNotebook && pinnedNotebookIds.includes(actionNotebook.id) ? (
+                <>
+                  <PinOff className="w-4 h-4" /> Unpin
+                </>
+              ) : (
+                <>
+                  <Pin className="w-4 h-4" /> Pin notebook
+                </>
+              )}
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={handleRenameFromActions}
+            >
+              <Pencil className="w-4 h-4" /> Rename
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 text-red-600 hover:text-red-700"
+              onClick={handleDeleteFromActions}
+            >
+              <Trash2 className="w-4 h-4" /> Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
