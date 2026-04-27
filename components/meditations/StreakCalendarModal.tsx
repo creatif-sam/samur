@@ -182,17 +182,11 @@ export default function StreakCalendarModal({
                       >
                         {!isBeforeJoin && (
                           <>
-                            {hasMorning && !hasEvening && (
-                              <div className="absolute inset-0 bg-violet-500/90" />
+                            {hasMorning && (
+                              <div className="absolute top-0 h-1/2 w-full bg-violet-500/90" />
                             )}
-                            {hasEvening && !hasMorning && (
-                              <div className="absolute inset-0 bg-indigo-500/90" />
-                            )}
-                            {hasMorning && hasEvening && (
-                              <>
-                                <div className="absolute top-0 h-1/2 w-full bg-violet-500/90" />
-                                <div className="absolute bottom-0 h-1/2 w-full bg-indigo-500/90" />
-                              </>
+                            {hasEvening && (
+                              <div className="absolute bottom-0 h-1/2 w-full bg-indigo-500/90" />
                             )}
                           </>
                         )}

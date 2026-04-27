@@ -36,7 +36,7 @@ export default function MoneyLog({
   const [entries, setEntries] = useState<MoneyEntry[]>([])
   const [symbol, setSymbol] = useState('₵')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
-  const [scope, setScope] = useState<Scope>('all')
+  const [scope, setScope] = useState<Scope>('month')
   const [month, setMonth] = useState(initialDate.getMonth())
   const [year, setYear] = useState(initialDate.getFullYear())
   const [weekOffset, setWeekOffset] = useState(0)
