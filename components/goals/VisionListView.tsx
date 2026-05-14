@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import { Goal } from '@/lib/types'
-import { Progress } from '@/components/ui/progress'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
 import { createClient } from '@/lib/supabase/client'
 import {
-  Target, CheckCircle2, Clock, MoreVertical, Archive,
-  RotateCcw, Plus, ScrollText, Pencil, Trash2, Search,
-  Calendar, ChevronRight // Added missing icons
+  Target, MoreVertical, Archive,
+  RotateCcw, Plus, Pencil, Trash2, Search,
+  Calendar,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -70,107 +69,150 @@ export function VisionListView({
   return (
     <div className="space-y-6">
       {/* SEARCH & FILTER BAR */}
-      <div className="flex flex-col md:flex-row gap-4 bg-muted/20 p-4 rounded-2xl border border-dashed">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search visions..." 
-            className="pl-9 bg-background" 
-            value={searchQuery} 
-            onChange={(e) => setSearchQuery(e.target.value)} 
+          <Input
+            placeholder="Search visions..."
+            className="pl-9 rounded-2xl bg-muted/40 border-none focus-visible:ring-1"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
-          {['active', 'archived'].map((status) => (
-            <Button
+        <div className="flex bg-muted/40 p-1 rounded-2xl gap-1">
+          {(['active', 'archived'] as const).map((status) => (
+            <button
               key={status}
-              variant={filterStatus === status ? 'default' : 'outline'}
-              size="sm"
-              className="font-bold uppercase text-[10px] tracking-widest"
-              onClick={() => setFilterStatus(status as any)}
+              onClick={() => setFilterStatus(status)}
+              className={cn(
+                'px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all',
+                filterStatus === status
+                  ? 'bg-background shadow-sm text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
             >
               {status}
-            </Button>
+            </button>
           ))}
         </div>
       </div>
 
       {/* GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+        {processedVisions.length === 0 && (
+          <div className="col-span-full rounded-[24px] border border-dashed border-muted-foreground/30 p-12 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-3 text-3xl">🔭</div>
+            <p className="text-sm font-semibold text-muted-foreground">No visions found</p>
+            <p className="text-xs text-muted-foreground mt-1">Create your first vision to get started</p>
+          </div>
+        )}
         {processedVisions.map(v => (
-          <Card 
-            key={v.id} 
-            onClick={() => setSelectedVision(v)} // Trigger detail view
-            className={cn('relative overflow-hidden border-t-4 shadow-sm flex flex-col cursor-pointer hover:shadow-md transition-all', v.is_archived && 'opacity-60 grayscale-[0.5]')} 
-            style={{ borderTopColor: v.is_archived ? '#94a3b8' : v.color }}
+          <div
+            key={v.id}
+            onClick={() => setSelectedVision(v)}
+            className={cn(
+              'group cursor-pointer bg-card dark:bg-zinc-900/50 backdrop-blur-sm rounded-[24px] shadow-sm border border-border/50 overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all duration-200',
+              v.is_archived && 'opacity-60'
+            )}
           >
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <div className="text-3xl">{v.emoji}</div>
-                <div onClick={(e) => e.stopPropagation()}> {/* Stop detail view from opening when clicking menu */}
+            {/* Thin color accent strip */}
+            <div className="h-1 w-full" style={{ backgroundColor: v.is_archived ? '#94a3b8' : v.color }} />
+
+            <div className="p-5 space-y-4">
+              {/* Header: emoji icon + title + menu */}
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ backgroundColor: `${v.is_archived ? '#94a3b8' : v.color}22` }}
+                >
+                  {v.emoji}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {v.target_date
+                      ? new Date(v.target_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                      : 'Open-ended'}
+                  </p>
+                  <h4 className="text-base font-black text-foreground leading-tight truncate">{v.title}</h4>
+                </div>
+                <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+                      <button className="p-1.5 rounded-xl hover:bg-muted transition"><MoreVertical className="w-4 h-4 text-muted-foreground" /></button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="font-bold uppercase text-[10px]">
-                      <DropdownMenuItem onClick={() => setEditingVision(v)}><Pencil className="w-3 h-3 mr-2" /> Edit</DropdownMenuItem>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditingVision(v)}><Pencil className="w-3.5 h-3.5 mr-2" /> Edit</DropdownMenuItem>
                       <DropdownMenuItem onClick={() => toggleArchive(v.id, v.is_archived)}>
-                        {v.is_archived ? <><RotateCcw className="w-3 h-3 mr-2" /> Restore</> : <><Archive className="w-3 h-3 mr-2" /> Archive</>}
+                        {v.is_archived ? <><RotateCcw className="w-3.5 h-3.5 mr-2" /> Restore</> : <><Archive className="w-3.5 h-3.5 mr-2" /> Archive</>}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive" onClick={() => setDeletingId(v.id)}><Trash2 className="w-3 h-3 mr-2" /> Delete</DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeletingId(v.id)}><Trash2 className="w-3.5 h-3.5 mr-2" /> Delete</DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
-              <CardTitle className="text-xl font-black uppercase italic tracking-tight">{v.title}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 flex-grow">
-              {v.description && <div className="p-3 bg-muted/30 rounded border-l-2 italic text-[11px]">"{v.description}"</div>}
-              <div className="space-y-1">
-                <div className="flex justify-between text-[9px] font-black uppercase text-muted-foreground"><span>Realization</span><span>{v.avgProgress}%</span></div>
-                <Progress value={v.avgProgress} className="h-1.5" style={{ '--progress-foreground': v.color } as any} />
+
+              {/* Description */}
+              {v.description && (
+                <p className="text-xs text-muted-foreground line-clamp-2">{v.description}</p>
+              )}
+
+              {/* Progress bar */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Progress</p>
+                  <p className="text-xs font-black" style={{ color: v.is_archived ? '#94a3b8' : v.color }}>{v.avgProgress}%</p>
+                </div>
+                <div className="relative h-2 w-full bg-secondary dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full transition-all duration-500 ease-out rounded-full"
+                    style={{ width: `${v.avgProgress}%`, backgroundColor: v.is_archived ? '#94a3b8' : v.color }}
+                  />
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 border-y border-dashed py-3">
-                <div><p className="text-[9px] font-bold text-muted-foreground uppercase flex gap-1"><Target className="w-3 h-3" /> Scope</p><p className="font-black text-xs italic">{v.totalGoals} Goals</p></div>
-                <div><p className="text-[9px] font-bold text-muted-foreground uppercase flex gap-1"><CheckCircle2 className="w-3 h-3" /> Hits</p><p className="font-black text-xs italic">{v.completedGoals} Done</p></div>
-              </div>
-              <div className="flex justify-between items-center mt-auto">
-                <div className="flex items-center gap-1 text-[10px] font-black uppercase italic text-muted-foreground">
-                  <Clock className="w-3 h-3" /> {v.target_date ? new Date(v.target_date).toLocaleDateString() : 'No End'}
+
+              {/* Stats + Add Goal */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex gap-5">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Goals</p>
+                    <p className="text-xl font-black text-foreground">{v.totalGoals}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Done</p>
+                    <p className="text-xl font-black" style={{ color: v.is_archived ? '#94a3b8' : v.color }}>{v.completedGoals}</p>
+                  </div>
                 </div>
                 {!v.is_archived && (
-                  <div onClick={(e) => e.stopPropagation()}> {/* Stop detail view from opening when clicking add goal */}
+                  <div onClick={(e) => e.stopPropagation()}>
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button 
-                          size="sm" 
-                          className="h-7 text-[10px] font-black uppercase italic bg-primary/10 text-primary border border-primary/20"
+                        <button
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition active:scale-95"
+                          style={{ backgroundColor: v.color }}
                         >
-                          <Plus className="w-3 h-3 mr-1" /> Add Goal
-                        </Button>
+                          <Plus className="w-3.5 h-3.5" /> Add Goal
+                        </button>
                       </DialogTrigger>
                       <DialogContent className="w-[95vw] max-w-xl">
                         <DialogHeader>
-                          <DialogTitle className="font-black uppercase italic tracking-tight">
-                            New Goal for: {v.title}
-                          </DialogTitle>
+                          <DialogTitle className="font-black">New Goal for {v.title}</DialogTitle>
+                          <DialogDescription className="sr-only">Add a goal to this vision</DialogDescription>
                         </DialogHeader>
-
-                        <NewGoalForm 
-                          categories={categories} 
-                          visions={visions} 
-                          initialVisionId={v.id} 
-                          onCancel={() => {}} 
-                          onCreated={() => onRefresh()} 
+                        <NewGoalForm
+                          categories={categories}
+                          visions={visions}
+                          initialVisionId={v.id}
+                          onCancel={() => {}}
+                          onCreated={() => onRefresh()}
                         />
                       </DialogContent>
                     </Dialog>
                   </div>
                 )}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
 
