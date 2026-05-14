@@ -1,20 +1,16 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef } from 'react'
 import { Goal } from '@/lib/types'
 
 import { createClient } from '@/lib/supabase/client'
 import {
-  Target, MoreVertical, Archive,
+  Target, Archive,
   RotateCcw, Plus, Pencil, Trash2, Search,
   Calendar,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,DialogDescription } from '@/components/ui/dialog'
 import { NewGoalForm, GoalCategory } from '@/components/goals/NewGoalForm'
 import { VisionCreator } from './VisionCreator'
@@ -36,6 +32,29 @@ export function VisionListView({
   // Added missing state for the Detail Overlay
   const [selectedVision, setSelectedVision] = useState<any | null>(null)
   const [isAddingGoalInternal, setIsAddingGoalInternal] = useState(false)
+  const [contextMenuVision, setContextMenuVision] = useState<any | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const longPressTriggered = useRef(false)
+
+  function getLongPressHandlers(v: (typeof processedVisions)[number]) {
+    return {
+      onPointerDown: () => {
+        longPressTriggered.current = false
+        longPressTimer.current = setTimeout(() => {
+          longPressTriggered.current = true
+          setContextMenuVision(v)
+        }, 500)
+      },
+      onPointerUp: () => { if (longPressTimer.current) clearTimeout(longPressTimer.current) },
+      onPointerLeave: () => { if (longPressTimer.current) clearTimeout(longPressTimer.current) },
+      onPointerCancel: () => { if (longPressTimer.current) clearTimeout(longPressTimer.current) },
+      onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+      onClick: (e: React.MouseEvent) => {
+        if (longPressTriggered.current) { e.preventDefault(); return }
+        setSelectedVision(v)
+      },
+    }
+  }
 
   const processedVisions = useMemo(() => {
     return visions
@@ -109,7 +128,7 @@ export function VisionListView({
         {processedVisions.map(v => (
           <div
             key={v.id}
-            onClick={() => setSelectedVision(v)}
+            {...getLongPressHandlers(v)}
             className={cn(
               'group cursor-pointer bg-card dark:bg-zinc-900/50 backdrop-blur-sm rounded-[24px] shadow-sm border border-border/50 overflow-hidden hover:scale-[1.02] active:scale-[0.98] transition-all duration-200',
               v.is_archived && 'opacity-60'
@@ -135,21 +154,7 @@ export function VisionListView({
                   </p>
                   <h4 className="text-base font-black text-foreground leading-tight truncate">{v.title}</h4>
                 </div>
-                <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="p-1.5 rounded-xl hover:bg-muted transition"><MoreVertical className="w-4 h-4 text-muted-foreground" /></button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => setEditingVision(v)}><Pencil className="w-3.5 h-3.5 mr-2" /> Edit</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toggleArchive(v.id, v.is_archived)}>
-                        {v.is_archived ? <><RotateCcw className="w-3.5 h-3.5 mr-2" /> Restore</> : <><Archive className="w-3.5 h-3.5 mr-2" /> Archive</>}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-destructive" onClick={() => setDeletingId(v.id)}><Trash2 className="w-3.5 h-3.5 mr-2" /> Delete</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+
               </div>
 
               {/* Description */}
@@ -215,6 +220,52 @@ export function VisionListView({
           </div>
         ))}
       </div>
+
+      {/* LONG PRESS ACTION SHEET */}
+      <Dialog open={!!contextMenuVision} onOpenChange={(open) => !open && setContextMenuVision(null)}>
+        <DialogContent className="w-[92vw] max-w-[340px] rounded-[28px] p-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Vision Actions</DialogTitle>
+            <DialogDescription>Actions for {contextMenuVision?.title}</DialogDescription>
+          </DialogHeader>
+          {contextMenuVision && (
+            <div>
+              <div className="flex items-center gap-3 p-5 border-b border-border/50">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style={{ backgroundColor: `${contextMenuVision.color}22` }}>
+                  {contextMenuVision.emoji}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Vision</p>
+                  <p className="text-sm font-black truncate">{contextMenuVision.title}</p>
+                </div>
+              </div>
+              <div className="p-2 space-y-0.5">
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-muted transition-colors text-left"
+                  onClick={() => { setEditingVision(contextMenuVision); setContextMenuVision(null) }}
+                >
+                  <Pencil className="w-4 h-4 text-muted-foreground" /> Edit
+                </button>
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-muted transition-colors text-left"
+                  onClick={() => { toggleArchive(contextMenuVision.id, contextMenuVision.is_archived); setContextMenuVision(null) }}
+                >
+                  {contextMenuVision.is_archived
+                    ? <><RotateCcw className="w-4 h-4 text-muted-foreground" />Restore</>
+                    : <><Archive className="w-4 h-4 text-muted-foreground" />Archive</>}
+                </button>
+                <div className="h-px bg-border/50 mx-2 my-1" />
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-red-500/10 transition-colors text-left text-destructive"
+                  onClick={() => { setDeletingId(contextMenuVision.id); setContextMenuVision(null) }}
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* MODALS */}
       <VisionCreator 
