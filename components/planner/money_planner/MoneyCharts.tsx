@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -196,7 +196,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
   return (
     <div className="space-y-4 pb-24">
 
-      {/* ── MODE TOGGLE ──────────────────────────── */}
+      {/* â”€â”€ MODE TOGGLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
         <button
           onClick={() => setMode('expense')}
@@ -207,7 +207,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          📉 Expenses
+          ðŸ“‰ Expenses
         </button>
         <button
           onClick={() => setMode('income')}
@@ -218,11 +218,11 @@ function formatWeekRange(baseDate: Date, offset: number) {
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          📈 Income
+          ðŸ“ˆ Income
         </button>
       </div>
 
-      {/* ── SCOPE TOGGLE ──────────────────────────── */}
+      {/* â”€â”€ SCOPE TOGGLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
         {(['week', 'month', 'year'] as const).map(s => (
           <button
@@ -240,7 +240,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
         ))}
       </div>
 
-      {/* ── WEEK NAV ──────────────────────────────── */}
+      {/* â”€â”€ WEEK NAV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {scope === 'week' && (
         <div className="space-y-2">
           <div className="flex gap-1">
@@ -248,7 +248,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
               onClick={() => setWeekOffset(weekOffset - 1)}
               className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
             >
-              ← Prev
+              â† Prev
             </button>
             <button
               onClick={() => setWeekOffset(0)}
@@ -260,14 +260,14 @@ function formatWeekRange(baseDate: Date, offset: number) {
               onClick={() => setWeekOffset(weekOffset + 1)}
               className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
             >
-              Next →
+              Next â†’
             </button>
           </div>
           <p className="text-center text-[10px] font-medium text-muted-foreground">{weekLabel}</p>
         </div>
       )}
 
-      {/* ── MONTH SELECTOR ─────────────────────────── */}
+      {/* â”€â”€ MONTH SELECTOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {scope === 'month' && (
         <div className="flex gap-2">
           <select
@@ -294,7 +294,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
         </div>
       )}
 
-      {/* ── YEAR SELECTOR ───────────────────────────── */}
+      {/* â”€â”€ YEAR SELECTOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {scope === 'year' && (
         <select
           value={year}
@@ -308,7 +308,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
         </select>
       )}
 
-      {/* ── DONUT CHART CARD ────────────────────────── */}
+      {/* â”€â”€ DONUT CHART CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="bg-muted/30 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -320,7 +320,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
         <div className="h-48">
           {categories.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center gap-2">
-              <div className="text-3xl">{mode === 'expense' ? '📉' : '📈'}</div>
+              <div className="text-3xl">{mode === 'expense' ? 'ðŸ“‰' : 'ðŸ“ˆ'}</div>
               <p className="text-xs font-medium text-muted-foreground">No data for this period</p>
             </div>
           ) : (
@@ -343,7 +343,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
         </div>
       </div>
 
-      {/* ── CATEGORY CARDS ──────────────────────────── */}
+      {/* â”€â”€ CATEGORY CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {categories.length > 0 && (
         <div className="space-y-2">
           <h3 className="text-sm font-black tracking-tight px-1">Categories</h3>
@@ -380,7 +380,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
         </div>
       )}
 
-      {/* ── CATEGORY DETAIL MODAL ─────────────────────── */}
+      {/* â”€â”€ CATEGORY DETAIL MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {selectedCategory && (
         <div
           className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center p-4"
@@ -401,7 +401,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
                 <div>
                   <p className="font-black text-base">{selectedCategory.name}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {mode === 'expense' ? 'Expenses' : 'Income'} · {selectedCategory.total.toFixed(2)} total
+                    {mode === 'expense' ? 'Expenses' : 'Income'} Â· {selectedCategory.total.toFixed(2)} total
                   </p>
                 </div>
               </div>
@@ -431,255 +431,6 @@ function formatWeekRange(baseDate: Date, offset: number) {
                       </p>
                     </div>
                     <p className="text-sm font-black flex-shrink-0">{item.amount.toFixed(2)}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-        <Button
-          variant="ghost"
-          onClick={() => setMode('income')}
-          className={`flex-1 rounded-lg ${
-            mode === 'income'
-              ? 'bg-violet-600 text-white shadow'
-              : 'text-muted-foreground'
-          }`}
-        >
-          Income
-        </Button>
-      </div>
-
-      {/* SCOPE TOGGLE */}
-      <div className="flex gap-2 rounded-xl bg-muted p-1">
-        {(['week', 'month', 'year'] as const).map(s => (
-          <Button
-            key={s}
-            variant="ghost"
-            onClick={() => setScope(s)}
-            className={`flex-1 rounded-lg capitalize ${
-              scope === s
-                ? 'bg-black text-white'
-                : 'text-muted-foreground'
-            }`}
-          >
-            {s}
-          </Button>
-        ))}
-      </div>
-
-      {/* DATE CONTROLS */}
-      {scope === 'week' && (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setWeekOffset(weekOffset - 1)}
-
-            
-          >
-
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setWeekOffset(0)}
-          >
-            This week
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setWeekOffset(weekOffset + 1)}
-          >
-            Next
-          </Button>
-        </div>
-      )}
-
-      {scope === 'week' && (
-  <div className="text-center text-sm text-muted-foreground">
-    {weekLabel}
-  </div>
-)}
-
-
-      {scope === 'month' && (
-        <div className="flex gap-2">
-          <select
-            value={month}
-            onChange={e => setMonth(Number(e.target.value))}
-            className="flex-1 border rounded-lg px-2 py-1"
-          >
-            {Array.from({ length: 12 }).map((_, i) => (
-              <option key={i} value={i}>
-                {new Date(0, i).toLocaleString(undefined, {
-                  month: 'long',
-                })}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={year}
-            onChange={e => setYear(Number(e.target.value))}
-            className="flex-1 border rounded-lg px-2 py-1"
-          >
-            {Array.from({ length: 5 }).map((_, i) => {
-              const y = initialDate.getFullYear() - i
-              return (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              )
-            })}
-          </select>
-        </div>
-      )}
-
-      {scope === 'year' && (
-        <select
-          value={year}
-          onChange={e => setYear(Number(e.target.value))}
-          className="w-full border rounded-lg px-2 py-1"
-        >
-          {Array.from({ length: 5 }).map((_, i) => {
-            const y = initialDate.getFullYear() - i
-            return (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            )
-          })}
-        </select>
-      )}
-
-      {/* DONUT */}
-      <div className="h-56">
-        {categories.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-            No data
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={categories}
-                dataKey="total"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-              >
-                {categories.map(c => (
-                  <Cell key={c.id} fill={c.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-      </div>
-
-      {/* TOTAL */}
-      <div className="text-center">
-        <div className="text-xs text-muted-foreground">
-          Total {mode}
-        </div>
-        <div className="text-2xl font-semibold">
-          {totalAmount.toFixed(2)} MAD
-        </div>
-      </div>
-
-      {/* CATEGORY LIST */}
-      <div className="space-y-3">
-        {categories.map(c => (
-          <button
-            key={c.id}
-            type="button"
-            onClick={() => setSelectedCategory(c)}
-            className="w-full space-y-1 rounded-lg p-2 text-left transition-colors hover:bg-muted/40"
-          >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center"
-                  style={{ background: c.color }}
-                >
-                  {c.icon}
-                </div>
-                <div className="text-sm">
-                  {c.name}{' '}
-                  <span className="text-muted-foreground">
-                    {c.percent}%
-                  </span>
-                </div>
-              </div>
-              <div className="text-sm font-medium">
-                {c.total.toFixed(2)} MAD
-              </div>
-            </div>
-
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${c.percent}%`,
-                  background: '#facc15',
-                }}
-              />
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {selectedCategory && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
-          <div className="bg-background w-[92%] max-w-md rounded-2xl p-4 space-y-4 mb-24 relative max-h-[80vh] overflow-y-auto">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className="absolute right-3 top-3 text-muted-foreground"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="pr-8">
-              <div className="text-sm text-muted-foreground">
-                {mode === 'expense' ? 'Expenses in category' : 'Income in category'}
-              </div>
-              <div className="text-base font-semibold flex items-center gap-2">
-                <span>{selectedCategory.icon}</span>
-                <span>{selectedCategory.name}</span>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {selectedCategory.total.toFixed(2)} MAD total
-              </div>
-            </div>
-
-            {selectedCategoryCosts.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-4 text-center">
-                No costs found for this category in the selected period.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {selectedCategoryCosts.map(item => (
-                  <div
-                    key={item.id}
-                    className="rounded-lg border p-3 flex justify-between items-start gap-2"
-                  >
-                    <div>
-                      <div className="text-sm font-medium">{item.title}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {new Date(item.entry_date).toLocaleDateString(undefined, {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </div>
-                    </div>
-                    <div className="text-sm font-semibold">
-                      {item.amount.toFixed(2)} MAD
-                    </div>
                   </div>
                 ))}
               </div>
