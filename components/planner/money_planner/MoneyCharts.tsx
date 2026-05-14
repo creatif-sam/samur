@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -8,8 +8,8 @@ import {
   Cell,
   ResponsiveContainer,
 } from 'recharts'
-import { cn } from '@/lib/utils'
-import { X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 
 type Mode = 'expense' | 'income'
 type Scope = 'week' | 'month' | 'year'
@@ -195,242 +195,268 @@ function formatWeekRange(baseDate: Date, offset: number) {
 
   return (
     <div className="space-y-4 pb-24">
-
-      {/* â”€â”€ MODE TOGGLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
-        <button
-          onClick={() => setMode('expense')}
-          className={cn(
-            'flex-1 py-2 rounded-xl text-xs font-bold transition-all',
-            mode === 'expense'
-              ? 'bg-rose-600 text-white shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          ðŸ“‰ Expenses
-        </button>
-        <button
-          onClick={() => setMode('income')}
-          className={cn(
-            'flex-1 py-2 rounded-xl text-xs font-bold transition-all',
-            mode === 'income'
-              ? 'bg-emerald-600 text-white shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-        >
-          ðŸ“ˆ Income
-        </button>
+      {/* HEADER */}
+      <div className="flex items-center gap-2 font-semibold">
+        {mode === 'expense' ? (
+          <ArrowDownCircle className="text-red-500" />
+        ) : (
+          <ArrowUpCircle className="text-green-500" />
+        )}
+        {mode === 'expense' ? 'Expenses' : 'Income'}
       </div>
 
-      {/* â”€â”€ SCOPE TOGGLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
+      {/* MODE TOGGLE */}
+      <div className="flex gap-2 rounded-xl bg-muted p-1">
+        <Button
+          variant="ghost"
+          onClick={() => setMode('expense')}
+          className={`flex-1 rounded-lg ${
+            mode === 'expense'
+              ? 'bg-violet-600 text-white shadow'
+              : 'text-muted-foreground'
+          }`}
+        >
+          Expenses
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => setMode('income')}
+          className={`flex-1 rounded-lg ${
+            mode === 'income'
+              ? 'bg-violet-600 text-white shadow'
+              : 'text-muted-foreground'
+          }`}
+        >
+          Income
+        </Button>
+      </div>
+
+      {/* SCOPE TOGGLE */}
+      <div className="flex gap-2 rounded-xl bg-muted p-1">
         {(['week', 'month', 'year'] as const).map(s => (
-          <button
+          <Button
             key={s}
+            variant="ghost"
             onClick={() => setScope(s)}
-            className={cn(
-              'flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all',
+            className={`flex-1 rounded-lg capitalize ${
               scope === s
-                ? 'bg-violet-600 text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
+                ? 'bg-black text-white'
+                : 'text-muted-foreground'
+            }`}
           >
             {s}
-          </button>
+          </Button>
         ))}
       </div>
 
-      {/* â”€â”€ WEEK NAV â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* DATE CONTROLS */}
       {scope === 'week' && (
-        <div className="space-y-2">
-          <div className="flex gap-1">
-            <button
-              onClick={() => setWeekOffset(weekOffset - 1)}
-              className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
-            >
-              â† Prev
-            </button>
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
-            >
-              This Week
-            </button>
-            <button
-              onClick={() => setWeekOffset(weekOffset + 1)}
-              className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
-            >
-              Next â†’
-            </button>
-          </div>
-          <p className="text-center text-[10px] font-medium text-muted-foreground">{weekLabel}</p>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setWeekOffset(weekOffset - 1)}
+
+            
+          >
+
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setWeekOffset(0)}
+          >
+            This week
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setWeekOffset(weekOffset + 1)}
+          >
+            Next
+          </Button>
         </div>
       )}
 
-      {/* â”€â”€ MONTH SELECTOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {scope === 'week' && (
+  <div className="text-center text-sm text-muted-foreground">
+    {weekLabel}
+  </div>
+)}
+
+
       {scope === 'month' && (
         <div className="flex gap-2">
           <select
             value={month}
             onChange={e => setMonth(Number(e.target.value))}
-            className="flex-1 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
+            className="flex-1 border rounded-lg px-2 py-1"
           >
             {Array.from({ length: 12 }).map((_, i) => (
               <option key={i} value={i}>
-                {new Date(0, i).toLocaleString(undefined, { month: 'long' })}
+                {new Date(0, i).toLocaleString(undefined, {
+                  month: 'long',
+                })}
               </option>
             ))}
           </select>
+
           <select
             value={year}
             onChange={e => setYear(Number(e.target.value))}
-            className="w-24 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
+            className="flex-1 border rounded-lg px-2 py-1"
           >
             {Array.from({ length: 5 }).map((_, i) => {
               const y = initialDate.getFullYear() - i
-              return <option key={y} value={y}>{y}</option>
+              return (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              )
             })}
           </select>
         </div>
       )}
 
-      {/* â”€â”€ YEAR SELECTOR â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {scope === 'year' && (
         <select
           value={year}
           onChange={e => setYear(Number(e.target.value))}
-          className="w-full bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
+          className="w-full border rounded-lg px-2 py-1"
         >
           {Array.from({ length: 5 }).map((_, i) => {
             const y = initialDate.getFullYear() - i
-            return <option key={y} value={y}>{y}</option>
+            return (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            )
           })}
         </select>
       )}
 
-      {/* â”€â”€ DONUT CHART CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="bg-muted/30 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            {mode === 'expense' ? 'Expense' : 'Income'} Distribution
-          </p>
-          <p className="text-lg font-black">{totalAmount.toFixed(2)}</p>
-        </div>
+      {/* DONUT */}
+      <div className="h-56">
+        {categories.length === 0 ? (
+          <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+            No data
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={categories}
+                dataKey="total"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={2}
+              >
+                {categories.map(c => (
+                  <Cell key={c.id} fill={c.color} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        )}
+      </div>
 
-        <div className="h-48">
-          {categories.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center gap-2">
-              <div className="text-3xl">{mode === 'expense' ? 'ðŸ“‰' : 'ðŸ“ˆ'}</div>
-              <p className="text-xs font-medium text-muted-foreground">No data for this period</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={categories}
-                  dataKey="total"
-                  innerRadius={55}
-                  outerRadius={80}
-                  paddingAngle={2}
-                >
-                  {categories.map(c => (
-                    <Cell key={c.id} fill={c.color} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-          )}
+      {/* TOTAL */}
+      <div className="text-center">
+        <div className="text-xs text-muted-foreground">
+          Total {mode}
+        </div>
+        <div className="text-2xl font-semibold">
+          {totalAmount.toFixed(2)} MAD
         </div>
       </div>
 
-      {/* â”€â”€ CATEGORY CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {categories.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-sm font-black tracking-tight px-1">Categories</h3>
-          {categories.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => setSelectedCategory(c)}
-              className="w-full bg-muted/30 rounded-2xl p-4 text-left transition-all hover:bg-muted/50"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
-                    style={{ background: `${c.color}30` }}
-                  >
-                    {c.icon}
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold leading-none">{c.name}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{c.percent}% of total</p>
-                  </div>
-                </div>
-                <p className="text-sm font-black">{c.total.toFixed(2)}</p>
-              </div>
-              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${c.percent}%`, background: c.color }}
-                />
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* â”€â”€ CATEGORY DETAIL MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {selectedCategory && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center p-4"
-          onClick={() => setSelectedCategory(null)}
-        >
-          <div
-            className="bg-background w-full max-w-md rounded-3xl p-5 space-y-4 mb-20 max-h-[75vh] overflow-y-auto"
-            onClick={e => e.stopPropagation()}
+      {/* CATEGORY LIST */}
+      <div className="space-y-3">
+        {categories.map(c => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => setSelectedCategory(c)}
+            className="w-full space-y-1 rounded-lg p-2 text-left transition-colors hover:bg-muted/40"
           >
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
                 <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
-                  style={{ background: `${selectedCategory.color}30` }}
+                  className="h-8 w-8 rounded-full flex items-center justify-center"
+                  style={{ background: c.color }}
                 >
-                  {selectedCategory.icon}
+                  {c.icon}
                 </div>
-                <div>
-                  <p className="font-black text-base">{selectedCategory.name}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {mode === 'expense' ? 'Expenses' : 'Income'} Â· {selectedCategory.total.toFixed(2)} total
-                  </p>
+                <div className="text-sm">
+                  {c.name}{' '}
+                  <span className="text-muted-foreground">
+                    {c.percent}%
+                  </span>
                 </div>
               </div>
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className="p-2 rounded-xl bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X size={16} />
-              </button>
+              <div className="text-sm font-medium">
+                {c.total.toFixed(2)} MAD
+              </div>
+            </div>
+
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${c.percent}%`,
+                  background: '#facc15',
+                }}
+              />
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {selectedCategory && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
+          <div className="bg-background w-[92%] max-w-md rounded-2xl p-4 space-y-4 mb-24 relative max-h-[80vh] overflow-y-auto">
+            <button
+              onClick={() => setSelectedCategory(null)}
+              className="absolute right-3 top-3 text-muted-foreground"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="pr-8">
+              <div className="text-sm text-muted-foreground">
+                {mode === 'expense' ? 'Expenses in category' : 'Income in category'}
+              </div>
+              <div className="text-base font-semibold flex items-center gap-2">
+                <span>{selectedCategory.icon}</span>
+                <span>{selectedCategory.name}</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {selectedCategory.total.toFixed(2)} MAD total
+              </div>
             </div>
 
             {selectedCategoryCosts.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No entries found.</p>
+              <div className="text-sm text-muted-foreground py-4 text-center">
+                No costs found for this category in the selected period.
+              </div>
             ) : (
               <div className="space-y-2">
                 {selectedCategoryCosts.map(item => (
                   <div
                     key={item.id}
-                    className="bg-muted/30 rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
+                    className="rounded-lg border p-3 flex justify-between items-start gap-2"
                   >
                     <div>
-                      <p className="text-sm font-bold">{item.title}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <div className="text-sm font-medium">{item.title}</div>
+                      <div className="text-xs text-muted-foreground">
                         {new Date(item.entry_date).toLocaleDateString(undefined, {
-                          weekday: 'short', month: 'short', day: 'numeric',
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
                         })}
-                      </p>
+                      </div>
                     </div>
-                    <p className="text-sm font-black flex-shrink-0">{item.amount.toFixed(2)}</p>
+                    <div className="text-sm font-semibold">
+                      {item.amount.toFixed(2)} MAD
+                    </div>
                   </div>
                 ))}
               </div>

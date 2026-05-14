@@ -1,10 +1,23 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
+import { Button } from '@/components/ui/button'
 import { VisionBoard } from '@/components/goals/VisionBoard'
-import { Users, BarChart3, Archive } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Plus,
+  Target,
+  Users,
+  BarChart3,
+  LayoutDashboard,
+  Sparkles,
+  Flag,
+  Rocket,
+  Archive,
+} from 'lucide-react'
 import { NewGoalForm, GoalCategory } from '@/components/goals/NewGoalForm'
 import { GoalList } from '@/components/goals/GoalList'
 import { GoalsDonutChart } from '@/components/goals/charts/GoalsDonutChart'
@@ -36,7 +49,6 @@ export default function GoalsPage() {
   const [view, setView] = useState<GoalView>('weekly')
   const [selectedVisionId, setSelectedVisionId] = useState<string>('all')
   const [showArchived, setShowArchived] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'visions'>('overview')
 
   const loadAll = async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -111,190 +123,115 @@ export default function GoalsPage() {
     })
   }, [goals, view, selectedVisionId])
 
-  // Derived hero stats
-  const totalGoals = goals.length
-  const completedGoals = goals.filter(g => g.status === 'done').length
-  const activeGoals = goals.filter(g => g.status !== 'done').length
-  const completionPct = totalGoals > 0 ? Math.round((completedGoals / totalGoals) * 100) : 0
-  const periodCompleted = filteredGoals.filter(g => g.status === 'done').length
-
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 rounded-full border-4 border-violet-600 border-t-transparent animate-spin mx-auto" />
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Loading Goals</p>
-        </div>
+      <div className="flex h-screen items-center justify-center text-muted-foreground animate-pulse font-black uppercase">
+        Loading Architecture
       </div>
     )
   }
 
   return (
-    <div className="space-y-4 pb-24">
-
-      {/* â”€â”€ HERO CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="relative overflow-hidden rounded-3xl p-5 shadow-xl bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-900 shadow-violet-900/30">
-        <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5" />
-        <div className="absolute right-14 -top-8 w-28 h-28 rounded-full bg-white/5" />
-
-        <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">
-          Goals &amp; Vision Â· &quot;Write it plain&quot; â€” Hab 2:2
-        </p>
-
-        <div className="flex items-center justify-between relative z-10">
-          <div className="space-y-3">
-            <div>
-              <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">Completed</p>
-              <p className="text-5xl font-black text-white leading-none">{completedGoals}</p>
-            </div>
-            <div className="flex gap-6">
-              <div>
-                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Total</p>
-                <p className="text-xl font-black text-white">{totalGoals}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Active</p>
-                <p className="text-xl font-black text-white">{activeGoals}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative w-24 h-24 flex-shrink-0">
-            <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
-              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
-              <circle
-                cx="40" cy="40" r="32" fill="none" stroke="white" strokeWidth="8"
-                strokeLinecap="round"
-                strokeDasharray={`${2 * Math.PI * 32}`}
-                strokeDashoffset={`${2 * Math.PI * 32 * (1 - completionPct / 100)}`}
-                style={{ transition: 'stroke-dashoffset 0.5s ease' }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-xl font-black text-white leading-none">{completionPct}%</p>
-              <p className="text-[9px] font-bold text-white/50 uppercase">Done</p>
-            </div>
-          </div>
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-8">
+      <header className="flex flex-col gap-4">
+        <div className="text-center sm:text-left">
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">
+            Goals & Vision
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            "Write the vision and make it plain." Habakkuk 2:2
+          </p>
         </div>
 
-        <div className="mt-3 pt-3 border-t border-white/15 relative z-10 flex gap-2">
-          <button
-            onClick={() => { setActiveTab('goals'); setShowNew(true) }}
-            className="flex-1 py-2 rounded-xl bg-white/15 text-white text-xs font-bold hover:bg-white/25 transition-all"
-          >
-            + New Goal
-          </button>
+        <div className="flex flex-col sm:flex-row gap-2">
           <VisionCreator onCreated={loadAll} />
+          <Button
+            onClick={() => setShowNew(true)}
+            className="w-full sm:w-auto h-10 font-bold uppercase text-xs"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Goal
+          </Button>
         </div>
+      </header>
+
+      <div className="flex flex-col gap-3 bg-secondary/20 p-4 rounded-xl border border-dashed border-primary/20">
+        <div className="flex justify-center sm:justify-start items-center gap-2 text-primary font-bold text-[10px] uppercase">
+          <Sparkles className="w-4 h-4" />
+          Focus Vision
+        </div>
+
+        <Select value={selectedVisionId} onValueChange={setSelectedVisionId}>
+          <SelectTrigger className="w-full h-10 font-bold">
+            <SelectValue placeholder="All Active Visions" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Display All Visions</SelectItem>
+            {visions.map(v => (
+              <SelectItem key={v.id} value={v.id}>
+                {v.emoji} {v.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* â”€â”€ VISION FILTER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {visions.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => setSelectedVisionId('all')}
-            className={cn(
-              'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all',
-              selectedVisionId === 'all'
-                ? 'bg-violet-600 text-white'
-                : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-            )}
-          >
-            All Visions
-          </button>
-          {visions.map(v => (
-            <button
-              key={v.id}
-              onClick={() => setSelectedVisionId(v.id)}
-              className={cn(
-                'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all',
-                selectedVisionId === v.id
-                  ? 'bg-violet-600 text-white'
-                  : 'bg-muted/50 text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {v.emoji} {v.title}
-            </button>
-          ))}
-        </div>
-      )}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList className="grid grid-cols-3 h-11">
+          <TabsTrigger value="overview" className="text-[9px] font-bold uppercase">
+            <LayoutDashboard className="w-4 h-4" />
+          </TabsTrigger>
+          <TabsTrigger value="goals" className="text-[9px] font-bold uppercase">
+            <Target className="w-4 h-4" />
+          </TabsTrigger>
+          <TabsTrigger value="visions" className="text-[9px] font-bold uppercase">
+            <Rocket className="w-4 h-4" />
+          </TabsTrigger>
+        </TabsList>
 
-      {/* â”€â”€ TAB SWITCHER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
-        {(['overview', 'goals', 'visions'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={cn(
-              'flex-1 py-2 rounded-xl text-xs font-bold transition-all',
-              activeTab === tab
-                ? 'bg-violet-600 text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {tab === 'overview' ? 'ðŸ“Š Overview' : tab === 'goals' ? 'ðŸŽ¯ Goals' : 'ðŸš€ Visions'}
-          </button>
-        ))}
-      </div>
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-card border rounded-xl p-4 space-y-4">
+              <h3 className="text-[10px] uppercase font-bold flex gap-2">
+                <BarChart3 className="w-4 h-4 text-primary" />
+                Velocity Timeline
+              </h3>
+              <GoalsYearlyLineChart goals={filteredGoals} />
+            </div>
 
-      {/* â”€â”€ OVERVIEW TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {activeTab === 'overview' && (
-        <div className="space-y-4">
-          <div className="bg-muted/30 rounded-2xl p-4 space-y-3">
-            <h3 className="text-[10px] uppercase font-bold flex items-center gap-2 text-muted-foreground">
-              <BarChart3 className="w-3.5 h-3.5" />
-              Velocity Timeline
-            </h3>
-            <GoalsYearlyLineChart goals={filteredGoals} />
+            <div className="bg-card border rounded-xl p-4 space-y-4">
+              <h3 className="text-[10px] uppercase font-bold flex gap-2">
+                <Users className="w-4 h-4 text-primary" />
+                Sector Distribution
+              </h3>
+              <GoalsDonutChart goals={goals} categories={uiCategories} />
+            </div>
           </div>
-          <div className="bg-muted/30 rounded-2xl p-4 space-y-3">
-            <h3 className="text-[10px] uppercase font-bold flex items-center gap-2 text-muted-foreground">
-              <Users className="w-3.5 h-3.5" />
-              Sector Distribution
-            </h3>
-            <GoalsDonutChart goals={goals} categories={uiCategories} />
-          </div>
-          <div className="bg-muted/30 rounded-2xl p-4">
+
+          <div className="bg-card border rounded-xl p-4">
             <VisionBoard goals={goals} />
           </div>
-        </div>
-      )}
+        </TabsContent>
 
-      {/* â”€â”€ GOALS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {activeTab === 'goals' && (
-        <div className="space-y-4">
-          <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
-            {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={cn(
-                  'flex-1 py-1.5 rounded-xl text-[10px] font-bold capitalize transition-all',
-                  view === v
-                    ? 'bg-violet-600 text-white shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {v === 'weekly' ? 'Week' : v === 'monthly' ? 'Month' : v === 'quarterly' ? 'Qtr' : 'Year'}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center justify-between px-1">
-            <p className="text-xs text-muted-foreground">
-              <span className="font-bold text-foreground">{filteredGoals.length}</span> goals Â·{' '}
-              <span className="font-bold text-emerald-500">{periodCompleted}</span> done
-            </p>
-            <button
-              onClick={() => setShowNew(v => !v)}
-              className="text-xs font-bold text-violet-500 hover:text-violet-400 transition-colors"
-            >
-              {showNew ? 'âœ• Cancel' : '+ Add Goal'}
-            </button>
+        <TabsContent value="goals" className="space-y-6">
+          <div className="flex justify-center bg-muted/30 p-2 rounded-lg">
+            <div className="grid grid-cols-4 gap-1">
+              {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
+                <Button
+                  key={v}
+                  size="sm"
+                  variant={view === v ? 'secondary' : 'ghost'}
+                  onClick={() => setView(v)}
+                  className="h-8 text-[10px] font-black capitalize"
+                >
+                  {v}
+                </Button>
+              ))}
+            </div>
           </div>
 
           {showNew && (
-            <div className="bg-muted/30 rounded-2xl p-4">
+            <div className="border border-dashed rounded-xl p-4">
               <NewGoalForm
                 categories={uiCategories}
                 visions={visions}
@@ -307,39 +244,46 @@ export default function GoalsPage() {
             </div>
           )}
 
-          <div className="bg-muted/30 rounded-2xl p-4">
+          <div className="bg-card border rounded-xl p-4">
             <GoalList
               goals={filteredGoals}
-              visions={visions}
-              categories={uiCategories}
-              onUpdated={goal => setGoals(g => g.map(x => (x.id === goal.id ? goal : x)))}
+              visions={visions}         // <--- FIX: Added visions prop
+              categories={uiCategories} // <--- FIX: Added categories prop
+              onUpdated={goal =>
+                setGoals(g => g.map(x => (x.id === goal.id ? goal : x)))
+              }
               onDeleted={id => setGoals(g => g.filter(x => x.id !== id))}
             />
           </div>
-        </div>
-      )}
+        </TabsContent>
 
-      {/* â”€â”€ VISIONS TAB â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {activeTab === 'visions' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between px-1">
+        <TabsContent value="visions" className="space-y-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-sm font-black">{showArchived ? 'Archive Vault' : 'Vision Portfolio'}</h3>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Long-term strategic roadmap</p>
+              <h3 className="text-sm font-black uppercase flex gap-2">
+                <Flag className="w-4 h-4 text-primary" />
+                {showArchived ? 'Archive Vault' : 'Vision Portfolio'}
+              </h3>
+              <p className="text-[10px] text-muted-foreground uppercase">
+                Long term strategic roadmap
+              </p>
             </div>
-            <div className="flex gap-2">
-              <button
+
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowArchived(!showArchived)}
                 className={cn(
-                  'flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all',
+                  'h-10 text-[10px] font-bold uppercase',
                   showArchived
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground'
                 )}
               >
-                <Archive className="w-3 h-3" />
-                {showArchived ? 'Active' : 'Archive'}
-              </button>
+                <Archive className="w-3 h-3 mr-2" />
+                {showArchived ? 'Active Mode' : ''}
+              </Button>
               <VisionCreator onCreated={loadAll} />
             </div>
           </div>
@@ -350,8 +294,8 @@ export default function GoalsPage() {
             categories={uiCategories}
             onRefresh={loadAll}
           />
-        </div>
-      )}
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
