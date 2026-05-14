@@ -2,8 +2,6 @@
 
 import { JSX, useMemo, useState } from 'react'
 import { Goal } from '@/lib/types'
-import { Card, CardContent } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import {
   Dialog,
   DialogContent,
@@ -25,9 +23,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { createClient } from '@/lib/supabase/client'
 import { 
-  Flag, 
-  Zap, 
-  Trophy, 
   Calendar, 
   MoreVertical, 
   Pencil, 
@@ -109,43 +104,46 @@ export function GoalList({
     }
   }
 
-  if (!goals.length) return null
+  if (!goals.length) return (
+    <div className="rounded-[24px] border border-dashed border-muted-foreground/30 p-12 text-center">
+      <div className="text-3xl mb-3">🎯</div>
+      <p className="text-sm font-semibold text-muted-foreground">No goals in this period</p>
+      <p className="text-xs text-muted-foreground mt-1">Adjust the time filter or add a new goal</p>
+    </div>
+  )
 
   return (
-    <div className="space-y-10 pb-24 px-4">
+    <div className="space-y-6 pb-24">
       {groupedGoals.map(({ vision, items, avgProgress }) => (
-        <div key={vision.title} className="space-y-4">
-          <header className="space-y-3 sticky top-0 bg-background/95 backdrop-blur-sm z-10 py-2">
+        <div key={vision.title} className="space-y-3">
+          {/* Section header — home page card style */}
+          <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-4 space-y-3">
             <div className="flex items-center gap-3">
-              <div 
-                className={cn(
-                  "w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-white shadow-lg transition-transform",
-                  avgProgress === 100 && "scale-110 rotate-3"
-                )}
-                style={{ backgroundColor: vision.color }}
+              <div
+                className="w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center text-2xl"
+                style={{ backgroundColor: `${vision.color}22` }}
               >
-                {avgProgress === 100 ? <Trophy className="w-6 h-6 animate-pulse" /> : <Flag className="w-6 h-6" />}
+                {avgProgress === 100 ? '🏆' : (vision.emoji || '🎯')}
               </div>
-              <div className="min-w-0">
-                <h2 className="text-base font-black uppercase tracking-tight italic truncate">
-                  {vision.emoji} {vision.title}
-                </h2>
-                <div className="flex items-center gap-2">
-                   <Zap className={cn("w-3 h-3", avgProgress === 100 ? "text-yellow-500 fill-yellow-500" : "text-muted-foreground")} /> 
-                   <span className="text-[10px] font-bold uppercase text-muted-foreground">
-                     {avgProgress === 100 ? 'Vision Realized' : `${avgProgress}% Progress`}
-                   </span>
-                </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {avgProgress === 100 ? 'Vision Realized ✨' : `${avgProgress}% complete`}
+                </p>
+                <h2 className="text-base font-black truncate">{vision.title}</h2>
               </div>
+              <span className="text-xl font-black flex-shrink-0" style={{ color: vision.color }}>
+                {avgProgress}%
+              </span>
             </div>
-            <Progress 
-                value={avgProgress} 
-                className="h-1.5 bg-secondary" 
-                style={{ '--progress-foreground': vision.color } as any}
-            />
-          </header>
+            <div className="relative h-2 w-full bg-secondary dark:bg-zinc-800 rounded-full overflow-hidden">
+              <div
+                className="h-full transition-all duration-500 ease-out rounded-full"
+                style={{ width: `${avgProgress}%`, backgroundColor: vision.color }}
+              />
+            </div>
+          </div>
 
-          <div className="grid gap-3 pl-3 border-l-2 border-muted/50 ml-6">
+          <div className="grid gap-3">
             {items.map((goal) => (
               <GoalCard
                 key={goal.id}
@@ -332,13 +330,12 @@ function GoalCard({
   }
 
   return (
-    <Card className={cn(
-      "border-none shadow-sm transition-all active:scale-[0.98]",
-      goal.status === 'done' ? "bg-secondary/30" : "bg-card"
+    <div className={cn(
+      'rounded-[20px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-3.5 flex items-center justify-between gap-3 transition-all active:scale-[0.98]',
+      goal.status === 'done' && 'opacity-60'
     )}>
-      <CardContent className="p-3 flex items-center justify-between gap-3">
-        <div className="flex flex-col min-w-0 flex-1 gap-1">
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col min-w-0 flex-1 gap-1.5">
+        <div className="flex flex-wrap items-center gap-2">
             {goal.goal_categories && (
               <span 
                 className="text-[8px] font-black px-2 py-0.5 rounded-md text-white uppercase"
@@ -391,7 +388,6 @@ function GoalCard({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </CardContent>
-    </Card>
+    </div>
   )
 }

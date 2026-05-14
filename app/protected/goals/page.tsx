@@ -214,24 +214,25 @@ export default function GoalsPage() {
         </TabsContent>
 
         <TabsContent value="goals" className="space-y-6">
-          <div className="flex justify-center bg-muted/30 p-2 rounded-lg">
-            <div className="grid grid-cols-4 gap-1">
-              {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
-                <Button
-                  key={v}
-                  size="sm"
-                  variant={view === v ? 'secondary' : 'ghost'}
-                  onClick={() => setView(v)}
-                  className="h-8 text-[10px] font-black capitalize"
-                >
-                  {v}
-                </Button>
-              ))}
-            </div>
+          <div className="flex bg-muted/40 p-1 rounded-2xl gap-1">
+            {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={cn(
+                  'flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all',
+                  view === v
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {v}
+              </button>
+            ))}
           </div>
 
           {showNew && (
-            <div className="border border-dashed rounded-xl p-4">
+            <div className="rounded-[24px] border border-dashed border-muted-foreground/30 p-5">
               <NewGoalForm
                 categories={uiCategories}
                 visions={visions}
@@ -244,17 +245,15 @@ export default function GoalsPage() {
             </div>
           )}
 
-          <div className="bg-card border rounded-xl p-4">
-            <GoalList
+          <GoalList
               goals={filteredGoals}
-              visions={visions}         // <--- FIX: Added visions prop
-              categories={uiCategories} // <--- FIX: Added categories prop
+              visions={visions}
+              categories={uiCategories}
               onUpdated={goal =>
                 setGoals(g => g.map(x => (x.id === goal.id ? goal : x)))
               }
               onDeleted={id => setGoals(g => g.filter(x => x.id !== id))}
             />
-          </div>
         </TabsContent>
 
         <TabsContent value="visions" className="space-y-6">

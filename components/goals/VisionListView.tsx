@@ -72,6 +72,7 @@ export function VisionListView({
         // Ensure goals are passed into the mapped object for the Detail View
         return { ...vision, totalGoals, completedGoals, avgProgress, isOverdue, goals: visionGoals }
       })
+      .sort((a, b) => a.title.localeCompare(b.title))
   }, [goals, visions, searchQuery, filterStatus])
 
   async function toggleArchive(id: string, currentStatus: boolean) {
