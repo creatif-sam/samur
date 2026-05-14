@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
 import { computeDashboardStats } from '@/components/home/DashboardStats'
+import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
 import DailyVerseCard from '@/components/meditations/DailyVerse'
 import HomeStreakHero from '@/components/home/HomeStreakHero'
 import HomeWeekCalendar from '@/components/home/HomeWeekCalendar'
@@ -14,8 +15,9 @@ import HomeActivityFeed from '@/components/home/HomeActivityFeed'
 export default function HomePage() {
   const supabase = createClient()
   const [userName, setUserName]         = useState<string | null>(null)
+  const [userId, setUserId]             = useState<string | null>(null)
   const [goals, setGoals]               = useState<Goal[]>([])
-  const [meditations, setMeditations]   = useState<{ created_at: string }[]>([])
+  const [meditations, setMeditations]   = useState<{ created_at: string; period?: string; author_id: string }[]>([])
   const [currentBook, setCurrentBook]   = useState<any | null>(null)
   const [todayPlanner, setTodayPlanner] = useState<any | null>(null)
 
@@ -27,12 +29,13 @@ export default function HomePage() {
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) return
     const uid      = auth.user.id
+    setUserId(uid)
     const todayStr = today.toISOString().split('T')[0]
 
     const [profileRes, goalsRes, meditationsRes, bookRes, plannerRes] = await Promise.all([
       supabase.from('profiles').select('full_name, avatar_url').eq('id', uid).single(),
       supabase.from('goals').select('*').or(`owner_id.eq.${uid},partner_id.eq.${uid}`),
-      supabase.from('meditations').select('created_at').eq('author_id', uid).order('created_at', { ascending: false }).limit(90),
+      supabase.from('meditations').select('created_at, period, author_id').eq('author_id', uid).order('created_at', { ascending: false }),
       supabase.from('readings').select('id, title, author, total_pages, pages_remaining').eq('user_id', uid).eq('status', 'reading').limit(1).maybeSingle(),
       supabase.from('planner_days').select('morning, tasks, mood').eq('user_id', uid).eq('day', todayStr).maybeSingle(),
     ])
@@ -44,7 +47,11 @@ export default function HomePage() {
     setTodayPlanner(plannerRes.data ?? null)
   }
 
-  const meditationStreak = computeStreak(meditations)
+  const meditationStreak = (() => {
+    if (!meditations.length || !userId) return 0
+    const byUser = reduceMeditations(meditations)
+    return calculateStreak(byUser[userId] ?? {})
+  })()
   const stats            = computeDashboardStats(goals)
   const activeGoals      = goals.filter(g => g.status !== 'done')
   const topGoal          = activeGoals[0] ?? null
@@ -95,15 +102,4 @@ export default function HomePage() {
   )
 }
 
-function computeStreak(meditations: { created_at: string }[]): number {
-  if (!meditations.length) return 0
-  const dates  = new Set(meditations.map(m => m.created_at.slice(0, 10)))
-  const cursor = new Date()
-  cursor.setHours(0, 0, 0, 0)
-  let streak = 0
-  while (dates.has(cursor.toISOString().slice(0, 10))) {
-    streak++
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  return streak
-}
+
