@@ -9,7 +9,7 @@ import { MoneyEntry } from '@/lib/types'
 import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
 import { Pencil, Trash2, Download } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useTranslation } from '@/contexts/TranslationContext'
 
 type Scope = 'week' | 'month' | 'all'
@@ -233,9 +233,211 @@ export default function MoneyLog({
   const weekLabel = formatWeekRange(new Date(), weekOffset)
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header Actions */}
-      <div className="flex justify-between items-center gap-2">
+    <div className="space-y-4 pb-4">
+
+      {/* ── TOP BAR: Currency + Export ──────────── */}
+      <div className="flex items-center gap-2">
+        <div className="flex-1">
+          <CurrencySelector onChange={setSymbol} />
+        </div>
+        <button
+          onClick={exportToExcel}
+          disabled={entries.length === 0}
+          className="flex items-center gap-1.5 px-3 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-40 transition-all"
+        >
+          <Download size={14} />
+          <span className="hidden sm:inline">{t.money.export}</span>
+        </button>
+      </div>
+
+      {/* ── SCOPE TOGGLE ──────────────────────────── */}
+      <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
+        {(['all', 'week', 'month'] as const).map(s => (
+          <button
+            key={s}
+            onClick={() => setScope(s)}
+            className={cn(
+              'flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all',
+              scope === s
+                ? 'bg-violet-600 text-white shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {s === 'all' ? t.all : s === 'week' ? t.money.week : t.money.month}
+          </button>
+        ))}
+      </div>
+
+      {/* ── WEEK NAV ──────────────────────────────── */}
+      {scope === 'week' && (
+        <div className="space-y-2">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setWeekOffset(weekOffset - 1)}
+              className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+            >
+              ← {t.previous}
+            </button>
+            <button
+              onClick={() => setWeekOffset(0)}
+              className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+            >
+              {t.planner.thisWeek}
+            </button>
+            <button
+              onClick={() => setWeekOffset(weekOffset + 1)}
+              className="flex-1 py-2 bg-muted/40 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-all"
+            >
+              {t.next} →
+            </button>
+          </div>
+          <p className="text-center text-[10px] font-medium text-muted-foreground">{weekLabel}</p>
+        </div>
+      )}
+
+      {/* ── MONTH / YEAR SELECTORS ──────────────────── */}
+      {scope === 'month' && (
+        <div className="flex gap-2">
+          <select
+            value={month}
+            onChange={e => setMonth(Number(e.target.value))}
+            className="flex-1 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
+          >
+            {Array.from({ length: 12 }).map((_, i) => (
+              <option key={i} value={i}>
+                {new Date(0, i).toLocaleString(undefined, { month: 'long' })}
+              </option>
+            ))}
+          </select>
+          <select
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+            className="w-24 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
+          >
+            {Array.from({ length: 5 }).map((_, i) => {
+              const y = initialDate.getFullYear() - i
+              return <option key={y} value={y}>{y}</option>
+            })}
+          </select>
+        </div>
+      )}
+
+      {/* ── SUMMARY HERO CARD ───────────────────────── */}
+      {entries.length > 0 && (
+        <div className={cn(
+          'relative overflow-hidden rounded-3xl p-5 shadow-xl',
+          totals.balance >= 0
+            ? 'bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-900/30'
+            : 'bg-gradient-to-br from-rose-600 to-red-700 shadow-red-900/30'
+        )}>
+          <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5" />
+          <div className="absolute right-14 -top-8 w-28 h-28 rounded-full bg-white/5" />
+
+          <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">
+            {scope === 'week' ? weekLabel : scope === 'month'
+              ? `${new Date(year, month).toLocaleString(undefined, { month: 'long' })} ${year}`
+              : 'All Time'
+            } · Summary
+          </p>
+
+          <div className="flex items-center justify-between relative z-10">
+            <div className="space-y-3">
+              <div>
+                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">Net Balance</p>
+                <p className="text-4xl font-black text-white leading-none">
+                  {symbol}{Math.abs(totals.balance).toFixed(2)}
+                </p>
+              </div>
+              <div className="flex gap-6">
+                <div>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{t.money.income}</p>
+                  <p className="text-lg font-black text-white">{symbol}{totals.income.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{t.money.expenses}</p>
+                  <p className="text-lg font-black text-white">{symbol}{totals.expense.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center gap-1 flex-shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center text-2xl font-black text-white">
+                {entries.length}
+              </div>
+              <p className="text-[9px] font-bold text-white/60 uppercase">entries</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ENTRIES ─────────────────────────────────── */}
+      {grouped.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+          <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mb-3 text-3xl">💰</div>
+          <p className="text-sm font-bold">{t.money.noEntries}</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {grouped.map(group => (
+            <div key={group.dateLabel}>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1 mb-2">
+                {group.dateLabel}
+                <span className="ml-2 font-black text-foreground/60">{symbol}{group.total.toFixed(2)}</span>
+              </p>
+
+              <div className="space-y-2">
+                {group.items.map(e => (
+                  <div key={e.id} className="bg-muted/30 rounded-2xl px-4 py-3 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center text-lg flex-shrink-0">
+                      {e.money_categories?.icon ?? '💰'}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold leading-none truncate">{e.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {e.money_categories?.name ?? 'Uncategorized'}
+                      </p>
+                    </div>
+
+                    <div className={cn(
+                      'text-sm font-black flex-shrink-0',
+                      e.type === 'income' ? 'text-emerald-500' : 'text-foreground'
+                    )}>
+                      {e.type === 'income' ? '+' : '-'}{symbol}{e.amount.toFixed(2)}
+                    </div>
+
+                    <div className="flex gap-0.5 flex-shrink-0">
+                      <button
+                        onClick={() => setEditingEntry(e)}
+                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        onClick={() => deleteEntry(e.id, e.title)}
+                        className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <MoneyAddModal open={open} onClose={() => setOpen(false)} onAdded={fetchEntries} />
+      <MoneyEditModal
+        entry={editingEntry}
+        onClose={() => setEditingEntry(null)}
+        onUpdated={fetchEntries}
+        onDeleted={fetchEntries}
+      />
+    </div>
+  )
+}
         <div className="flex-1">
           <CurrencySelector onChange={setSymbol} />
         </div>
