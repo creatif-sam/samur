@@ -20,6 +20,17 @@ type Grouped = {
   items: MoneyEntry[]
 }
 
+function getEntryAccent(e: MoneyEntry) {
+  const cat = (e.money_categories?.name ?? '').toLowerCase()
+  if (cat.includes('saving') || cat.includes('interest')) {
+    return { border: 'border-l-4 border-l-amber-400 dark:border-l-amber-500', icon: 'bg-amber-50 dark:bg-amber-950/40', amount: 'text-amber-600 dark:text-amber-400', sign: e.type === 'income' ? '+' : '→' }
+  }
+  if (e.type === 'income') {
+    return { border: 'border-l-4 border-l-green-400', icon: 'bg-green-50 dark:bg-green-950/40', amount: 'text-green-600 dark:text-green-400', sign: '+' }
+  }
+  return { border: 'border-l-4 border-l-red-400', icon: 'bg-red-50 dark:bg-red-950/40', amount: 'text-red-600 dark:text-red-400', sign: '-' }
+}
+
 export default function MoneyLog({
   open,
   setOpen,
@@ -400,15 +411,17 @@ export default function MoneyLog({
 
               {/* Entries for this date */}
               <div className="space-y-2">
-                {group.items.map(e => (
+                {group.items.map(e => {
+                  const accent = getEntryAccent(e)
+                  return (
                   <div
                     key={e.id}
-                    className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden hover:shadow-sm transition-shadow"
+                    className={`bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden hover:shadow-sm transition-shadow ${accent.border}`}
                   >
                     <div className="flex items-center justify-between p-3.5">
                       {/* Left: Icon + Info */}
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg shrink-0">
+                        <div className={`w-10 h-10 rounded-full ${accent.icon} flex items-center justify-center text-lg shrink-0`}>
                           {e.money_categories?.icon ?? '💰'}
                         </div>
 
@@ -424,12 +437,8 @@ export default function MoneyLog({
 
                       {/* Right: Amount + Actions */}
                       <div className="flex items-center gap-3 shrink-0">
-                        <div className={`text-sm font-semibold ${
-                          e.type === 'income'
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-slate-900 dark:text-white'
-                        }`}>
-                          {e.type === 'income' ? '+' : '-'}{symbol}{e.amount.toFixed(2)}
+                        <div className={`text-sm font-semibold ${accent.amount}`}>
+                          {accent.sign}{symbol}{e.amount.toFixed(2)}
                         </div>
                         
                         {/* Action buttons - always visible */}
@@ -452,7 +461,8 @@ export default function MoneyLog({
                       </div>
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           ))}

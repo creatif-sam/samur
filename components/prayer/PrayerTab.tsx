@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Check, ChevronDown, ChevronUp, Flame, X, Sparkles, Ear } from 'lucide-react'
+import { Plus, Check, ChevronDown, ChevronUp, Flame, X, Sparkles, Ear, BookOpen } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -27,6 +27,13 @@ interface PrayerRequest {
   is_shared: boolean
   answer_note: string | null
   answered_at: string | null
+  created_at: string
+}
+
+interface DiaryPage {
+  id: string
+  title: string
+  content: string | null
   created_at: string
 }
 
@@ -261,6 +268,61 @@ function RequestCard({ req, onMarkAnswered, onDelete }: {
   )
 }
 
+// ─── Diary Modal ──────────────────────────────────────────────────────────────
+
+function DiaryModal({ onClose, onSave, saving }: { onClose: () => void; onSave: (title: string, content: string) => Promise<void>; saving: boolean }) {
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const [title, setTitle] = useState(today)
+  const [content, setContent] = useState('')
+
+  async function submit() {
+    if (!title.trim()) return
+    await onSave(title.trim(), content.trim())
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+      <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-4 mb-20 sm:mb-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-violet-600" />
+            <h3 className="font-semibold text-base">Prayer Diary</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <input
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          placeholder="Entry title..."
+          className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-500"
+        />
+        <textarea
+          autoFocus
+          placeholder="What's on your heart today?"
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          rows={5}
+          className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
+        />
+        <p className="text-[10px] text-muted-foreground">Saved to your Prayer Diary notebook in Notes.</p>
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">Cancel</button>
+          <button
+            onClick={submit}
+            disabled={saving || !title.trim()}
+            className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition disabled:opacity-50"
+          >
+            {saving ? 'Saving...' : 'Save Entry'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PrayerTab() {
@@ -277,6 +339,11 @@ export default function PrayerTab() {
   const [listenedToGod, setListenedToGod] = useState(false)
   const [savingEntry, setSavingEntry] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [diaryPages, setDiaryPages] = useState<DiaryPage[]>([])
+  const [diaryNotebookId, setDiaryNotebookId] = useState<string | null>(null)
+  const [diarySectionId, setDiarySectionId] = useState<string | null>(null)
+  const [showDiaryModal, setShowDiaryModal] = useState(false)
+  const [savingDiary, setSavingDiary] = useState(false)
 
   useEffect(() => { loadAll() }, [])
 
@@ -302,6 +369,7 @@ export default function PrayerTab() {
     setFirstPrayedDate((firstData as { date: string } | null)?.date ?? null)
     setRequests(requestsData ?? [])
     setLoading(false)
+    void loadDiary(user.id)
   }
 
   async function markPrayedToday() {
@@ -359,6 +427,69 @@ export default function PrayerTab() {
     const supabase = createClient()
     await supabase.from('prayer_requests').delete().eq('id', id)
     setRequests(prev => prev.filter(r => r.id !== id))
+  }
+
+  async function loadDiary(uid: string) {
+    const supabase = createClient()
+    const { data: nb } = await supabase
+      .from('notebooks')
+      .select('id, sections(id, pages(id, title, content, created_at))')
+      .eq('user_id', uid)
+      .eq('title', 'Prayer Diary')
+      .maybeSingle()
+    if (!nb) return
+    setDiaryNotebookId(nb.id)
+    const sections = (nb as any).sections ?? []
+    if (sections.length > 0) {
+      const sect = sections[0]
+      setDiarySectionId(sect.id)
+      const pages: DiaryPage[] = (sect.pages ?? [])
+        .sort((a: DiaryPage, b: DiaryPage) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 6)
+      setDiaryPages(pages)
+    }
+  }
+
+  async function ensureDiarySection(): Promise<string | null> {
+    const supabase = createClient()
+    if (!userId) return null
+    if (diarySectionId) return diarySectionId
+
+    let nbId = diaryNotebookId
+    if (!nbId) {
+      const { data: existing } = await supabase.from('notebooks').select('id').eq('user_id', userId).eq('title', 'Prayer Diary').maybeSingle()
+      if (existing) {
+        nbId = existing.id
+      } else {
+        const { data: created } = await supabase.from('notebooks').insert({ user_id: userId, title: 'Prayer Diary' }).select('id').single()
+        if (!created) return null
+        nbId = created.id
+      }
+      setDiaryNotebookId(nbId)
+    }
+
+    const { data: existingSection } = await supabase.from('sections').select('id').eq('notebook_id', nbId).order('created_at', { ascending: true }).limit(1).maybeSingle()
+    let sectId: string
+    if (existingSection) {
+      sectId = existingSection.id
+    } else {
+      const { data: newSection } = await supabase.from('sections').insert({ notebook_id: nbId, title: 'Daily Prayers' }).select('id').single()
+      if (!newSection) return null
+      sectId = newSection.id
+    }
+    setDiarySectionId(sectId)
+    return sectId
+  }
+
+  async function saveDiaryEntry(title: string, content: string) {
+    setSavingDiary(true)
+    const supabase = createClient()
+    const sectId = await ensureDiarySection()
+    if (!sectId) { setSavingDiary(false); return }
+    const htmlContent = content ? `<p>${content.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br/>')}</p>` : ''
+    const { data } = await supabase.from('pages').insert({ section_id: sectId, title, content: htmlContent }).select('id, title, content, created_at').single()
+    if (data) setDiaryPages(prev => [data, ...prev].slice(0, 6))
+    setSavingDiary(false)
   }
 
   const streak = calcStreak(entries)
@@ -524,6 +655,52 @@ export default function PrayerTab() {
         </div>
       )}
 
+      {/* ── Prayer Diary ───────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center">
+              <BookOpen className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+            </div>
+            <p className="text-sm font-semibold">Prayer Diary</p>
+          </div>
+          <button
+            onClick={() => setShowDiaryModal(true)}
+            className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add entry
+          </button>
+        </div>
+
+        {diaryPages.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-muted-foreground/30 p-8 text-center">
+            <p className="text-sm text-muted-foreground">No diary entries yet.</p>
+            <button onClick={() => setShowDiaryModal(true)} className="mt-2 text-sm text-violet-600 hover:underline font-medium">Write your first one</button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {diaryPages.map(page => (
+              <div key={page.id} className="rounded-2xl bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <BookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">{page.title}</p>
+                    {page.content && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {page.content.replace(/<[^>]+>/g, ' ').trim()}
+                      </p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground mt-1">{daysAgo(page.created_at)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Modals ─────────────────────────────────────────── */}
       {showAddModal && (
         <AddRequestModal onClose={() => setShowAddModal(false)} onSave={addRequest} />
@@ -533,6 +710,13 @@ export default function PrayerTab() {
           request={markAnsweringReq}
           onClose={() => setMarkAnsweringReq(null)}
           onSave={note => markAnswered(markAnsweringReq.id, note)}
+        />
+      )}
+      {showDiaryModal && (
+        <DiaryModal
+          onClose={() => setShowDiaryModal(false)}
+          onSave={saveDiaryEntry}
+          saving={savingDiary}
         />
       )}
     </div>
