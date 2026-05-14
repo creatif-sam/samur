@@ -117,6 +117,7 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-1">
+          <ThemeSwitcher />
           <NotificationCenter 
             notifications={notifications} 
             unreadCount={unreadCount} 
@@ -124,9 +125,6 @@ export function Topbar() {
             onMarkRead={markAsRead}
             onMarkAllRead={markAllRead}
           />
-          
-          {/* Theme Switcher added here */}
-          <ThemeSwitcher />
         </div>
       </header>
     </>

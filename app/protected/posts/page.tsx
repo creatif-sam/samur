@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation' // Added for URL persistence
 import { createClient } from '@/lib/supabase/client'
 import { Post, Profile } from '@/lib/types'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,29 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, BookOpen, MessageSquare, Loader2, NotebookPen } from 'lucide-react' 
+import { Plus, MessageSquare, Loader2, NotebookPen } from 'lucide-react'
 import PostCard from '@/components/posts/PostCard'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs' 
-import { ThoughtBook } from '@/components/note/ThoughtBook' 
 
 type PostWithProfile = Post & { profiles: Profile }
 
 function PostsPageContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  
-  // Enhanced Tab Persistence: Check URL first, then localStorage, then default to 'posts'
-  const [currentTab, setCurrentTab] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const urlTab = searchParams.get('tab')
-      const savedTab = localStorage.getItem('active_workspace_tab')
-      return urlTab || savedTab || 'posts'
-    }
-    return 'posts'
-  })
-
   const [posts, setPosts] = useState<PostWithProfile[]>([])
-  const [notebooks, setNotebooks] = useState<any[]>([]) 
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showComposer, setShowComposer] = useState(false)
@@ -47,19 +30,6 @@ function PostsPageContent() {
   const [content, setContent] = useState('')
   const [visibility, setVisibility] = useState<'private' | 'shared'>('shared')
   const [userId, setUserId] = useState<string | null>(null)
-
-  // Sync URL with current tab on mount
-  useEffect(() => {
-    const urlTab = searchParams.get('tab')
-    if (urlTab && urlTab !== currentTab) {
-      setCurrentTab(urlTab)
-    } else if (!urlTab && currentTab) {
-      // Update URL to match current tab if no URL param exists
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('tab', currentTab)
-      router.replace(`?${params.toString()}`, { scroll: false })
-    }
-  }, [])
 
   useEffect(() => {
     loadData()
@@ -76,35 +46,18 @@ function PostsPageContent() {
 
     setUserId(user.id)
 
-    const [postsRes, notebooksRes] = await Promise.all([
-      supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles:author_id (name, avatar_url),
-          meditations (id, title, scripture, lesson)
-        `)
-        .or(`visibility.eq.shared,partner_id.eq.${user.id}`)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('notebooks')
-        .select(`*, sections (*, pages (*))`) 
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-    ])
+    const { data } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        profiles:author_id (name, avatar_url),
+        meditations (id, title, scripture, lesson)
+      `)
+      .or(`visibility.eq.shared,partner_id.eq.${user.id}`)
+      .order('created_at', { ascending: false })
 
-    setPosts(postsRes.data ?? [])
-    setNotebooks(notebooksRes.data ?? [])
+    setPosts(data ?? [])
     setLoading(false)
-  }
-
-  // Persist Tab Change to URL and localStorage
-  const handleTabChange = (value: string) => {
-    setCurrentTab(value)
-    localStorage.setItem('active_workspace_tab', value)
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', value)
-    router.push(`?${params.toString()}`, { scroll: false })
   }
 
   async function createPost() {
@@ -158,99 +111,77 @@ function PostsPageContent() {
 
   return (
     <div className="w-full max-w-4xl mx-auto px-4 md:px-6 py-6 md:py-10">
-      {/* CONTROLLED TABS: value and onValueChange handle the URL sync */}
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-4 md:space-y-6">
+      <div className="space-y-4 md:space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4 border-b pb-3 md:pb-4">
           <div className="flex items-center gap-2">
             <NotebookPen className="w-5 h-5 md:w-6 md:h-6 text-primary" />
-            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">Workspace</h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">Feed</h1>
           </div>
-          
-          <TabsList className="bg-muted/50 p-1 rounded-lg border h-9 md:h-10 w-full sm:w-auto">
-            <TabsTrigger value="posts" className="rounded-md px-3 md:px-4 text-xs font-medium gap-1.5 md:gap-2 transition-all flex-1 sm:flex-none">
-              <MessageSquare className="w-3.5 h-3.5" /> Feed
-            </TabsTrigger>
-            <TabsTrigger value="thoughty" className="rounded-md px-3 md:px-4 text-xs font-medium gap-1.5 md:gap-2 transition-all flex-1 sm:flex-none">
-              <BookOpen className="w-3.5 h-3.5" /> Notebooks
-            </TabsTrigger>
-          </TabsList>
         </div>
 
-        <TabsContent value="posts" className="space-y-4 md:space-y-6 mt-0 outline-none focus-visible:ring-0 animate-in fade-in duration-300">
-          <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <FeedSwitch />
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <MeditationButton onOpen={() => setShowMeditationComposer(true)} />
-              <Button size="sm" onClick={() => setShowComposer(!showComposer)} className="rounded-full px-4 font-medium flex-1 sm:flex-none">
-                <Plus className="w-4 h-4 mr-1" /> New Post
-              </Button>
-            </div>
-          </header>
-
-          {showComposer && (
-            <Card className="shadow-sm border-muted-foreground/20">
-              <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
-                <Textarea
-                  placeholder="Capture a thought..."
-                  className="min-h-[120px] md:min-h-[140px] border-none focus-visible:ring-0 resize-none p-0 text-sm md:text-base placeholder:text-muted-foreground/50"
-                  value={content}
-                  onChange={e => setContent(e.target.value)}
-                  disabled={isSubmitting}
-                />
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t pt-3 md:pt-4">
-                  <Select 
-                    disabled={isSubmitting}
-                    value={visibility} 
-                    onValueChange={v => setVisibility(v as 'private' | 'shared')}
-                  >
-                    <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs border-muted/60">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="private">Private</SelectItem>
-                      <SelectItem value="shared">Shared</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setShowComposer(false)} className="text-xs flex-1 sm:flex-none" disabled={isSubmitting}>
-                      Cancel
-                    </Button>
-                    <Button size="sm" onClick={createPost} disabled={isSubmitting || !content.trim()} className="text-xs px-6 flex-1 sm:flex-none">
-                      {isSubmitting ? 'Publishing...' : 'Publish'}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {showMeditationComposer && (
-            <MeditationComposer onClose={() => setShowMeditationComposer(false)} onCreated={loadData} />
-          )}
-
-          <section className="space-y-4">
-            {posts.map(post => (
-              <PostCard 
-                key={post.id} 
-                post={post} 
-                currentUserId={userId} 
-                onUpdate={updatePost} 
-                onDelete={deletePost} 
-              />
-            ))}
-          </section>
-        </TabsContent>
-
-        <TabsContent value="thoughty" className="mt-0 outline-none focus-visible:ring-0 animate-in fade-in duration-300">
-          <div className="rounded-xl border bg-card text-card-foreground shadow-sm p-1 min-h-[600px]">
-             <ThoughtBook 
-               notebooks={notebooks} 
-               onRefresh={loadData} 
-               userId={userId} 
-             />
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <FeedSwitch />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <MeditationButton onOpen={() => setShowMeditationComposer(true)} />
+            <Button size="sm" onClick={() => setShowComposer(!showComposer)} className="rounded-full px-4 font-medium flex-1 sm:flex-none">
+              <Plus className="w-4 h-4 mr-1" /> New Post
+            </Button>
           </div>
-        </TabsContent>
-      </Tabs>
+        </header>
+
+        {showComposer && (
+          <Card className="shadow-sm border-muted-foreground/20">
+            <CardContent className="p-3 md:p-4 space-y-3 md:space-y-4">
+              <Textarea
+                placeholder="Capture a thought..."
+                className="min-h-[120px] md:min-h-[140px] border-none focus-visible:ring-0 resize-none p-0 text-sm md:text-base placeholder:text-muted-foreground/50"
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                disabled={isSubmitting}
+              />
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t pt-3 md:pt-4">
+                <Select 
+                  disabled={isSubmitting}
+                  value={visibility} 
+                  onValueChange={v => setVisibility(v as 'private' | 'shared')}
+                >
+                  <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs border-muted/60">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="shared">Shared</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setShowComposer(false)} className="text-xs flex-1 sm:flex-none" disabled={isSubmitting}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={createPost} disabled={isSubmitting || !content.trim()} className="text-xs px-6 flex-1 sm:flex-none">
+                    {isSubmitting ? 'Publishing...' : 'Publish'}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {showMeditationComposer && (
+          <MeditationComposer onClose={() => setShowMeditationComposer(false)} onCreated={loadData} />
+        )}
+
+        <section className="space-y-4">
+          {posts.map(post => (
+            <PostCard 
+              key={post.id} 
+              post={post} 
+              currentUserId={userId} 
+              onUpdate={updatePost} 
+              onDelete={deletePost} 
+            />
+          ))}
+        </section>
+      </div>
     </div>
   )
 }
