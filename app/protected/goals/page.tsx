@@ -190,25 +190,35 @@ export default function GoalsPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-card border rounded-xl p-4 space-y-4">
-              <h3 className="text-[10px] uppercase font-bold flex gap-2">
-                <BarChart3 className="w-4 h-4 text-primary" />
-                Velocity Timeline
-              </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Analytics</p>
+                  <h3 className="text-sm font-black">Velocity Timeline</h3>
+                </div>
+              </div>
               <GoalsYearlyLineChart goals={filteredGoals} />
             </div>
 
-            <div className="bg-card border rounded-xl p-4 space-y-4">
-              <h3 className="text-[10px] uppercase font-bold flex gap-2">
-                <Users className="w-4 h-4 text-primary" />
-                Sector Distribution
-              </h3>
+            <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Distribution</p>
+                  <h3 className="text-sm font-black">Sector Breakdown</h3>
+                </div>
+              </div>
               <GoalsDonutChart goals={goals} categories={uiCategories} />
             </div>
           </div>
 
-          <div className="bg-card border rounded-xl p-4">
+          <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5">
             <VisionBoard goals={goals} />
           </div>
         </TabsContent>

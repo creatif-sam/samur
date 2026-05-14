@@ -127,7 +127,7 @@ export function GoalList({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {avgProgress === 100 ? 'Vision Realized ✨' : `${avgProgress}% complete`}
+                  {items.length} goal{items.length !== 1 ? 's' : ''} · {items.filter(g => g.status === 'done').length} done
                 </p>
                 <h2 className="text-base font-black truncate">{vision.title}</h2>
               </div>
@@ -143,7 +143,7 @@ export function GoalList({
             </div>
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-3 ml-5 pl-4 border-l-2" style={{ borderColor: `${vision.color}55` }}>
             {items.map((goal) => (
               <GoalCard
                 key={goal.id}
