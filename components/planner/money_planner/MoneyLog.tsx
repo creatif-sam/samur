@@ -438,16 +438,6 @@ export default function MoneyLog({
     </div>
   )
 }
-        <div className="flex-1">
-          <CurrencySelector onChange={setSymbol} />
-        </div>
-        <Button
-          onClick={exportToExcel}
-          variant="outline"
-          size="sm"
-          className="gap-2 rounded-lg"
-          disabled={entries.length === 0}
-        >
           <Download size={16} />
           <span className="hidden sm:inline">{t.money.export}</span>
         </Button>

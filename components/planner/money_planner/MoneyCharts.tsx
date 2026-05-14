@@ -441,11 +441,6 @@ function formatWeekRange(baseDate: Date, offset: number) {
     </div>
   )
 }
-
-          }`}
-        >
-          Expenses
-        </Button>
         <Button
           variant="ghost"
           onClick={() => setMode('income')}

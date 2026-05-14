@@ -355,10 +355,6 @@ export default function GoalsPage() {
     </div>
   )
 }
-        <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">
-            Goals & Vision
-          </h1>
           <p className="text-xs sm:text-sm text-muted-foreground">
             "Write the vision and make it plain." Habakkuk 2:2
           </p>
