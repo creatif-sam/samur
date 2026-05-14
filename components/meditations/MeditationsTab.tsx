@@ -274,10 +274,6 @@ export default function MeditationsTab() {
     </div>
   )
 }
-
-
-export default function MeditationsTab() {
-  const [meditations, setMeditations] = useState<MeditationDB[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [accountCreatedAt, setAccountCreatedAt] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(false)
