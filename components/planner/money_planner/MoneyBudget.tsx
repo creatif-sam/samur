@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import BudgetEditModal from './BudgetEditModal'
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
-import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
 import { toast } from 'sonner'
@@ -326,223 +325,213 @@ export default function MoneyBudget() {
 
   return (
     <div className="space-y-4 pb-24">
-      {/* SCOPE */}
-      <div className="flex gap-2 rounded-xl bg-muted p-1">
+
+      {/* ── SCOPE TOGGLE ──────────────────────────── */}
+      <div className="flex gap-1 bg-muted/50 rounded-2xl p-1">
         {(['week', 'month'] as const).map(s => (
-          <Button
+          <button
             key={s}
-            variant="ghost"
             onClick={() => setScope(s)}
-            className={`flex-1 ${
+            className={cn(
+              'flex-1 py-2 rounded-xl text-xs font-bold capitalize transition-all',
               scope === s
-                ? 'bg-black text-white'
-                : 'text-muted-foreground'
-            }`}
+                ? 'bg-violet-600 text-white shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
           >
             {s === 'week' ? t.money.week : t.money.month}
-          </Button>
+          </button>
         ))}
       </div>
 
-      {/* MONTH YEAR */}
+      {/* ── MONTH / YEAR SELECTORS ─────────────────── */}
       {scope === 'month' && (
         <div className="flex gap-2">
           <select
             value={month}
             onChange={e => setMonth(Number(e.target.value))}
-            className="flex-1 border rounded-lg px-2 py-1"
+            className="flex-1 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
           >
             {Array.from({ length: 12 }).map((_, i) => (
               <option key={i} value={i}>
-                {new Date(0, i).toLocaleString(undefined, {
-                  month: 'long',
-                })}
+                {new Date(0, i).toLocaleString(undefined, { month: 'long' })}
               </option>
             ))}
           </select>
-
           <select
             value={year}
             onChange={e => setYear(Number(e.target.value))}
-            className="flex-1 border rounded-lg px-2 py-1"
+            className="w-24 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
           >
             {Array.from({ length: 5 }).map((_, i) => {
               const y = now.getFullYear() - i
-              return (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              )
+              return <option key={y} value={y}>{y}</option>
             })}
           </select>
         </div>
       )}
 
-      {/* DONUT */}
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={[
-                { value: percent },
-                { value: 100 - percent },
-              ]}
-              dataKey="value"
-              innerRadius={70}
-              outerRadius={90}
-              startAngle={90}
-              endAngle={-270}
-            >
-              <Cell fill="#facc15" />
-              <Cell fill="#e5e7eb" />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+      {/* ── HERO BUDGET CARD ──────────────────────── */}
+      <div className={cn(
+        'relative overflow-hidden rounded-3xl p-5 shadow-xl',
+        percent > 50
+          ? 'bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-900/30'
+          : percent > 20
+          ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-900/30'
+          : totalBudget
+          ? 'bg-gradient-to-br from-red-600 to-rose-700 shadow-red-900/30'
+          : 'bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-900 shadow-violet-900/30'
+      )}>
+        <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5" />
+        <div className="absolute right-14 -top-8 w-28 h-28 rounded-full bg-white/5" />
 
-      {/* TOTAL */}
-      <div className="text-center space-y-2">
-        <div className="text-2xl font-bold text-violet-600 dark:text-violet-400">
-          {remaining}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {t.money.remaining} ({percent}%)
-        </div>
-        <div className="grid grid-cols-2 gap-4 mt-3 p-3 bg-muted/50 rounded-lg">
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground mb-1">{t.money.budget}</div>
-            <div className="text-lg font-semibold text-green-600 dark:text-green-400">{totalBudget ?? 0}</div>
+        <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">
+          {scope === 'week'
+            ? t.money.week
+            : `${new Date(year, month).toLocaleString(undefined, { month: 'long' })} ${year}`
+          } · Budget
+        </p>
+
+        <div className="flex items-center justify-between relative z-10">
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{t.money.remaining}</p>
+              <p className="text-5xl font-black text-white leading-none">{remaining}</p>
+            </div>
+            <div className="flex gap-6">
+              <div>
+                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{t.money.budget}</p>
+                <p className="text-xl font-black text-white">{totalBudget ?? '—'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{t.money.spent}</p>
+                <p className="text-xl font-black text-white">{spentTotal}</p>
+              </div>
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground mb-1">{t.money.spent}</div>
-            <div className="text-lg font-semibold text-red-600 dark:text-red-400">{spentTotal}</div>
+
+          {/* Circular progress ring */}
+          <div className="relative w-24 h-24 flex-shrink-0">
+            <svg viewBox="0 0 80 80" className="w-full h-full -rotate-90">
+              <circle cx="40" cy="40" r="32" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
+              <circle
+                cx="40" cy="40" r="32" fill="none" stroke="white" strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray={`${2 * Math.PI * 32}`}
+                strokeDashoffset={`${2 * Math.PI * 32 * (1 - percent / 100)}`}
+                style={{ transition: 'stroke-dashoffset 0.5s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <p className="text-xl font-black text-white leading-none">{percent}%</p>
+              <p className="text-[9px] font-bold text-white/50 uppercase">Left</p>
+            </div>
           </div>
         </div>
+
+        {/* Allocation note */}
         {totalBudget && totalBudget > 0 && (
-          <>
-            <div className="text-xs text-muted-foreground mt-2">
-              {Math.round((spentTotal / totalBudget) * 100)}% of budget used
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {allocatedTotal} allocated to sub-budgets
-            </div>
-            <div className={`text-xs ${unallocated < 0 ? 'text-red-600' : 'text-muted-foreground'}`}>
-              {unallocated < 0
-                ? `${Math.abs(unallocated)} over-allocated across categories`
-                : `${unallocated} still unallocated`}
-            </div>
-          </>
+          <div className="mt-3 pt-3 border-t border-white/15 relative z-10">
+            {unallocated < 0 ? (
+              <p className="text-xs text-white/70 font-medium">⚠️ {Math.abs(unallocated)} over-allocated across categories</p>
+            ) : unallocated > 0 ? (
+              <p className="text-xs text-white/60 font-medium">{unallocated} still unallocated</p>
+            ) : (
+              <p className="text-xs text-white/60 font-medium">✓ Fully allocated</p>
+            )}
+          </div>
         )}
       </div>
 
-      <Button
-        variant="outline"
+      {/* ── SET TOTAL BUDGET ──────────────────────── */}
+      <button
         onClick={() => {
           setBudgetModalTitle(t.money.setTotalBudget)
           setBudgetTarget('total')
           setTotalInput(totalBudget?.toString() ?? '')
           setBudgetModalOpen(true)
         }}
+        className="w-full py-3 rounded-2xl border-2 border-dashed border-violet-500/40 text-violet-500 text-sm font-bold hover:bg-violet-500/5 transition-all"
       >
-        {t.money.setTotalBudget}
-      </Button>
+        {totalBudget ? `✏️ ${t.money.setTotalBudget}` : `+ ${t.money.setTotalBudget}`}
+      </button>
 
+      {/* ── CATEGORY CARDS ────────────────────────── */}
+      {categories.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-black tracking-tight px-1">Categories</h3>
+          {categories.map(c => {
+            const ratio    = c.budget > 0 ? c.spent / c.budget : 0
+            const barColor = ratio >= 1 ? 'bg-red-500' : ratio >= 0.8 ? 'bg-amber-400' : 'bg-emerald-500'
+            const overBudget = ratio >= 1
+            const nearLimit  = ratio >= 0.8 && ratio < 1
 
-      {/* CATEGORY ROWS */}
-      <div className="space-y-3">
-        {categories.map(c => {
-          const ratio =
-            c.budget > 0 ? c.spent / c.budget : 0
+            return (
+              <div key={c.id} className="bg-muted/30 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-muted/60 flex items-center justify-center text-xl flex-shrink-0">
+                      {c.icon}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold leading-none">{c.name}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {c.spent} / {c.budget > 0 ? c.budget : '—'}
+                      </p>
+                    </div>
+                  </div>
 
-          const barColor =
-            ratio >= 1
-              ? 'bg-red-500'
-              : ratio >= 0.8
-              ? 'bg-yellow-400'
-              : 'bg-green-500'
-
-          return (
-            <div key={c.id} className="space-y-1">
-              <div className="flex justify-between items-center">
-                <div className="flex gap-2 items-center">
-                  <span>{c.icon}</span>
-                  <span className="text-sm">{c.name}</span>
+                  <div className="flex items-center gap-2">
+                    {overBudget && (
+                      <span className="text-[10px] font-bold text-red-500">{t.money.overBudget}</span>
+                    )}
+                    {nearLimit && (
+                      <span className="text-[10px] font-bold text-amber-500">{t.money.nearLimit}</span>
+                    )}
+                    <button
+                      onClick={() => {
+                        setBudgetModalTitle(`${t.money.setBudget} ${c.name}`)
+                        setBudgetTarget(c.id)
+                        setCategoryInput(c.budget.toString())
+                        setBudgetModalOpen(true)
+                      }}
+                      className="text-[11px] font-bold text-violet-500 hover:text-violet-400 transition-colors px-2 py-1 rounded-lg hover:bg-violet-500/10"
+                    >
+                      {c.budget > 0 ? 'Edit' : 'Set'}
+                    </button>
+                  </div>
                 </div>
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setBudgetModalTitle(`${t.money.setBudget} ${c.name}`)
-                    setBudgetTarget(c.id)
-                    setCategoryInput(c.budget.toString())
-                    setBudgetModalOpen(true)
-                  }}
-                >
-                  {t.money.setBudget}
-                </Button>
-
+                <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-full transition-all duration-500', barColor)}
+                    style={{ width: `${Math.min(100, ratio * 100)}%` }}
+                  />
+                </div>
               </div>
+            )
+          })}
+        </div>
+      )}
 
-              <div className="flex justify-between text-xs">
-                <span>
-                  {c.spent} / {c.budget}
-                </span>
-                {ratio >= 1 && (
-                  <span className="text-red-600">
-                    {t.money.overBudget}
-                  </span>
-                )}
-                {ratio >= 0.8 && ratio < 1 && (
-                  <span className="text-yellow-600">
-                    {t.money.nearLimit}
-                  </span>
-                )}
-              </div>
-
-              <div className="h-2 bg-muted rounded-full">
-                <div
-                  className={`h-full ${barColor}`}
-                  style={{
-                    width: `${Math.min(
-                      100,
-                      ratio * 100
-                    )}%`,
-                  }}
-                />
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-
-        {/* BUDGET MODAL */}
-        <BudgetEditModal
-          open={budgetModalOpen}
-          title={budgetModalTitle}
-          amount={
-            budgetTarget === 'total'
-              ? totalInput
-              : categoryInput
+      {/* ── MODAL ─────────────────────────────────── */}
+      <BudgetEditModal
+        open={budgetModalOpen}
+        title={budgetModalTitle}
+        amount={budgetTarget === 'total' ? totalInput : categoryInput}
+        onChange={v =>
+          budgetTarget === 'total' ? setTotalInput(v) : setCategoryInput(v)
+        }
+        onSave={async () => {
+          if (budgetTarget === 'total') {
+            await saveTotalBudget()
+          } else if (budgetTarget) {
+            await saveCategoryBudget(budgetTarget)
           }
-          onChange={v =>
-            budgetTarget === 'total'
-              ? setTotalInput(v)
-              : setCategoryInput(v)
-          }
-          onSave={async () => {
-            if (budgetTarget === 'total') {
-              await saveTotalBudget()
-            } else if (budgetTarget) {
-              await saveCategoryBudget(budgetTarget)
-            }
-            setBudgetModalOpen(false)
-          }}
-          onClose={() => setBudgetModalOpen(false)}
-        />
-
-
+          setBudgetModalOpen(false)
+        }}
+        onClose={() => setBudgetModalOpen(false)}
+      />
     </div>
   )
 }

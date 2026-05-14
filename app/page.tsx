@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import { LanguageSwitcher, Language } from '@/components/language-switcher';
 import { translations } from '@/lib/translations';
+import SplashLoader from '@/components/SplashLoader';
 import { 
   Target, 
   Calendar, 
@@ -43,6 +44,7 @@ export default function Home() {
   const router = useRouter();
   const [bibleVerse, setBibleVerse] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const [language, setLanguage] = useState<Language>('en');
 
   // Load language preference from localStorage
@@ -79,10 +81,17 @@ export default function Home() {
     const checkAuth = async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) router.push('/protected');
+      if (user) {
+        router.push('/protected');
+      } else {
+        setAuthChecked(true);
+      }
     };
     checkAuth();
   }, [router]);
+
+  // Show splash until auth is confirmed (non-logged-in)
+  if (!authChecked) return <SplashLoader />;
 
   const features = [
     { icon: Target },

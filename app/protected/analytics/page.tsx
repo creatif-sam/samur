@@ -8,7 +8,6 @@ import { PlannerTask } from '@/components/planner/DailyPlanner'
 import VisionProgressDashboard from '@/components/planner/VisionTimeUsageDashboard'
 import AnalyticsHero from '@/components/analytics/AnalyticsHero'
 import AnalyticsStatCards from '@/components/analytics/AnalyticsStatCards'
-import AnalyticsMeditationGrid from '@/components/analytics/AnalyticsMeditationGrid'
 import AnalyticsGoalSection from '@/components/analytics/AnalyticsGoalSection'
 
 export default function AnalyticsPage() {
@@ -86,8 +85,6 @@ export default function AnalyticsPage() {
         completedGoalsCount={completedGoals.length}
         booksRead={booksRead}
       />
-
-      <AnalyticsMeditationGrid meditations={meditations} />
 
       <AnalyticsGoalSection goals={goals} />
 
