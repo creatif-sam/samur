@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Check, ChevronDown, ChevronUp, Flame, X, Sparkles, Ear, BookOpen } from 'lucide-react'
+import { ThoughtEditor } from '@/components/note/ThoughtEditor'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -344,6 +345,7 @@ export default function PrayerTab() {
   const [diarySectionId, setDiarySectionId] = useState<string | null>(null)
   const [showDiaryModal, setShowDiaryModal] = useState(false)
   const [savingDiary, setSavingDiary] = useState(false)
+  const [selectedDiaryPage, setSelectedDiaryPage] = useState<DiaryPage | null>(null)
 
   useEffect(() => { loadAll() }, [])
 
@@ -680,7 +682,11 @@ export default function PrayerTab() {
         ) : (
           <div className="space-y-2">
             {diaryPages.map(page => (
-              <div key={page.id} className="rounded-2xl bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-4">
+              <button
+                key={page.id}
+                onClick={() => setSelectedDiaryPage(page)}
+                className="w-full text-left rounded-2xl bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-4 hover:scale-[1.01] active:scale-[0.99] transition-transform"
+              >
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <BookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
@@ -695,7 +701,7 @@ export default function PrayerTab() {
                     <p className="text-[10px] text-muted-foreground mt-1">{daysAgo(page.created_at)}</p>
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
@@ -718,6 +724,20 @@ export default function PrayerTab() {
           onSave={saveDiaryEntry}
           saving={savingDiary}
         />
+      )}
+      {selectedDiaryPage && (
+        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+          <ThoughtEditor
+            page={selectedDiaryPage}
+            onBack={async () => {
+              setSelectedDiaryPage(null)
+              if (userId) await loadDiary(userId)
+            }}
+            onRefresh={async () => {
+              if (userId) await loadDiary(userId)
+            }}
+          />
+        </div>
       )}
     </div>
   )
