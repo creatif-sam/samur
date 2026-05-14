@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Check, ChevronDown, ChevronUp, Flame, X } from 'lucide-react'
+import { Plus, Check, ChevronDown, ChevronUp, Flame, X, Sparkles, Ear } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -15,6 +15,7 @@ interface PrayerEntry {
   completed: boolean
   duration_minutes: number | null
   notes: string | null
+  listened_to_god?: boolean
 }
 
 interface PrayerRequest {
@@ -266,12 +267,14 @@ export default function PrayerTab() {
   const [userId, setUserId] = useState<string | null>(null)
   const [todayEntry, setTodayEntry] = useState<PrayerEntry | null>(null)
   const [entries, setEntries] = useState<PrayerEntry[]>([])
+  const [firstPrayedDate, setFirstPrayedDate] = useState<string | null>(null)
   const [requests, setRequests] = useState<PrayerRequest[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [markAnsweringReq, setMarkAnsweringReq] = useState<PrayerRequest | null>(null)
   const [showAnswered, setShowAnswered] = useState(false)
   const [prayingDuration, setPrayingDuration] = useState<number | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
+  const [listenedToGod, setListenedToGod] = useState(false)
   const [savingEntry, setSavingEntry] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -285,14 +288,18 @@ export default function PrayerTab() {
 
     const today = todayISO()
 
-    const [{ data: entriesData }, { data: requestsData }] = await Promise.all([
+    const [{ data: entriesData }, { data: requestsData }, { data: firstData }] = await Promise.all([
       supabase.from('prayer_entries').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(60),
       supabase.from('prayer_requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      supabase.from('prayer_entries').select('date').eq('user_id', user.id).eq('completed', true).order('date', { ascending: true }).limit(1).maybeSingle(),
     ])
 
     const allEntries: PrayerEntry[] = entriesData ?? []
     setEntries(allEntries)
-    setTodayEntry(allEntries.find(e => e.date === today) ?? null)
+    const todayEnt = allEntries.find(e => e.date === today) ?? null
+    setTodayEntry(todayEnt)
+    if (todayEnt) setListenedToGod(todayEnt.listened_to_god ?? false)
+    setFirstPrayedDate((firstData as { date: string } | null)?.date ?? null)
     setRequests(requestsData ?? [])
     setLoading(false)
   }
@@ -305,16 +312,18 @@ export default function PrayerTab() {
 
     if (todayEntry) {
       // toggle off
-      await supabase.from('prayer_entries').update({ completed: false, duration_minutes: null, notes: null }).eq('id', todayEntry.id)
-      setTodayEntry({ ...todayEntry, completed: false, duration_minutes: null, notes: null })
+      await supabase.from('prayer_entries').update({ completed: false, duration_minutes: null, notes: null, listened_to_god: false }).eq('id', todayEntry.id)
+      setTodayEntry({ ...todayEntry, completed: false, duration_minutes: null, notes: null, listened_to_god: false })
+      setListenedToGod(false)
       setEntries(prev => prev.map(e => e.date === today ? { ...e, completed: false } : e))
     } else {
       const { data } = await supabase.from('prayer_entries')
-        .upsert({ user_id: userId, date: today, completed: true, duration_minutes: prayingDuration, notes: noteDraft.trim() || null }, { onConflict: 'user_id,date' })
+        .upsert({ user_id: userId, date: today, completed: true, duration_minutes: prayingDuration, notes: noteDraft.trim() || null, listened_to_god: listenedToGod }, { onConflict: 'user_id,date' })
         .select().single()
       if (data) {
         setTodayEntry(data)
         setEntries(prev => [data, ...prev.filter(e => e.date !== today)])
+        if (!firstPrayedDate) setFirstPrayedDate(today)
       }
     }
     setSavingEntry(false)
@@ -324,8 +333,8 @@ export default function PrayerTab() {
     if (!userId || !todayEntry?.completed) return
     setSavingEntry(true)
     const supabase = createClient()
-    await supabase.from('prayer_entries').update({ duration_minutes: prayingDuration, notes: noteDraft.trim() || null }).eq('id', todayEntry.id)
-    setTodayEntry(prev => prev ? { ...prev, duration_minutes: prayingDuration, notes: noteDraft.trim() || null } : prev)
+    await supabase.from('prayer_entries').update({ duration_minutes: prayingDuration, notes: noteDraft.trim() || null, listened_to_god: listenedToGod }).eq('id', todayEntry.id)
+    setTodayEntry(prev => prev ? { ...prev, duration_minutes: prayingDuration, notes: noteDraft.trim() || null, listened_to_god: listenedToGod } : prev)
     setSavingEntry(false)
   }
 
@@ -415,12 +424,39 @@ export default function PrayerTab() {
               rows={2}
               className="w-full bg-white/20 placeholder:text-violet-200 text-white text-sm rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-white/50"
             />
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <div
+                onClick={() => setListenedToGod(v => !v)}
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition ${listenedToGod ? 'bg-white border-white' : 'border-white/50'}`}
+              >
+                {listenedToGod && <Check className="w-3 h-3 text-violet-700" />}
+              </div>
+              <span className="flex items-center gap-1.5 text-sm text-white">
+                <Ear className="w-3.5 h-3.5" /> I listened to God
+              </span>
+            </label>
             <button onClick={saveDurationAndNote} disabled={savingEntry} className="text-xs text-white/80 hover:text-white underline transition">
               {savingEntry ? 'Saving...' : 'Save note'}
             </button>
           </div>
         )}
       </div>
+
+      {/* ── First Prayer Day Milestone ───────────────────── */}
+      {firstPrayedDate && (
+        <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
+            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">First prayer</p>
+            <p className="text-sm font-semibold text-foreground leading-snug">
+              {new Date(firstPrayedDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">The day your journey began</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Active Requests ─────────────────────────────────── */}
       <div>
