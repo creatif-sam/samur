@@ -72,39 +72,57 @@ export default function FreeTimeExportButton({
         .join('\n') +
       `\n\n👉 Please pick a time that works best for you.`
 
+  async function handleNativeShare() {
+    if (!message) return
+    if (navigator.share) {
+      try {
+        await navigator.share({ text: message })
+      } catch {
+        // user dismissed the sheet — do nothing
+      }
+    } else {
+      // Fallback: copy to clipboard
+      await navigator.clipboard.writeText(message)
+    }
+    setFreeBlocks(null)
+  }
+
   return (
     <>
       <button
         onClick={calculateFreeTime}
-        className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 text-white py-2 text-sm font-medium transition"
+        className="flex items-center gap-2 rounded-2xl bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white px-5 py-2.5 text-sm font-semibold shadow-md shadow-violet-500/30 transition"
       >
-        💜 Share Free Time
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        Share Free Time
       </button>
 
       {freeBlocks && message && (
         <Modal onClose={() => setFreeBlocks(null)}>
-          <h3 className="font-semibold mb-3">
-            Share Your Free Time
-          </h3>
+          <h3 className="font-semibold mb-3">Share Your Free Time</h3>
 
-          <pre className="text-sm whitespace-pre-wrap border rounded-lg p-3 mb-4">
+          <pre className="text-sm whitespace-pre-wrap bg-muted rounded-lg p-3 mb-4">
             {message}
           </pre>
 
           <div className="flex justify-end gap-2">
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(message)
-                setFreeBlocks(null)
-              }}
-              className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-sm transition"
+              onClick={handleNativeShare}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white text-sm font-semibold transition shadow-sm"
             >
-              📋 Copy for WhatsApp
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+              Share
             </button>
 
             <button
               onClick={() => setFreeBlocks(null)}
-              className="px-4 py-2 rounded-lg border text-sm"
+              className="px-4 py-2 rounded-xl border text-sm"
             >
               Close
             </button>
