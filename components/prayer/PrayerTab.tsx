@@ -96,7 +96,7 @@ function AddRequestModal({ onClose, onSave }: { onClose: () => void; onSave: (r:
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-5">
+      <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-5 mb-20 sm:mb-0">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-base">New Prayer Request</h3>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition"><X className="w-4 h-4" /></button>
@@ -177,7 +177,7 @@ function MarkAnsweredModal({ request, onClose, onSave }: { request: PrayerReques
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-4">
+      <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-4 mb-20 sm:mb-0">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-base">Prayer Answered!</h3>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition"><X className="w-4 h-4" /></button>
@@ -310,13 +310,14 @@ export default function PrayerTab() {
     const supabase = createClient()
     const today = todayISO()
 
-    if (todayEntry) {
-      // toggle off
+    if (todayEntry?.completed) {
+      // toggle off — already prayed, undo it
       await supabase.from('prayer_entries').update({ completed: false, duration_minutes: null, notes: null, listened_to_god: false }).eq('id', todayEntry.id)
       setTodayEntry({ ...todayEntry, completed: false, duration_minutes: null, notes: null, listened_to_god: false })
       setListenedToGod(false)
       setEntries(prev => prev.map(e => e.date === today ? { ...e, completed: false } : e))
     } else {
+      // mark as prayed — upsert handles both new row and existing incomplete row
       const { data } = await supabase.from('prayer_entries')
         .upsert({ user_id: userId, date: today, completed: true, duration_minutes: prayingDuration, notes: noteDraft.trim() || null, listened_to_god: listenedToGod }, { onConflict: 'user_id,date' })
         .select().single()
