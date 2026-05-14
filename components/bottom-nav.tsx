@@ -2,18 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import React, { JSX, useEffect, useState } from 'react'
+import React, { JSX } from 'react'
 import {
   Home,
   Target,
   Calendar,
   Plus,
-  User,
   BookOpen,
+  NotebookPen,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { createClient } from '@/lib/supabase/client'
-import Image from 'next/image'
 import { useTranslation } from '@/contexts/TranslationContext'
 
 const navItems = [
@@ -22,32 +20,12 @@ const navItems = [
   { href: '/protected/planner', key: 'planner', icon: Calendar },
   { href: '/protected/posts', key: 'posts', icon: Plus },
   { href: '/protected/readapp', key: 'readApp', icon: BookOpen },
-  { href: '/protected/profile', key: 'profile', icon: User },
+  { href: '/protected/note', key: 'note', icon: NotebookPen },
 ]
 
 export function BottomNav(): JSX.Element {
   const pathname = usePathname()
-  const supabase = createClient()
   const { t } = useTranslation()
-
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    const loadProfile = async (): Promise<void> => {
-      const { data: auth } = await supabase.auth.getUser()
-      if (!auth.user) return
-
-      const { data } = await supabase
-        .from('profiles')
-        .select('avatar_url')
-        .eq('id', auth.user.id)
-        .single()
-
-      setAvatarUrl(data?.avatar_url ?? null)
-    }
-
-    void loadProfile()
-  }, [supabase])
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-violet-600 border-t border-violet-700 z-50">
@@ -66,26 +44,7 @@ export function BottomNav(): JSX.Element {
                   : 'text-white hover:bg-violet-500'
               )}
             >
-              {item.key === 'profile' ? (
-                avatarUrl ? (
-                  <Image
-                    src={avatarUrl}
-                    alt="Profile"
-                    width={24}
-                    height={24}
-                    className={cn(
-                      'rounded-full object-cover',
-                      isActive
-                        ? 'ring-2 ring-violet-600'
-                        : 'ring-2 ring-white'
-                    )}
-                  />
-                ) : (
-                  <User size={20} />
-                )
-              ) : (
-                <item.icon size={20} />
-              )}
+              <item.icon size={20} />
 
               <span className="text-xs mt-1">
                 {t.nav[item.key as keyof typeof t.nav]}

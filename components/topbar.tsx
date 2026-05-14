@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import { NotificationCenter } from '@/components/notifications/NotificationCenter'
 import { NotificationToast } from '@/components/notifications/NotificationToast'
 import { ThemeSwitcher } from '@/components/theme-switcher' // Adjust path as needed
+import Link from 'next/link'
+import Image from 'next/image'
+import { User } from 'lucide-react'
 
 export function Topbar() {
   const [mounted, setMounted] = useState(false)
@@ -14,10 +17,26 @@ export function Topbar() {
   const [loading, setLoading] = useState(true)
   const [activePreview, setActivePreview] = useState<any | null>(null)
   const [tick, setTick] = useState(0)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   
   const supabase = createClient()
 
   useEffect(() => { setMounted(true) }, [])
+
+  // Load profile avatar
+  useEffect(() => {
+    const loadAvatar = async () => {
+      const { data: auth } = await supabase.auth.getUser()
+      if (!auth.user) return
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', auth.user.id)
+        .single()
+      setAvatarUrl(data?.avatar_url ?? null)
+    }
+    loadAvatar()
+  }, [supabase])
 
   // Heartbeat to refresh time labels
   useEffect(() => {
@@ -78,7 +97,24 @@ export function Topbar() {
       <NotificationToast notification={activePreview} onClose={() => setActivePreview(null)} />
       
       <header className="sticky top-0 z-50 w-full px-4 py-3 flex items-center justify-between shadow-lg" style={{ background: 'linear-gradient(90deg, #7c3aed 0%, #000 100%)' }}>
-        <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Espirito</h1>
+        <div className="flex items-center gap-3">
+          <Link href="/protected/profile" className="flex-shrink-0">
+            {avatarUrl ? (
+              <Image
+                src={avatarUrl}
+                alt="Profile"
+                width={32}
+                height={32}
+                className="rounded-full object-cover ring-2 ring-white/60 hover:ring-white transition-all"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 transition-colors flex items-center justify-center">
+                <User size={18} className="text-white" />
+              </div>
+            )}
+          </Link>
+          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Espirito</h1>
+        </div>
 
         <div className="flex items-center gap-1">
           <NotificationCenter 

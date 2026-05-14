@@ -36,6 +36,7 @@ export const translations = {
       posts: 'Posts',
       readApp: 'ReadApp',
       profile: 'Profile',
+      note: 'Notes',
       appTitle: 'Espirito',
     },
     
@@ -217,6 +218,7 @@ export const translations = {
       posts: 'Publications',
       readApp: 'Lecture',
       profile: 'Profil',
+      note: 'Notes',
       appTitle: 'Espirito',
     },
     
