@@ -2,54 +2,99 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft } from 'lucide-react'
-import Link from 'next/link'
-import VisionProgressDashboard from '@/components/planner/VisionTimeUsageDashboard'
+import { Goal } from '@/lib/types'
+import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
 import { PlannerTask } from '@/components/planner/DailyPlanner'
+import VisionProgressDashboard from '@/components/planner/VisionTimeUsageDashboard'
+import AnalyticsHero from '@/components/analytics/AnalyticsHero'
+import AnalyticsStatCards from '@/components/analytics/AnalyticsStatCards'
+import AnalyticsMeditationGrid from '@/components/analytics/AnalyticsMeditationGrid'
+import AnalyticsGoalSection from '@/components/analytics/AnalyticsGoalSection'
 
 export default function AnalyticsPage() {
   const supabase = createClient()
-  const [allTasks, setAllTasks] = useState<PlannerTask[]>([])
+  const [userId, setUserId]         = useState<string | null>(null)
+  const [goals, setGoals]           = useState<Goal[]>([])
+  const [meditations, setMeditations] = useState<{ created_at: string; period?: string; author_id: string }[]>([])
+  const [booksRead, setBooksRead]   = useState(0)
+  const [allTasks, setAllTasks]     = useState<PlannerTask[]>([])
   const [visionsMap, setVisionsMap] = useState<Record<string, any>>({})
 
-  useEffect(() => {
-    async function loadData() {
-      const { data: auth } = await supabase.auth.getUser()
-      if (!auth?.user) return
+  useEffect(() => { loadData() }, [])
 
-      // Load Visions
-      const { data: visions } = await supabase.from('visions').select('id, title, emoji').eq('owner_id', auth.user.id)
-      const vMap: Record<string, any> = {}
-      visions?.forEach(v => vMap[v.id] = v)
-      setVisionsMap(vMap)
+  async function loadData() {
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user) return
+    const uid = auth.user.id
+    setUserId(uid)
 
-      // Load All Historical Tasks
-      const { data: history } = await supabase
-        .from('planner_days')
-        .select('tasks')
-        .eq('user_id', auth.user.id)
-      
-      const flattened = history?.flatMap(d => Array.isArray(d.tasks) ? d.tasks : []) || []
-      setAllTasks(flattened)
-    }
-    loadData()
-  }, [])
+    const [goalsRes, meditationsRes, booksRes, historyRes, visionsRes] = await Promise.all([
+      supabase.from('goals').select('*').or(`owner_id.eq.${uid},partner_id.eq.${uid}`),
+      supabase.from('meditations').select('created_at, period, author_id').eq('author_id', uid).order('created_at', { ascending: false }),
+      supabase.from('readings').select('id').eq('user_id', uid).eq('status', 'done'),
+      supabase.from('planner_days').select('tasks').eq('user_id', uid),
+      supabase.from('visions').select('id, title, emoji').eq('owner_id', uid),
+    ])
+
+    setGoals(goalsRes.data ?? [])
+    setMeditations(meditationsRes.data ?? [])
+    setBooksRead(booksRes.data?.length ?? 0)
+
+    const flat = historyRes.data?.flatMap(d => Array.isArray(d.tasks) ? d.tasks : []) ?? []
+    setAllTasks(flat)
+
+    const vMap: Record<string, any> = {}
+    visionsRes.data?.forEach(v => { vMap[v.id] = v })
+    setVisionsMap(vMap)
+  }
+
+  const meditationStreak = (() => {
+    if (!meditations.length || !userId) return 0
+    const byUser = reduceMeditations(meditations)
+    return calculateStreak(byUser[userId] ?? {})
+  })()
+
+  const activeGoals        = goals.filter(g => g.status !== 'done')
+  const completedGoals     = goals.filter(g => g.status === 'done')
+  const goalCompletionRate = goals.length > 0
+    ? Math.round((completedGoals.length / goals.length) * 100)
+    : 0
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-black p-6 pb-20">
-      <header className="max-w-4xl mx-auto flex items-center gap-4 mb-8">
-        <Link href="/" className="p-3 bg-white dark:bg-slate-900 rounded-full shadow-sm">
-          <ArrowLeft size={20} className="text-slate-600 dark:text-slate-300" />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Analytics</h1>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Espirito Performance Lab</p>
-        </div>
-      </header>
+    <div className="pb-24 min-h-screen bg-background text-foreground">
 
-      <main className="max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="px-4 pt-5 pb-1">
+        <p className="text-sm text-muted-foreground font-medium">Your growth</p>
+        <h1 className="text-3xl font-black tracking-tight leading-none">
+          Analytics <span className="text-violet-500">Lab</span>
+        </h1>
+        <p className="text-xs text-muted-foreground mt-1">Track what matters. Improve what counts.</p>
+      </div>
+
+      <AnalyticsHero
+        meditationStreak={meditationStreak}
+        goalCompletionRate={goalCompletionRate}
+        totalGoals={goals.length}
+        completedGoals={completedGoals.length}
+      />
+
+      <AnalyticsStatCards
+        meditationStreak={meditationStreak}
+        totalSessions={meditations.length}
+        activeGoalsCount={activeGoals.length}
+        completedGoalsCount={completedGoals.length}
+        booksRead={booksRead}
+      />
+
+      <AnalyticsMeditationGrid meditations={meditations} />
+
+      <AnalyticsGoalSection goals={goals} />
+
+      <div className="px-4 mt-6">
         <VisionProgressDashboard allTasks={allTasks} visionsMap={visionsMap} />
-      </main>
+      </div>
+
     </div>
   )
 }

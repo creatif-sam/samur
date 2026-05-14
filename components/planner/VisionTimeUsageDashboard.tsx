@@ -56,29 +56,29 @@ export default function VisionProgressDashboard({ allTasks, visionsMap }: Dashbo
   }, [allTasks, period, visionsMap])
 
   return (
-    <div className="w-full bg-white dark:bg-slate-900 rounded-[32px] p-4 md:p-8 shadow-sm border border-slate-100 dark:border-slate-800 space-y-8">
+    <div className="w-full bg-muted/30 rounded-3xl p-4 space-y-6">
       
-      {/* Header & Period Switcher */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* Period Switcher */}
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg shadow-blue-200">
-            <TrendingUp size={24} />
+          <div className="p-2.5 bg-violet-600 rounded-2xl text-white shadow-lg shadow-violet-900/30">
+            <TrendingUp size={20} />
           </div>
           <div>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Progress Lab</h3>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Vision Growth Analysis</p>
+            <h3 className="text-base font-black text-foreground tracking-tight">Vision Time</h3>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Time spent per vision</p>
           </div>
         </div>
 
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl w-fit">
+        <div className="flex bg-muted/60 p-1 rounded-2xl w-fit">
           {(['week', 'month', 'year'] as Period[]).map((p) => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-6 py-2 rounded-xl text-xs font-bold capitalize transition-all ${
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
                 period === p 
-                ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600'
+                ? 'bg-violet-600 text-white shadow-sm' 
+                : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {p}
@@ -88,47 +88,51 @@ export default function VisionProgressDashboard({ allTasks, visionsMap }: Dashbo
       </div>
 
       {/* Main Chart Area */}
-      <div className="h-[300px] w-full">
+      <div className="h-[240px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           {period === 'week' ? (
             <BarChart data={stats}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-              <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)'}} />
-              <Bar dataKey="hours" fill="#2563eb" radius={[8, 8, 0, 0]} barSize={40} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.06)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
+              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fill: '#94a3b8'}} />
+              <Tooltip
+                cursor={{fill: 'rgba(124,58,237,0.08)'}}
+                contentStyle={{borderRadius: '16px', border: 'none', background: '#1e1b4b', color: '#fff', fontSize: 12}}
+              />
+              <Bar dataKey="hours" fill="#7c3aed" radius={[8, 8, 0, 0]} barSize={32} />
             </BarChart>
           ) : (
             <LineChart data={stats}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 700}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-              <Tooltip contentStyle={{borderRadius: '20px', border: 'none'}} />
-              <Line type="monotone" dataKey="hours" stroke="#2563eb" strokeWidth={4} dot={{ r: 6, fill: '#2563eb' }} activeDot={{ r: 8 }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.06)" />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
+              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fill: '#94a3b8'}} />
+              <Tooltip contentStyle={{borderRadius: '16px', border: 'none', background: '#1e1b4b', color: '#fff', fontSize: 12}} />
+              <Line type="monotone" dataKey="hours" stroke="#7c3aed" strokeWidth={3} dot={{ r: 5, fill: '#7c3aed' }} activeDot={{ r: 7 }} />
             </LineChart>
           )}
         </ResponsiveContainer>
       </div>
 
       {/* Detail Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {stats.map((item) => (
-          <div key={item.name} className="p-5 border border-slate-50 dark:border-slate-800 rounded-[24px] bg-slate-50/30 dark:bg-slate-800/20">
-            <div className="flex justify-between items-start mb-4">
-              <span className="text-2xl">{Object.values(visionsMap).find(v => v.title === item.name)?.emoji}</span>
-              <div className="text-right">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Time</p>
-                <p className="text-lg font-black text-blue-600">{item.hours}h</p>
+      {stats.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">No vision time logged yet.</p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {stats.map((item) => (
+            <div key={item.name} className="p-4 rounded-2xl bg-muted/40">
+              <div className="flex justify-between items-start mb-2">
+                <span className="text-xl">{Object.values(visionsMap).find(v => v.title === item.name)?.emoji}</span>
+                <p className="text-base font-black text-violet-500">{item.hours}h</p>
               </div>
+              <h4 className="text-xs font-bold text-foreground truncate mb-2">{item.name}</h4>
+              <div className="w-full bg-muted h-1 rounded-full overflow-hidden">
+                <div className="bg-violet-500 h-full" style={{ width: `${Math.min((item.hours / 20) * 100, 100)}%` }} />
+              </div>
+              <p className="text-[10px] font-bold text-muted-foreground mt-1.5">{item.sessions} sessions</p>
             </div>
-            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1 truncate">{item.name}</h4>
-            <div className="w-full bg-slate-200 dark:bg-slate-700 h-1 rounded-full overflow-hidden">
-                <div className="bg-blue-600 h-full" style={{ width: `${Math.min((item.hours / 20) * 100, 100)}%` }} />
-            </div>
-            <p className="text-[10px] font-bold text-slate-400 mt-2 uppercase">{item.sessions} sessions this {period}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
