@@ -68,36 +68,38 @@ export default function HomePage() {
 
   return (
     <div className="pb-24 min-h-screen bg-background text-foreground">
+      <div className="max-w-md mx-auto">
 
-      {/* Greeting */}
-      <div className="px-4 pt-5 pb-1">
-        <p className="text-sm text-muted-foreground font-medium">{greeting()}</p>
-        <h1 className="text-3xl font-black tracking-tight leading-none">
-          Hello, <span className="text-violet-500">{firstName}</span> 🕊️
-        </h1>
-        <p className="text-xs text-muted-foreground mt-1">Stay intentional. Stay consistent.</p>
+        {/* Greeting */}
+        <div className="px-4 pt-5 pb-1">
+          <p className="text-sm text-muted-foreground font-medium">{greeting()}</p>
+          <h1 className="text-3xl font-black tracking-tight leading-none">
+            Hello, <span className="text-violet-500">{firstName}</span> 🕊️
+          </h1>
+          <p className="text-xs text-muted-foreground mt-1">Stay intentional. Stay consistent.</p>
+        </div>
+
+        <HomeStreakHero streak={meditationStreak} />
+        <HomeWeekCalendar />
+        <HomeQuickNav />
+        <HomeHighlightCards
+          todayPlanner={todayPlanner}
+          topGoal={topGoal}
+          currentBook={currentBook}
+        />
+        <HomeActivityFeed
+          meditationStreak={meditationStreak}
+          activeGoalsCount={activeGoals.length}
+          completedGoalsCount={completedGoals}
+          dueTodayCount={stats.todayDue}
+        />
+
+        {/* Daily Verse */}
+        <div className="px-4 mt-5">
+          <DailyVerseCard />
+        </div>
+
       </div>
-
-      <HomeStreakHero streak={meditationStreak} />
-      <HomeWeekCalendar />
-      <HomeQuickNav />
-      <HomeHighlightCards
-        todayPlanner={todayPlanner}
-        topGoal={topGoal}
-        currentBook={currentBook}
-      />
-      <HomeActivityFeed
-        meditationStreak={meditationStreak}
-        activeGoalsCount={activeGoals.length}
-        completedGoalsCount={completedGoals}
-        dueTodayCount={stats.todayDue}
-      />
-
-      {/* Daily Verse */}
-      <div className="px-4 mt-5">
-        <DailyVerseCard />
-      </div>
-
     </div>
   )
 }
