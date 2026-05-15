@@ -68,7 +68,7 @@ export default function HomePage() {
 
   return (
     <div className="pb-24 min-h-screen bg-background text-foreground">
-      <div className="max-w-md mx-auto">
+      <div className="max-w-2xl mx-auto">
 
         {/* Greeting */}
         <div className="px-4 pt-5 pb-1">
