@@ -36,6 +36,12 @@ interface DiaryPage {
   title: string
   content: string | null
   created_at: string
+  section_id: string
+}
+
+interface DiarySection {
+  id: string
+  title: string
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -271,14 +277,36 @@ function RequestCard({ req, onMarkAnswered, onDelete }: {
 
 // ─── Diary Modal ──────────────────────────────────────────────────────────────
 
-function DiaryModal({ onClose, onSave, saving }: { onClose: () => void; onSave: (title: string, content: string) => Promise<void>; saving: boolean }) {
+function DiaryModal({ onClose, onSave, saving, sections, onCreateSection }: {
+  onClose: () => void
+  onSave: (title: string, content: string, sectionId: string) => Promise<void>
+  saving: boolean
+  sections: DiarySection[]
+  onCreateSection: (title: string) => Promise<DiarySection | null>
+}) {
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const [title, setTitle] = useState(today)
   const [content, setContent] = useState('')
+  const [selectedSectionId, setSelectedSectionId] = useState<string>(sections[0]?.id ?? '')
+  const [showNewCategory, setShowNewCategory] = useState(sections.length === 0)
+  const [newCategoryTitle, setNewCategoryTitle] = useState('')
+  const [creatingCategory, setCreatingCategory] = useState(false)
+
+  async function handleCreateCategory() {
+    if (!newCategoryTitle.trim()) return
+    setCreatingCategory(true)
+    const section = await onCreateSection(newCategoryTitle.trim())
+    if (section) {
+      setSelectedSectionId(section.id)
+      setShowNewCategory(false)
+      setNewCategoryTitle('')
+    }
+    setCreatingCategory(false)
+  }
 
   async function submit() {
-    if (!title.trim()) return
-    await onSave(title.trim(), content.trim())
+    if (!title.trim() || !selectedSectionId) return
+    await onSave(title.trim(), content.trim(), selectedSectionId)
     onClose()
   }
 
@@ -294,6 +322,57 @@ function DiaryModal({ onClose, onSave, saving }: { onClose: () => void; onSave: 
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Category picker */}
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Category</p>
+          {sections.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-2">
+              {sections.map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => { setSelectedSectionId(s.id); setShowNewCategory(false) }}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
+                    selectedSectionId === s.id
+                      ? 'bg-violet-600 text-white'
+                      : 'bg-muted text-muted-foreground hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-950/40'
+                  }`}
+                >
+                  {s.title}
+                </button>
+              ))}
+              <button
+                onClick={() => setShowNewCategory(v => !v)}
+                className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center gap-1"
+              >
+                <Plus className="w-3 h-3" /> New
+              </button>
+            </div>
+          )}
+          {showNewCategory && (
+            <div className="flex gap-2">
+              <input
+                autoFocus={sections.length === 0}
+                value={newCategoryTitle}
+                onChange={e => setNewCategoryTitle(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleCreateCategory()}
+                placeholder="Category name..."
+                className="flex-1 rounded-xl border bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+              <button
+                onClick={handleCreateCategory}
+                disabled={creatingCategory || !newCategoryTitle.trim()}
+                className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition disabled:opacity-50"
+              >
+                {creatingCategory ? '...' : 'Create'}
+              </button>
+            </div>
+          )}
+          {sections.length === 0 && !showNewCategory && (
+            <p className="text-xs text-muted-foreground">Create a category above to organise your entries.</p>
+          )}
+        </div>
+
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
@@ -301,11 +380,10 @@ function DiaryModal({ onClose, onSave, saving }: { onClose: () => void; onSave: 
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         <textarea
-          autoFocus
           placeholder="What's on your heart today?"
           value={content}
           onChange={e => setContent(e.target.value)}
-          rows={5}
+          rows={4}
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         <p className="text-[10px] text-muted-foreground">Saved to your Prayer Diary notebook in Notes.</p>
@@ -313,7 +391,7 @@ function DiaryModal({ onClose, onSave, saving }: { onClose: () => void; onSave: 
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">Cancel</button>
           <button
             onClick={submit}
-            disabled={saving || !title.trim()}
+            disabled={saving || !title.trim() || !selectedSectionId}
             className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save Entry'}
@@ -341,8 +419,8 @@ export default function PrayerTab() {
   const [savingEntry, setSavingEntry] = useState(false)
   const [loading, setLoading] = useState(true)
   const [diaryPages, setDiaryPages] = useState<DiaryPage[]>([])
+  const [diarySections, setDiarySections] = useState<DiarySection[]>([])
   const [diaryNotebookId, setDiaryNotebookId] = useState<string | null>(null)
-  const [diarySectionId, setDiarySectionId] = useState<string | null>(null)
   const [showDiaryModal, setShowDiaryModal] = useState(false)
   const [savingDiary, setSavingDiary] = useState(false)
   const [selectedDiaryPage, setSelectedDiaryPage] = useState<DiaryPage | null>(null)
@@ -435,61 +513,49 @@ export default function PrayerTab() {
     const supabase = createClient()
     const { data: nb } = await supabase
       .from('notebooks')
-      .select('id, sections(id, pages(id, title, content, created_at))')
+      .select('id, sections(id, title, pages(id, title, content, created_at))')
       .eq('user_id', uid)
       .eq('title', 'Prayer Diary')
       .maybeSingle()
     if (!nb) return
     setDiaryNotebookId(nb.id)
-    const sections = (nb as any).sections ?? []
-    if (sections.length > 0) {
-      const sect = sections[0]
-      setDiarySectionId(sect.id)
-      const pages: DiaryPage[] = (sect.pages ?? [])
-        .sort((a: DiaryPage, b: DiaryPage) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 6)
-      setDiaryPages(pages)
-    }
+    const rawSections = (nb as any).sections ?? []
+    setDiarySections(rawSections.map((s: any) => ({ id: s.id, title: s.title })))
+    const allPages: DiaryPage[] = rawSections
+      .flatMap((s: any) => (s.pages ?? []).map((p: any) => ({ ...p, section_id: s.id })))
+      .sort((a: DiaryPage, b: DiaryPage) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 6)
+    setDiaryPages(allPages)
   }
 
-  async function ensureDiarySection(): Promise<string | null> {
-    const supabase = createClient()
+  async function ensureDiaryNotebook(): Promise<string | null> {
+    if (diaryNotebookId) return diaryNotebookId
     if (!userId) return null
-    if (diarySectionId) return diarySectionId
-
-    let nbId = diaryNotebookId
-    if (!nbId) {
-      const { data: existing } = await supabase.from('notebooks').select('id').eq('user_id', userId).eq('title', 'Prayer Diary').maybeSingle()
-      if (existing) {
-        nbId = existing.id
-      } else {
-        const { data: created } = await supabase.from('notebooks').insert({ user_id: userId, title: 'Prayer Diary' }).select('id').single()
-        if (!created) return null
-        nbId = created.id
-      }
-      setDiaryNotebookId(nbId)
-    }
-
-    const { data: existingSection } = await supabase.from('sections').select('id').eq('notebook_id', nbId).order('created_at', { ascending: true }).limit(1).maybeSingle()
-    let sectId: string
-    if (existingSection) {
-      sectId = existingSection.id
-    } else {
-      const { data: newSection } = await supabase.from('sections').insert({ notebook_id: nbId, title: 'Daily Prayers' }).select('id').single()
-      if (!newSection) return null
-      sectId = newSection.id
-    }
-    setDiarySectionId(sectId)
-    return sectId
+    const supabase = createClient()
+    const { data: existing } = await supabase.from('notebooks').select('id').eq('user_id', userId).eq('title', 'Prayer Diary').maybeSingle()
+    if (existing) { setDiaryNotebookId(existing.id); return existing.id }
+    const { data: created } = await supabase.from('notebooks').insert({ user_id: userId, title: 'Prayer Diary' }).select('id').single()
+    if (!created) return null
+    setDiaryNotebookId(created.id)
+    return created.id
   }
 
-  async function saveDiaryEntry(title: string, content: string) {
+  async function createDiarySection(sectionTitle: string): Promise<DiarySection | null> {
+    const nbId = await ensureDiaryNotebook()
+    if (!nbId) return null
+    const supabase = createClient()
+    const { data } = await supabase.from('sections').insert({ notebook_id: nbId, title: sectionTitle }).select('id, title').single()
+    if (!data) return null
+    const newSection: DiarySection = { id: data.id, title: data.title }
+    setDiarySections(prev => [...prev, newSection])
+    return newSection
+  }
+
+  async function saveDiaryEntry(title: string, content: string, sectionId: string) {
     setSavingDiary(true)
     const supabase = createClient()
-    const sectId = await ensureDiarySection()
-    if (!sectId) { setSavingDiary(false); return }
     const htmlContent = content ? `<p>${content.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br/>')}</p>` : ''
-    const { data } = await supabase.from('pages').insert({ section_id: sectId, title, content: htmlContent }).select('id, title, content, created_at').single()
+    const { data } = await supabase.from('pages').insert({ section_id: sectionId, title, content: htmlContent }).select('id, title, content, created_at, section_id').single()
     if (data) setDiaryPages(prev => [data, ...prev].slice(0, 6))
     setSavingDiary(false)
   }
@@ -693,6 +759,7 @@ export default function PrayerTab() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold truncate">{page.title}</p>
+                    {(() => { const s = diarySections.find(sec => sec.id === page.section_id); return s ? <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 mt-0.5">{s.title}</span> : null })()}
                     {page.content && (
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                         {page.content.replace(/<[^>]+>/g, ' ').trim()}
@@ -723,6 +790,8 @@ export default function PrayerTab() {
           onClose={() => setShowDiaryModal(false)}
           onSave={saveDiaryEntry}
           saving={savingDiary}
+          sections={diarySections}
+          onCreateSection={createDiarySection}
         />
       )}
       {selectedDiaryPage && (
