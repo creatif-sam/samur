@@ -239,6 +239,8 @@ export default function MoneyLog({
 
     return Object.values(map)
   }, [entries, searchQuery])
+
+  const summary = useMemo(() => {
     const income = entries
       .filter(e => e.type === 'income')
       .reduce((sum, e) => sum + e.amount, 0)
