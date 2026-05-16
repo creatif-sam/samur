@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Loader2, BookPlus } from 'lucide-react'
+import { ensureReadingLogsNotebook, ensureBookSection } from '@/lib/readapp/journalSync'
 
 type ReadingCategory =
   | 'faith'
@@ -75,6 +76,14 @@ export default function AddReading({ onCreated }: Props): JSX.Element {
       toast.error('Failed to add book')
       setLoading(false)
       return
+    }
+
+    // Create a section in the Reading Logs journal for this book
+    try {
+      const notebookId = await ensureReadingLogsNotebook(supabase, user.id)
+      await ensureBookSection(supabase, notebookId, title.trim())
+    } catch {
+      // Non-blocking — journal sync failure shouldn't stop the flow
     }
 
     toast.success('Book added to shelf! 📚')

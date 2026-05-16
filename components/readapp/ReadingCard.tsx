@@ -43,6 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { ensureReadingLogsNotebook, ensureBookSection, createReadingLogPage } from '@/lib/readapp/journalSync'
 
 type ReadingStatus =
   | 'to_read'
@@ -202,6 +203,18 @@ export default function ReadingCard({
     toast.error('Failed to log reading')
     setLoading(false)
     return
+  }
+
+  // Save log as a page in the Reading Logs journal
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const notebookId = await ensureReadingLogsNotebook(supabase, user.id)
+      const sectionId = await ensureBookSection(supabase, notebookId, reading.title)
+      await createReadingLogPage(supabase, sectionId, value, note.trim() || null)
+    }
+  } catch {
+    // Non-blocking — journal sync failure shouldn't stop the flow
   }
 
   toast.success(`Logged ${value} pages! 📚`)

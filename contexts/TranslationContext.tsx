@@ -250,7 +250,7 @@ export const translations = {
     nav: {
       home: 'Accueil',
       goals: 'Objectifs',
-      planner: 'Planificateur',
+      planner: 'Planify',
       posts: 'Esprit',
       readApp: 'Lecture',
       profile: 'Profil',

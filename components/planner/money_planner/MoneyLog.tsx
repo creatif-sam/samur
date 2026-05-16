@@ -7,7 +7,8 @@ import MoneyAddModal from './MoneyAddModal'
 import MoneyEditModal from './MoneyEditModal'
 import { MoneyEntry } from '@/lib/types'
 import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
-import { Pencil, Trash2, Download } from 'lucide-react'
+import { Pencil, Trash2, Download, Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { useTranslation } from '@/contexts/TranslationContext'
@@ -46,6 +47,7 @@ export default function MoneyLog({
   
   const [entries, setEntries] = useState<MoneyEntry[]>([])
   const [symbol, setSymbol] = useState('₵')
+  const [searchQuery, setSearchQuery] = useState('')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
   const [scope, setScope] = useState<Scope>('month')
   const [month, setMonth] = useState(initialDate.getMonth())
@@ -205,9 +207,18 @@ export default function MoneyLog({
   }
 
   const grouped = useMemo<Grouped[]>(() => {
+    const q = searchQuery.trim().toLowerCase()
+    const source = q
+      ? entries.filter(
+          e =>
+            e.title.toLowerCase().includes(q) ||
+            (e.money_categories?.name ?? '').toLowerCase().includes(q)
+        )
+      : entries
+
     const map: Record<string, Grouped> = {}
 
-    entries.forEach(e => {
+    source.forEach(e => {
       const d = new Date(e.entry_date)
       const label = d.toLocaleDateString(undefined, {
         month: 'short',
@@ -227,9 +238,7 @@ export default function MoneyLog({
     })
 
     return Object.values(map)
-  }, [entries])
-
-  const totals = useMemo(() => {
+  }, [entries, searchQuery])
     const income = entries
       .filter(e => e.type === 'income')
       .reduce((sum, e) => sum + e.amount, 0)
@@ -260,6 +269,25 @@ export default function MoneyLog({
           <Download size={16} />
           <span className="hidden sm:inline">{t.money.export}</span>
         </Button>
+      </div>
+
+      {/* SEARCH */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search entries..."
+          className="pl-9 pr-9 rounded-xl"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* SCOPE TOGGLE */}
