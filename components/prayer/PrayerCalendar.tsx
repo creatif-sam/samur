@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 interface SessionDay {
   date: Date
   count: number
+  totalMinutes: number
   state: 'before' | 'prayed' | 'missed' | 'future'
 }
 
@@ -54,16 +55,18 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
     // Sessions for current month
     const { data: sessions } = await supabase
       .from('prayer_sessions')
-      .select('date')
+      .select('date, duration_seconds')
       .eq('user_id', userId)
       .eq('completed', true)
       .gte('date', toISO(firstDay))
       .lte('date', toISO(lastDay))
 
-    // Group by date — count per day
+    // Group by date — count and total minutes per day
     const countMap = new Map<string, number>()
+    const minutesMap = new Map<string, number>()
     sessions?.forEach(s => {
       countMap.set(s.date, (countMap.get(s.date) ?? 0) + 1)
+      minutesMap.set(s.date, (minutesMap.get(s.date) ?? 0) + Math.round((s.duration_seconds ?? 0) / 60))
     })
 
     // Streak: fetch last 60 days and compute in JS
@@ -96,6 +99,7 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
       grid.push({
         date: new Date(year, month - 1, prevMonthLastDay - i + 1),
         count: 0,
+        totalMinutes: 0,
         state: 'before',
       })
     }
@@ -113,7 +117,7 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
       else if (count > 0) state = 'prayed'
       else state = 'missed'
 
-      grid.push({ date, count, state })
+      grid.push({ date, count, totalMinutes: minutesMap.get(iso) ?? 0, state })
     }
 
     setDays(grid)
@@ -245,8 +249,10 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
               <div>
                 <p className="text-2xl font-black text-foreground leading-none">{selectedDay.count}</p>
                 <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                  prayer session{selectedDay.count !== 1 ? 's' : ''} this day
+                  session{selectedDay.count !== 1 ? 's' : ''}
                 </p>
+                <p className="text-2xl font-black text-amber-500 leading-none mt-2">{selectedDay.totalMinutes}</p>
+                <p className="text-xs text-muted-foreground font-medium">min prayed</p>
               </div>
             </div>
           </div>

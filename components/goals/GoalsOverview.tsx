@@ -3,7 +3,7 @@
 import { Goal } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Target, CheckCircle2, TrendingUp, AlertTriangle, CalendarDays } from 'lucide-react'
 import { GoalsDonutChart } from '@/components/goals/charts/GoalsDonutChart'
 import { GoalsYearlyLineChart } from '@/components/goals/charts/GoalsYearlyLineChart'
 
@@ -61,9 +61,36 @@ export function GoalsOverview({
     )
   })()
 
+  const total = goals.length
+  const done = goals.filter(g => g.status === 'done').length
+  const inProgress = goals.filter(g => g.status === 'doing').length
+  const blocked = goals.filter(g => g.status === 'blocked').length
+
+  const statCards = [
+    { label: 'Total Goals', value: total, unit: 'goals', icon: Target, gradient: 'from-violet-600 to-purple-700', shadow: 'shadow-violet-500/30' },
+    { label: 'Completed', value: done, unit: 'done', icon: CheckCircle2, gradient: 'from-emerald-600 to-teal-700', shadow: 'shadow-emerald-500/30' },
+    { label: 'In Progress', value: inProgress, unit: 'running', icon: TrendingUp, gradient: 'from-blue-600 to-cyan-700', shadow: 'shadow-blue-500/30' },
+    { label: 'Blocked', value: blocked, unit: 'paused', icon: AlertTriangle, gradient: 'from-red-500 to-rose-600', shadow: 'shadow-red-500/30' },
+    { label: 'Due Today', value: todayGoals.length, unit: 'due today', icon: CalendarDays, gradient: 'from-amber-500 to-orange-600', shadow: 'shadow-amber-500/30' },
+  ]
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-start gap-4">
+      {/* ── Stat Cards ─── */}
+      <div className="flex gap-3 px-0 overflow-x-auto pb-2 no-scrollbar">
+        {statCards.map(({ label, value, unit, icon: Icon, gradient, shadow }) => (
+          <div key={label} className={`flex-shrink-0 w-32 rounded-3xl bg-gradient-to-br p-4 shadow-lg ${gradient} ${shadow}`}>
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+              <Icon className="w-4 h-4 text-white" />
+            </div>
+            <p className="text-3xl font-black text-white leading-none">{value}</p>
+            <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">{unit}</p>
+            <p className="text-xs font-semibold text-white/80 mt-2 leading-tight">{label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div>
         <div>
           <h2 className="text-lg font-semibold">
             Overview

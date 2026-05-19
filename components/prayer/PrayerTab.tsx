@@ -1,9 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { JSX, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Check, ChevronDown, ChevronUp, Flame, X, Sparkles, Ear, BookOpen } from 'lucide-react'
-import { ThoughtEditor } from '@/components/note/ThoughtEditor'
 import PrayerTimer from './PrayerTimer'
 import PrayerCalendar from './PrayerCalendar'
 
@@ -406,424 +404,41 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection }: {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function PrayerTab() {
+export default function PrayerTab(): JSX.Element {
   const [userId, setUserId] = useState<string | null>(null)
-  const [todayEntry, setTodayEntry] = useState<PrayerEntry | null>(null)
-  const [entries, setEntries] = useState<PrayerEntry[]>([])
-  const [firstPrayedDate, setFirstPrayedDate] = useState<string | null>(null)
-  const [requests, setRequests] = useState<PrayerRequest[]>([])
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [markAnsweringReq, setMarkAnsweringReq] = useState<PrayerRequest | null>(null)
-  const [showAnswered, setShowAnswered] = useState(false)
-  const [prayingDuration, setPrayingDuration] = useState<number | null>(null)
-  const [noteDraft, setNoteDraft] = useState('')
-  const [listenedToGod, setListenedToGod] = useState(false)
-  const [savingEntry, setSavingEntry] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [diaryPages, setDiaryPages] = useState<DiaryPage[]>([])
-  const [diarySections, setDiarySections] = useState<DiarySection[]>([])
-  const [diaryNotebookId, setDiaryNotebookId] = useState<string | null>(null)
-  const [showDiaryModal, setShowDiaryModal] = useState(false)
-  const [savingDiary, setSavingDiary] = useState(false)
-  const [selectedDiaryPage, setSelectedDiaryPage] = useState<DiaryPage | null>(null)
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0)
 
-  useEffect(() => { loadAll() }, [])
-
-  async function loadAll() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setLoading(false); return }
-    setUserId(user.id)
-
-    const today = todayISO()
-
-    const [{ data: entriesData }, { data: requestsData }, { data: firstData }] = await Promise.all([
-      supabase.from('prayer_entries').select('*').eq('user_id', user.id).order('date', { ascending: false }).limit(60),
-      supabase.from('prayer_requests').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
-      supabase.from('prayer_entries').select('date').eq('user_id', user.id).eq('completed', true).order('date', { ascending: true }).limit(1).maybeSingle(),
-    ])
-
-    const allEntries: PrayerEntry[] = entriesData ?? []
-    setEntries(allEntries)
-    const todayEnt = allEntries.find(e => e.date === today) ?? null
-    setTodayEntry(todayEnt)
-    if (todayEnt) setListenedToGod(todayEnt.listened_to_god ?? false)
-    setFirstPrayedDate((firstData as { date: string } | null)?.date ?? null)
-    setRequests(requestsData ?? [])
-    setLoading(false)
-    void loadDiary(user.id)
-  }
-
-  async function markPrayedToday() {
-    if (!userId || savingEntry) return
-    setSavingEntry(true)
-    const supabase = createClient()
-    const today = todayISO()
-
-    if (todayEntry?.completed) {
-      // toggle off — already prayed, undo it
-      await supabase.from('prayer_entries').update({ completed: false, duration_minutes: null, notes: null, listened_to_god: false }).eq('id', todayEntry.id)
-      setTodayEntry({ ...todayEntry, completed: false, duration_minutes: null, notes: null, listened_to_god: false })
-      setListenedToGod(false)
-      setEntries(prev => prev.map(e => e.date === today ? { ...e, completed: false } : e))
-    } else {
-      // mark as prayed — upsert handles both new row and existing incomplete row
-      const { data } = await supabase.from('prayer_entries')
-        .upsert({ user_id: userId, date: today, completed: true, duration_minutes: prayingDuration, notes: noteDraft.trim() || null, listened_to_god: listenedToGod }, { onConflict: 'user_id,date' })
-        .select().single()
-      if (data) {
-        setTodayEntry(data)
-        setEntries(prev => [data, ...prev.filter(e => e.date !== today)])
-        if (!firstPrayedDate) setFirstPrayedDate(today)
-      }
-    }
-    setSavingEntry(false)
-  }
-
-  async function saveDurationAndNote() {
-    if (!userId || !todayEntry?.completed) return
-    setSavingEntry(true)
-    const supabase = createClient()
-    await supabase.from('prayer_entries').update({ duration_minutes: prayingDuration, notes: noteDraft.trim() || null, listened_to_god: listenedToGod }).eq('id', todayEntry.id)
-    setTodayEntry(prev => prev ? { ...prev, duration_minutes: prayingDuration, notes: noteDraft.trim() || null, listened_to_god: listenedToGod } : prev)
-    setSavingEntry(false)
-  }
-
-  async function addRequest(req: Omit<PrayerRequest, 'id' | 'created_at' | 'answered_at' | 'answer_note'>) {
-    if (!userId) return
-    const supabase = createClient()
-    const { data } = await supabase.from('prayer_requests')
-      .insert({ ...req, user_id: userId })
-      .select().single()
-    if (data) setRequests(prev => [data, ...prev])
-  }
-
-  async function markAnswered(id: string, note: string) {
-    const supabase = createClient()
-    const now = new Date().toISOString()
-    await supabase.from('prayer_requests').update({ status: 'answered', answer_note: note || null, answered_at: now }).eq('id', id)
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'answered', answer_note: note || null, answered_at: now } : r))
-  }
-
-  async function deleteRequest(id: string) {
-    const supabase = createClient()
-    await supabase.from('prayer_requests').delete().eq('id', id)
-    setRequests(prev => prev.filter(r => r.id !== id))
-  }
-
-  async function loadDiary(uid: string) {
-    const supabase = createClient()
-    const { data: nb } = await supabase
-      .from('notebooks')
-      .select('id, sections(id, title, pages(id, title, content, created_at))')
-      .eq('user_id', uid)
-      .eq('title', 'Prayer Diary')
-      .maybeSingle()
-    if (!nb) return
-    setDiaryNotebookId(nb.id)
-    const rawSections = (nb as any).sections ?? []
-    setDiarySections(rawSections.map((s: any) => ({ id: s.id, title: s.title })))
-    const allPages: DiaryPage[] = rawSections
-      .flatMap((s: any) => (s.pages ?? []).map((p: any) => ({ ...p, section_id: s.id })))
-      .sort((a: DiaryPage, b: DiaryPage) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      .slice(0, 6)
-    setDiaryPages(allPages)
-  }
-
-  async function ensureDiaryNotebook(): Promise<string | null> {
-    if (diaryNotebookId) return diaryNotebookId
-    if (!userId) return null
-    const supabase = createClient()
-    const { data: existing } = await supabase.from('notebooks').select('id').eq('user_id', userId).eq('title', 'Prayer Diary').maybeSingle()
-    if (existing) { setDiaryNotebookId(existing.id); return existing.id }
-    const { data: created } = await supabase.from('notebooks').insert({ user_id: userId, title: 'Prayer Diary' }).select('id').single()
-    if (!created) return null
-    setDiaryNotebookId(created.id)
-    return created.id
-  }
-
-  async function createDiarySection(sectionTitle: string): Promise<DiarySection | null> {
-    const nbId = await ensureDiaryNotebook()
-    if (!nbId) return null
-    const supabase = createClient()
-    const { data } = await supabase.from('sections').insert({ notebook_id: nbId, title: sectionTitle }).select('id, title').single()
-    if (!data) return null
-    const newSection: DiarySection = { id: data.id, title: data.title }
-    setDiarySections(prev => [...prev, newSection])
-    return newSection
-  }
-
-  async function saveDiaryEntry(title: string, content: string, sectionId: string) {
-    setSavingDiary(true)
-    const supabase = createClient()
-    const htmlContent = content ? `<p>${content.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br/>')}</p>` : ''
-    const { data } = await supabase.from('pages').insert({ section_id: sectionId, title, content: htmlContent }).select('id, title, content, created_at, section_id').single()
-    if (data) setDiaryPages(prev => [data, ...prev].slice(0, 6))
-    setSavingDiary(false)
-  }
-
-  const streak = calcStreak(entries)
-  const active = requests.filter(r => r.status === 'active' || r.status === 'ongoing')
-  const answered = requests.filter(r => r.status === 'answered')
-  const prayedToday = todayEntry?.completed ?? false
+  useEffect(() => {
+    void (async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setUserId(user?.id ?? null)
+      setLoading(false)
+    })()
+  }, [])
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[300px]"><div className="w-6 h-6 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" /></div>
+    return (
+      <div className="flex items-center justify-center min-h-[300px]">
+        <div className="w-6 h-6 rounded-full border-2 border-violet-500 border-t-transparent animate-spin" />
+      </div>
+    )
   }
 
   return (
     <div className="space-y-5 pb-10">
-
-      {/* ── Prayer Timer ─────────────────────────────────────── */}
       {userId && (
         <PrayerTimer
           userId={userId}
           onSessionComplete={() => setCalendarRefreshKey(k => k + 1)}
         />
       )}
-
-      {/* ── Prayer Calendar ──────────────────────────────────── */}
       {userId && (
         <PrayerCalendar userId={userId} refreshKey={calendarRefreshKey} />
-      )}
-
-      {/* ── Today's Prayer Card ─────────────────────────────── */}
-      <div className={`rounded-3xl p-5 transition-colors ${prayedToday ? 'bg-violet-600 text-white' : 'bg-muted/40 border'}`}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className={`text-xs font-semibold uppercase tracking-widest ${prayedToday ? 'text-violet-200' : 'text-muted-foreground'}`}>Today</p>
-            <p className={`text-lg font-bold mt-0.5 ${prayedToday ? 'text-white' : 'text-foreground'}`}>
-              {prayedToday ? 'Prayer done' : 'Have you prayed today?'}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Flame className={`w-4 h-4 ${streak > 0 ? (prayedToday ? 'text-amber-300' : 'text-amber-500') : 'text-muted-foreground'}`} />
-            <span className={`text-sm font-bold ${prayedToday ? 'text-white' : 'text-foreground'}`}>{streak}d</span>
-          </div>
-        </div>
-
-        <button
-          onClick={markPrayedToday}
-          disabled={savingEntry}
-          className={`w-full py-3 rounded-2xl text-sm font-semibold transition flex items-center justify-center gap-2 ${
-            prayedToday
-              ? 'bg-white/20 hover:bg-white/30 text-white'
-              : 'bg-violet-600 hover:bg-violet-700 text-white shadow-md shadow-violet-500/30'
-          }`}
-        >
-          {prayedToday ? <><Check className="w-4 h-4" /> Prayed today</> : 'Mark as Prayed'}
-        </button>
-
-        {prayedToday && (
-          <div className="mt-4 space-y-3">
-            <div>
-              <p className="text-xs font-medium text-violet-200 mb-2">Duration</p>
-              <div className="flex gap-2 flex-wrap">
-                {QUICK_DURATIONS.map(d => (
-                  <button
-                    key={d}
-                    onClick={() => setPrayingDuration(prev => prev === d ? null : d)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
-                      prayingDuration === d ? 'bg-white text-violet-700' : 'bg-white/20 text-white hover:bg-white/30'
-                    }`}
-                  >
-                    {d} min
-                  </button>
-                ))}
-              </div>
-            </div>
-            <textarea
-              placeholder="What did you bring before God today? (optional)"
-              value={noteDraft}
-              onChange={e => setNoteDraft(e.target.value)}
-              rows={2}
-              className="w-full bg-white/20 placeholder:text-violet-200 text-white text-sm rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-white/50"
-            />
-            <label className="flex items-center gap-3 cursor-pointer select-none">
-              <div
-                onClick={() => setListenedToGod(v => !v)}
-                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition ${listenedToGod ? 'bg-white border-white' : 'border-white/50'}`}
-              >
-                {listenedToGod && <Check className="w-3 h-3 text-violet-700" />}
-              </div>
-              <span className="flex items-center gap-1.5 text-sm text-white">
-                <Ear className="w-3.5 h-3.5" /> I listened to God
-              </span>
-            </label>
-            <button onClick={saveDurationAndNote} disabled={savingEntry} className="text-xs text-white/80 hover:text-white underline transition">
-              {savingEntry ? 'Saving...' : 'Save note'}
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ── First Prayer Day Milestone ───────────────────── */}
-      {firstPrayedDate && (
-        <div className="rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center flex-shrink-0">
-            <Sparkles className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">First prayer</p>
-            <p className="text-sm font-semibold text-foreground leading-snug">
-              {new Date(firstPrayedDate + 'T00:00:00').toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">The day your journey began</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Active Requests ─────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-foreground">Prayer Requests</p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add
-          </button>
-        </div>
-
-        {active.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-muted-foreground/30 p-8 text-center">
-            <p className="text-sm text-muted-foreground">No active prayer requests.</p>
-            <button onClick={() => setShowAddModal(true)} className="mt-2 text-sm text-violet-600 hover:underline font-medium">Add your first one</button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {active.map(req => (
-              <RequestCard
-                key={req.id}
-                req={req}
-                onMarkAnswered={setMarkAnsweringReq}
-                onDelete={deleteRequest}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Answered Prayers ────────────────────────────────── */}
-      {answered.length > 0 && (
-        <div>
-          <button
-            onClick={() => setShowAnswered(v => !v)}
-            className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3 w-full"
-          >
-            <span className="flex-1 text-left">Answered Prayers ({answered.length})</span>
-            {showAnswered ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-          </button>
-
-          {showAnswered && (
-            <div className="space-y-2">
-              {answered.map(req => (
-                <div key={req.id} className="bg-green-50 dark:bg-green-900/20 rounded-2xl border border-green-200 dark:border-green-800 p-4">
-                  <div className="flex items-start gap-2">
-                    <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{req.title}</p>
-                      {req.answer_note && (
-                        <p className="text-xs text-muted-foreground mt-1 italic">{req.answer_note}</p>
-                      )}
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        Answered {req.answered_at ? daysAgo(req.answered_at) : ''}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Prayer Diary ───────────────────────────────────── */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center">
-              <BookOpen className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
-            </div>
-            <p className="text-sm font-semibold">Prayer Diary</p>
-          </div>
-          <button
-            onClick={() => setShowDiaryModal(true)}
-            className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add entry
-          </button>
-        </div>
-
-        {diaryPages.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-muted-foreground/30 p-8 text-center">
-            <p className="text-sm text-muted-foreground">No diary entries yet.</p>
-            <button onClick={() => setShowDiaryModal(true)} className="mt-2 text-sm text-violet-600 hover:underline font-medium">Write your first one</button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {diaryPages.map(page => (
-              <button
-                key={page.id}
-                onClick={() => setSelectedDiaryPage(page)}
-                className="w-full text-left rounded-2xl bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-4 hover:scale-[1.01] active:scale-[0.99] transition-transform"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <BookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{page.title}</p>
-                    {(() => { const s = diarySections.find(sec => sec.id === page.section_id); return s ? <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 mt-0.5">{s.title}</span> : null })()}
-                    {page.content && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-                        {page.content.replace(/<[^>]+>/g, ' ').trim()}
-                      </p>
-                    )}
-                    <p className="text-[10px] text-muted-foreground mt-1">{daysAgo(page.created_at)}</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Modals ─────────────────────────────────────────── */}
-      {showAddModal && (
-        <AddRequestModal onClose={() => setShowAddModal(false)} onSave={addRequest} />
-      )}
-      {markAnsweringReq && (
-        <MarkAnsweredModal
-          request={markAnsweringReq}
-          onClose={() => setMarkAnsweringReq(null)}
-          onSave={note => markAnswered(markAnsweringReq.id, note)}
-        />
-      )}
-      {showDiaryModal && (
-        <DiaryModal
-          onClose={() => setShowDiaryModal(false)}
-          onSave={saveDiaryEntry}
-          saving={savingDiary}
-          sections={diarySections}
-          onCreateSection={createDiarySection}
-        />
-      )}
-      {selectedDiaryPage && (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col">
-          <ThoughtEditor
-            page={selectedDiaryPage}
-            onBack={async () => {
-              setSelectedDiaryPage(null)
-              if (userId) await loadDiary(userId)
-            }}
-            onRefresh={async () => {
-              if (userId) await loadDiary(userId)
-            }}
-          />
-        </div>
       )}
     </div>
   )
 }
+
+
