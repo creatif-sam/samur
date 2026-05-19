@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Check, ChevronDown, ChevronUp, Flame, X, Sparkles, Ear, BookOpen } from 'lucide-react'
 import { ThoughtEditor } from '@/components/note/ThoughtEditor'
+import PrayerTimer from './PrayerTimer'
+import PrayerCalendar from './PrayerCalendar'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -424,6 +426,7 @@ export default function PrayerTab() {
   const [showDiaryModal, setShowDiaryModal] = useState(false)
   const [savingDiary, setSavingDiary] = useState(false)
   const [selectedDiaryPage, setSelectedDiaryPage] = useState<DiaryPage | null>(null)
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0)
 
   useEffect(() => { loadAll() }, [])
 
@@ -571,6 +574,19 @@ export default function PrayerTab() {
 
   return (
     <div className="space-y-5 pb-10">
+
+      {/* ── Prayer Timer ─────────────────────────────────────── */}
+      {userId && (
+        <PrayerTimer
+          userId={userId}
+          onSessionComplete={() => setCalendarRefreshKey(k => k + 1)}
+        />
+      )}
+
+      {/* ── Prayer Calendar ──────────────────────────────────── */}
+      {userId && (
+        <PrayerCalendar userId={userId} refreshKey={calendarRefreshKey} />
+      )}
 
       {/* ── Today's Prayer Card ─────────────────────────────── */}
       <div className={`rounded-3xl p-5 transition-colors ${prayedToday ? 'bg-violet-600 text-white' : 'bg-muted/40 border'}`}>
