@@ -98,10 +98,6 @@ export default function ReadingList(): JSX.Element {
       .filter(cat => (byCategory[cat]?.length ?? 0) > 0)
       .map(cat => ({ category: cat, books: byCategory[cat]! }))
   }, [readings])
-    reading: readings.filter(r => r.status === 'reading').length,
-    done: readings.filter(r => r.status === 'done').length,
-    applied: readings.filter(r => r.status === 'applied').length,
-  }), [readings])
 
   if (loading) {
     return (
