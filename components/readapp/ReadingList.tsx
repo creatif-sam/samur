@@ -3,9 +3,9 @@
 import { JSX, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
-import ReadingCard from './ReadingCard'
 import AddReading from './AddReading'
 import ReadingCalendar from './ReadingCalendar'
+import BookShelf from './BookShelf'
 
 import {
   BookOpen,
@@ -30,6 +30,11 @@ interface Reading {
   total_pages: number
   pages_remaining: number
 }
+
+const CATEGORY_ORDER: ReadingCategory[] = [
+  'faith', 'self_development', 'skill', 'philosophy',
+  'psychology', 'leadership', 'productivity', 'miscellaneous',
+]
 
 export default function ReadingList(): JSX.Element {
   const [readings, setReadings] = useState<Reading[]>([])
@@ -83,6 +88,21 @@ export default function ReadingList(): JSX.Element {
     applied: readings.filter(r => r.status === 'applied').length,
   }), [readings])
 
+  const shelves = useMemo(() => {
+    const byCategory: Partial<Record<ReadingCategory, Reading[]>> = {}
+    for (const reading of readings) {
+      if (!byCategory[reading.category]) byCategory[reading.category] = []
+      byCategory[reading.category]!.push(reading)
+    }
+    return CATEGORY_ORDER
+      .filter(cat => (byCategory[cat]?.length ?? 0) > 0)
+      .map(cat => ({ category: cat, books: byCategory[cat]! }))
+  }, [readings])
+    reading: readings.filter(r => r.status === 'reading').length,
+    done: readings.filter(r => r.status === 'done').length,
+    applied: readings.filter(r => r.status === 'applied').length,
+  }), [readings])
+
   if (loading) {
     return (
       <div className="flex h-[80vh] items-center justify-center bg-background">
@@ -126,23 +146,26 @@ export default function ReadingList(): JSX.Element {
           <ReadingCalendar readings={readings} />
         </section>
 
-        {/* Reading List Section */}
+        {/* Library Shelves Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="font-black text-foreground uppercase tracking-tight">Your Books</h2>
+            <h2 className="font-black text-foreground uppercase tracking-tight">Your Library</h2>
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{readings.length} Total</span>
           </div>
-          
+
           <div className="space-y-3">
-            {readings.length === 0 ? (
+            {shelves.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-[32px] border-2 border-dashed border-border transition-all">
-                <p className="text-sm text-muted-foreground font-bold italic">Your shelf is empty.</p>
+                <Library className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground font-bold italic">Your library is empty.</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Add your first book to get started.</p>
               </div>
             ) : (
-              readings.map(reading => (
-                <ReadingCard
-                  key={reading.id}
-                  reading={reading}
+              shelves.map(({ category, books }) => (
+                <BookShelf
+                  key={category}
+                  category={category}
+                  books={books}
                   onLogged={loadReadings}
                 />
               ))
