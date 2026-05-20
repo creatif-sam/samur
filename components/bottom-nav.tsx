@@ -7,7 +7,7 @@ import {
   Home,
   Target,
   Calendar,
-  Plus,
+  Flame,
   BookOpen,
   NotebookPen,
 } from 'lucide-react'
@@ -15,12 +15,12 @@ import { cn } from '@/lib/utils'
 import { useTranslation } from '@/contexts/TranslationContext'
 
 const navItems = [
-  { href: '/protected', key: 'home', icon: Home },           // Home (first)
-  { href: '/protected/goals', key: 'goals', icon: Target },  // Goals
-  { href: '/protected/note', key: 'note', icon: NotebookPen }, // Journal
-  { href: '/protected/readapp', key: 'readApp', icon: BookOpen }, // Library
-  { href: '/protected/planner', key: 'planner', icon: Calendar }, // Planner
-  { href: '/protected/posts', key: 'posts', icon: Plus },    // Spirit
+  { href: '/protected', key: 'home', icon: Home },
+  { href: '/protected/goals', key: 'goals', icon: Target },
+  { href: '/protected/note', key: 'note', icon: NotebookPen },
+  { href: '/protected/readapp', key: 'readApp', icon: BookOpen },
+  { href: '/protected/planner', key: 'planner', icon: Calendar },
+  { href: '/protected/posts', key: 'posts', icon: Flame },
 ]
 
 export function BottomNav(): JSX.Element {

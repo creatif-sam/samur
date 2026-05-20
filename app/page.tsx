@@ -399,39 +399,53 @@ export default function Home() {
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
             {t.ctaDescription}
           </p>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="w-full sm:w-auto">
             <Button
               size="lg"
-              className="bg-violet-600 hover:bg-violet-500 text-white px-12 py-7 text-xl font-semibold rounded-full shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all"
+              className="w-full sm:w-auto bg-violet-600 hover:bg-violet-500 text-white px-8 sm:px-12 py-6 text-base sm:text-xl font-semibold rounded-full shadow-[0_0_30px_rgba(124,58,237,0.5)] transition-all"
               onClick={() => router.push('/auth/sign-up')}
             >
               {t.ctaButton}
-              <ChevronRight className="ml-2 w-6 h-6" />
+              <ChevronRight className="ml-2 w-5 h-5" />
             </Button>
           </motion.div>
         </motion.div>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 py-8 text-center text-muted-foreground text-sm border-t border-black/5 dark:border-white/10">
-        <div className="flex justify-center gap-6 mb-4">
-          <Link href="/privacy" className="hover:text-foreground transition-colors">
-            {t.privacyPolicy}
-          </Link>
-          <span>•</span>
-          <Link href="/terms" className="hover:text-foreground transition-colors">
-            {t.termsConditions}
-          </Link>
-          <span>•</span>
-          <Link href="/auth/login" className="hover:text-foreground transition-colors">
-            {t.signIn}
-          </Link>
-          <span>•</span>
-          <Link href="/auth/sign-up" className="hover:text-foreground transition-colors">
-            {t.signUp}
-          </Link>
+      <footer className="relative z-10 border-t border-black/5 dark:border-white/10 bg-black/[0.02] dark:bg-white/[0.02]">
+        <div className="max-w-4xl mx-auto px-6 py-10 flex flex-col items-center gap-6">
+          {/* Brand */}
+          <h2 className="text-xl font-black tracking-tighter text-foreground">
+            MASTERY<span className="text-violet-500">.</span>
+          </h2>
+          <p className="text-sm text-muted-foreground text-center max-w-xs leading-relaxed">
+            Plan. Grow. Believe. Your spiritual growth companion.
+          </p>
+
+          {/* Links — wrap naturally on small screens */}
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-3 text-sm">
+            <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+              {t.privacyPolicy}
+            </Link>
+            <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+              {t.termsConditions}
+            </Link>
+            <Link href="/auth/login" className="text-muted-foreground hover:text-foreground transition-colors">
+              {t.signIn}
+            </Link>
+            <Link href="/auth/sign-up" className="text-muted-foreground hover:text-foreground transition-colors font-semibold text-violet-500 dark:text-violet-400">
+              {t.signUp}
+            </Link>
+          </div>
+
+          {/* Divider */}
+          <div className="w-12 h-px bg-border" />
+
+          <p className="text-xs text-muted-foreground/60 text-center">
+            &copy; {new Date().getFullYear()} {t.copyright}
+          </p>
         </div>
-        <p>&copy; {new Date().getFullYear()} {t.copyright}</p>
       </footer>
     </div>
   );
