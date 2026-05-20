@@ -127,6 +127,34 @@ export default function GoalsPage() {
     })
   }, [goals, view, selectedVisionId])
 
+  const filteredVisions = useMemo(() => {
+    const now = new Date()
+    return visions.filter(v => {
+      if (!v.target_date) return false
+      const d = new Date(v.target_date)
+      switch (view) {
+        case 'weekly': {
+          const start = new Date(now)
+          start.setDate(now.getDate() - now.getDay())
+          const end = new Date(start)
+          end.setDate(start.getDate() + 7)
+          return d >= start && d < end
+        }
+        case 'monthly':
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+        case 'quarterly':
+          return (
+            Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) &&
+            d.getFullYear() === now.getFullYear()
+          )
+        case 'yearly':
+          return d.getFullYear() === now.getFullYear()
+        default:
+          return true
+      }
+    })
+  }, [visions, view])
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center text-muted-foreground animate-pulse font-black uppercase">
@@ -279,6 +307,37 @@ export default function GoalsPage() {
               />
             </div>
           )}
+
+          {/* Period summary cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl bg-gradient-to-br from-violet-600 to-purple-700 p-4 shadow-lg shadow-violet-500/20">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Target className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{view}</span>
+              </div>
+              <p className="text-3xl font-black text-white leading-none">{filteredGoals.length}</p>
+              <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">goals</p>
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">✓ {filteredGoals.filter(g => g.status === 'done').length} done</span>
+                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">▶ {filteredGoals.filter(g => g.status === 'doing').length} doing</span>
+                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">◯ {filteredGoals.filter(g => g.status === 'to_do').length} todo</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-gradient-to-br from-indigo-500 to-blue-600 p-4 shadow-lg shadow-indigo-500/20">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Eye className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{view}</span>
+              </div>
+              <p className="text-3xl font-black text-white leading-none">{filteredVisions.length}</p>
+              <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">visions</p>
+              <p className="text-xs font-semibold text-white/70 mt-3 leading-tight">Target dates in this period</p>
+            </div>
+          </div>
 
           <GoalList
               goals={filteredGoals}

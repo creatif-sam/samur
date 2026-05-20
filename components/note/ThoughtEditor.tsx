@@ -11,15 +11,9 @@ import {
   ChevronLeft, Trash2, Calendar, Clock,
   Bold, Italic, List, ListOrdered, Plus,
   CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2,
-  Highlighter, X
+  Highlighter, X, Copy
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -37,6 +31,8 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
   const [title, setTitle] = useState(page.title)
   const [isSaving, setIsSaving] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareText, setShareText] = useState('')
   const supabase = createClient()
   const editorAreaRef = useRef<HTMLDivElement>(null)
 
@@ -92,62 +88,9 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
   }
 
   async function shareAsText() {
-    const plain = `${title}\n\n${htmlToPlainText(editor?.getHTML() ?? '')}`
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text: plain })
-        return
-      } catch {
-        // fall through to clipboard
-      }
-    }
-    await navigator.clipboard.writeText(plain)
-    toast.success('Note copied to clipboard')
-  }
-
-  function shareAsPdf() {
-    const html = editor?.getHTML() ?? ''
-    const printWindow = window.open('', '_blank')
-    if (!printWindow) {
-      toast.error('Allow pop-ups to export as PDF')
-      return
-    }
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>${title}</title>
-          <style>
-            * { box-sizing: border-box; margin: 0; padding: 0; }
-            body { font-family: Georgia, serif; padding: 48px 56px; color: #1e293b; line-height: 1.8; }
-            h1 { font-size: 24px; font-weight: 700; color: #7719aa; margin-bottom: 6px; }
-            .meta { font-size: 11px; color: #94a3b8; margin-bottom: 32px; text-transform: uppercase; letter-spacing: 0.1em; }
-            .content { font-size: 15px; }
-            .content h2 { font-size: 18px; font-weight: 700; margin: 20px 0 8px; }
-            .content p { margin-bottom: 12px; }
-            .content ul, .content ol { padding-left: 20px; margin-bottom: 12px; }
-            .content li { margin-bottom: 4px; }
-            .content strong { font-weight: 700; }
-            .content em { font-style: italic; }
-            .content u { text-decoration: underline; }
-            ul[data-type="taskList"] { list-style: none; padding-left: 0; }
-            ul[data-type="taskList"] li { display: flex; gap: 8px; align-items: flex-start; }
-            @media print {
-              body { padding: 32px 40px; }
-              @page { margin: 1cm; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>${title}</h1>
-          <div class="meta">${new Date(page.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-          <div class="content">${html}</div>
-          <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
-        </body>
-      </html>
-    `)
-    printWindow.document.close()
+    const plain = htmlToPlainText(editor?.getHTML() ?? '')
+    setShareText(plain)
+    setShowShareModal(true)
   }
 
   async function handleAutoSave(currentTitle: string, currentContent: string) {
@@ -192,21 +135,14 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
           <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white/60 hover:text-red-300 hover:bg-white/10">
             <Trash2 className="w-4 h-4" />
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-white/10">
-                <Share2 className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={shareAsText}>
-                Copy as Text
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={shareAsPdf}>
-                Save as PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 text-white hover:bg-white/10"
+            onClick={shareAsText}
+          >
+            <Share2 className="w-4 h-4" />
+          </Button>
           <Button size="sm" onClick={onBack} className="h-8 px-4 bg-white text-[#7719aa] font-bold uppercase text-[10px] rounded-full shadow-sm active:scale-95">
             Done
           </Button>
@@ -288,6 +224,61 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
           icon={<Highlighter size={20} />}
         />
       </div>
+
+      {/* SHARE MODAL */}
+      {showShareModal && (
+        <div className="absolute inset-0 z-[9999] flex items-end justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full bg-white dark:bg-zinc-900 rounded-t-3xl overflow-hidden shadow-2xl">
+            {/* Handle bar */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
+            </div>
+            <div className="px-5 pt-3 pb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-bold text-base text-foreground">{title || 'Untitled'}</h3>
+                <button
+                  onClick={() => setShowShareModal(false)}
+                  className="w-7 h-7 rounded-full bg-muted flex items-center justify-center"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+              <pre className="text-sm whitespace-pre-wrap bg-slate-50 dark:bg-zinc-800 rounded-2xl p-4 max-h-44 overflow-y-auto text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
+                {shareText || '(empty note)'}
+              </pre>
+            </div>
+            <div className="flex gap-3 px-5 pb-8">
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(`${title}\n\n${shareText}`)
+                  toast.success('Copied to clipboard')
+                  setShowShareModal(false)
+                }}
+                className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl border border-border bg-muted text-sm font-semibold text-foreground"
+              >
+                <Copy className="w-4 h-4" /> Copy
+              </button>
+              <button
+                onClick={async () => {
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({ title, text: `${title}\n\n${shareText}` })
+                      setShowShareModal(false)
+                    } catch { /* dismissed */ }
+                  } else {
+                    await navigator.clipboard.writeText(`${title}\n\n${shareText}`)
+                    toast.success('Copied to clipboard')
+                    setShowShareModal(false)
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-[#7719aa] hover:bg-[#6a1799] text-white text-sm font-semibold"
+              >
+                <Share2 className="w-4 h-4" /> Share
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
