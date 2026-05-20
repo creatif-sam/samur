@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon } from 'lucide-react'
 import Link from 'next/link'
+import MonthCalendar from './MonthCalendar'
 
 import { TaskModal } from './tasks/TaskModal'
 import TopCalendar from './TopCalendar'
@@ -58,6 +59,8 @@ export default function DailyPlanner() {
   const [userId, setUserId] = useState<string | null>(null)
   const [partnerId, setPartnerId] = useState<string | null>(null)
   const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({})
+  const [view, setView] = useState<'daily' | 'monthly'>('daily')
+  const [taskDays, setTaskDays] = useState<Set<string>>(new Set())
 
   const dateKey = selectedDate.toISOString().split('T')[0]
   const theme = moodThemes[mood] || moodThemes['default']
@@ -95,6 +98,9 @@ export default function DailyPlanner() {
     loadVisions()
     loadUserProfile()
   }, [])
+  useEffect(() => {
+    if (view === 'monthly') loadTaskDays(selectedDate.getFullYear(), selectedDate.getMonth())
+  }, [view])
 
   async function loadUserProfile() {
     const { data: auth } = await supabase.auth.getUser()
@@ -207,6 +213,24 @@ export default function DailyPlanner() {
     setMorning(todayData?.morning ?? '')
     setReflection(todayData?.reflection ?? '')
     setMood(todayData?.mood ?? '')
+  }
+
+  async function loadTaskDays(year: number, month: number) {
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user) return
+    const start = `${year}-${String(month + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const end = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    const { data } = await supabase
+      .from('planner_days')
+      .select('day')
+      .eq('user_id', auth.user.id)
+      .gte('day', start)
+      .lte('day', end)
+      .not('tasks', 'is', null)
+    if (data) {
+      setTaskDays(new Set(data.map(d => d.day)))
+    }
   }
 
   async function saveDay(
@@ -323,14 +347,27 @@ export default function DailyPlanner() {
               <BarChart3 className={`w-7 h-7 ${theme.text} opacity-80`} />
             </Link>
 
-            <div className="relative">
-              <CalendarIcon className={`w-7 h-7 ${theme.text} opacity-80`} />
+            <button
+              onClick={() => setView(v => v === 'monthly' ? 'daily' : 'monthly')}
+              className={`relative transition-transform active:scale-90 ${view === 'monthly' ? 'scale-110' : ''}`}
+            >
+              <CalendarIcon className={`w-7 h-7 ${theme.text} ${view === 'monthly' ? 'opacity-100' : 'opacity-80'}`} />
               <span className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold mt-0.5 ${theme.text}`}>{new Date().getDate()}</span>
-            </div>
+            </button>
           </div>
         </div>
       </header>
 
+      {view === 'monthly' ? (
+        <MonthCalendar
+          selectedDate={selectedDate}
+          onDateSelect={(d) => { setSelectedDate(d); setView('daily') }}
+          onClose={() => setView('daily')}
+          taskDays={taskDays}
+          onMonthChange={loadTaskDays}
+        />
+      ) : (
+        <>
       <div className="px-4 py-2 mt-4">
         <TopCalendar selectedDate={selectedDate} onChange={setSelectedDate} />
       </div>
@@ -482,6 +519,8 @@ export default function DailyPlanner() {
           </div>
         </div>
       </div>
+        </>
+      )}
 
       <button onClick={() => setTaskModalHour(new Date().getHours())} className="fixed bottom-[100px] right-6 w-16 h-16 bg-white dark:bg-slate-800 shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] border border-slate-50 dark:border-slate-700 rounded-full flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40">
         <Plus className="w-9 h-9 text-slate-800 dark:text-slate-200" strokeWidth={1.5} />
