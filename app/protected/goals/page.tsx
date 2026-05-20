@@ -17,6 +17,10 @@ import {
   Flag,
   Rocket,
   Archive,
+  CheckCircle2,
+  TrendingUp,
+  Eye,
+  Circle,
 } from 'lucide-react'
 import { NewGoalForm, GoalCategory } from '@/components/goals/NewGoalForm'
 import { GoalList } from '@/components/goals/GoalList'
@@ -190,6 +194,27 @@ export default function GoalsPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+
+          {/* ── Stat Cards ── */}
+          <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+            {[
+              { label: 'Total Goals',  value: goals.length,                                       unit: 'goals',   icon: Target,       gradient: 'from-violet-600 to-purple-700',  shadow: 'shadow-violet-500/30' },
+              { label: 'Visions',      value: visions.length,                                     unit: 'visions', icon: Eye,           gradient: 'from-indigo-500 to-blue-600',    shadow: 'shadow-indigo-500/30' },
+              { label: 'Done',         value: goals.filter(g => g.status === 'done').length,       unit: 'done',    icon: CheckCircle2,  gradient: 'from-emerald-600 to-teal-700',   shadow: 'shadow-emerald-500/30' },
+              { label: 'In Progress',  value: goals.filter(g => g.status === 'doing').length,      unit: 'running', icon: TrendingUp,    gradient: 'from-blue-600 to-cyan-700',      shadow: 'shadow-blue-500/30' },
+              { label: 'Not Started',  value: goals.filter(g => g.status === 'to_do').length,      unit: 'pending', icon: Circle,        gradient: 'from-slate-500 to-gray-600',     shadow: 'shadow-slate-500/30' },
+            ].map(({ label, value, unit, icon: Icon, gradient, shadow }) => (
+              <div key={label} className={`flex-shrink-0 w-32 rounded-3xl bg-gradient-to-br p-4 shadow-lg ${gradient} ${shadow}`}>
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+                  <Icon className="w-4 h-4 text-white" />
+                </div>
+                <p className="text-3xl font-black text-white leading-none">{value}</p>
+                <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">{unit}</p>
+                <p className="text-xs font-semibold text-white/80 mt-2 leading-tight">{label}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5 space-y-4">
               <div className="flex items-center gap-3">

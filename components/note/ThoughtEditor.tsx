@@ -55,7 +55,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
     immediatelyRender: false, 
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert focus:outline-none max-w-none min-h-[500px] text-[16px] leading-[2.25rem] font-medium text-slate-700 dark:text-slate-300',
+        class: 'prose dark:prose-invert focus:outline-none max-w-none min-h-[500px] text-[16px] leading-[1.65] font-medium text-slate-700 dark:text-slate-300',
       },
     },
     onUpdate: ({ editor }) => {
