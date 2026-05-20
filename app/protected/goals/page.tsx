@@ -23,6 +23,7 @@ import {
   Circle,
 } from 'lucide-react'
 import { NewGoalForm, GoalCategory } from '@/components/goals/NewGoalForm'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { GoalList } from '@/components/goals/GoalList'
 import { GoalsDonutChart } from '@/components/goals/charts/GoalsDonutChart'
 import { GoalsYearlyLineChart } from '@/components/goals/charts/GoalsYearlyLineChart'
@@ -294,8 +295,12 @@ export default function GoalsPage() {
             ))}
           </div>
 
-          {showNew && (
-            <div className="rounded-[24px] border border-dashed border-muted-foreground/30 p-5">
+          <Dialog open={showNew} onOpenChange={setShowNew}>
+            <DialogContent className="w-[95vw] max-w-lg max-h-[90svh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="font-black text-xl uppercase tracking-tight">New Goal</DialogTitle>
+                <DialogDescription className="sr-only">Create a new goal</DialogDescription>
+              </DialogHeader>
               <NewGoalForm
                 categories={uiCategories}
                 visions={visions}
@@ -305,8 +310,8 @@ export default function GoalsPage() {
                   setShowNew(false)
                 }}
               />
-            </div>
-          )}
+            </DialogContent>
+          </Dialog>
 
           {/* Period summary cards */}
           <div className="grid grid-cols-2 gap-3">
