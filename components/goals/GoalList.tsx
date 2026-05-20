@@ -1,6 +1,6 @@
 'use client'
 
-import { JSX, useMemo, useState } from 'react'
+import { JSX, useMemo, useState, useRef } from 'react'
 import { Goal } from '@/lib/types'
 import {
   Dialog,
@@ -26,7 +26,12 @@ import {
   Calendar, 
   MoreVertical, 
   Pencil, 
-  Trash2 
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  CheckCircle2,
+  Circle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import confetti from 'canvas-confetti'
@@ -261,10 +266,74 @@ function GoalCard({
   onDeleteInitiated: () => void
 }) {
   const supabase = createClient()
-  
+  const [showMilestones, setShowMilestones] = useState(false)
+  const [milestones, setMilestones] = useState<{ id: string; title: string; is_done: boolean; position: number }[]>([])
+  const [milestonesLoaded, setMilestonesLoaded] = useState(false)
+  const [newMilestone, setNewMilestone] = useState('')
+  const [addingMilestone, setAddingMilestone] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
   const formattedDate = goal.due_date 
     ? new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null
+
+  const toggleMilestones = async () => {
+    if (!milestonesLoaded) {
+      const { data } = await supabase
+        .from('goal_milestones')
+        .select('*')
+        .eq('goal_id', goal.id)
+        .order('position')
+      setMilestones(data ?? [])
+      setMilestonesLoaded(true)
+    }
+    setShowMilestones(v => !v)
+  }
+
+  const addMilestone = async () => {
+    const title = newMilestone.trim()
+    if (!title) return
+    const pos = milestones.length
+    const { data } = await supabase
+      .from('goal_milestones')
+      .insert({ goal_id: goal.id, title, position: pos })
+      .select()
+      .single()
+    if (data) {
+      const updated = [...milestones, data]
+      setMilestones(updated)
+      setNewMilestone('')
+      setAddingMilestone(false)
+      syncProgressFromMilestones(updated)
+    }
+  }
+
+  const toggleMilestoneDone = async (id: string, current: boolean) => {
+    await supabase.from('goal_milestones').update({ is_done: !current }).eq('id', id)
+    const updated = milestones.map(m => m.id === id ? { ...m, is_done: !current } : m)
+    setMilestones(updated)
+    syncProgressFromMilestones(updated)
+  }
+
+  const deleteMilestone = async (id: string) => {
+    await supabase.from('goal_milestones').delete().eq('id', id)
+    const updated = milestones.filter(m => m.id !== id)
+    setMilestones(updated)
+    syncProgressFromMilestones(updated)
+  }
+
+  const syncProgressFromMilestones = async (list: typeof milestones) => {
+    if (!list.length) return
+    const pct = Math.round((list.filter(m => m.is_done).length / list.length) * 100)
+    const newStatus: Goal['status'] = pct === 100 ? 'done' : pct > 0 ? 'doing' : 'to_do'
+    const { data } = await supabase
+      .from('goals')
+      .update({ progress: pct, status: newStatus })
+      .eq('id', goal.id)
+      .select('*, visions(*), goal_categories(*)')
+      .single()
+    if (data) onUpdated(data)
+  }
 
   async function updateStatus(newStatus: Goal['status']) {
     const prog = newStatus === 'done' ? 100 : newStatus === 'doing' ? 50 : 0
@@ -329,65 +398,139 @@ function GoalCard({
     }
   }
 
+  const doneCount = milestones.filter(m => m.is_done).length
+
   return (
     <div className={cn(
-      'rounded-[20px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-3.5 flex items-center justify-between gap-3 transition-all active:scale-[0.98]',
+      'rounded-[20px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm overflow-hidden transition-all',
       goal.status === 'done' && 'opacity-60'
     )}>
-      <div className="flex flex-col min-w-0 flex-1 gap-1.5">
-        <div className="flex flex-wrap items-center gap-2">
-            {goal.goal_categories && (
-              <span 
-                className="text-[8px] font-black px-2 py-0.5 rounded-md text-white uppercase"
-                style={{ backgroundColor: goal.goal_categories.color }}
-              >
-                {goal.goal_categories.emoji} {goal.goal_categories.name}
-              </span>
-            )}
-            {formattedDate && (
-              <span className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-                <Calendar className="w-2.5 h-2.5" /> {formattedDate}
-              </span>
-            )}
+      {/* Main row */}
+      <div className="p-3.5 flex items-center justify-between gap-3">
+        <div className="flex flex-col min-w-0 flex-1 gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+              {goal.goal_categories && (
+                <span 
+                  className="text-[8px] font-black px-2 py-0.5 rounded-md text-white uppercase"
+                  style={{ backgroundColor: goal.goal_categories.color }}
+                >
+                  {goal.goal_categories.emoji} {goal.goal_categories.name}
+                </span>
+              )}
+              {formattedDate && (
+                <span className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                  <Calendar className="w-2.5 h-2.5" /> {formattedDate}
+                </span>
+              )}
+            </div>
+
+            <span className={cn(
+              "text-[13px] leading-tight font-bold",
+              goal.status === 'done' ? "text-muted-foreground/60 line-through" : "text-foreground"
+            )}>
+              {goal.title}
+            </span>
+
+            {/* Milestones toggle */}
+            <button
+              onClick={toggleMilestones}
+              className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors w-fit"
+            >
+              {showMilestones ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {milestonesLoaded && milestones.length > 0
+                ? `${doneCount}/${milestones.length} milestones`
+                : 'Milestones'}
+            </button>
           </div>
 
-          <span className={cn(
-            "text-[13px] leading-tight font-bold",
-            goal.status === 'done' ? "text-muted-foreground/60 line-through" : "text-foreground"
-          )}>
-            {goal.title}
-          </span>
-        </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Select value={goal.status} onValueChange={(v) => updateStatus(v as Goal['status'])}>
+              <SelectTrigger className={cn(
+                "w-[75px] h-8 text-[10px] font-black border-none shrink-0",
+                goal.status === 'done' ? "bg-green-500/10 text-green-600" : "bg-secondary"
+              )}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="to_do">TO DO</SelectItem>
+                <SelectItem value="doing">DOING</SelectItem>
+                <SelectItem value="done">DONE</SelectItem>
+              </SelectContent>
+            </Select>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <Select value={goal.status} onValueChange={(v) => updateStatus(v as Goal['status'])}>
-            <SelectTrigger className={cn(
-              "w-[75px] h-8 text-[10px] font-black border-none shrink-0",
-              goal.status === 'done' ? "bg-green-500/10 text-green-600" : "bg-secondary"
-            )}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value="to_do">TO DO</SelectItem>
-              <SelectItem value="doing">DOING</SelectItem>
-              <SelectItem value="done">DONE</SelectItem>
-            </SelectContent>
-          </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="p-1.5 hover:bg-secondary rounded-full outline-none transition-colors">
+                <MoreVertical className="w-4 h-4 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-32">
+                <DropdownMenuItem onClick={onEditInitiated} className="gap-2 text-xs font-medium cursor-pointer">
+                  <Pencil className="w-3.5 h-3.5" /> Edit Goal
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onDeleteInitiated} className="gap-2 text-xs font-medium text-destructive focus:text-destructive cursor-pointer">
+                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+      </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger className="p-1.5 hover:bg-secondary rounded-full outline-none transition-colors">
-              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-32">
-              <DropdownMenuItem onClick={onEditInitiated} className="gap-2 text-xs font-medium cursor-pointer">
-                <Pencil className="w-3.5 h-3.5" /> Edit Goal
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={onDeleteInitiated} className="gap-2 text-xs font-medium text-destructive focus:text-destructive cursor-pointer">
-                <Trash2 className="w-3.5 h-3.5" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+      {/* Milestones panel */}
+      {showMilestones && (
+        <div className="border-t border-border/40 px-4 py-3 space-y-2 bg-muted/30">
+          {milestones.length === 0 && !addingMilestone && (
+            <p className="text-[11px] text-muted-foreground text-center py-1">No milestones yet</p>
+          )}
+
+          {milestones.map(m => (
+            <div key={m.id} className="flex items-center gap-2 group">
+              <button onClick={() => toggleMilestoneDone(m.id, m.is_done)} className="shrink-0">
+                {m.is_done
+                  ? <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  : <Circle className="w-4 h-4 text-muted-foreground" />}
+              </button>
+              <span className={cn(
+                'flex-1 text-[12px] font-medium leading-tight',
+                m.is_done && 'line-through text-muted-foreground'
+              )}>
+                {m.title}
+              </span>
+              <button
+                onClick={() => deleteMilestone(m.id)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-destructive"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+
+          {addingMilestone ? (
+            <div className="flex items-center gap-2 mt-1">
+              <input
+                ref={inputRef}
+                autoFocus
+                value={newMilestone}
+                onChange={e => setNewMilestone(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addMilestone(); if (e.key === 'Escape') { setAddingMilestone(false); setNewMilestone('') } }}
+                placeholder="Milestone title…"
+                className="flex-1 text-[12px] bg-background border border-border/60 rounded-lg px-2.5 py-1.5 outline-none focus:border-violet-400"
+              />
+              <button onClick={addMilestone} className="text-[11px] font-bold text-violet-600 hover:text-violet-700 px-1">
+                Add
+              </button>
+              <button onClick={() => { setAddingMilestone(false); setNewMilestone('') }} className="text-[11px] text-muted-foreground">
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setAddingMilestone(true); setTimeout(() => inputRef.current?.focus(), 50) }}
+              className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700 mt-1"
+            >
+              <Plus className="w-3 h-3" /> Add milestone
+            </button>
+          )}
         </div>
+      )}
     </div>
   )
 }

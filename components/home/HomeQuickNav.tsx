@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { Target, Calendar, BookOpen, NotebookPen, BarChart2, Moon, LucideIcon } from 'lucide-react'
+import { Target, Calendar, BookOpen, NotebookPen, BarChart2, Moon, ClipboardList, LucideIcon } from 'lucide-react'
 
 interface QuickLink {
   label: string
@@ -17,7 +17,8 @@ const quickLinks: QuickLink[] = [
   { label: 'Meditate', href: '/protected/meditations', icon: Moon,        color: 'bg-indigo-500' },
   { label: 'Notes',    href: '/protected/note',        icon: NotebookPen, color: 'bg-amber-500'  },
   { label: 'Library',  href: '/protected/readapp',     icon: BookOpen,    color: 'bg-emerald-500'},
-  { label: 'Analytics',href: '/protected/analytics',   icon: BarChart2,   color: 'bg-rose-500'   },
+  { label: 'Analytics',  href: '/protected/analytics',       icon: BarChart2,      color: 'bg-rose-500'   },
+  { label: 'Review',     href: '/protected/planner/review',  icon: ClipboardList,  color: 'bg-teal-500'   },
 ]
 
 export default function HomeQuickNav() {

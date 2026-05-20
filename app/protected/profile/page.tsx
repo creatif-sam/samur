@@ -18,7 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { LogOut, Camera, Save, Users, Trash2, AlertTriangle } from 'lucide-react'
+import { LogOut, Camera, Save, Users, Trash2, AlertTriangle, UserPlus, Check, X, Clock, Link2Off } from 'lucide-react'
+import { toast } from 'sonner'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +44,11 @@ export default function ProfilePage() {
   const [goalStats, setGoalStats] = useState({ total: 0, completed: 0 })
   const [postCount, setPostCount] = useState(0)
   const [availablePartners, setAvailablePartners] = useState<Profile[]>([])
-  const [selectedPartnerId, setSelectedPartnerId] = useState('')
+  const [incomingRequest, setIncomingRequest] = useState<{ id: string; from_user_id: string; from_name: string; from_avatar?: string } | null>(null)
+  const [outgoingRequest, setOutgoingRequest] = useState<{ id: string; to_user_id: string; to_name: string } | null>(null)
+  const [sendingInvite, setSendingInvite] = useState(false)
+  const [inviteTargetId, setInviteTargetId] = useState('')
+  const [showInviteSelect, setShowInviteSelect] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteType, setDeleteType] = useState<'account' | 'data' | null>(null)
 
@@ -55,6 +60,7 @@ export default function ProfilePage() {
     fetchProfile()
     fetchStats()
     fetchPartners()
+    fetchPendingRequests()
   }, [])
 
   const fetchProfile = async () => {
@@ -89,19 +95,136 @@ export default function ProfilePage() {
     }
   }
 
-  const updatePartner = async (partnerId: string) => {
-    if (!profile) return
+  const fetchPendingRequests = async () => {
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Incoming: someone invited me
+    const { data: incoming } = await supabase
+      .from('partner_requests')
+      .select('id, from_user_id, profiles!partner_requests_from_user_id_fkey(name, avatar_url)')
+      .eq('to_user_id', user.id)
+      .eq('status', 'pending')
+      .limit(1)
+      .maybeSingle()
+
+    if (incoming) {
+      const p = incoming.profiles as any
+      setIncomingRequest({
+        id: incoming.id,
+        from_user_id: incoming.from_user_id,
+        from_name: p?.name || 'Unknown',
+        from_avatar: p?.avatar_url,
+      })
+    }
+
+    // Outgoing: I invited someone
+    const { data: outgoing } = await supabase
+      .from('partner_requests')
+      .select('id, to_user_id, profiles!partner_requests_to_user_id_fkey(name)')
+      .eq('from_user_id', user.id)
+      .eq('status', 'pending')
+      .limit(1)
+      .maybeSingle()
+
+    if (outgoing) {
+      const p = outgoing.profiles as any
+      setOutgoingRequest({ id: outgoing.id, to_user_id: outgoing.to_user_id, to_name: p?.name || 'Unknown' })
+    }
+  }
+
+  const sendPartnerInvite = async () => {
+    if (!inviteTargetId || !profile) return
+    setSendingInvite(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSendingInvite(false); return }
 
     const { error } = await supabase
-      .from('profiles')
-      .update({ partner_id: partnerId || null })
-      .eq('id', profile.id)
+      .from('partner_requests')
+      .insert({ from_user_id: user.id, to_user_id: inviteTargetId })
 
     if (!error) {
-      setProfile({ ...profile, partner_id: partnerId || undefined })
-      setSelectedPartnerId(partnerId)
+      const target = availablePartners.find(p => p.id === inviteTargetId)
+      setOutgoingRequest({ id: '', to_user_id: inviteTargetId, to_name: target?.name || 'Unknown' })
+      setShowInviteSelect(false)
+      setInviteTargetId('')
+      toast.success('Invite sent!')
+      // Push notify the target
+      fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: inviteTargetId,
+          title: 'New Partner Invite 🤝',
+          body: `${profile.name || 'Someone'} invited you to be their accountability partner.`,
+          url: '/protected/profile'
+        })
+      }).catch(() => {})
+    } else {
+      toast.error('Could not send invite')
     }
+    setSendingInvite(false)
+  }
+
+  const acceptInvite = async () => {
+    if (!incomingRequest || !profile) return
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    // Accept in DB
+    await supabase.from('partner_requests').update({ status: 'accepted' }).eq('id', incomingRequest.id)
+    // Link both users
+    await supabase.from('profiles').update({ partner_id: incomingRequest.from_user_id }).eq('id', user.id)
+    await supabase.from('profiles').update({ partner_id: user.id }).eq('id', incomingRequest.from_user_id)
+
+    setProfile({ ...profile, partner_id: incomingRequest.from_user_id })
+    setIncomingRequest(null)
+    toast.success('Partner connected! 🎉')
+    // Notify sender
+    fetch('/api/notifications/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUserId: incomingRequest.from_user_id,
+        title: 'Invite Accepted! 🎉',
+        body: `${profile.name || 'Your invitee'} accepted your partner invite.`,
+        url: '/protected/profile'
+      })
+    }).catch(() => {})
+  }
+
+  const declineInvite = async () => {
+    if (!incomingRequest) return
+    const supabase = createClient()
+    await supabase.from('partner_requests').update({ status: 'declined' }).eq('id', incomingRequest.id)
+    setIncomingRequest(null)
+    toast.success('Invite declined')
+  }
+
+  const cancelOutgoingInvite = async () => {
+    if (!outgoingRequest) return
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('partner_requests').delete().eq('id', outgoingRequest.id)
+    setOutgoingRequest(null)
+    toast.success('Invite cancelled')
+  }
+
+  const removePartner = async () => {
+    if (!profile) return
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    await supabase.from('profiles').update({ partner_id: null }).eq('id', user.id)
+    if (profile.partner_id) {
+      await supabase.from('profiles').update({ partner_id: null }).eq('id', profile.partner_id)
+    }
+    setProfile({ ...profile, partner_id: undefined })
+    toast.success('Partner disconnected')
   }
 
  const uploadAvatar = async (file: File) => {
@@ -274,30 +397,91 @@ export default function ProfilePage() {
         </div>
 
         {/* Partner card */}
-        <div className="bg-background rounded-2xl p-6 shadow">
-          <Label className="flex items-center gap-2 mb-2">
+        <div className="bg-background rounded-2xl p-6 shadow space-y-4">
+          <Label className="flex items-center gap-2">
             <Users className="w-4 h-4" />
-            {t.profile.partner}
+            Accountability Partner
           </Label>
 
-          <Select
-            value={selectedPartnerId || 'none'}
-            onValueChange={value =>
-              updatePartner(value === 'none' ? '' : value)
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t.profile.selectPartner} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">{t.profile.noPartner}</SelectItem>
-              {availablePartners.map(partner => (
-                <SelectItem key={partner.id} value={partner.id}>
-                  {partner.name || 'Unnamed User'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Already has a partner */}
+          {profile?.partner_id ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-violet-600 font-bold">
+                  {(availablePartners.find(p => p.id === profile.partner_id)?.name ?? '?')[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">{availablePartners.find(p => p.id === profile.partner_id)?.name || 'Partner'}</p>
+                  <p className="text-xs text-muted-foreground">Connected ✓</p>
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="text-destructive border-destructive/30 gap-1" onClick={removePartner}>
+                <Link2Off className="w-3.5 h-3.5" /> Disconnect
+              </Button>
+            </div>
+          ) : incomingRequest ? (
+            /* Incoming invite */
+            <div className="rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-violet-200 dark:bg-violet-800 flex items-center justify-center text-violet-700 font-bold text-sm">
+                  {incomingRequest.from_name[0]?.toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">{incomingRequest.from_name}</p>
+                  <p className="text-xs text-muted-foreground">Wants to be your partner</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 gap-1 bg-violet-600 hover:bg-violet-700" onClick={acceptInvite}>
+                  <Check className="w-3.5 h-3.5" /> Accept
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={declineInvite}>
+                  <X className="w-3.5 h-3.5" /> Decline
+                </Button>
+              </div>
+            </div>
+          ) : outgoingRequest ? (
+            /* Outgoing pending invite */
+            <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <Clock className="w-4 h-4" />
+                <div>
+                  <p className="text-sm font-semibold">Invite sent to {outgoingRequest.to_name}</p>
+                  <p className="text-xs opacity-70">Waiting for acceptance…</p>
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" className="text-xs text-muted-foreground" onClick={cancelOutgoingInvite}>
+                Cancel
+              </Button>
+            </div>
+          ) : showInviteSelect ? (
+            /* Send invite UI */
+            <div className="space-y-3">
+              <Select value={inviteTargetId} onValueChange={setInviteTargetId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a person…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePartners.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name || 'Unnamed'}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 gap-1 bg-violet-600 hover:bg-violet-700" onClick={sendPartnerInvite} disabled={!inviteTargetId || sendingInvite}>
+                  <UserPlus className="w-3.5 h-3.5" /> {sendingInvite ? 'Sending…' : 'Send Invite'}
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => { setShowInviteSelect(false); setInviteTargetId('') }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            /* No partner, no pending */
+            <Button variant="outline" className="w-full gap-2" onClick={() => setShowInviteSelect(true)}>
+              <UserPlus className="w-4 h-4" /> Invite a Partner
+            </Button>
+          )}
         </div>
 
         {/* Language Settings */}
