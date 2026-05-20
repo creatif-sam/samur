@@ -6,10 +6,12 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
+import Highlight from '@tiptap/extension-highlight'
 import { 
   ChevronLeft, Trash2, Calendar, Clock,
   Bold, Italic, List, ListOrdered, Plus,
-  CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2
+  CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2,
+  Highlighter, X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,9 +24,19 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 
+const HIGHLIGHT_COLORS = [
+  { label: 'Yellow',  value: '#fef08a' },
+  { label: 'Green',   value: '#bbf7d0' },
+  { label: 'Sky',     value: '#bae6fd' },
+  { label: 'Pink',    value: '#fbcfe8' },
+  { label: 'Purple',  value: '#e9d5ff' },
+  { label: 'Orange',  value: '#fed7aa' },
+]
+
 export function ThoughtEditor({ page, onBack, onRefresh }: any) {
   const [title, setTitle] = useState(page.title)
   const [isSaving, setIsSaving] = useState(false)
+  const [showColorPicker, setShowColorPicker] = useState(false)
   const supabase = createClient()
   const editorAreaRef = useRef<HTMLDivElement>(null)
 
@@ -37,6 +49,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
       TaskItem.configure({
         nested: true,
       }),
+      Highlight.configure({ multicolor: true }),
     ],
     content: page.content || '',
     immediatelyRender: false, 
@@ -225,6 +238,37 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
         </div>
       </main>
 
+      {/* COLOR PICKER ROW — slides in when highlight button is tapped */}
+      {showColorPicker && (
+        <div className="flex items-center justify-around px-4 py-2 bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0">
+          {HIGHLIGHT_COLORS.map(c => (
+            <button
+              key={c.value}
+              onMouseDown={e => {
+                e.preventDefault()
+                editor.chain().focus().setHighlight({ color: c.value }).run()
+                setShowColorPicker(false)
+              }}
+              className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-700 shadow-md active:scale-90 transition-transform"
+              style={{ backgroundColor: c.value }}
+              aria-label={c.label}
+            />
+          ))}
+          {/* Remove highlight */}
+          <button
+            onMouseDown={e => {
+              e.preventDefault()
+              editor.chain().focus().unsetHighlight().run()
+              setShowColorPicker(false)
+            }}
+            className="w-8 h-8 rounded-full border-2 border-gray-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90 transition-transform"
+            aria-label="Remove highlight"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* KEYBOARD TOOLBAR — sits right above the virtual keyboard */}
       <div className="flex items-center bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <ToolbarBtn onClick={() => editor.chain().focus().insertContent('<p></p>').run()} active={false} icon={<Plus size={20} />} />
@@ -235,6 +279,11 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
         <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} icon={<Bold size={20} strokeWidth={2.5} />} />
         <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} icon={<Italic size={20} />} />
         <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} icon={<UnderlineIcon size={20} />} />
+        <ToolbarBtn
+          onClick={() => setShowColorPicker(v => !v)}
+          active={showColorPicker || editor.isActive('highlight')}
+          icon={<Highlighter size={20} />}
+        />
       </div>
     </div>
   )

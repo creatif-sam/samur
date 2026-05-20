@@ -30,7 +30,7 @@ export function RecentPagesGrid({ notebooks, onSelectPage }: RecentPagesGridProp
       const dateB = new Date(b.page.created_at).getTime()
       return dateB - dateA
     })
-    .slice(0, 12) // Show most recent 12 pages
+    .slice(0, 60) // Show most recent 60 pages
 
   const getPreviewText = (content: string) => {
     if (!content) return 'Empty page...'

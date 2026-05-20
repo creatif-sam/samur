@@ -20,6 +20,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
+    "@tiptap/extension-highlight": "^3.23.5",
     "@tiptap/extension-link": "^3.18.0",
     "@tiptap/extension-placeholder": "^3.18.0",
     "@tiptap/extension-task-item": "^3.20.1",
