@@ -1,7 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, LayoutList } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowRight, Check } from 'lucide-react'
+import type { PlannerTask } from './DailyPlanner'
+
+type Vision = { id: string; title: string; emoji: string }
 
 interface MonthCalendarProps {
   selectedDate: Date
@@ -9,6 +12,9 @@ interface MonthCalendarProps {
   onClose: () => void
   taskDays?: Set<string>
   onMonthChange?: (year: number, month: number) => void
+  tasks?: PlannerTask[]
+  completedTaskIds?: string[]
+  visionsMap?: Record<string, Vision>
 }
 
 const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
@@ -19,6 +25,9 @@ export default function MonthCalendar({
   onClose,
   taskDays = new Set(),
   onMonthChange,
+  tasks = [],
+  completedTaskIds = [],
+  visionsMap = {},
 }: MonthCalendarProps) {
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear())
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth())
@@ -37,6 +46,11 @@ export default function MonthCalendar({
       return new Date(viewYear, viewMonth, d)
     })
   }, [viewYear, viewMonth])
+
+  function parseMinutes(time: string) {
+    const [h, m] = time.split(':').map(Number)
+    return h * 60 + (m || 0)
+  }
 
   function sameDay(a: Date, b: Date) {
     return (
@@ -118,7 +132,7 @@ export default function MonthCalendar({
           return (
             <button
               key={dateKey}
-              onClick={() => { onDateSelect(day); onClose() }}
+              onClick={() => onDateSelect(day)}
               className={`flex flex-col items-center justify-center aspect-square rounded-2xl text-[13px] font-bold transition-all active:scale-90
                 ${isSelected
                   ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm'
@@ -151,14 +165,73 @@ export default function MonthCalendar({
         </button>
       )}
 
-      {/* Back to daily plan */}
-      <button
-        onClick={onClose}
-        className={`w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 rounded-3xl font-bold text-[15px] flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-sm ${!isViewingToday ? 'mt-2' : 'mt-6'}`}
-      >
-        <LayoutList className="w-4 h-4" />
-        View {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} Plan
-      </button>
+      {/* Day plan panel */}
+      <div className={`border-t border-slate-200/60 dark:border-slate-700/60 ${!isViewingToday ? 'mt-2 pt-5' : 'mt-6 pt-5'}`}>
+        {/* Day header */}
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+              {sameDay(selectedDate, today) ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
+            </p>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black text-slate-900 dark:text-white tabular-nums leading-none">
+                {selectedDate.getDate()}
+              </span>
+              <span className="text-[12px] text-slate-400 dark:text-slate-500 font-medium">
+                {tasks.length} event{tasks.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
+              {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[12px] font-bold px-3.5 py-2 rounded-2xl active:scale-90 transition-all shadow-sm"
+          >
+            Open plan
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Task list */}
+        {tasks.length === 0 ? (
+          <p className="text-center text-[13px] text-slate-400 dark:text-slate-500 py-6 font-medium">
+            No events scheduled
+          </p>
+        ) : (
+          <div className="space-y-2 pb-4">
+            {[...tasks]
+              .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start))
+              .map((task) => {
+                const isDone = completedTaskIds.includes(task.id)
+                const vision = task.vision_id ? visionsMap[task.vision_id] : null
+                return (
+                  <div
+                    key={task.id}
+                    className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tabular-nums">
+                        {task.start} — {task.end}
+                      </p>
+                      <p className={`text-[14px] font-bold text-slate-900 dark:text-white truncate ${isDone ? 'line-through opacity-40' : ''}`}>
+                        {task.text}
+                      </p>
+                      {vision && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="text-[9px]">{vision.emoji}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{vision.title}</span>
+                        </div>
+                      )}
+                    </div>
+                    {isDone && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
+                  </div>
+                )
+              })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

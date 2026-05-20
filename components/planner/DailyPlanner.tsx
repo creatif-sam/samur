@@ -361,10 +361,13 @@ export default function DailyPlanner() {
       {view === 'monthly' ? (
         <MonthCalendar
           selectedDate={selectedDate}
-          onDateSelect={(d) => { setSelectedDate(d); setView('daily') }}
+          onDateSelect={setSelectedDate}
           onClose={() => setView('daily')}
           taskDays={taskDays}
           onMonthChange={loadTaskDays}
+          tasks={tasks}
+          completedTaskIds={completedTaskIds}
+          visionsMap={visionsMap}
         />
       ) : (
         <>
