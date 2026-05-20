@@ -12,6 +12,7 @@ import HomeQuickNav from '@/components/home/HomeQuickNav'
 import HomeHighlightCards from '@/components/home/HomeHighlightCards'
 import HomeActivityFeed from '@/components/home/HomeActivityFeed'
 import GratitudeCard from '@/components/home/GratitudeCard'
+import YearThemeCard from '@/components/home/YearThemeCard'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -81,6 +82,7 @@ export default function HomePage() {
         </div>
 
         <HomeStreakHero streak={meditationStreak} />
+        <YearThemeCard />
         <GratitudeCard />
         <HomeWeekCalendar />
         <HomeQuickNav />

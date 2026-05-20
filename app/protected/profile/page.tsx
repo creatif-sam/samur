@@ -15,8 +15,9 @@ import {
 import {
   LogOut, Camera, Save, Users, Trash2, AlertTriangle, UserPlus, Check,
   X, Clock, Link2Off, ChevronRight, Globe, DollarSign, Bell, CreditCard,
-  Shield, Pencil,
+  Shield, Pencil, Target, BookOpen, Eye, Crown, CalendarDays,
 } from 'lucide-react'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -46,6 +47,11 @@ export default function ProfilePage() {
   const [deleteType, setDeleteType] = useState<'account' | 'data' | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
+  const [yearTheme, setYearTheme] = useState('')
+  const [yearScripture, setYearScripture] = useState('')
+  const [monthTheme, setMonthTheme] = useState('')
+  const [monthScripture, setMonthScripture] = useState('')
+  const [savingTheme, setSavingTheme] = useState(false)
 
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -121,8 +127,32 @@ export default function ProfilePage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase.from('user_preferences').select('currency').eq('user_id', user.id).single()
-    if (data?.currency) setSelectedCurrency(data.currency)
+    const { data } = await supabase
+      .from('user_preferences')
+      .select('currency, year_theme, year_scripture, month_theme, month_scripture')
+      .eq('user_id', user.id)
+      .single()
+    if (data?.currency)       setSelectedCurrency(data.currency)
+    if (data?.year_theme)     setYearTheme(data.year_theme)
+    if (data?.year_scripture) setYearScripture(data.year_scripture)
+    if (data?.month_theme)    setMonthTheme(data.month_theme)
+    if (data?.month_scripture) setMonthScripture(data.month_scripture)
+  }
+
+  const saveThemes = async () => {
+    setSavingTheme(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setSavingTheme(false); return }
+    await supabase.from('user_preferences').upsert({
+      user_id: user.id,
+      year_theme: yearTheme,
+      year_scripture: yearScripture,
+      month_theme: monthTheme,
+      month_scripture: monthScripture,
+    })
+    setSavingTheme(false)
+    toast.success('Themes saved!')
   }
 
   const saveCurrency = async (code: string) => {
@@ -299,7 +329,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-muted/40 pb-28">
 
-      {/* â”€â”€ HERO HEADER â”€â”€ */}
+      {/* ── HERO HEADER ── */}
       <div className="relative h-52 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#5B21B6] via-[#7C3AED] to-[#A78BFA]" />
         {/* decorative circles */}
@@ -309,6 +339,23 @@ export default function ProfilePage() {
         <button onClick={handleLogout} className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
           <LogOut className="w-4 h-4 text-white" />
         </button>
+        {/* Year theme overlay — shown in upper portion, above avatar overlap */}
+        {yearTheme && (
+          <div className="absolute inset-x-0 top-10 bottom-16 flex flex-col items-center justify-center px-14 text-center pointer-events-none">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Crown className="w-3 h-3 text-amber-300/80" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white/50">
+                Theme · {new Date().getFullYear()}
+              </span>
+            </div>
+            <p className="text-white/90 text-sm font-black uppercase tracking-widest leading-tight drop-shadow-sm line-clamp-2">
+              {yearTheme}
+            </p>
+            {yearScripture && (
+              <p className="text-white/55 text-[10px] italic mt-1 line-clamp-1">{yearScripture}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="max-w-lg mx-auto px-4">
@@ -351,21 +398,105 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* â”€â”€ STATS ROW â”€â”€ */}
-        <div className="grid grid-cols-4 gap-2 mb-6">
-          {[
-            { label: 'Goals', value: goalStats.total },
-            { label: 'Done', value: `${completionPct}%` },
-            { label: 'Prayers', value: meditationCount },
-            { label: 'Visions', value: visionCount },
-          ].map(s => (
-            <div key={s.label} className="bg-background rounded-2xl p-3 text-center shadow-sm">
-              <p className="text-lg font-black text-foreground leading-none">{s.value}</p>
-              <p className="text-[10px] font-semibold text-muted-foreground mt-1 uppercase tracking-wide">{s.label}</p>
-            </div>
-          ))}
+        {/* ── STATS ── */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <StatCard2
+            icon={<Target className="w-4 h-4 text-violet-600 dark:text-violet-400" />}
+            iconBg="bg-violet-50 dark:bg-violet-950/30"
+            label="Goals"
+            value={goalStats.total}
+          />
+          <StatCard2
+            icon={<Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+            iconBg="bg-emerald-50 dark:bg-emerald-950/30"
+            label="Completed"
+            value={`${completionPct}%`}
+          />
+          <StatCard2
+            icon={<BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
+            iconBg="bg-blue-50 dark:bg-blue-950/30"
+            label="Meditations"
+            value={meditationCount}
+          />
+          <StatCard2
+            icon={<Eye className="w-4 h-4 text-amber-500 dark:text-amber-400" />}
+            iconBg="bg-amber-50 dark:bg-amber-950/30"
+            label="Visions"
+            value={visionCount}
+          />
         </div>
+        {/* ── THEMES GROUP ── */}
+        <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
+          <SettingsRow
+            icon={<Crown className="w-4 h-4 text-amber-500" />}
+            label="Theme of the Year"
+            sublabel={yearTheme || 'Tap to set your year theme'}
+            expanded={expanded === 'yearTheme'}
+            onTap={() => toggle('yearTheme')}
+          />
+          {expanded === 'yearTheme' && (
+            <div className="px-5 pb-4 pt-1 space-y-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Theme</p>
+                <input
+                  value={yearTheme}
+                  onChange={e => setYearTheme(e.target.value)}
+                  placeholder="e.g. Year of Excellence"
+                  className="w-full h-9 px-3 rounded-xl border border-border bg-muted/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Scripture</p>
+                <Textarea
+                  value={yearScripture}
+                  onChange={e => setYearScripture(e.target.value)}
+                  placeholder="e.g. Isaiah 43:19 — Behold, I am doing a new thing…"
+                  className="text-sm resize-none rounded-xl"
+                  rows={2}
+                />
+              </div>
+              <Button size="sm" className="w-full bg-violet-600 hover:bg-violet-700 gap-1.5 h-9" onClick={saveThemes} disabled={savingTheme}>
+                <Save className="w-3.5 h-3.5" /> {savingTheme ? 'Saving…' : 'Save Year Theme'}
+              </Button>
+            </div>
+          )}
 
+          <div className="h-px bg-border/50 mx-5" />
+
+          <SettingsRow
+            icon={<CalendarDays className="w-4 h-4 text-violet-500" />}
+            label="Theme of the Month"
+            sublabel={monthTheme || 'Tap to set your month theme'}
+            expanded={expanded === 'monthTheme'}
+            onTap={() => toggle('monthTheme')}
+          />
+          {expanded === 'monthTheme' && (
+            <div className="px-5 pb-4 pt-1 space-y-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Theme</p>
+                <input
+                  value={monthTheme}
+                  onChange={e => setMonthTheme(e.target.value)}
+                  placeholder="e.g. Month of Deep Prayer"
+                  className="w-full h-9 px-3 rounded-xl border border-border bg-muted/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Scripture</p>
+                <Textarea
+                  value={monthScripture}
+                  onChange={e => setMonthScripture(e.target.value)}
+                  placeholder="e.g. Phil 4:13 — I can do all things through Christ…"
+                  className="text-sm resize-none rounded-xl"
+                  rows={2}
+                />
+              </div>
+              <Button size="sm" className="w-full bg-violet-600 hover:bg-violet-700 gap-1.5 h-9" onClick={saveThemes} disabled={savingTheme}>
+                <Save className="w-3.5 h-3.5" /> {savingTheme ? 'Saving…' : 'Save Month Theme'}
+              </Button>
+            </div>
+          )}
+        </div>
         {/* â”€â”€ SETTINGS GROUP 1 â”€â”€ */}
         <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
           {/* Partner */}
@@ -542,7 +673,25 @@ export default function ProfilePage() {
   )
 }
 
-/* â”€â”€ small helpers â”€â”€ */
+function StatCard2({
+  icon, iconBg, label, value,
+}: {
+  icon: React.ReactNode
+  iconBg: string
+  label: string
+  value: string | number
+}) {
+  return (
+    <div className="bg-background rounded-2xl p-4 flex flex-col gap-2 shadow-sm">
+      <div className="flex items-center gap-2">
+        <div className={`p-2 rounded-xl ${iconBg}`}>{icon}</div>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-tight">{label}</span>
+      </div>
+      <div className="text-2xl font-black text-foreground">{value}</div>
+    </div>
+  )
+}
+
 function SettingsRow({
   icon, label, sublabel, expanded, onTap, labelClass,
 }: {
