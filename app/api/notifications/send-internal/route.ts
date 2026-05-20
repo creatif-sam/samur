@@ -1,4 +1,4 @@
-import { createServiceClient } from '@/lib/supabase/service'
+﻿import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
     // 4. PREPARE THE PAYLOAD
     const payload = JSON.stringify({
-      title: title || 'Espirito Notification',
+      title: title || 'Mastery Notification',
       body: body || '',
       url: url || '/protected'
     })

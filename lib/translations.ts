@@ -1,4 +1,4 @@
-// Translations for the landing page
+﻿// Translations for the landing page
 export const translations = {
   en: {
     // Navbar
@@ -46,7 +46,7 @@ export const translations = {
     
     // Platform Section
     platformTitle: "Available on Your Device",
-    platformSubtitle: "Access Espirito anywhere, anytime",
+    platformSubtitle: "Access Mastery anywhere, anytime",
     
     androidTitle: "Android App",
     androidDescription: "Download from Google Play Store. Full native experience with offline support.",
@@ -62,7 +62,7 @@ export const translations = {
     
     pwaInstructionsTitle: "📱 How to Install PWA on iOS or Desktop:",
     pwaSteps: [
-      "Open Espirito in Safari (iOS) or Chrome/Edge (Desktop)",
+      "Open Mastery in Safari (iOS) or Chrome/Edge (Desktop)",
       "Tap the Share button (iOS) or click the install icon in the address bar (Desktop)",
       "Select \"Add to Home Screen\" and confirm"
     ],
@@ -76,7 +76,7 @@ export const translations = {
     privacyPolicy: "Privacy Policy",
     termsConditions: "Terms & Conditions",
     signUp: "Sign Up",
-    copyright: "Espirito. All rights reserved."
+    copyright: "Mastery. All rights reserved."
   },
   
   fr: {
@@ -125,7 +125,7 @@ export const translations = {
     
     // Platform Section
     platformTitle: "Disponible sur Votre Appareil",
-    platformSubtitle: "Accédez à Espirito n'importe où, n'importe quand",
+    platformSubtitle: "Accédez à Mastery n'importe où, n'importe quand",
     
     androidTitle: "Application Android",
     androidDescription: "Téléchargez depuis Google Play Store. Expérience native complète avec support hors ligne.",
@@ -141,7 +141,7 @@ export const translations = {
     
     pwaInstructionsTitle: "📱 Comment Installer PWA sur iOS ou Bureau:",
     pwaSteps: [
-      "Ouvrez Espirito dans Safari (iOS) ou Chrome/Edge (Bureau)",
+      "Ouvrez Mastery dans Safari (iOS) ou Chrome/Edge (Bureau)",
       "Appuyez sur le bouton Partager (iOS) ou cliquez sur l'icône d'installation dans la barre d'adresse (Bureau)",
       "Sélectionnez \"Ajouter à l'écran d'accueil\" et confirmez"
     ],
@@ -155,7 +155,7 @@ export const translations = {
     termsConditions: "Conditions Générales",
     privacyPolicy: "Politique de Confidentialité",
     signUp: "S'inscrire",
-    copyright: "Espirito. Tous droits réservés."
+    copyright: "Mastery. Tous droits réservés."
   }
 };
 

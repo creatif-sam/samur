@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Shield, Lock, Users, Database, Trash2, Mail } from 'lucide-react';
 import Link from 'next/link';
 
@@ -10,7 +10,7 @@ const PrivacyPolicy = () => {
       {/* Header */}
       <header className="bg-purple-700 py-16 px-6 text-center text-white">
         <h1 className="text-4xl md:text-5xl font-bold mb-4">Privacy Policy</h1>
-        <p className="text-purple-100 text-lg">How we protect your journey on Espirito</p>
+        <p className="text-purple-100 text-lg">How we protect your journey on Mastery</p>
         <div className="mt-6 inline-block bg-purple-800 px-4 py-2 rounded-full text-sm">
           Last Updated: {lastUpdated}
         </div>
@@ -25,7 +25,7 @@ const PrivacyPolicy = () => {
             <h2 className="text-2xl font-semibold text-purple-900">1. Introduction</h2>
           </div>
           <p>
-            Welcome to <strong>Espirito</strong>, developed by <strong>Samuel Gyasi and Urbright</strong>. 
+            Welcome to <strong>Mastery</strong>, developed by <strong>Samuel Gyasi and Urbright</strong>. 
             We are committed to protecting your privacy and ensuring a secure experience as you manage your 
             spiritual and personal growth journey through partnership and community. 
             This policy explains our data practices in alignment with our 2026 mission of institutionalization and excellence.
@@ -125,7 +125,7 @@ const PrivacyPolicy = () => {
             Terms & Conditions
           </Link>
         </div>
-        <p>&copy; {new Date().getFullYear()} Espirito. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} Mastery. All rights reserved.</p>
       </footer>
     </div>
   );

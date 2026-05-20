@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
@@ -93,7 +93,7 @@ export default function SplashLoader() {
             transition={{ duration: 0.9, delay: 0.2, ease: 'easeOut' }}
             className="text-5xl font-black text-white tracking-tighter"
           >
-            ESPIRITO<span className="text-violet-400">.</span>
+            MASTERY<span className="text-violet-400">.</span>
           </motion.h1>
 
           <motion.p

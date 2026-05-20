@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
@@ -113,7 +113,7 @@ export function Topbar() {
               </div>
             )}
           </Link>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Espirito</h1>
+          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Mastery</h1>
         </div>
 
         <div className="flex items-center gap-1">

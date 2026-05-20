@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { FileText, UserCheck, Shield, AlertCircle, Scale, Gavel } from 'lucide-react';
 import Link from 'next/link';
 
@@ -10,7 +10,7 @@ const TermsAndConditions = () => {
       {/* Header */}
       <header className="bg-purple-700 dark:bg-purple-900 py-16 px-6 text-center text-white">
         <h1 className="text-4xl md:text-5xl font-bold mb-4">Terms & Conditions</h1>
-        <p className="text-purple-100 text-lg">Your agreement to use Espirito</p>
+        <p className="text-purple-100 text-lg">Your agreement to use Mastery</p>
         <div className="mt-6 inline-block bg-purple-800 dark:bg-purple-950 px-4 py-2 rounded-full text-sm">
           Last Updated: {lastUpdated}
         </div>
@@ -25,11 +25,11 @@ const TermsAndConditions = () => {
             <h2 className="text-2xl font-semibold text-purple-900 dark:text-purple-300">1. Acceptance of Terms</h2>
           </div>
           <p className="mb-4">
-            By accessing or using <strong>Espirito</strong>, you agree to be bound by these Terms and Conditions. 
+            By accessing or using <strong>Mastery</strong>, you agree to be bound by these Terms and Conditions. 
             If you do not agree with any part of these terms, you may not use our service.
           </p>
           <p>
-            Espirito is a personal productivity and spiritual growth application developed by 
+            Mastery is a personal productivity and spiritual growth application developed by 
             <strong> Samuel Gyasi and Urbright</strong>. These terms govern your use of the platform, 
             including all features, services, and content.
           </p>
@@ -44,7 +44,7 @@ const TermsAndConditions = () => {
           <ul className="list-disc ml-6 space-y-3">
             <li><strong>Account Creation:</strong> You must provide accurate and complete information when creating your account.</li>
             <li><strong>Account Security:</strong> You are responsible for maintaining the confidentiality of your account credentials.</li>
-            <li><strong>Age Requirement:</strong> You must be at least 13 years old to use Espirito. Users under 18 should have parental consent.</li>
+            <li><strong>Age Requirement:</strong> You must be at least 13 years old to use Mastery. Users under 18 should have parental consent.</li>
             <li><strong>One Account:</strong> Each user is permitted one account. Multiple accounts for the same person are not allowed.</li>
             <li><strong>Account Termination:</strong> We reserve the right to suspend or terminate accounts that violate these terms.</li>
           </ul>
@@ -56,7 +56,7 @@ const TermsAndConditions = () => {
             <Shield className="text-purple-700 dark:text-purple-400 mr-3" size={28} />
             <h2 className="text-2xl font-semibold text-purple-900 dark:text-purple-300">3. Acceptable Use Policy</h2>
           </div>
-          <p className="mb-4">You agree <strong>NOT</strong> to use Espirito to:</p>
+          <p className="mb-4">You agree <strong>NOT</strong> to use Mastery to:</p>
           <div className="grid md:grid-cols-2 gap-4">
             <div className="p-4 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-950/20">
               <span className="font-bold text-red-700 dark:text-red-400 block mb-1">❌ Prohibited Content</span>
@@ -84,12 +84,12 @@ const TermsAndConditions = () => {
             <h2 className="text-2xl font-semibold text-purple-900 dark:text-purple-300">4. Intellectual Property</h2>
           </div>
           <p className="mb-4">
-            All content, features, and functionality of Espirito, including but not limited to text, graphics, 
+            All content, features, and functionality of Mastery, including but not limited to text, graphics, 
             logos, icons, images, and software, are the exclusive property of <strong>Samuel Gyasi and Urbright</strong>.
           </p>
           <p>
             <strong>Your Content:</strong> You retain ownership of the content you create (goals, visions, posts, etc.). 
-            By using Espirito, you grant us a license to store, display, and process this content to provide our services.
+            By using Mastery, you grant us a license to store, display, and process this content to provide our services.
           </p>
         </section>
 
@@ -103,7 +103,7 @@ const TermsAndConditions = () => {
             <li className="flex items-start gap-2">
               <span className="text-amber-600 dark:text-amber-400 mt-1">⚠️</span>
               <p>
-                Espirito is provided "as is" without warranties. We do not guarantee uninterrupted or error-free service.
+                Mastery is provided "as is" without warranties. We do not guarantee uninterrupted or error-free service.
               </p>
             </li>
             <li className="flex items-start gap-2">
@@ -128,7 +128,7 @@ const TermsAndConditions = () => {
             <h2 className="text-2xl font-semibold text-purple-900 dark:text-purple-300">6. Limitation of Liability</h2>
           </div>
           <p className="mb-4">
-            To the fullest extent permitted by law, <strong>Espirito, Samuel Gyasi, and Urbright</strong> shall not be 
+            To the fullest extent permitted by law, <strong>Mastery, Samuel Gyasi, and Urbright</strong> shall not be 
             liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the service.
           </p>
           <p>
@@ -146,7 +146,7 @@ const TermsAndConditions = () => {
             You may terminate your account at any time through the app settings. Upon termination:
           </p>
           <ul className="list-disc ml-6 space-y-2">
-            <li>Your access to Espirito will be immediately revoked</li>
+            <li>Your access to Mastery will be immediately revoked</li>
             <li>Your data will be deleted according to our Privacy Policy</li>
             <li>Shared goals with partners will be unlinked but not deleted from their accounts</li>
           </ul>
@@ -204,7 +204,7 @@ const TermsAndConditions = () => {
             Terms & Conditions
           </Link>
         </div>
-        <p>&copy; {new Date().getFullYear()} Espirito. All rights reserved.</p>
+        <p>&copy; {new Date().getFullYear()} Mastery. All rights reserved.</p>
       </footer>
     </div>
   );

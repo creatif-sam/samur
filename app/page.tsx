@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -142,7 +142,7 @@ export default function Home() {
           animate={{ opacity: 1, x: 0 }}
           className="text-2xl font-black tracking-tighter text-foreground"
         >
-          ESPIRITO<span className="text-violet-500">.</span>
+          MASTERY<span className="text-violet-500">.</span>
         </motion.h1>
 
         <div className="flex items-center gap-2">
@@ -186,7 +186,7 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            {t.welcomeTo} <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-blue-500 dark:from-violet-400 dark:to-blue-400">Espirito</span>
+            {t.welcomeTo} <span className="bg-clip-text text-transparent bg-gradient-to-r from-violet-500 to-blue-500 dark:from-violet-400 dark:to-blue-400">Mastery</span>
           </motion.h2>
           
           <motion.p 

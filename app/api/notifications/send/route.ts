@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 
@@ -46,8 +46,8 @@ export async function POST(request: Request) {
 
     // 4. PREPARE THE PAYLOAD
     const payload = JSON.stringify({
-      title: title || `Espirito: Message from ${sender.email}`,
-      body: body || 'New update in Espirito',
+      title: title || `Mastery: Message from ${sender.email}`,
+      body: body || 'New update in Mastery',
       url: url || '/protected/posts'
     })
 

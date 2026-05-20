@@ -1,6 +1,6 @@
-{
-  "name": "Espirito",
-  "short_name": "Espirito",
+﻿{
+  "name": "Mastery",
+  "short_name": "Mastery",
   "description": "A personal app for partners to share goals, plan, and connect",
   "start_url": "/",
   "display": "standalone",

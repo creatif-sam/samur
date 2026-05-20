@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
 
@@ -37,7 +37,7 @@ export const translations = {
       readApp: 'Library',
       profile: 'Profile',
       note: 'Journal',
-      appTitle: 'Espirito',
+      appTitle: 'Mastery',
     },
     
     // Auth
@@ -255,7 +255,7 @@ export const translations = {
       readApp: 'Lecture',
       profile: 'Profil',
       note: 'Journal',
-      appTitle: 'Espirito',
+      appTitle: 'Mastery',
     },
     
     // Auth

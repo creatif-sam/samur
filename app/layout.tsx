@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next";
+﻿import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ClientProviders } from "@/components/ClientProviders";
@@ -13,13 +13,13 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Espirito Goals & Habits",
+  title: "Mastery Goals & Habits",
   description: "A personal app for couples & partners to share goals, plan, and connect",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Espirito",
+    title: "Mastery",
     startupImage: [
       {
         url: "/icon-512.png",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   other: {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "Espirito",
+    "apple-mobile-web-app-title": "Mastery",
     "format-detection": "telephone=no",
     "mobile-web-app-capable": "yes",
   },
