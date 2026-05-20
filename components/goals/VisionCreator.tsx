@@ -13,12 +13,16 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Vision } from '@/app/protected/goals/page'
 
-const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4']
-const EMOJIS = ['🔭', '🚀', '🧠', '💪', '🎨', '🌍', '📈', '🧘']
+const COLORS = [
+  '#7c3aed', '#2563eb', '#0891b2', '#10b981',
+  '#f59e0b', '#ef4444', '#ec4899', '#64748b',
+]
+const EMOJIS = ['🔭', '🚀', '🧠', '💪', '🎨', '🌍', '📈', '🧘', '✝️', '🙏', '👑', '🌱']
 
 interface VisionCreatorProps {
   onCreated: () => void
@@ -29,18 +33,17 @@ interface VisionCreatorProps {
 
 export function VisionCreator({ onCreated, initialData, open, onOpenChange }: VisionCreatorProps) {
   const supabase = createClient()
-  
+
   const [internalOpen, setInternalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
-  const [newVision, setNewVision] = useState({ 
-    title: '', 
-    description: '', 
-    color: COLORS[0], 
+  const [newVision, setNewVision] = useState({
+    title: '',
+    description: '',
+    color: COLORS[0],
     emoji: EMOJIS[0],
-    target_date: ''
+    target_date: '',
   })
 
-  // Sync state if editing
   useEffect(() => {
     if (initialData) {
       setNewVision({
@@ -48,7 +51,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
         description: initialData.description || '',
         color: initialData.color || COLORS[0],
         emoji: initialData.emoji || EMOJIS[0],
-        target_date: initialData.target_date ? initialData.target_date.split('T')[0] : ''
+        target_date: initialData.target_date ? initialData.target_date.split('T')[0] : '',
       })
     }
   }, [initialData])
@@ -57,21 +60,20 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
   const setIsOpen = onOpenChange !== undefined ? onOpenChange : setInternalOpen
 
   async function handleSaveVision() {
-    if (!newVision.title) return
+    if (!newVision.title.trim()) return
     setIsCreating(true)
-    
+
     const { data: { user } } = await supabase.auth.getUser()
-    
     const payload = {
-      title: newVision.title,
-      description: newVision.description,
+      title: newVision.title.trim(),
+      description: newVision.description.trim(),
       color: newVision.color,
       emoji: newVision.emoji,
       target_date: newVision.target_date || null,
-      owner_id: user?.id
+      owner_id: user?.id,
     }
 
-    const { error } = initialData 
+    const { error } = initialData
       ? await supabase.from('visions').update(payload).eq('id', initialData.id)
       : await supabase.from('visions').insert(payload)
 
@@ -85,104 +87,145 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
     setIsCreating(false)
   }
 
+  const isEditing = Boolean(initialData)
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      {!initialData && (
+      {!isEditing && (
         <DialogTrigger asChild>
-          <Button variant="outline" className="rounded-full gap-2 border-primary/20 hover:bg-primary/5 active:scale-95 transition-transform">
-            <Sparkles className="w-4 h-4 text-primary" /> 
-            <span className="text-sm font-semibold">Cast New Vision</span>
+          <Button
+            variant="outline"
+            className="gap-2 border-primary/30 hover:bg-primary/5 active:scale-95 transition-transform font-bold"
+          >
+            <Sparkles className="w-4 h-4 text-primary" />
+            Cast New Vision
           </Button>
         </DialogTrigger>
       )}
-      
-      <DialogContent className="w-[95vw] max-w-[425px] rounded-2xl overflow-y-auto max-h-[90vh] p-6 gap-0">
-        <DialogHeader className="text-left pb-4">
-          <DialogTitle className="text-xl font-black italic uppercase tracking-tighter">
-            {initialData ? 'Refine the North Star' : 'Define the North Star'}
-          </DialogTitle>
-          <DialogDescription className="text-xs">
-            {initialData ? 'Adjust your high-level outcome.' : 'What high-level outcome are you chasing?'}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="space-y-6 pt-2">
-          {/* Vision Title */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Vision Title</label>
-            <Input 
-              placeholder="e.g. Financial Freedom[Less words)" 
+
+      <DialogContent className="w-[95vw] max-w-[460px] p-0 overflow-hidden rounded-3xl gap-0">
+        {/* Hero header */}
+        <div
+          className="relative px-6 pt-7 pb-6 text-white overflow-hidden"
+          style={{ backgroundColor: newVision.color }}
+        >
+          <div className="absolute -top-6 -right-6 text-[100px] opacity-10 select-none leading-none">
+            {newVision.emoji}
+          </div>
+          <DialogHeader className="text-left relative">
+            <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">
+              {isEditing ? 'Refine the North Star' : 'Define the North Star'}
+            </p>
+            <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter text-white leading-tight">
+              {newVision.title || (isEditing ? 'Edit Vision' : 'New Vision')}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {isEditing ? 'Update your vision details' : 'Create a new long-term vision'}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        {/* Form body */}
+        <div className="px-6 py-5 space-y-5 max-h-[65svh] overflow-y-auto">
+          {/* Title */}
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Vision Title <span className="text-rose-500">*</span>
+            </Label>
+            <Input
+              placeholder="e.g. Financial Freedom"
               value={newVision.title}
-              onChange={(e) => setNewVision({...newVision, title: e.target.value})}
-              className="text-base border-0 bg-secondary/50 focus-visible:ring-primary font-bold h-12"
+              onChange={e => setNewVision({ ...newVision, title: e.target.value })}
+              className="bg-muted/50 border-0 focus-visible:ring-primary font-bold h-11"
             />
           </div>
 
-          {/* Vision Description */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Vision Description</label>
-            <Textarea 
-              placeholder="Describe the details of your vision..." 
+          {/* Target Date */}
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Target Date
+            </Label>
+            <Input
+              type="date"
+              value={newVision.target_date}
+              onChange={e => setNewVision({ ...newVision, target_date: e.target.value })}
+              className="bg-muted/50 border-0 focus-visible:ring-primary font-bold h-11"
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Description
+            </Label>
+            <Textarea
+              placeholder="Describe what this vision means to you and what it looks like achieved..."
               value={newVision.description}
-              onChange={(e) => setNewVision({...newVision, description: e.target.value})}
-              className="text-base border-0 bg-secondary/50 focus-visible:ring-primary min-h-[100px] resize-none"
+              onChange={e => setNewVision({ ...newVision, description: e.target.value })}
+              className="bg-muted/50 border-0 focus-visible:ring-primary resize-none min-h-[80px] text-sm"
             />
           </div>
 
-          {/* Identity Color */}
-          <div className="space-y-3">
-            <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Identity Color</label>
-            <div className="flex flex-wrap gap-3 justify-between">
+          {/* Color */}
+          <div className="space-y-2.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Identity Color
+            </Label>
+            <div className="flex gap-2.5 flex-wrap">
               {COLORS.map(c => (
-                <button 
-                  key={c} type="button"
-                  onClick={() => setNewVision({...newVision, color: c})}
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setNewVision({ ...newVision, color: c })}
                   className={cn(
-                    "w-9 h-9 rounded-full transition-all flex-shrink-0", 
-                    newVision.color === c ? "scale-110 ring-4 ring-primary/20 border-2 border-white" : "opacity-60"
+                    'w-8 h-8 rounded-full transition-all flex-shrink-0',
+                    newVision.color === c
+                      ? 'scale-110 ring-4 ring-offset-2 ring-current border-2 border-white'
+                      : 'opacity-50 hover:opacity-80'
                   )}
-                  style={{ backgroundColor: c }}
+                  style={{ backgroundColor: c, color: c }}
                 />
               ))}
             </div>
           </div>
 
-          {/* Target Date */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Target Date</label>
-            <Input 
-              type="date"
-              value={newVision.target_date}
-              onChange={(e) => setNewVision({...newVision, target_date: e.target.value})}
-              className="text-base border-0 bg-secondary/50 focus-visible:ring-primary font-bold h-12"
-            />
-          </div>
-
-          {/* Icon/Emoji */}
-          <div className="space-y-3">
-            <label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Icon</label>
-            <div className="grid grid-cols-4 gap-3">
+          {/* Icon */}
+          <div className="space-y-2.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Icon
+            </Label>
+            <div className="grid grid-cols-6 gap-2">
               {EMOJIS.map(e => (
-                <button 
-                  key={e} type="button"
-                  onClick={() => setNewVision({...newVision, emoji: e})}
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => setNewVision({ ...newVision, emoji: e })}
                   className={cn(
-                    "h-12 rounded-xl bg-secondary flex items-center justify-center text-xl transition-all", 
-                    newVision.emoji === e ? "bg-primary text-white shadow-md" : "active:bg-secondary/80 opacity-60"
+                    'h-10 rounded-xl flex items-center justify-center text-xl transition-all',
+                    newVision.emoji === e
+                      ? 'text-white shadow-md scale-105'
+                      : 'bg-muted opacity-50 hover:opacity-80'
                   )}
+                  style={newVision.emoji === e ? { backgroundColor: newVision.color } : undefined}
                 >
                   {e}
                 </button>
               ))}
             </div>
           </div>
+        </div>
 
-          <Button 
-            onClick={handleSaveVision} 
-            className="w-full font-bold uppercase tracking-widest h-14 mt-4" 
-            disabled={isCreating || !newVision.title}
+        {/* Footer CTA */}
+        <div className="px-6 pb-6 pt-2">
+          <Button
+            onClick={handleSaveVision}
+            disabled={isCreating || !newVision.title.trim()}
+            className="w-full h-13 font-black uppercase tracking-widest text-sm"
+            style={{ backgroundColor: newVision.color, color: '#fff' }}
           >
-            {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : initialData ? 'Update Vision' : 'Cast Vision'}
+            {isCreating
+              ? <Loader2 className="w-5 h-5 animate-spin" />
+              : isEditing ? '✦ Update Vision' : '✦ Cast This Vision'}
           </Button>
         </div>
       </DialogContent>

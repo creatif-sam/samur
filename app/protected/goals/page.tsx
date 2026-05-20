@@ -53,14 +53,10 @@ export default function GoalsPage() {
   const [showNew, setShowNew] = useState(false)
   const [view, setView] = useState<GoalView>('weekly')
   const [selectedVisionId, setSelectedVisionId] = useState<string>('all')
-  const [showArchived, setShowArchived] = useState(false)
 
   const loadAll = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return setLoading(false)
-
-    let vQuery = supabase.from('visions').select('*').eq('owner_id', user.id)
-    if (!showArchived) vQuery = vQuery.eq('is_archived', false)
 
     const [gRes, cRes, vRes] = await Promise.all([
       supabase
@@ -69,7 +65,7 @@ export default function GoalsPage() {
         .or(`owner_id.eq.${user.id},partner_id.eq.${user.id}`)
         .order('created_at', { ascending: false }),
       supabase.from('goal_categories').select('*').eq('user_id', user.id),
-      vQuery.order('created_at', { ascending: false }),
+      supabase.from('visions').select('*').eq('owner_id', user.id).order('created_at', { ascending: false }),
     ])
 
     setGoals(gRes.data ?? [])
@@ -80,7 +76,7 @@ export default function GoalsPage() {
 
   useEffect(() => {
     loadAll()
-  }, [showArchived])
+  }, [])
 
   const uiCategories: GoalCategory[] = useMemo(
     () =>
@@ -176,16 +172,6 @@ export default function GoalsPage() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <VisionCreator onCreated={loadAll} />
-          <Button
-            onClick={() => setShowNew(true)}
-            className="w-full sm:w-auto h-10 font-bold uppercase text-xs"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Goal
-          </Button>
-        </div>
       </header>
 
       <div className="flex flex-col gap-3 bg-secondary/20 p-4 rounded-xl border border-dashed border-primary/20">
@@ -278,6 +264,15 @@ export default function GoalsPage() {
         </TabsContent>
 
         <TabsContent value="goals" className="space-y-6">
+          <div className="flex justify-end">
+            <Button
+              onClick={() => setShowNew(true)}
+              className="h-10 font-bold uppercase text-xs"
+            >
+              <Plus className="w-4 h-4 mr-2" /> New Goal
+            </Button>
+          </div>
+
           <div className="flex bg-muted/40 p-1 rounded-2xl gap-1">
             {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
               <button
@@ -360,30 +355,13 @@ export default function GoalsPage() {
             <div>
               <h3 className="text-sm font-black uppercase flex gap-2">
                 <Flag className="w-4 h-4 text-primary" />
-                {showArchived ? 'Archive Vault' : 'Vision Portfolio'}
+                Vision Portfolio
               </h3>
               <p className="text-[10px] text-muted-foreground uppercase">
                 Long term strategic roadmap
               </p>
             </div>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowArchived(!showArchived)}
-                className={cn(
-                  'h-10 text-[10px] font-bold uppercase',
-                  showArchived
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground'
-                )}
-              >
-                <Archive className="w-3 h-3 mr-2" />
-                {showArchived ? 'Active Mode' : ''}
-              </Button>
-              <VisionCreator onCreated={loadAll} />
-            </div>
+            <VisionCreator onCreated={loadAll} />
           </div>
 
           <VisionListView
