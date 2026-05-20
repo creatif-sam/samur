@@ -7,9 +7,9 @@ import Underline from '@tiptap/extension-underline'
 import TaskList from '@tiptap/extension-task-list'
 import TaskItem from '@tiptap/extension-task-item'
 import { 
-  ChevronLeft, Trash2, Calendar, Clock, 
-  Bold, Italic, List, ListOrdered, Heading2, Plus, 
-  CheckSquare, Underline as UnderlineIcon, Type, Share2
+  ChevronLeft, Trash2, Calendar, Clock,
+  Bold, Italic, List, ListOrdered, Plus,
+  CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -171,8 +171,11 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
         </Button>
         <div className="flex items-center gap-3">
           <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
-            {isSaving ? "Syncing..." : "Cloud Synced"}
+            {isSaving ? "Syncing..." : "Saved"}
           </span>
+          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white/60 hover:text-red-300 hover:bg-white/10">
+            <Trash2 className="w-4 h-4" />
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-white/10">
@@ -194,62 +197,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
         </div>
       </header>
 
-      {/* RICH TEXT TOOLBAR */}
-      <div className="flex items-center gap-1 px-4 py-2 bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 overflow-x-auto no-scrollbar">
-        {/* Add new item button */}
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().insertContent('<p></p>').run()} 
-          active={false} 
-          icon={<Plus size={16}/>} 
-        />
-        
-        <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
-        
-        {/* List types */}
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleTaskList().run()} 
-          active={editor.isActive('taskList')} 
-          icon={<CheckSquare size={16}/>} 
-        />
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleBulletList().run()} 
-          active={editor.isActive('bulletList')} 
-          icon={<List size={16}/>} 
-        />
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleOrderedList().run()} 
-          active={editor.isActive('orderedList')} 
-          icon={<ListOrdered size={16}/>} 
-        />
-        
-        <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
-        
-        {/* Text style */}
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} 
-          active={editor.isActive('heading')} 
-          icon={<Type size={16}/>} 
-        />
-        
-        <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
-        
-        {/* Text formatting */}
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleBold().run()} 
-          active={editor.isActive('bold')} 
-          icon={<Bold size={16}/>} 
-        />
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleItalic().run()} 
-          active={editor.isActive('italic')} 
-          icon={<Italic size={16}/>} 
-        />
-        <ToolbarButton 
-          onClick={() => editor.chain().focus().toggleUnderline().run()} 
-          active={editor.isActive('underline')} 
-          icon={<UnderlineIcon size={16}/>} 
-        />
-      </div>
+
 
       <main className="flex-grow overflow-y-auto bg-white dark:bg-[#0f172a] flex flex-col">
         {/* TITLE AREA */}
@@ -284,31 +232,33 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
         </div>
       </main>
 
-      <footer className="px-6 py-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
-        <div className="flex items-center gap-2">
-          <div className={cn("w-1.5 h-1.5 rounded-full", isSaving ? "bg-amber-500 animate-pulse" : "bg-green-500")} />
-          <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">
-            {isSaving ? "Saving Meditation" : "Encrypted & Saved"}
-          </span>
-        </div>
-        <Button variant="ghost" size="icon" className="text-slate-200 hover:text-red-500 transition-colors"><Trash2 size={16}/></Button>
-      </footer>
+      {/* KEYBOARD TOOLBAR — sits right above the virtual keyboard */}
+      <div className="flex items-center bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <ToolbarBtn onClick={() => editor.chain().focus().insertContent('<p></p>').run()} active={false} icon={<Plus size={20} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} icon={<CheckSquare size={20} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} icon={<List size={20} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} icon={<ListOrdered size={20} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} icon={<Strikethrough size={20} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} icon={<Bold size={20} strokeWidth={2.5} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} icon={<Italic size={20} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} icon={<UnderlineIcon size={20} />} />
+      </div>
     </div>
   )
 }
 
-function ToolbarButton({ onClick, active, icon }: any) {
+function ToolbarBtn({ onClick, active, icon }: any) {
   return (
-    <Button 
-      variant="ghost" 
-      size="icon" 
-      onClick={onClick} 
+    <button
+      onMouseDown={e => { e.preventDefault(); onClick() }}
       className={cn(
-        "h-8 w-8 transition-all rounded-lg",
-        active ? "bg-[#7719aa]/10 text-[#7719aa] dark:bg-[#a78bfa]/20 dark:text-[#a78bfa]" : "text-slate-400 dark:text-slate-600"
+        'flex-1 flex items-center justify-center h-12 transition-colors',
+        active
+          ? 'text-[#7719aa] dark:text-[#a78bfa] bg-violet-50 dark:bg-violet-950/30'
+          : 'text-gray-500 dark:text-zinc-400'
       )}
     >
       {icon}
-    </Button>
+    </button>
   )
 }
