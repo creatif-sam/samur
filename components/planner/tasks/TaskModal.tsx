@@ -61,6 +61,10 @@ export function TaskModal({
 
   function handleSave() {
     if (!text.trim()) return
+    if (!visionId) {
+      toast.error('Please link this event to a vision')
+      return
+    }
     
     if (existingTask && existingTask.recurring && JSON.stringify(recurring) !== JSON.stringify(existingTask.recurring)) {
       // Recurring settings changed - ask if they want to update all

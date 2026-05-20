@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3 } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon } from 'lucide-react'
 import Link from 'next/link'
 
 import { TaskModal } from './tasks/TaskModal'
@@ -31,6 +31,17 @@ export interface PlannerTask {
 
 type Vision = { id: string; title: string; emoji: string }
 type UserProfile = { id: string; name?: string; avatar_url?: string }
+
+const TASK_GRADIENTS = [
+  'from-violet-600 to-purple-700',
+  'from-blue-600 to-cyan-700',
+  'from-emerald-500 to-teal-600',
+  'from-amber-500 to-orange-600',
+  'from-rose-500 to-pink-600',
+  'from-indigo-600 to-blue-700',
+  'from-green-500 to-emerald-600',
+  'from-orange-500 to-amber-600',
+]
 
 export default function DailyPlanner() {
   const supabase = createClient()
@@ -342,102 +353,133 @@ export default function DailyPlanner() {
           </div>
         </div>
 
-        <div className="mb-10">
-          <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-3 block px-2">Morning Intention</label>
-          <textarea
-            value={morning}
-            placeholder="Focus of the day..."
-            onChange={(e) => { setMorning(e.target.value); saveDay(tasks, e.target.value, reflection, mood, completedTaskIds); }}
-            className="w-full bg-white/40 dark:bg-slate-800/40 border-none rounded-[24px] p-5 text-[16px] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900 transition-all resize-none min-h-[90px]"
-          />
+        <div className="mb-8">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 p-5 shadow-sm">
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <Sun className="w-3.5 h-3.5 text-white/70" />
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Morning Intention</span>
+              </div>
+              <textarea
+                value={morning}
+                placeholder="Focus of the day..."
+                onChange={(e) => { setMorning(e.target.value); saveDay(tasks, e.target.value, reflection, mood, completedTaskIds); }}
+                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[70px]"
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-2 relative mb-10">
+        {tasks.length > 0 && (
+          <div className="flex items-center justify-between mb-3 px-1">
+            <span className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-50 ${theme.text}`}>
+              Today&apos;s Schedule
+            </span>
+            <span className={`text-[10px] font-semibold opacity-40 ${theme.text}`}>
+              {tasks.length} event{tasks.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+        <div className="space-y-3 relative mb-8">
           {tasks
             .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start))
-            .map((task) => {
+            .map((task, idx) => {
               const isDone = completedTaskIds.includes(task.id);
               const vision = task.vision_id ? visionsMap[task.vision_id] : null;
               const isPartnerTask = task.owner_id && task.owner_id !== userId;
+              const gradient = TASK_GRADIENTS[idx % TASK_GRADIENTS.length]
 
               return (
-                <div 
-                  key={task.id} 
-                  onClick={() => !isPartnerTask && setEditingTask(task)} 
-                  className={`flex flex-col gap-1 p-4 rounded-[28px] bg-white/30 dark:bg-slate-800/30 ${!isPartnerTask ? 'active:bg-white/60 dark:active:bg-slate-700/60 active:scale-[0.98] cursor-pointer' : 'opacity-75 cursor-default'} transition-all group`}
+                <div
+                  key={task.id}
+                  onClick={() => !isPartnerTask && setEditingTask(task)}
+                  className={`relative overflow-hidden rounded-3xl p-4 bg-gradient-to-br ${gradient} ${isDone ? 'opacity-60' : ''} ${!isPartnerTask ? 'active:scale-[0.98] cursor-pointer' : 'cursor-default'} transition-all shadow-sm`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 text-sm font-bold text-slate-900 dark:text-slate-100 tabular-nums">{task.start}</div>
-                    <div className="flex-1 flex items-center gap-3">
-                      <div className={`w-1.5 h-10 rounded-full transition-colors duration-1000 ${isDone ? 'bg-slate-200 dark:bg-slate-700' : theme.accent}`} />
-                      <div className="flex-1">
-                        <h3 className={`text-[17px] font-semibold flex items-center gap-2 ${isDone ? 'text-slate-400 dark:text-slate-500 line-through' : 'text-slate-900 dark:text-white'}`}>
-                          {task.text} 
-                          {task.recurring && <RefreshCw className="w-3.5 h-3.5 opacity-30" />}
-                        </h3>
-                        <p className="text-[13px] text-slate-400 dark:text-slate-500 font-medium">
+                  {/* Decorative circle */}
+                  <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
+
+                  <div className="relative z-10">
+                    {/* Time + completion row */}
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest tabular-nums">
                           {task.start} — {task.end}
-                        </p>
+                        </span>
+                        {task.recurring && <RefreshCw className="w-3 h-3 text-white/40" />}
                       </div>
+                      {!isPartnerTask && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleComplete(task.id); }}
+                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-white border-white' : 'border-white/50 hover:border-white'}`}
+                        >
+                          {isDone && <Check className="w-3 h-3 text-slate-600 stroke-[3]" />}
+                        </button>
+                      )}
                     </div>
-                    {!isPartnerTask && (
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); toggleComplete(task.id); }} 
-                        className={`h-7 w-7 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-blue-600 border-blue-600' : 'border-slate-200 dark:border-slate-700'}`}
-                      >
-                        {isDone && <Check className="text-white w-4 h-4 stroke-[3]" />}
-                      </button>
+
+                    {/* Task title */}
+                    <h3 className={`text-base font-black text-white leading-snug ${isDone ? 'line-through' : ''}`}>
+                      {task.text}
+                    </h3>
+
+                    {/* Vision badge */}
+                    {vision && (
+                      <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
+                        <span className="text-[10px]">{vision.emoji}</span>
+                        <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{vision.title}</span>
+                      </div>
+                    )}
+
+                    {/* Partner badge */}
+                    {task.owner_id && task.owner_id !== userId && profilesMap[task.owner_id] && (
+                      <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
+                        {profilesMap[task.owner_id].avatar_url ? (
+                          <img
+                            src={profilesMap[task.owner_id].avatar_url}
+                            alt={profilesMap[task.owner_id].name || 'Partner'}
+                            className="w-3.5 h-3.5 rounded-full"
+                          />
+                        ) : (
+                          <div className="w-3.5 h-3.5 rounded-full bg-white/30 flex items-center justify-center text-[7px] font-bold text-white">
+                            {(profilesMap[task.owner_id].name || 'P')[0].toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">
+                          {profilesMap[task.owner_id].name || 'Partner'}
+                        </span>
+                      </div>
                     )}
                   </div>
-
-                  {vision && (
-                    <div className="ml-16 flex items-center gap-1.5 py-1 px-3 bg-white/40 dark:bg-black/5 rounded-full w-fit animate-in fade-in slide-in-from-left-1 duration-500">
-                      <span className="text-xs">{vision.emoji}</span>
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                        {vision.title}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {task.owner_id && task.owner_id !== userId && profilesMap[task.owner_id] && (
-                    <div className="ml-16 flex items-center gap-2 py-1 px-3 bg-blue-50/50 dark:bg-blue-900/20 rounded-full w-fit animate-in fade-in slide-in-from-left-1 duration-500">
-                      {profilesMap[task.owner_id].avatar_url ? (
-                        <img 
-                          src={profilesMap[task.owner_id].avatar_url} 
-                          alt={profilesMap[task.owner_id].name || 'Partner'} 
-                          className="w-4 h-4 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-4 h-4 rounded-full bg-blue-200 dark:bg-blue-700 flex items-center justify-center text-[8px] font-bold text-blue-700 dark:text-blue-200">
-                          {(profilesMap[task.owner_id].name || 'P')[0].toUpperCase()}
-                        </div>
-                      )}
-                      <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider">
-                        {profilesMap[task.owner_id].name || 'Partner'}
-                      </span>
-                    </div>
-                  )}
                 </div>
               )
             })}
         </div>
 
-        <button 
-          onClick={() => setTaskModalHour(new Date().getHours())} 
-          className="w-full bg-slate-900/5 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 py-5 px-8 rounded-[28px] text-left text-[15px] font-semibold flex justify-between items-center active:bg-slate-900/10 dark:active:bg-slate-800/70 transition-colors"
+        <button
+          onClick={() => setTaskModalHour(new Date().getHours())}
+          className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-3xl font-bold text-[15px] flex justify-between items-center active:scale-[0.98] transition-all shadow-sm"
         >
           Add event on {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-          <Plus className="w-5 h-5 opacity-30" />
+          <Plus className="w-5 h-5" />
         </button>
 
-        <div className="mt-14 pb-20">
-          <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-3 block px-2">Evening Reflection</label>
-          <textarea
-            value={reflection}
-            placeholder="How did you finish your day?"
-            onChange={(e) => { setReflection(e.target.value); saveDay(tasks, morning, e.target.value, mood, completedTaskIds); }}
-            className="w-full bg-purple-50/20 dark:bg-purple-900/10 border-none rounded-[24px] p-5 text-[16px] dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:ring-2 focus:ring-purple-100 dark:focus:ring-purple-900 transition-all resize-none min-h-[120px]"
-          />
+        <div className="mt-6 pb-20">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-700 p-5 shadow-sm">
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <Moon className="w-3.5 h-3.5 text-white/70" />
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Evening Reflection</span>
+              </div>
+              <textarea
+                value={reflection}
+                placeholder="How did you finish your day?"
+                onChange={(e) => { setReflection(e.target.value); saveDay(tasks, morning, e.target.value, mood, completedTaskIds); }}
+                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[100px]"
+              />
+            </div>
+          </div>
         </div>
       </div>
 

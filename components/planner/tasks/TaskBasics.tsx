@@ -30,12 +30,12 @@ export function TaskBasics({
       const { data: auth } = await supabase.auth.getUser()
       if (!auth.user) return
 
-      // Now fetching from 'visions' table
+      // Now fetching from 'visions' table, sorted alphabetically
       const { data } = await supabase
         .from('visions')
         .select('id, title')
-        .eq('owner_id', auth.user.id) // Ensure column name matches your DB (user_id or owner_id)
-        .order('created_at')
+        .eq('owner_id', auth.user.id)
+        .order('title')
 
       if (data) setVisions(data)
     }
@@ -63,7 +63,7 @@ export function TaskBasics({
       {/* Vision Link Section */}
       <div>
         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-3 block">
-          Link to Vision
+          Link to Vision <span className="text-red-500">*</span>
         </label>
         
         <div className="bg-slate-50 rounded-[22px] overflow-hidden border border-slate-100/50 hover:bg-slate-100/50 transition-colors">
@@ -78,7 +78,7 @@ export function TaskBasics({
                 onChange={(e) => onVisionChange(e.target.value === '' ? null : e.target.value)}
                 className="w-full bg-transparent border-none text-[16px] font-semibold focus:ring-0 cursor-pointer appearance-none outline-none pr-8"
               >
-                <option value="">No vision linked</option>
+                <option value="" disabled>Select a vision…</option>
                 {visions.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.title}
