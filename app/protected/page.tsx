@@ -35,14 +35,14 @@ export default function HomePage() {
     const todayStr = today.toISOString().split('T')[0]
 
     const [profileRes, goalsRes, meditationsRes, bookRes, plannerRes] = await Promise.all([
-      supabase.from('profiles').select('full_name, avatar_url').eq('id', uid).single(),
+      supabase.from('profiles').select('name, avatar_url').eq('id', uid).single(),
       supabase.from('goals').select('*').or(`owner_id.eq.${uid},partner_id.eq.${uid}`),
       supabase.from('meditations').select('created_at, period, author_id').eq('author_id', uid).order('created_at', { ascending: false }),
       supabase.from('readings').select('id, title, author, total_pages, pages_remaining').eq('user_id', uid).eq('status', 'reading').limit(1).maybeSingle(),
       supabase.from('planner_days').select('morning, tasks, mood').eq('user_id', uid).eq('day', todayStr).maybeSingle(),
     ])
 
-    setUserName(profileRes.data?.full_name ?? null)
+    setUserName(profileRes.data?.name ?? null)
     setGoals(goalsRes.data ?? [])
     setMeditations(meditationsRes.data ?? [])
     setCurrentBook(bookRes.data ?? null)

@@ -12,13 +12,13 @@ interface QuickLink {
 }
 
 const quickLinks: QuickLink[] = [
-  { label: 'Goals',     href: '/protected/goals',      icon: Target,      color: 'bg-violet-500' },
-  { label: 'Planner',  href: '/protected/planner',    icon: Calendar,    color: 'bg-blue-500'   },
-  { label: 'Meditate', href: '/protected/meditations', icon: Moon,        color: 'bg-indigo-500' },
-  { label: 'Notes',    href: '/protected/note',        icon: NotebookPen, color: 'bg-amber-500'  },
-  { label: 'Library',  href: '/protected/readapp',     icon: BookOpen,    color: 'bg-emerald-500'},
-  { label: 'Analytics',  href: '/protected/analytics',       icon: BarChart2,      color: 'bg-rose-500'   },
-  { label: 'Review',     href: '/protected/planner/review',  icon: ClipboardList,  color: 'bg-teal-500'   },
+  { label: 'Analytics', href: '/protected/analytics',      icon: BarChart2,   color: 'bg-rose-500'   },
+  { label: 'Goals',     href: '/protected/goals',          icon: Target,      color: 'bg-violet-500' },
+  { label: 'Library',  href: '/protected/readapp',         icon: BookOpen,    color: 'bg-emerald-500'},
+  { label: 'Meditate', href: '/protected/meditations',     icon: Moon,        color: 'bg-indigo-500' },
+  { label: 'Notes',    href: '/protected/note',            icon: NotebookPen, color: 'bg-amber-500'  },
+  { label: 'Planner',  href: '/protected/planner',         icon: Calendar,    color: 'bg-blue-500'   },
+  { label: 'Review',   href: '/protected/planner/review',  icon: ClipboardList, color: 'bg-teal-500' },
 ]
 
 export default function HomeQuickNav() {
