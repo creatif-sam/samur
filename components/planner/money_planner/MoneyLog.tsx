@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import CurrencySelector from './CurrencySelector'
+import { currencies } from '@/lib/currencies'
 import MoneyAddModal from './MoneyAddModal'
 import MoneyEditModal from './MoneyEditModal'
 import { MoneyEntry } from '@/lib/types'
@@ -47,6 +47,24 @@ export default function MoneyLog({
   
   const [entries, setEntries] = useState<MoneyEntry[]>([])
   const [symbol, setSymbol] = useState('₵')
+
+  // Load currency symbol from user preferences (set via profile page)
+  useEffect(() => {
+    const loadSymbol = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('currency')
+        .eq('user_id', user.id)
+        .single()
+      if (data?.currency) {
+        const c = currencies.find(x => x.code === data.currency)
+        if (c) setSymbol(c.symbol)
+      }
+    }
+    void loadSymbol()
+  }, [])
   const [searchQuery, setSearchQuery] = useState('')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
   const [scope, setScope] = useState<Scope>('month')
@@ -257,10 +275,7 @@ export default function MoneyLog({
   return (
     <div className="flex flex-col gap-4">
       {/* Header Actions */}
-      <div className="flex justify-between items-center gap-2">
-        <div className="flex-1">
-          <CurrencySelector onChange={setSymbol} />
-        </div>
+      <div className="flex justify-end">
         <Button
           onClick={exportToExcel}
           variant="outline"
@@ -269,7 +284,7 @@ export default function MoneyLog({
           disabled={entries.length === 0}
         >
           <Download size={16} />
-          <span className="hidden sm:inline">{t.money.export}</span>
+          <span>{t.money.export}</span>
         </Button>
       </div>
 
