@@ -76,7 +76,6 @@ export default function ProfilePage() {
 
     setProfile(data)
     setName(data?.name || '')
-    setSelectedPartnerId(data?.partner_id || '')
     setLoading(false)
   }
 
