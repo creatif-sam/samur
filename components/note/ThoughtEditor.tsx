@@ -175,7 +175,10 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
   if (!editor) return null
 
   return (
-    <div className="fixed inset-0 z-[60] bg-white dark:bg-[#0f172a] flex flex-col animate-in slide-in-from-right duration-300 overflow-hidden font-poppins transition-colors duration-500">
+    <div
+      className="fixed top-0 left-0 right-0 z-[60] bg-white dark:bg-[#0f172a] flex flex-col animate-in slide-in-from-right duration-300 overflow-hidden font-poppins transition-colors duration-500"
+      style={{ height: '100dvh' }}
+    >
       
       {/* MOBILE HEADER - VIOLET THEME */}
       <header className="flex items-center justify-between px-3 h-14 bg-[#7719aa] dark:bg-[#581c87] text-white shrink-0 shadow-lg">
