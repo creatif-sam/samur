@@ -215,18 +215,11 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
           </div>
         </div>
 
-        {/* RULED PAPER WRITING AREA - OPTIMIZED FOR DARK SCREEN */}
+        {/* WRITING AREA */}
         <div 
           ref={editorAreaRef}
           className="flex-grow px-6 pb-20 cursor-text"
           onClick={() => editor.commands.focus()}
-          style={{
-            backgroundImage: `linear-gradient(to bottom, transparent 35px, var(--ruled-line) 35px, var(--ruled-line) 36px, transparent 36px)`,
-            backgroundSize: '100% 36px',
-            backgroundAttachment: 'local',
-            // @ts-ignore
-            '--ruled-line': 'rgba(100, 116, 139, 0.15)' // Subtle slate lines
-          } as any}
         >
           <EditorContent editor={editor} />
         </div>

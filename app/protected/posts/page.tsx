@@ -3,20 +3,13 @@
 import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Post, Profile } from '@/lib/types'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Plus, Loader2, HandHeart, BookOpen, NotebookPen } from 'lucide-react'
+import { Plus, Loader2, HandHeart, BookOpen, NotebookPen, Pencil, Users, Lock, Send } from 'lucide-react'
 import PostCard from '@/components/posts/PostCard'
 import MeditationsTab from '@/components/meditations/MeditationsTab'
 import PrayerTab from '@/components/prayer/PrayerTab'
+import { cn } from '@/lib/utils'
 
 type Tab = 'meditations' | 'prayer' | 'posts'
 type PostWithProfile = Post & { profiles: Profile }
@@ -35,6 +28,7 @@ function PostsTab() {
   const [content, setContent] = useState('')
   const [visibility, setVisibility] = useState<'private' | 'shared'>('shared')
   const [userId, setUserId] = useState<string | null>(null)
+  const [userName, setUserName] = useState('')
 
   useEffect(() => { loadData() }, [])
 
@@ -43,6 +37,7 @@ function PostsTab() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) { setLoading(false); return }
     setUserId(user.id)
+    setUserName(user.user_metadata?.name || 'You')
 
     const { data } = await supabase
       .from('posts')
@@ -61,7 +56,7 @@ function PostsTab() {
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, visibility: visibility.toLowerCase() }),
+        body: JSON.stringify({ content, visibility }),
       })
       const result = await res.json()
       if (!res.ok) { alert(`Error: ${result.error || 'Failed to publish post'}`); return }
@@ -92,53 +87,106 @@ function PostsTab() {
     return <div className="flex items-center justify-center min-h-[300px]"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
   }
 
+  const initials = userName.slice(0, 2).toUpperCase()
+
   return (
     <div className="space-y-4 pb-10">
-      <div className="flex items-center justify-end">
-        <Button size="sm" onClick={() => setShowComposer(v => !v)} className="rounded-full px-4 font-medium">
-          <Plus className="w-4 h-4 mr-1" /> New Post
-        </Button>
-      </div>
 
-      {showComposer && (
-        <Card className="shadow-sm border-muted-foreground/20">
-          <CardContent className="p-3 md:p-4 space-y-3">
-            <Textarea
-              placeholder="Capture a thought..."
-              className="min-h-[120px] border-none focus-visible:ring-0 resize-none p-0 text-sm placeholder:text-muted-foreground/50"
-              value={content}
-              onChange={e => setContent(e.target.value)}
-              disabled={isSubmitting}
-            />
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t pt-3">
-              <Select disabled={isSubmitting} value={visibility} onValueChange={v => setVisibility(v as 'private' | 'shared')}>
-                <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs border-muted/60">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="private">Private</SelectItem>
-                  <SelectItem value="shared">Shared</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setShowComposer(false)} className="text-xs flex-1 sm:flex-none" disabled={isSubmitting}>Cancel</Button>
-                <Button size="sm" onClick={createPost} disabled={isSubmitting || !content.trim()} className="text-xs px-6 flex-1 sm:flex-none">
-                  {isSubmitting ? 'Publishing...' : 'Publish'}
-                </Button>
+      {/* Compose trigger / Composer */}
+      {!showComposer ? (
+        <button
+          onClick={() => setShowComposer(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-muted/50 border border-border hover:bg-muted/80 transition-colors text-left"
+        >
+          <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+            {initials}
+          </div>
+          <span className="text-sm text-muted-foreground flex-1">What's on your heart?</span>
+          <Pencil className="w-4 h-4 text-muted-foreground/40" />
+        </button>
+      ) : (
+        <div className="rounded-2xl border border-border bg-card shadow-lg overflow-hidden">
+          {/* Author + visibility row */}
+          <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+            <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+              {initials}
+            </div>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm font-semibold leading-none">{userName}</p>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setVisibility('shared')}
+                  className={cn(
+                    'flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors',
+                    visibility === 'shared'
+                      ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300'
+                      : 'text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  <Users className="w-3 h-3" /> Shared
+                </button>
+                <button
+                  onClick={() => setVisibility('private')}
+                  className={cn(
+                    'flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full transition-colors',
+                    visibility === 'private'
+                      ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
+                      : 'text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  <Lock className="w-3 h-3" /> Only me
+                </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <Textarea
+            autoFocus
+            placeholder="Share a thought, prayer, or reflection…"
+            className="min-h-[120px] border-none focus-visible:ring-0 resize-none px-4 py-2 text-sm placeholder:text-muted-foreground/50 bg-transparent"
+            value={content}
+            onChange={e => setContent(e.target.value)}
+            disabled={isSubmitting}
+          />
+
+          {/* Action bar */}
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/30">
+            <button
+              onClick={() => { setShowComposer(false); setContent('') }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              disabled={isSubmitting}
+            >
+              Cancel
+            </button>
+            <Button
+              size="sm"
+              onClick={createPost}
+              disabled={isSubmitting || !content.trim()}
+              className="rounded-full px-5 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white border-0"
+            >
+              {isSubmitting
+                ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Sharing…</>
+                : visibility === 'shared'
+                  ? <><Send className="w-3.5 h-3.5 mr-1.5" />Share</>
+                  : <><Lock className="w-3.5 h-3.5 mr-1.5" />Save privately</>
+              }
+            </Button>
+          </div>
+        </div>
       )}
 
+      {/* Feed */}
       <section className="space-y-4">
         {posts.map(post => (
           <PostCard key={post.id} post={post} currentUserId={userId} onUpdate={updatePost} onDelete={deletePost} />
         ))}
         {posts.length === 0 && (
-          <div className="text-center py-12">
-            <NotebookPen className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">No posts yet. Share something.</p>
+          <div className="text-center py-16">
+            <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+              <NotebookPen className="w-6 h-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">Nothing shared yet</p>
+            <p className="text-xs text-muted-foreground mt-1">Be the first to share something.</p>
           </div>
         )}
       </section>
