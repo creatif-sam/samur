@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { X, BookOpen, Loader2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,6 @@ interface DailyJournalModalProps {
 
 function getMonthSectionTitle(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase()
-  // e.g. "MAY 2026"
 }
 
 function getPageTitle(date: Date): string {
@@ -22,6 +21,14 @@ function getPageTitle(date: Date): string {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function escHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 
 function buildJournalHtml(fields: {
@@ -35,13 +42,7 @@ function buildJournalHtml(fields: {
   wins: [string, string, string]
   carryForward: string[]
 }): string {
-  const dateLabel = fields.date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
-
+  const dateLabel = getPageTitle(fields.date)
   const SEP = '<p>━━━━━━━━━━━━━━━━━━━━━━━━</p>'
 
   const taskItems = fields.tasks.filter(t => t.trim())
@@ -62,10 +63,7 @@ function buildJournalHtml(fields: {
   const carryList =
     carryItems.length > 0
       ? `<ul data-type="taskList">${carryItems
-          .map(
-            c =>
-              `<li data-type="taskItem" data-checked="false"><p>${escHtml(c)}</p></li>`
-          )
+          .map(c => `<li data-type="taskItem" data-checked="false"><p>${escHtml(c)}</p></li>`)
           .join('')}</ul>`
       : `<ul data-type="taskList"><li data-type="taskItem" data-checked="false"><p></p></li></ul>`
 
@@ -112,13 +110,12 @@ function buildJournalHtml(fields: {
   ].join('\n')
 }
 
-function escHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+const INPUT_CLS =
+  'w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-base leading-snug ' +
+  'focus:outline-none focus:ring-2 focus:ring-violet-500 ' +
+  'placeholder:text-muted-foreground/40'
+
+const LABEL_CLS = 'block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1'
 
 export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
   const today = new Date()
@@ -133,6 +130,12 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
   const [wins, setWins] = useState<[string, string, string]>(['', '', ''])
   const [carryForward, setCarryForward] = useState<string[]>(['', ''])
 
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
   async function handleSave() {
     setIsSaving(true)
     try {
@@ -143,10 +146,9 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
       const monthTitle = getMonthSectionTitle(today)
       const pageTitle = getPageTitle(today)
 
-      // 1. Find or create "Daily Journaling" notebook
-      let { data: notebooks } = await supabase
+      const { data: notebooks } = await supabase
         .from('notebooks')
-        .select('id, title')
+        .select('id')
         .eq('user_id', user.id)
         .ilike('title', 'Daily Journaling')
         .limit(1)
@@ -164,10 +166,9 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
         notebookId = newNb.id
       }
 
-      // 2. Find or create section with month title (e.g. "MAY 2026")
-      let { data: sections } = await supabase
+      const { data: sections } = await supabase
         .from('sections')
-        .select('id, title')
+        .select('id')
         .eq('notebook_id', notebookId)
         .ilike('title', monthTitle)
         .limit(1)
@@ -185,7 +186,6 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
         sectionId = newSect.id
       }
 
-      // 3. Create the page
       const content = buildJournalHtml({
         date: today,
         morningTime,
@@ -214,209 +214,210 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-background overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex flex-col bg-background"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-12 pb-3 border-b border-border bg-background/95 backdrop-blur sticky top-0 z-10 shrink-0">
-        <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted transition-colors">
+      <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border bg-background shrink-0">
+        <button
+          onClick={onClose}
+          className="flex items-center justify-center w-9 h-9 rounded-xl hover:bg-muted transition-colors shrink-0"
+          aria-label="Close"
+        >
           <X className="w-5 h-5" />
         </button>
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-violet-500" />
-          <h2 className="text-sm font-bold uppercase tracking-widest">Journal My Day</h2>
+
+        <div className="flex items-center gap-1.5 min-w-0">
+          <BookOpen className="w-4 h-4 text-violet-500 shrink-0" />
+          <h2 className="text-sm font-black uppercase tracking-wider truncate">Journal My Day</h2>
         </div>
+
         <Button
           size="sm"
           onClick={handleSave}
           disabled={isSaving}
-          className="rounded-full px-4 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white border-0"
+          className="rounded-full px-4 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white border-0 shrink-0 h-9"
         >
           {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
         </Button>
       </div>
 
       {/* Date banner */}
-      <div className="px-4 py-3 bg-violet-50 dark:bg-violet-950/30 border-b border-violet-100 dark:border-violet-900/30 shrink-0">
-        <p className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest text-center">
+      <div className="px-4 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-b border-violet-100 dark:border-violet-900/30 shrink-0">
+        <p className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest text-center leading-snug">
           📅 {getPageTitle(today)}
         </p>
       </div>
 
-      {/* Scrollable form */}
-      <div className="flex-1 overflow-y-auto pb-20">
-        <div className="max-w-lg mx-auto px-4 space-y-0 divide-y divide-border">
+      {/* Scrollable body */}
+      <div
+        className="flex-1 overflow-y-auto overscroll-contain"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 5rem)' }}
+      >
+        <div className="w-full max-w-lg mx-auto px-4 divide-y divide-border">
 
           {/* MORNING */}
-          <Section emoji="🌅" title="MORNING">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Time</label>
+          <JSection emoji="🌅" title="MORNING">
+            <label className={LABEL_CLS}>Time</label>
             <input
               type="time"
               value={morningTime}
               onChange={e => setMorningTime(e.target.value)}
-              className="w-full mt-1 mb-3 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className={INPUT_CLS + ' mb-4'}
             />
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Notes</label>
+            <label className={LABEL_CLS}>Notes</label>
             <textarea
               value={morningNotes}
               onChange={e => setMorningNotes(e.target.value)}
               placeholder="How did your morning start?"
               rows={3}
-              className="w-full mt-1 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
+              className={
+                'w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-base leading-snug resize-none ' +
+                'focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40'
+              }
             />
-          </Section>
+          </JSection>
 
           {/* WORK & RESPONSIBILITIES */}
-          <Section emoji="💼" title="WORK & RESPONSIBILITIES">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Tasks &amp; Outcomes</label>
+          <JSection emoji="💼" title="WORK & RESPONSIBILITIES">
+            <label className={LABEL_CLS}>Tasks &amp; Outcomes</label>
             <div className="space-y-2">
               {tasks.map((task, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className="flex items-center gap-2 min-w-0">
                   <span className="text-muted-foreground text-sm shrink-0">–</span>
                   <input
                     type="text"
                     value={task}
                     onChange={e => {
-                      const next = [...tasks]
-                      next[i] = e.target.value
-                      setTasks(next)
+                      const next = [...tasks]; next[i] = e.target.value; setTasks(next)
                     }}
                     placeholder={`Task ${i + 1}`}
-                    className="flex-1 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
+                    className={INPUT_CLS + ' min-w-0'}
                   />
                   {tasks.length > 1 && (
-                    <button onClick={() => setTasks(tasks.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-red-500 transition-colors">
+                    <button
+                      onClick={() => setTasks(tasks.filter((_, idx) => idx !== i))}
+                      className="shrink-0 text-muted-foreground active:text-red-500 transition-colors p-1"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => setTasks([...tasks, ''])}
-              className="mt-2 flex items-center gap-1 text-xs text-violet-500 font-semibold hover:text-violet-700 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add task
-            </button>
-          </Section>
+            <AddButton onClick={() => setTasks([...tasks, ''])} label="Add task" />
+          </JSection>
 
           {/* EVENING */}
-          <Section emoji="🌇" title="EVENING">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Connections</label>
+          <JSection emoji="🌇" title="EVENING">
+            <label className={LABEL_CLS}>Connections</label>
             <input
               type="text"
               value={eveningConnections}
               onChange={e => setEveningConnections(e.target.value)}
               placeholder="Who did you connect with?"
-              className="w-full mt-1 mb-3 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
+              className={INPUT_CLS + ' mb-4'}
             />
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Meals</label>
+            <label className={LABEL_CLS}>Meals</label>
             <input
               type="text"
               value={eveningMeals}
               onChange={e => setEveningMeals(e.target.value)}
               placeholder="What did you eat?"
-              className="w-full mt-1 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
+              className={INPUT_CLS}
             />
-          </Section>
+          </JSection>
 
           {/* WHAT I LEARNED TODAY */}
-          <Section emoji="📖" title="WHAT I LEARNED TODAY">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Source → Takeaway</label>
+          <JSection emoji="📖" title="WHAT I LEARNED TODAY">
+            <label className={LABEL_CLS}>Source → Takeaway</label>
             <div className="space-y-3">
               {learned.map((item, i) => (
-                <div key={i} className="space-y-1.5">
-                  <div className="flex items-center gap-2">
+                <div key={i} className="flex items-start gap-2 min-w-0">
+                  <div className="flex-1 space-y-1.5 min-w-0">
                     <input
                       type="text"
                       value={item.source}
                       onChange={e => {
-                        const next = [...learned]
-                        next[i] = { ...next[i], source: e.target.value }
-                        setLearned(next)
+                        const next = [...learned]; next[i] = { ...next[i], source: e.target.value }; setLearned(next)
                       }}
                       placeholder="Source"
-                      className="flex-1 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
+                      className={INPUT_CLS}
                     />
-                    <span className="text-muted-foreground text-sm shrink-0">→</span>
-                    <input
-                      type="text"
-                      value={item.takeaway}
-                      onChange={e => {
-                        const next = [...learned]
-                        next[i] = { ...next[i], takeaway: e.target.value }
-                        setLearned(next)
-                      }}
-                      placeholder="Takeaway"
-                      className="flex-1 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
-                    />
-                    {learned.length > 1 && (
-                      <button onClick={() => setLearned(learned.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-muted-foreground text-sm shrink-0">→</span>
+                      <input
+                        type="text"
+                        value={item.takeaway}
+                        onChange={e => {
+                          const next = [...learned]; next[i] = { ...next[i], takeaway: e.target.value }; setLearned(next)
+                        }}
+                        placeholder="Takeaway"
+                        className={INPUT_CLS + ' min-w-0'}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            <button
-              onClick={() => setLearned([...learned, { source: '', takeaway: '' }])}
-              className="mt-2 flex items-center gap-1 text-xs text-violet-500 font-semibold hover:text-violet-700 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add lesson
-            </button>
-          </Section>
-
-          {/* WINS */}
-          <Section emoji="✅" title="WINS (min. 3)">
-            {[0, 1, 2].map(i => (
-              <div key={i} className="flex items-center gap-2 mb-2">
-                <span className="text-sm font-bold text-violet-500 w-4 shrink-0">{i + 1}.</span>
-                <input
-                  type="text"
-                  value={wins[i]}
-                  onChange={e => {
-                    const next = [...wins] as [string, string, string]
-                    next[i] = e.target.value
-                    setWins(next)
-                  }}
-                  placeholder={`Win #${i + 1}`}
-                  className="flex-1 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
-                />
-              </div>
-            ))}
-          </Section>
-
-          {/* CARRY FORWARD */}
-          <Section emoji="🔁" title="CARRY FORWARD">
-            <div className="space-y-2">
-              {carryForward.map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="text-muted-foreground text-sm shrink-0 font-mono">[ ]</span>
-                  <input
-                    type="text"
-                    value={item}
-                    onChange={e => {
-                      const next = [...carryForward]
-                      next[i] = e.target.value
-                      setCarryForward(next)
-                    }}
-                    placeholder={`Item ${i + 1}`}
-                    className="flex-1 rounded-xl border border-border bg-muted/40 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-muted-foreground/40"
-                  />
-                  {carryForward.length > 1 && (
-                    <button onClick={() => setCarryForward(carryForward.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-red-500 transition-colors">
+                  {learned.length > 1 && (
+                    <button
+                      onClick={() => setLearned(learned.filter((_, idx) => idx !== i))}
+                      className="shrink-0 mt-2 text-muted-foreground active:text-red-500 transition-colors p-1"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   )}
                 </div>
               ))}
             </div>
-            <button
-              onClick={() => setCarryForward([...carryForward, ''])}
-              className="mt-2 flex items-center gap-1 text-xs text-violet-500 font-semibold hover:text-violet-700 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add item
-            </button>
-          </Section>
+            <AddButton onClick={() => setLearned([...learned, { source: '', takeaway: '' }])} label="Add lesson" />
+          </JSection>
+
+          {/* WINS */}
+          <JSection emoji="✅" title="WINS (min. 3)">
+            {([0, 1, 2] as const).map(i => (
+              <div key={i} className="flex items-center gap-2 min-w-0 mb-2">
+                <span className="text-sm font-bold text-violet-500 w-5 shrink-0 text-right">{i + 1}.</span>
+                <input
+                  type="text"
+                  value={wins[i]}
+                  onChange={e => {
+                    const next = [...wins] as [string, string, string]; next[i] = e.target.value; setWins(next)
+                  }}
+                  placeholder={`Win #${i + 1}`}
+                  className={INPUT_CLS + ' min-w-0'}
+                />
+              </div>
+            ))}
+          </JSection>
+
+          {/* CARRY FORWARD */}
+          <JSection emoji="🔁" title="CARRY FORWARD">
+            <div className="space-y-2">
+              {carryForward.map((item, i) => (
+                <div key={i} className="flex items-center gap-2 min-w-0">
+                  <span className="text-muted-foreground text-sm shrink-0 font-mono leading-none">[ ]</span>
+                  <input
+                    type="text"
+                    value={item}
+                    onChange={e => {
+                      const next = [...carryForward]; next[i] = e.target.value; setCarryForward(next)
+                    }}
+                    placeholder={`Item ${i + 1}`}
+                    className={INPUT_CLS + ' min-w-0'}
+                  />
+                  {carryForward.length > 1 && (
+                    <button
+                      onClick={() => setCarryForward(carryForward.filter((_, idx) => idx !== i))}
+                      className="shrink-0 text-muted-foreground active:text-red-500 transition-colors p-1"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <AddButton onClick={() => setCarryForward([...carryForward, ''])} label="Add item" />
+          </JSection>
 
         </div>
       </div>
@@ -424,15 +425,28 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
   )
 }
 
-function Section({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+function JSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
     <div className="py-5">
-      <div className="flex items-center gap-2 mb-4">
-        <span className="text-lg">{emoji}</span>
-        <h3 className="text-xs font-black uppercase tracking-widest text-foreground">{title}</h3>
-        <div className="flex-1 h-px bg-border" />
+      <div className="flex items-center gap-2 mb-4 min-w-0">
+        <span className="text-lg shrink-0">{emoji}</span>
+        <h3 className="text-xs font-black uppercase tracking-widest text-foreground truncate">{title}</h3>
+        <div className="flex-1 h-px bg-border" style={{ minWidth: 8 }} />
       </div>
       {children}
     </div>
+  )
+}
+
+function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-violet-500 active:text-violet-700 transition-colors py-1"
+    >
+      <Plus className="w-3.5 h-3.5" />
+      {label}
+    </button>
   )
 }
