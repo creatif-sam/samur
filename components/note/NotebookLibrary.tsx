@@ -212,7 +212,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                 className={`flex-1 gap-2 ${viewMode === 'grid' ? 'bg-[#7719aa] dark:bg-[#7c3aed]' : ''}`}
               >
                 <Grid className="w-4 h-4" />
-                <span className="text-xs font-semibold">Recent</span>
+                <span className="text-xs font-semibold">Recent Pages</span>
               </Button>
               <Button
                 variant={viewMode === 'table' ? 'default' : 'outline'}

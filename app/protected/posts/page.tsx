@@ -5,8 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Post, Profile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Plus, Loader2, HandHeart, BookOpen, NotebookPen, Pencil, Users, Lock, Send } from 'lucide-react'
+import { Plus, Loader2, HandHeart, BookOpen, NotebookPen, Pencil, Users, Lock, Send, BookMarked } from 'lucide-react'
 import PostCard from '@/components/posts/PostCard'
+import DailyJournalModal from '@/components/posts/DailyJournalModal'
 import MeditationsTab from '@/components/meditations/MeditationsTab'
 import PrayerTab from '@/components/prayer/PrayerTab'
 import { cn } from '@/lib/utils'
@@ -25,6 +26,7 @@ function PostsTab() {
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showComposer, setShowComposer] = useState(false)
+  const [showJournalModal, setShowJournalModal] = useState(false)
   const [content, setContent] = useState('')
   const [visibility, setVisibility] = useState<'private' | 'shared'>('shared')
   const [userId, setUserId] = useState<string | null>(null)
@@ -91,6 +93,25 @@ function PostsTab() {
 
   return (
     <div className="space-y-4 pb-10">
+
+      {/* Daily Journal Button */}
+      <button
+        onClick={() => setShowJournalModal(true)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800/50 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors text-left"
+      >
+        <div className="w-9 h-9 rounded-full bg-violet-600 flex items-center justify-center shrink-0">
+          <BookMarked className="w-4 h-4 text-white" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-violet-700 dark:text-violet-300">Journal My Day</p>
+          <p className="text-[11px] text-violet-500 dark:text-violet-400">Saved to Daily Journaling notebook</p>
+        </div>
+        <Pencil className="w-4 h-4 text-violet-400/60" />
+      </button>
+
+      {showJournalModal && (
+        <DailyJournalModal onClose={() => setShowJournalModal(false)} />
+      )}
 
       {/* Compose trigger / Composer */}
       {!showComposer ? (
