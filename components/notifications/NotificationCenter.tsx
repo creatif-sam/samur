@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Loader2 } from 'lucide-react'
+import { Bell, BellRing, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -48,12 +48,26 @@ export function NotificationCenter({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 relative rounded-full">
-          <Bell className="w-5 h-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative w-10 h-10 rounded-full text-white hover:bg-white/10 transition-colors"
+        >
+          {/* Pulse ring — only visible when there are unread notifications */}
           {unreadCount > 0 && (
-            <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-bold border-2 border-indigo-600 rounded-full animate-in zoom-in">
+            <span className="absolute inset-0 rounded-full animate-ping bg-white/20 pointer-events-none" />
+          )}
+
+          {unreadCount > 0 ? (
+            <BellRing className="w-[22px] h-[22px] drop-shadow-[0_0_6px_rgba(255,255,255,0.7)] animate-[bell-ring_0.6s_ease-in-out]" />
+          ) : (
+            <Bell className="w-[22px] h-[22px]" />
+          )}
+
+          {unreadCount > 0 && (
+            <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-black border-2 border-[#7c3aed] leading-none">
               {unreadCount > 9 ? '9+' : unreadCount}
-            </Badge>
+            </span>
           )}
         </Button>
       </DropdownMenuTrigger>
