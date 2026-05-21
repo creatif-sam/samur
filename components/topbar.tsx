@@ -80,6 +80,34 @@ export function Topbar() {
     } finally { setLoading(false) }
   }
 
+  // ── App Badging ─────────────────────────────────────────────────────────────
+  // Sync the home-screen icon badge with the unread notification count.
+  // navigator.setAppBadge() is supported in Chrome/Edge PWAs and iOS 16.4+ PWAs.
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return
+    if (!('setAppBadge' in navigator)) return
+    if (unreadCount > 0) {
+      ;(navigator as any).setAppBadge(unreadCount).catch(() => {})
+    } else {
+      ;(navigator as any).clearAppBadge().catch(() => {})
+    }
+  }, [unreadCount])
+
+  // When the user brings the app back to the foreground with nothing unread,
+  // ensure any residual badge left by the service worker is cleared.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && unreadCount === 0) {
+        if ('clearAppBadge' in navigator) {
+          ;(navigator as any).clearAppBadge().catch(() => {})
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [unreadCount])
+  // ────────────────────────────────────────────────────────────────────────────
+
   const markAsRead = async (id: string) => {
     setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)))
     setUnreadCount(c => Math.max(0, c - 1))

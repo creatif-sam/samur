@@ -244,9 +244,14 @@ self.addEventListener('push', function (event) {
         lang: 'en-US'
       };
 
-      // CRITICAL: Always show notification, even if app is open
+      // CRITICAL: Always show notification, even if app is open.
+      // Also increment the home-screen app badge (Chrome/Edge SW context).
       event.waitUntil(
-        self.registration.showNotification(title, options)
+        self.registration.showNotification(title, options).then(() => {
+          if ('setAppBadge' in navigator) {
+            return navigator.setAppBadge().catch(() => {})
+          }
+        })
       );
     } catch (err) {
       console.error("Error parsing push data:", err);
@@ -265,13 +270,18 @@ self.addEventListener('push', function (event) {
 
 // Handle notification click - opens app to correct location
 self.addEventListener('notificationclick', function (event) {
-  event.notification.close(); // Close the notification
+  event.notification.close();
+
+  // Clear the home-screen badge when the user taps a notification
+  if ('clearAppBadge' in navigator) {
+    navigator.clearAppBadge().catch(() => {})
+  }
 
   const urlToOpen = event.notification.data?.url || '/protected/posts';
 
   // Handle action buttons (if clicked)
   if (event.action === 'close') {
-    return; // Just close, don't open app
+    return;
   }
 
   // Open or focus app window
