@@ -87,7 +87,7 @@ export async function GET(request: Request) {
           }
 
           // Send notification using internal endpoint
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',

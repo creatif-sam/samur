@@ -55,7 +55,7 @@ export async function GET(request: Request) {
         }
 
         if (message && goal.owner_id) {
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
         }
 
         if (message && vision.owner_id) {
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
+          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',

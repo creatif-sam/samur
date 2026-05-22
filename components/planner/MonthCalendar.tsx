@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, ArrowRight, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowRight, Check, Plus } from 'lucide-react'
 import type { PlannerTask } from './DailyPlanner'
 
 type Vision = { id: string; title: string; emoji: string }
@@ -10,6 +10,7 @@ interface MonthCalendarProps {
   selectedDate: Date
   onDateSelect: (date: Date) => void
   onClose: () => void
+  onAddEvent?: () => void
   taskDays?: Set<string>
   onMonthChange?: (year: number, month: number) => void
   tasks?: PlannerTask[]
@@ -23,6 +24,7 @@ export default function MonthCalendar({
   selectedDate,
   onDateSelect,
   onClose,
+  onAddEvent,
   taskDays = new Set(),
   onMonthChange,
   tasks = [],
@@ -185,13 +187,24 @@ export default function MonthCalendar({
               {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[12px] font-bold px-3.5 py-2 rounded-2xl active:scale-90 transition-all shadow-sm"
-          >
-            Open plan
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onAddEvent && (
+              <button
+                onClick={onAddEvent}
+                className="flex items-center gap-1.5 bg-violet-600 text-white text-[12px] font-bold px-3.5 py-2 rounded-2xl active:scale-90 transition-all shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add event
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[12px] font-bold px-3.5 py-2 rounded-2xl active:scale-90 transition-all shadow-sm"
+            >
+              Open plan
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         {/* Task list */}

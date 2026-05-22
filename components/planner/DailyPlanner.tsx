@@ -392,6 +392,7 @@ export default function DailyPlanner() {
           selectedDate={selectedDate}
           onDateSelect={setSelectedDate}
           onClose={() => setView('daily')}
+          onAddEvent={() => setTaskModalHour(new Date().getHours())}
           taskDays={taskDays}
           onMonthChange={loadTaskDays}
           tasks={tasks}

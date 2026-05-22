@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
       // If no reading activity found, send reminder
       if ((!readingLogs || readingLogs.length === 0) && (!readingSessions || readingSessions.length === 0)) {
-        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',

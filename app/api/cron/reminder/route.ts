@@ -21,7 +21,7 @@ export async function GET() {
 
   // 2. Loop through and send
   for (const task of tasks) {
-    await fetch('https://samur.gen116.com/api/notifications', {
+    await fetch('https://mastery.samuelgyasi.com/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

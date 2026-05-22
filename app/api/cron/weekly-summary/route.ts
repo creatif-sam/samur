@@ -34,8 +34,8 @@ export async function GET(request: Request) {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const weekAgoStr = weekAgo.toISOString().split('T')[0];
     const todayStr = now.toISOString().split('T')[0];
-    const appUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com';
-    const fromEmail = process.env.FROM_EMAIL || 'SamUr <noreply@samur.gen116.com>';
+    const appUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com';
+    const fromEmail = process.env.FROM_EMAIL || 'SamUr <noreply@mastery.samuelgyasi.com>';
 
     let emailsSent = 0;
 

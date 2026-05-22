@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         ? `You have ${taskCount} ${taskCount === 1 ? 'activity' : 'activities'} planned for today`
         : 'Check your planner for today';
       
-      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://samur.gen116.com'}/api/notifications/send-internal`, {
+      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

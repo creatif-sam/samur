@@ -4,22 +4,22 @@ on:
   schedule:
     # Task reminders - Every 5 minutes
     - cron: '*/5 * * * *'
-    # Morning planner reminder - 8:00 AM UTC
+    # Morning planner reminder - 8:00 UTC (9:00 AM local UTC+1)
     - cron: '0 8 * * *'
-    # Goal deadline check - 7:00 AM UTC
+    # Goal deadline check - 7:00 UTC (8:00 AM local UTC+1)
     - cron: '0 7 * * *'
-    # Reading reminder - 1:00 PM UTC
+    # Reading reminder - 13:00 UTC (2:00 PM local UTC+1)
     - cron: '0 13 * * *'
-    # Evening reflection & work log - 10:30 PM UTC
+    # Evening reflection & work log - 22:30 UTC (11:30 PM local UTC+1)
     - cron: '30 22 * * *'
-    # Weekly summary email - Every Monday at 8:00 AM UTC
-    - cron: '0 8 * * 1'
+    # Weekly summary email - Every Sunday at 8:00 UTC (9:00 AM local UTC+1)
+    - cron: '0 8 * * 0'
 
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
 
 env:
-  APP_URL: https://samuelgyasi.com
+  APP_URL: https://mastery.samuelgyasi.com
 
 jobs:
   send-notifications:
@@ -32,38 +32,38 @@ jobs:
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/task-reminders \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
-      - name: Morning Planner Reminder (8am UTC)
+      - name: Morning Planner Reminder (9am local / 8am UTC)
         if: github.event.schedule == '0 8 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/morning-planner \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
-      - name: Goal Deadlines Check (7am UTC)
+      - name: Goal Deadlines Check (8am local / 7am UTC)
         if: github.event.schedule == '0 7 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/goal-deadlines \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
-      - name: Reading Reminder (1pm UTC)
+      - name: Reading Reminder (2pm local / 1pm UTC)
         if: github.event.schedule == '0 13 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/reading-reminder \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
-      - name: Evening Reflection (10:30pm UTC)
+      - name: Evening Reflection (11:30pm local / 10:30pm UTC)
         if: github.event.schedule == '30 22 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/evening-reflection \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
-      - name: Work Log Reminder (10:30pm UTC)
+      - name: Work Log Reminder (11:30pm local / 10:30pm UTC)
         if: github.event.schedule == '30 22 * * *' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/work-log-reminder \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
 
-      - name: Weekly Summary Email (Monday 8am UTC)
-        if: github.event.schedule == '0 8 * * 1' || github.event_name == 'workflow_dispatch'
+      - name: Weekly Summary Email (Sunday 9am local / 8am UTC)
+        if: github.event.schedule == '0 8 * * 0' || github.event_name == 'workflow_dispatch'
         run: |
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/weekly-summary \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
