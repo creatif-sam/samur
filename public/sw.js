@@ -245,11 +245,12 @@ self.addEventListener('push', function (event) {
       };
 
       // CRITICAL: Always show notification, even if app is open.
-      // Also increment the home-screen app badge (Chrome/Edge SW context).
+      // Also update the home-screen app badge with the unread count (Android/Chrome PWA).
+      const badgeCount = typeof data.badgeCount === 'number' ? data.badgeCount : undefined;
       event.waitUntil(
         self.registration.showNotification(title, options).then(() => {
-          if ('setAppBadge' in navigator) {
-            return navigator.setAppBadge().catch(() => {})
+          if ('setAppBadge' in self.navigator) {
+            return self.navigator.setAppBadge(badgeCount).catch(() => {})
           }
         })
       );
@@ -273,8 +274,8 @@ self.addEventListener('notificationclick', function (event) {
   event.notification.close();
 
   // Clear the home-screen badge when the user taps a notification
-  if ('clearAppBadge' in navigator) {
-    navigator.clearAppBadge().catch(() => {})
+  if ('clearAppBadge' in self.navigator) {
+    self.navigator.clearAppBadge().catch(() => {})
   }
 
   const urlToOpen = event.notification.data?.url || '/protected/posts';

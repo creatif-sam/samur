@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon } from 'lucide-react'
+import { toast } from 'sonner'
 import Link from 'next/link'
 import MonthCalendar from './MonthCalendar'
 
@@ -61,6 +62,8 @@ export default function DailyPlanner() {
   const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({})
   const [view, setView] = useState<'daily' | 'monthly'>('daily')
   const [taskDays, setTaskDays] = useState<Set<string>>(new Set())
+  const [schedulingForDate, setSchedulingForDate] = useState<string | null>(null)
+  const advanceDateRef = useRef<HTMLInputElement>(null)
 
   const dateKey = selectedDate.toISOString().split('T')[0]
   const theme = moodThemes[mood] || moodThemes['default']
@@ -323,6 +326,32 @@ export default function DailyPlanner() {
     }
   }
 
+  async function saveTaskToDate(task: PlannerTask, targetDateKey: string) {
+    const { data: auth } = await supabase.auth.getUser()
+    if (!auth?.user) return
+
+    const { data: existing } = await supabase
+      .from('planner_days')
+      .select('tasks, morning, reflection, mood, completed_task_ids')
+      .eq('day', targetDateKey)
+      .eq('user_id', auth.user.id)
+      .maybeSingle()
+
+    const existingTasks: PlannerTask[] = Array.isArray(existing?.tasks) ? existing.tasks : []
+    const updatedTasks = [...existingTasks, task]
+
+    await supabase.from('planner_days').upsert({
+      day: targetDateKey,
+      user_id: auth.user.id,
+      tasks: updatedTasks,
+      completed_task_ids: existing?.completed_task_ids || [],
+      morning: existing?.morning || '',
+      reflection: existing?.reflection || '',
+      mood: existing?.mood || '',
+      visibility: 'private',
+    }, { onConflict: 'user_id,day' })
+  }
+
   function toggleComplete(taskId: string) {
     const updatedIds = completedTaskIds.includes(taskId) 
       ? completedTaskIds.filter(id => id !== taskId) : [...completedTaskIds, taskId];
@@ -496,13 +525,38 @@ export default function DailyPlanner() {
             })}
         </div>
 
-        <button
-          onClick={() => setTaskModalHour(new Date().getHours())}
-          className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-3xl font-bold text-[15px] flex justify-between items-center active:scale-[0.98] transition-all shadow-sm"
-        >
-          Add event on {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-          <Plus className="w-5 h-5" />
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => setTaskModalHour(new Date().getHours())}
+            className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-3xl font-bold text-[15px] flex justify-between items-center active:scale-[0.98] transition-all shadow-sm"
+          >
+            Add event on {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            <Plus className="w-5 h-5" />
+          </button>
+
+          {/* Hidden native date picker for advance scheduling */}
+          <input
+            ref={advanceDateRef}
+            type="date"
+            className="sr-only"
+            onChange={(e) => {
+              if (e.target.value) {
+                setSchedulingForDate(e.target.value)
+                setTaskModalHour(new Date().getHours())
+                // Reset input so the same date can be picked again
+                e.target.value = ''
+              }
+            }}
+          />
+
+          <button
+            onClick={() => advanceDateRef.current?.showPicker()}
+            className="w-full border-2 border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 py-3 px-6 rounded-3xl font-semibold text-[14px] flex justify-between items-center active:scale-[0.98] transition-all"
+          >
+            Schedule for another day
+            <CalendarIcon className="w-4 h-4" />
+          </button>
+        </div>
 
         <div className="mt-6 pb-20">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-700 p-5 shadow-sm">
@@ -534,11 +588,11 @@ export default function DailyPlanner() {
           hour={editingTask ? parseInt(editingTask.start.split(':')[0]) : taskModalHour!} 
           existingTask={editingTask} 
           userId={userId}
-          onClose={() => { setTaskModalHour(null); setEditingTask(null); }} 
+          onClose={() => { setTaskModalHour(null); setEditingTask(null); setSchedulingForDate(null) }} 
           onSave={async (task) => {
             // Ensure new tasks have correct owner_id and source_day
             if (!task.owner_id) task.owner_id = userId || undefined
-            if (task.recurring && !task.source_day) task.source_day = dateKey
+            if (task.recurring && !task.source_day) task.source_day = schedulingForDate || dateKey
             
             if (editingTask) {
               // Editing existing task
@@ -553,8 +607,14 @@ export default function DailyPlanner() {
                 setTasks(updated)
                 saveDay(updated, morning, reflection, mood, completedTaskIds)
               }
+            } else if (schedulingForDate) {
+              // New task scheduled for a different date
+              await saveTaskToDate(task, schedulingForDate)
+              const label = new Date(schedulingForDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+              toast.success(`Event scheduled for ${label}`)
+              setSchedulingForDate(null)
             } else {
-              // New task
+              // New task for currently selected date
               const updated = [...tasks, task]
               setTasks(updated)
               saveDay(updated, morning, reflection, mood, completedTaskIds)

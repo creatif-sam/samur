@@ -102,10 +102,22 @@ export class PushNotificationService {
 
       if (!notification) return
 
-      /* 4. Send push */
+      /* 4. Get unread count for Android app badge */
+      const { count: unreadCount } = await serviceSupabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('read', false)
+
+      const badgePayload: PushNotificationPayload = {
+        ...payload,
+        data: { ...payload.data, badgeCount: unreadCount ?? 1 }
+      }
+
+      /* 5. Send push */
       const results = await Promise.allSettled(
         subscriptions.map(sub =>
-          this.sendWebPush(sub, payload, notification.id)
+          this.sendWebPush(sub, badgePayload, notification.id)
         )
       )
 
@@ -156,6 +168,7 @@ export class PushNotificationService {
       requireInteraction: payload.requireInteraction,
       silent: payload.silent,
       tag: payload.tag,
+      badgeCount: payload.data?.badgeCount,
       data: {
         ...payload.data,
         notificationId,

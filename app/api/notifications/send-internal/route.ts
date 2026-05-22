@@ -72,11 +72,19 @@ export async function POST(request: Request) {
 
     console.log(`📤 Sending push to ${subscriptions.length} device(s)`)
 
-    // 4. PREPARE THE PAYLOAD
+    // 4. GET UNREAD COUNT FOR ANDROID BADGE
+    const { count: unreadCount } = await serviceSupabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', targetUserId)
+      .eq('read', false)
+
+    // 5. PREPARE THE PAYLOAD
     const payload = JSON.stringify({
       title: title || 'Mastery Notification',
       body: body || '',
-      url: url || '/protected'
+      url: url || '/protected',
+      badgeCount: unreadCount ?? 1
     })
 
     // 5. SEND NOTIFICATION TO ALL DEVICES
