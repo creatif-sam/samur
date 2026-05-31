@@ -157,6 +157,7 @@ export default function BibleReader() {
   const [highlights, setHighlights] = useState<Map<string, VerseHighlight>>(new Map())
   const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null)
   const [showHighlightPanel, setShowHighlightPanel] = useState(false)
+  const [showChapterSheet, setShowChapterSheet] = useState(false)
 
   // Version search
   const [versionLang, setVersionLang] = useState<'all' | 'en' | 'fr'>('all')
@@ -177,6 +178,11 @@ export default function BibleReader() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Close chapter sheet when leaving read view ────────────────────────
+  useEffect(() => {
+    if (view !== 'read') setShowChapterSheet(false)
+  }, [view])
 
   // ── Auth ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -489,7 +495,7 @@ export default function BibleReader() {
 
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-background font-sans pb-28">
+    <div className={`min-h-screen bg-background font-sans ${view === 'read' ? 'pb-44' : 'pb-28'}`}>
       <Toaster position="bottom-center" richColors />
 
       {/* ── TOP BAR ── */}
@@ -809,7 +815,7 @@ export default function BibleReader() {
                   onClick={() => { setActiveColorPicker(null); setShowHighlightPanel(false) }}
                 />
                 {/* Sheet */}
-                <div className="fixed bottom-16 left-0 right-0 z-[60] bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
+                <div className="fixed bottom-[120px] left-0 right-0 z-[60] bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
                   {/* Handle */}
                   <div className="flex justify-center pt-3 pb-1">
                     <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
@@ -910,25 +916,69 @@ export default function BibleReader() {
             )
           })()}
 
-          {/* Prev / Next chapter bar */}
-          {!loading && !error && (
-            <div className="flex gap-2 pt-6">
-              <button
-                onClick={prevChapter}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl border border-border hover:bg-muted transition font-semibold text-sm"
-              >
-                <ChevronLeft className="w-4 h-4" /> Previous
-              </button>
-              <button
-                onClick={nextChapter}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white transition font-semibold text-sm"
-              >
-                Next <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          )}
+
         </div>
       )}
+      {/* ── CHAPTER NAV BAR (read view) ── */}
+      {view === 'read' && (
+        <div className="fixed bottom-16 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t border-border flex items-center h-14 px-1">
+          <button
+            onClick={prevChapter}
+            className="p-3 rounded-xl hover:bg-muted active:bg-muted transition"
+            aria-label="Previous chapter"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setShowChapterSheet(v => !v)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl hover:bg-muted active:bg-muted transition"
+          >
+            <span className="text-sm font-bold">{displayBook(selectedBook, translation)} {selectedChapter}</span>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showChapterSheet ? 'rotate-180' : ''}`} />
+          </button>
+          <button
+            onClick={nextChapter}
+            className="p-3 rounded-xl hover:bg-muted active:bg-muted transition"
+            aria-label="Next chapter"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* ── CHAPTER PICKER SHEET ── */}
+      {view === 'read' && showChapterSheet && (
+        <>
+          <div
+            className="fixed inset-0 z-[45] bg-black/20"
+            onClick={() => setShowChapterSheet(false)}
+          />
+          <div className="fixed bottom-[120px] left-0 right-0 z-[50] bg-background rounded-t-3xl shadow-2xl border-t border-border animate-in slide-in-from-bottom-4 duration-200">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
+            </div>
+            <p className="text-center text-[11px] font-black uppercase tracking-widest text-muted-foreground px-4 pb-3">
+              {displayBook(selectedBook, translation)}
+            </p>
+            <div className="grid grid-cols-5 gap-2 px-4 pb-5 max-h-56 overflow-y-auto">
+              {chapterArray(selectedBook).map(ch => (
+                <button
+                  key={ch}
+                  onClick={() => { setSelectedChapter(ch); setShowChapterSheet(false) }}
+                  className={`aspect-square rounded-2xl text-sm font-bold flex items-center justify-center transition-all active:scale-90 ${
+                    ch === selectedChapter
+                      ? 'bg-violet-600 text-white shadow-sm'
+                      : 'bg-card border border-border hover:border-violet-300 dark:hover:border-violet-700'
+                  }`}
+                >
+                  {ch}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* ── NOTE MODAL ── */}
       {noteVerse && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
