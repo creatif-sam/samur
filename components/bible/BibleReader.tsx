@@ -41,6 +41,37 @@ const CHAPTER_COUNTS: Record<string, number> = {
 
 const NT_START = 'Matthew'
 
+// ── French book name display map (API keys stay English) ─────────────────
+const FRENCH_BOOK_NAMES: Record<string, string> = {
+  'Genesis':'Genèse','Exodus':'Exode','Leviticus':'Lévitique','Numbers':'Nombres',
+  'Deuteronomy':'Deutéronome','Joshua':'Josué','Judges':'Juges','Ruth':'Ruth',
+  '1 Samuel':'1 Samuel','2 Samuel':'2 Samuel','1 Kings':'1 Rois','2 Kings':'2 Rois',
+  '1 Chronicles':'1 Chroniques','2 Chronicles':'2 Chroniques','Ezra':'Esdras',
+  'Nehemiah':'Néhémie','Esther':'Esther','Job':'Job','Psalms':'Psaumes',
+  'Proverbs':'Proverbes','Ecclesiastes':'Ecclésiaste','Song of Solomon':'Cantique des Cantiques',
+  'Isaiah':'Ésaïe','Jeremiah':'Jérémie','Lamentations':'Lamentations',
+  'Ezekiel':'Ézéchiel','Daniel':'Daniel','Hosea':'Osée','Joel':'Joël',
+  'Amos':'Amos','Obadiah':'Abdias','Jonah':'Jonas','Micah':'Michée',
+  'Nahum':'Nahoum','Habakkuk':'Habacuc','Zephaniah':'Sophonie','Haggai':'Aggée',
+  'Zechariah':'Zacharie','Malachi':'Malachie',
+  'Matthew':'Matthieu','Mark':'Marc','Luke':'Luc','John':'Jean','Acts':'Actes',
+  'Romans':'Romains','1 Corinthians':'1 Corinthiens','2 Corinthians':'2 Corinthiens',
+  'Galatians':'Galates','Ephesians':'Éphésiens','Philippians':'Philippiens',
+  'Colossians':'Colossiens','1 Thessalonians':'1 Thessaloniciens',
+  '2 Thessalonians':'2 Thessaloniciens','1 Timothy':'1 Timothée','2 Timothy':'2 Timothée',
+  'Titus':'Tite','Philemon':'Philémon','Hebrews':'Hébreux','James':'Jacques',
+  '1 Peter':'1 Pierre','2 Peter':'2 Pierre','1 John':'1 Jean','2 John':'2 Jean',
+  '3 John':'3 Jean','Jude':'Jude','Revelation':'Apocalypse',
+}
+
+function isFrench(translation: string) {
+  return translation === 'lsg' || translation === 'nef'
+}
+
+function displayBook(book: string, translation: string) {
+  return isFrench(translation) ? (FRENCH_BOOK_NAMES[book] ?? book) : book
+}
+
 // ── Available translations ────────────────────────────────────────────────
 const TRANSLATIONS = [
   { id: 'kjv',      label: 'KJV',      name: 'King James Version' },
@@ -331,11 +362,11 @@ export default function BibleReader() {
             <h1 className="text-lg font-black uppercase tracking-tight text-violet-600 dark:text-violet-400">Holy Bible</h1>
           )}
           {view === 'chapters' && (
-            <p className="text-base font-black uppercase tracking-tight truncate">{selectedBook}</p>
+            <p className="text-base font-black uppercase tracking-tight truncate">{displayBook(selectedBook, translation)}</p>
           )}
           {view === 'read' && (
             <p className="text-base font-black uppercase tracking-tight truncate">
-              {selectedBook} <span className="text-violet-500">{selectedChapter}</span>
+              {displayBook(selectedBook, translation)} <span className="text-violet-500">{selectedChapter}</span>
             </p>
           )}
           {view === 'versions' && <p className="text-base font-black uppercase tracking-tight">Bible Version</p>}
@@ -461,7 +492,9 @@ export default function BibleReader() {
                   testament === t ? 'bg-violet-600 text-white shadow-sm' : 'text-muted-foreground'
                 }`}
               >
-                {t === 'OT' ? 'Old Testament' : 'New Testament'}
+                {t === 'OT'
+                  ? (isFrench(translation) ? 'Ancien Testament' : 'Old Testament')
+                  : (isFrench(translation) ? 'Nouveau Testament' : 'New Testament')}
               </button>
             ))}
           </div>
@@ -475,7 +508,7 @@ export default function BibleReader() {
                 className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-border hover:border-violet-300 dark:hover:border-violet-700 active:scale-[0.97] transition-all text-left"
               >
                 <BookOpen className="w-4 h-4 text-violet-500 shrink-0" />
-                <span className="text-sm font-semibold truncate">{book}</span>
+                <span className="text-sm font-semibold truncate">{displayBook(book, translation)}</span>
               </button>
             ))}
           </div>
@@ -485,7 +518,9 @@ export default function BibleReader() {
       {/* ── CHAPTER BROWSER ── */}
       {view === 'chapters' && (
         <div className="px-4 pt-4 pb-6">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Select Chapter</p>
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">
+            {isFrench(translation) ? 'Sélectionner le chapitre' : 'Select Chapter'}
+          </p>
           <div className="grid grid-cols-5 gap-2">
             {chapterArray(selectedBook).map(ch => (
               <button
