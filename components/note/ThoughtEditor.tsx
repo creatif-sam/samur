@@ -27,11 +27,13 @@ const HIGHLIGHT_COLORS = [
   { label: 'Orange',  value: '#fed7aa' },
 ]
 
-export function ThoughtEditor({ page, onBack, onRefresh }: any) {
+export function ThoughtEditor({ page, onBack, onRefresh, onDeletePage }: any) {
   const [title, setTitle] = useState(page.title)
   const [isSaving, setIsSaving] = useState(false)
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [shareText, setShareText] = useState('')
   const supabase = createClient()
   const editorAreaRef = useRef<HTMLDivElement>(null)
@@ -102,7 +104,8 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
       .from('pages')
       .update({ 
         title: currentTitle, 
-        content: currentContent
+        content: currentContent,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', page.id)
 
@@ -110,6 +113,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
       // Update the page object immediately for instant UI feedback
       page.content = currentContent
       page.title = currentTitle
+      page.updated_at = new Date().toISOString()
       await onRefresh()
     }
     setIsSaving(false)
@@ -132,7 +136,12 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
           <span className="text-[9px] font-bold uppercase tracking-widest opacity-60">
             {isSaving ? "Syncing..." : "Saved"}
           </span>
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white/60 hover:text-red-300 hover:bg-white/10">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 text-white/60 hover:text-red-300 hover:bg-white/10"
+            onClick={() => setShowDeleteConfirm(true)}
+          >
             <Trash2 className="w-4 h-4" />
           </Button>
           <Button
@@ -163,7 +172,7 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
           />
           <div className="flex items-center gap-4 text-[10px] font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-widest">
             <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" /> {new Date(page.created_at).toLocaleDateString()}</span>
-            <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(page.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         </div>
 
@@ -224,6 +233,41 @@ export function ThoughtEditor({ page, onBack, onRefresh }: any) {
           icon={<Highlighter size={20} />}
         />
       </div>
+
+      {/* DELETE CONFIRM SHEET */}
+      {showDeleteConfirm && (
+        <div className="absolute inset-0 z-[9999] flex items-end justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full bg-white dark:bg-zinc-900 rounded-t-3xl overflow-hidden shadow-2xl">
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
+            </div>
+            <div className="px-5 pt-3 pb-8 space-y-4">
+              <h3 className="font-bold text-base text-center text-foreground">Delete this page?</h3>
+              <p className="text-sm text-center text-muted-foreground">"{title || 'Untitled'}" will be permanently removed.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 h-12 rounded-2xl border border-border bg-muted text-sm font-semibold text-foreground"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={isDeleting}
+                  onClick={async () => {
+                    setIsDeleting(true)
+                    await onDeletePage?.()
+                    setIsDeleting(false)
+                    setShowDeleteConfirm(false)
+                  }}
+                  className="flex-1 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold disabled:opacity-50"
+                >
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SHARE MODAL */}
       {showShareModal && (

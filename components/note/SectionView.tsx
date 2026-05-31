@@ -1,8 +1,25 @@
 'use client'
 
-import { Folder, FileText, ChevronLeft, Plus, Edit2, ChevronRight, MoreVertical } from 'lucide-react'
+import { Folder, FileText, ChevronLeft, Plus, ChevronRight, MoreVertical } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+function getPreview(content: string) {
+  if (!content) return ''
+  return content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim().slice(0, 80)
+}
+
+function relativeDate(dateStr: string) {
+  const d = new Date(dateStr)
+  const diffMs = Date.now() - d.getTime()
+  const mins = Math.floor(diffMs / 60000)
+  const hours = Math.floor(diffMs / 3600000)
+  const days = Math.floor(diffMs / 86400000)
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7) return `${days}d ago`
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
 
 export function SectionView({ notebook, activeSection, onBack, onAdd, onSelectSection, onSelectPage, onRename }: any) {
   return (
@@ -54,15 +71,20 @@ export function SectionView({ notebook, activeSection, onBack, onAdd, onSelectSe
               className="flex items-center justify-between p-4 bg-white border rounded-2xl shadow-sm active:scale-[0.99] transition-all"
             >
               <div className="flex items-center gap-4 overflow-hidden">
-                <FileText className="w-5 h-5 text-muted-foreground" />
+                <FileText className="w-5 h-5 text-muted-foreground shrink-0" />
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm font-bold uppercase italic truncate">{p.title}</span>
+                  <span className="text-sm font-bold uppercase italic truncate">{p.title || 'Untitled'}</span>
+                  {getPreview(p.content) && (
+                    <span className="text-[10px] text-muted-foreground truncate max-w-[200px]">
+                      {getPreview(p.content)}
+                    </span>
+                  )}
                   <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">
-                    Created: {new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {relativeDate(p.updated_at ?? p.created_at)}
                   </span>
                 </div>
               </div>
-              <MoreVertical className="w-4 h-4 text-muted-foreground" />
+              <MoreVertical className="w-4 h-4 text-muted-foreground shrink-0" />
             </div>
           ))
         )}

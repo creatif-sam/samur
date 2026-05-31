@@ -260,17 +260,38 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
     finally { setIsProcessing(false) }
   }
 
-  if (editingPage) return <ThoughtEditor page={editingPage} onBack={() => {
-    if (navigationSource === 'recent') {
-      // If opened from recent view, clear all navigation and return to recent view
-      handleClearNavigation()
-      setEditingPage(null)
-      setNavigationSource('normal')
-    } else {
-      // If opened from notebook navigation, just close the editor
-      setEditingPage(null)
+  if (editingPage) {
+    const goBack = () => {
+      if (navigationSource === 'recent') {
+        handleClearNavigation()
+        setEditingPage(null)
+        setNavigationSource('normal')
+      } else {
+        setEditingPage(null)
+      }
     }
-  }} onRefresh={onRefresh} />
+
+    const handleEditorDeletePage = async () => {
+      const { error } = await supabase.from('pages').delete().eq('id', editingPage.id)
+      if (error) { toast.error('Failed to delete page'); return }
+      toast.success('Page deleted')
+      if (activeSection) {
+        setActiveSection((prev: any) => prev
+          ? { ...prev, pages: prev.pages.filter((p: any) => p.id !== editingPage.id) }
+          : prev
+        )
+      }
+      await onRefresh()
+      goBack()
+    }
+
+    return <ThoughtEditor
+      page={editingPage}
+      onBack={goBack}
+      onRefresh={onRefresh}
+      onDeletePage={handleEditorDeletePage}
+    />
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f172a] max-w-2xl mx-auto flex flex-col font-poppins transition-colors duration-500 relative">

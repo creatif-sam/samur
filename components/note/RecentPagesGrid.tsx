@@ -44,11 +44,11 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
     })
   })
 
-  // Sort by created_at (most recent first)
+  // Sort by updated_at (falls back to created_at) — most recently edited first
   const recentPages = allPages
     .sort((a, b) => {
-      const dateA = new Date(a.page.created_at).getTime()
-      const dateB = new Date(b.page.created_at).getTime()
+      const dateA = new Date(a.page.updated_at ?? a.page.created_at).getTime()
+      const dateB = new Date(b.page.updated_at ?? b.page.created_at).getTime()
       return dateB - dateA
     })
     .slice(0, 60) // Show most recent 60 pages
