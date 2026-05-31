@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
   BookOpen, X, BookMarked, Check, Loader2, ChevronDown, Highlighter,
-  Copy, PenLine,
+  Copy, PenLine, History,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
@@ -162,7 +162,13 @@ export default function BibleReader() {
   const [noteContent, setNoteContent] = useState('')
   const [savingNote, setSavingNote] = useState(false)
 
-  // Search
+  // Book browser
+  const [bookSearch, setBookSearch] = useState('')
+  const [bookSort, setBookSort] = useState<'canonical' | 'alpha'>('canonical')
+  const [recentBooks, setRecentBooks] = useState<string[]>([])
+  const [showRecent, setShowRecent] = useState(false)
+
+  // Passage search
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
@@ -173,6 +179,14 @@ export default function BibleReader() {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user) setUserId(data.user.id)
     })
+  }, [])
+
+  // ── Recent books (localStorage) ─────────────────────────────────────────
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('bible_recent_books')
+      if (stored) setRecentBooks(JSON.parse(stored))
+    } catch {}
   }, [])
 
   // ── Load chapter ────────────────────────────────────────────────────────
@@ -383,6 +397,12 @@ export default function BibleReader() {
   function openBook(book: string) {
     setSelectedBook(book)
     setView('chapters')
+    setBookSearch('')
+    setRecentBooks(prev => {
+      const next = [book, ...prev.filter(b => b !== book)].slice(0, 10)
+      try { localStorage.setItem('bible_recent_books', JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   function openChapter(ch: number) {
@@ -429,6 +449,27 @@ export default function BibleReader() {
   const otBooks = BOOKS.slice(0, BOOKS.indexOf(NT_START))
   const ntBooks = BOOKS.slice(BOOKS.indexOf(NT_START))
 
+  // ── Filtered + sorted book list for browser ──────────────────────────────
+  const displayedBooks = useMemo(() => {
+    let list: string[] =
+      showRecent && recentBooks.length > 0
+        ? recentBooks.filter(b => BOOKS.includes(b))
+        : [...BOOKS]
+    if (bookSearch.trim()) {
+      const q = bookSearch.toLowerCase()
+      list = list.filter(b =>
+        b.toLowerCase().includes(q) ||
+        (isFrench(translation) && (FRENCH_BOOK_NAMES[b] ?? '').toLowerCase().includes(q))
+      )
+    }
+    if (bookSort === 'alpha') {
+      list = [...list].sort((a, b) =>
+        displayBook(a, translation).localeCompare(displayBook(b, translation))
+      )
+    }
+    return list
+  }, [bookSearch, bookSort, showRecent, recentBooks, translation])
+
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background font-sans pb-28">
@@ -450,7 +491,7 @@ export default function BibleReader() {
 
         <div className="flex-1 min-w-0">
           {view === 'books' && (
-            <h1 className="text-lg font-black uppercase tracking-tight text-violet-600 dark:text-violet-400">Holy Bible</h1>
+            <h1 className="text-lg font-bold">Books</h1>
           )}
           {view === 'chapters' && (
             <p className="text-base font-black uppercase tracking-tight truncate">{displayBook(selectedBook, translation)}</p>
@@ -474,34 +515,60 @@ export default function BibleReader() {
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
-          {view !== 'search' && (
-            <button onClick={() => setView('search')} className="p-1.5 rounded-xl hover:bg-muted transition">
-              <Search className="w-5 h-5 text-muted-foreground" />
-            </button>
+          {/* Books view: AZ sort + recent history */}
+          {view === 'books' && (
+            <>
+              <button
+                onClick={() => setBookSort(s => s === 'canonical' ? 'alpha' : 'canonical')}
+                className={`flex items-center px-2.5 py-1.5 rounded-xl text-xs font-black tracking-wide transition ${
+                  bookSort === 'alpha'
+                    ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'
+                    : 'hover:bg-muted text-muted-foreground'
+                }`}
+                title={bookSort === 'alpha' ? 'Canonical order' : 'A–Z order'}
+              >
+                AZ
+              </button>
+              <button
+                onClick={() => setShowRecent(v => !v)}
+                className={`p-1.5 rounded-xl transition ${
+                  showRecent ? 'bg-violet-100 dark:bg-violet-900/40' : 'hover:bg-muted'
+                }`}
+                title="Recently read"
+              >
+                <History className={`w-5 h-5 ${showRecent ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`} />
+              </button>
+            </>
+          )}
+
+          {/* Other views: search, version, saved */}
+          {view !== 'books' && view !== 'search' && (
+            <>
+              <button onClick={() => setView('search')} className="p-1.5 rounded-xl hover:bg-muted transition">
+                <Search className="w-5 h-5 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => setView(v => v === 'versions' ? 'books' : 'versions')}
+                className={`flex items-center gap-0.5 px-2 py-1 rounded-xl text-[11px] font-black uppercase tracking-wide transition ${
+                  view === 'versions' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400' : 'hover:bg-muted text-muted-foreground'
+                }`}
+              >
+                {TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'}
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => setView(v => v === 'saved' ? 'books' : 'saved')}
+                className={`p-1.5 rounded-xl transition ${view === 'saved' ? 'bg-violet-100 dark:bg-violet-900/40' : 'hover:bg-muted'}`}
+              >
+                <BookMarked className={`w-5 h-5 ${view === 'saved' ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`} />
+              </button>
+            </>
           )}
           {view === 'search' && searchQuery && (
             <button onClick={() => { setSearchQuery(''); setSearchResults([]) }} className="p-1.5 rounded-xl hover:bg-muted transition">
               <X className="w-4 h-4" />
             </button>
           )}
-          {/* Version picker button — visible when not in search */}
-          {view !== 'search' && (
-            <button
-              onClick={() => setView(v => v === 'versions' ? 'books' : 'versions')}
-              className={`flex items-center gap-0.5 px-2 py-1 rounded-xl text-[11px] font-black uppercase tracking-wide transition ${
-                view === 'versions' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400' : 'hover:bg-muted text-muted-foreground'
-              }`}
-            >
-              {TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'}
-              <ChevronDown className="w-3 h-3" />
-            </button>
-          )}
-          <button
-            onClick={() => setView(v => v === 'saved' ? 'books' : 'saved')}
-            className={`p-1.5 rounded-xl transition ${view === 'saved' ? 'bg-violet-100 dark:bg-violet-900/40' : 'hover:bg-muted'}`}
-          >
-            <BookMarked className={`w-5 h-5 ${view === 'saved' ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`} />
-          </button>
         </div>
       </header>
 
@@ -572,37 +639,58 @@ export default function BibleReader() {
 
       {/* ── BOOK BROWSER ── */}
       {view === 'books' && (
-        <div className="px-4 pt-4 pb-6 space-y-6">
-          {/* Testament toggle */}
-          <div className="flex rounded-2xl bg-muted p-1 gap-1">
-            {(['OT', 'NT'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTestament(t)}
-                className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${
-                  testament === t ? 'bg-violet-600 text-white shadow-sm' : 'text-muted-foreground'
-                }`}
-              >
-                {t === 'OT'
-                  ? (isFrench(translation) ? 'Ancien Testament' : 'Old Testament')
-                  : (isFrench(translation) ? 'Nouveau Testament' : 'New Testament')}
-              </button>
-            ))}
+        <div className="pb-10">
+          {/* Search bar */}
+          <div className="px-4 pt-3 pb-2">
+            <div className="flex items-center gap-2 bg-muted rounded-full px-4 py-2.5">
+              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              <input
+                value={bookSearch}
+                onChange={e => setBookSearch(e.target.value)}
+                placeholder="Search"
+                className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+              />
+              {bookSearch && (
+                <button onClick={() => setBookSearch('')}>
+                  <X className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
           </div>
 
-          {/* Book grid */}
-          <div className="grid grid-cols-2 gap-2">
-            {(testament === 'OT' ? otBooks : ntBooks).map(book => (
-              <button
-                key={book}
-                onClick={() => openBook(book)}
-                className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-card border border-border hover:border-violet-300 dark:hover:border-violet-700 active:scale-[0.97] transition-all text-left"
-              >
-                <BookOpen className="w-4 h-4 text-violet-500 shrink-0" />
-                <span className="text-sm font-semibold truncate">{displayBook(book, translation)}</span>
-              </button>
-            ))}
-          </div>
+          {/* Status chip when recent/alpha active */}
+          {(showRecent || bookSort === 'alpha') && (
+            <div className="flex gap-2 px-4 pb-2">
+              {showRecent && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-violet-500">
+                  Recently Read
+                </span>
+              )}
+              {bookSort === 'alpha' && (
+                <span className="text-[10px] font-bold uppercase tracking-widest text-violet-500">
+                  A–Z
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Flat book list */}
+          {displayedBooks.length === 0 ? (
+            <p className="text-center text-muted-foreground text-sm py-10">No books found</p>
+          ) : (
+            <div className="divide-y divide-border">
+              {displayedBooks.map(book => (
+                <button
+                  key={book}
+                  onClick={() => openBook(book)}
+                  className="w-full flex items-center justify-between px-6 py-4 text-left active:bg-muted/60 transition-colors"
+                >
+                  <span className="text-[17px] font-normal">{displayBook(book, translation)}</span>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
