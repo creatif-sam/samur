@@ -150,14 +150,16 @@ export default function BibleReader() {
 
   // Saved verses
   const [savedVerses, setSavedVerses] = useState<SavedVerse[]>([])
-  const [savingVerse, setSavingVerse] = useState<number | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
 
-  // Highlights
+  // Highlights & multi-verse selection
   const [highlights, setHighlights] = useState<Map<string, VerseHighlight>>(new Map())
-  const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null)
+  const [selectedVerses, setSelectedVerses] = useState<Set<number>>(new Set())
   const [showHighlightPanel, setShowHighlightPanel] = useState(false)
   const [showChapterSheet, setShowChapterSheet] = useState(false)
+  const [savingSelection, setSavingSelection] = useState(false)
+  const [noteIsMulti, setNoteIsMulti] = useState(false)
+  const [noteRef, setNoteRef] = useState('')
 
   // Version search
   const [versionLang, setVersionLang] = useState<'all' | 'en' | 'fr'>('all')
@@ -272,7 +274,6 @@ export default function BibleReader() {
       if (error) { console.error('insertHighlight:', error); toast.error('Could not save highlight'); return }
       if (data) setHighlights(prev => new Map(prev).set(key, data))
     }
-    setActiveColorPicker(null)
   }
 
   async function loadSavedVerses() {
@@ -288,68 +289,98 @@ export default function BibleReader() {
     setSavedIds(keys)
   }
 
-  async function toggleSaveVerse(verse: Verse) {
-    if (!userId) return
-    const key = `${selectedBook}-${selectedChapter}-${verse.verse}`
-    setSavingVerse(verse.verse)
-
-    try {
-      if (savedIds.has(key)) {
-        const { error } = await supabase
-          .from('saved_verses')
-          .delete()
-          .eq('user_id', userId)
-          .eq('book', selectedBook)
-          .eq('chapter', selectedChapter)
-          .eq('verse', verse.verse)
-        if (error) { console.error('unsaveVerse:', error); toast.error('Could not remove verse'); return }
-        setSavedIds(prev => { const s = new Set(prev); s.delete(key); return s })
-        setSavedVerses(prev => prev.filter(v => !(v.book === selectedBook && v.chapter === selectedChapter && v.verse === verse.verse)))
-        toast.success('Verse removed')
-      } else {
-        const { data, error } = await supabase
-          .from('saved_verses')
-          .insert({ user_id: userId, book: selectedBook, chapter: selectedChapter, verse: verse.verse, text: verse.text })
-          .select()
-          .single()
-        if (error) { console.error('saveVerse:', error); toast.error('Could not save verse'); return }
-        if (data) {
-          setSavedIds(prev => new Set(prev).add(key))
-          setSavedVerses(prev => [data, ...prev])
-          toast.success('Verse saved ✨')
-        }
-      }
-    } finally {
-      setSavingVerse(null)
-    }
+  // ── Ref formatter (single or multi-verse) ─────────────────────────────
+  function formatRef(nums: number[]): string {
+    if (nums.length === 0) return ''
+    const sorted = [...nums].sort((a, b) => a - b)
+    if (sorted.length === 1) return `${selectedChapter}:${sorted[0]}`
+    const isConsec = sorted.every((n, i) => i === 0 || n === sorted[i - 1] + 1)
+    if (isConsec) return `${selectedChapter}:${sorted[0]}–${sorted[sorted.length - 1]}`
+    return sorted.map(n => `${selectedChapter}:${n}`).join(', ')
   }
 
-  // ── Copy verse ───────────────────────────────────────────────────────────
-  async function copyVerse(v: Verse) {
+  // ── Copy selected verses ────────────────────────────────────────────────
+  async function copySelectedVerses() {
     const label = TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'
-    const ref = `${displayBook(selectedBook, translation)} ${selectedChapter}:${v.verse} (${label})`
-    const text = `"${v.text.trim()}" — ${ref}`
+    const sortedNums = [...selectedVerses].sort((a, b) => a - b)
+    const vObjs = sortedNums.map(n => verses.find(v => v.verse === n)).filter(Boolean) as Verse[]
+    const lines = vObjs.map(v => `${v.verse} ${v.text.trim()}`).join('\n')
+    const ref = `${displayBook(selectedBook, translation)} ${formatRef(sortedNums)} (${label})`
     try {
-      await navigator.clipboard.writeText(text)
-      toast.success('Verse copied!')
+      await navigator.clipboard.writeText(`${lines}\n— ${ref}`)
+      toast.success('Copied!')
     } catch {
       toast.error('Could not copy')
     }
-    setActiveColorPicker(null)
+    setSelectedVerses(new Set())
   }
-  // ── Share verse ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-  async function shareVerse(v: Verse) {
+
+  // ── Share selected verses ───────────────────────────────────────────────
+  async function shareSelectedVerses() {
     const label = TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'
-    const ref = `${displayBook(selectedBook, translation)} ${selectedChapter}:${v.verse} (${label})`
-    const text = `"${v.text.trim()}" — ${ref}`
+    const sortedNums = [...selectedVerses].sort((a, b) => a - b)
+    const vObjs = sortedNums.map(n => verses.find(v => v.verse === n)).filter(Boolean) as Verse[]
+    const lines = vObjs.map(v => `${v.verse} ${v.text.trim()}`).join('\n')
+    const ref = `${displayBook(selectedBook, translation)} ${formatRef(sortedNums)} (${label})`
+    const text = `${lines}\n— ${ref}`
     if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ text })
-      } catch { /* user cancelled */ }
+      try { await navigator.share({ text }) } catch { /* user cancelled */ }
     } else {
-      await copyVerse(v)
+      try { await navigator.clipboard.writeText(text); toast.success('Copied!') } catch { toast.error('Could not copy') }
     }
-    setActiveColorPicker(null)
+    setSelectedVerses(new Set())
+  }
+
+  // ── Save / unsave selected verses ──────────────────────────────────────
+  async function saveSelectedVerses() {
+    if (!userId) return
+    setSavingSelection(true)
+    try {
+      const sortedNums = [...selectedVerses].sort((a, b) => a - b)
+      const allSaved = sortedNums.every(n => savedIds.has(`${selectedBook}-${selectedChapter}-${n}`))
+      if (allSaved) {
+        for (const n of sortedNums) {
+          const v = verses.find(vv => vv.verse === n)
+          if (!v) continue
+          const { error } = await supabase.from('saved_verses').delete()
+            .eq('user_id', userId).eq('book', selectedBook).eq('chapter', selectedChapter).eq('verse', v.verse)
+          if (!error) {
+            const key = `${selectedBook}-${selectedChapter}-${v.verse}`
+            setSavedIds(prev => { const s = new Set(prev); s.delete(key); return s })
+            setSavedVerses(prev => prev.filter(sv => !(sv.book === selectedBook && sv.chapter === selectedChapter && sv.verse === v.verse)))
+          }
+        }
+        toast.success('Verses removed')
+      } else {
+        const unsaved = sortedNums.filter(n => !savedIds.has(`${selectedBook}-${selectedChapter}-${n}`))
+        for (const n of unsaved) {
+          const v = verses.find(vv => vv.verse === n)
+          if (!v) continue
+          const { data, error } = await supabase.from('saved_verses')
+            .insert({ user_id: userId, book: selectedBook, chapter: selectedChapter, verse: v.verse, text: v.text })
+            .select().single()
+          if (!error && data) {
+            setSavedIds(prev => new Set(prev).add(`${selectedBook}-${selectedChapter}-${v.verse}`))
+            setSavedVerses(prev => [data, ...prev])
+          }
+        }
+        toast.success(`${unsaved.length} verse${unsaved.length > 1 ? 's' : ''} saved ✨`)
+      }
+      setSelectedVerses(new Set())
+    } finally {
+      setSavingSelection(false)
+    }
+  }
+
+  // ── Highlight selected verses ───────────────────────────────────────────
+  async function highlightSelectedVerses(color: string | null) {
+    const sortedNums = [...selectedVerses].sort((a, b) => a - b)
+    for (const n of sortedNums) {
+      const v = verses.find(vv => vv.verse === n)
+      if (v) await setVerseHighlight(v, color)
+    }
+    setShowHighlightPanel(false)
+    setSelectedVerses(new Set())
   }
   // ── Add note to verse ────────────────────────────────────────────────────
   async function addVerseNote(v: Verse, extraContent: string) {
@@ -357,7 +388,7 @@ export default function BibleReader() {
     setSavingNote(true)
     try {
       const bookName = displayBook(selectedBook, translation)
-      const pageTitle = `${bookName} ${selectedChapter}:${v.verse}`
+      const pageTitle = noteRef || `${bookName} ${selectedChapter}:${v.verse}`
 
       // 1. Find or create "Bible Notes" notebook
       const { data: nbs } = await supabase
@@ -398,9 +429,9 @@ export default function BibleReader() {
       }
 
       // 3. Create page with verse text + user note
-      const content = extraContent.trim()
-        ? `${v.text.trim()}\n\n${extraContent.trim()}`
-        : v.text.trim()
+      const content = noteIsMulti
+        ? (extraContent.trim() || v.text.trim())
+        : (extraContent.trim() ? `${v.text.trim()}\n\n${extraContent.trim()}` : v.text.trim())
       const { error } = await supabase
         .from('pages')
         .insert({ section_id: sectionId, title: pageTitle, content })
@@ -409,6 +440,8 @@ export default function BibleReader() {
       toast.success('Note saved to Bible Notes 📖')
       setNoteVerse(null)
       setNoteContent('')
+      setNoteRef('')
+      setNoteIsMulti(false)
     } catch {
       toast.error('Could not save note')
     } finally {
@@ -780,19 +813,29 @@ export default function BibleReader() {
           {!loading && !error && verses.map(v => {
             const key = `${selectedBook}-${selectedChapter}-${v.verse}`
             const highlight = highlights.get(key)
+            const isSelected = selectedVerses.has(v.verse)
             return (
               <div key={v.verse}>
                 <div
                   className={`flex gap-3 py-2 px-2 rounded-2xl transition-colors cursor-pointer select-none ${
-                    highlight ? highlightBg(highlight.color) : 'active:bg-muted/60'
+                    isSelected
+                      ? 'bg-violet-100 dark:bg-violet-900/30 ring-1 ring-inset ring-violet-400 dark:ring-violet-600'
+                      : highlight ? highlightBg(highlight.color) : 'active:bg-muted/60'
                   }`}
                   onClick={() => {
-                    setActiveColorPicker(n => n === v.verse ? null : v.verse)
+                    setSelectedVerses(prev => {
+                      const next = new Set(prev)
+                      if (next.has(v.verse)) next.delete(v.verse)
+                      else next.add(v.verse)
+                      return next
+                    })
                     setShowHighlightPanel(false)
                   }}
                 >
-                  <span className="text-[11px] font-black text-violet-400 dark:text-violet-500 w-6 shrink-0 pt-0.5 text-right tabular-nums">
-                    {v.verse}
+                  <span className={`text-[11px] font-black w-6 shrink-0 pt-0.5 text-right tabular-nums ${
+                    isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-violet-400 dark:text-violet-500'
+                  }`}>
+                    {isSelected ? '✓' : v.verse}
                   </span>
                   <p className="flex-1 text-[15px] leading-[1.75] text-foreground">{v.text}</p>
                 </div>
@@ -801,18 +844,20 @@ export default function BibleReader() {
           })}
 
           {/* ── Verse action bottom sheet ── */}
-          {activeColorPicker !== null && (() => {
-            const sheetVerse = verses.find(v => v.verse === activeColorPicker)
-            if (!sheetVerse) return null
-            const key = `${selectedBook}-${selectedChapter}-${sheetVerse.verse}`
-            const isSaved = savedIds.has(key)
-            const highlight = highlights.get(key)
+          {selectedVerses.size > 0 && (() => {
+            const sortedNums = [...selectedVerses].sort((a, b) => a - b)
+            const allSaved = sortedNums.every(n => savedIds.has(`${selectedBook}-${selectedChapter}-${n}`))
+            const firstH = highlights.get(`${selectedBook}-${selectedChapter}-${sortedNums[0]}`)
+            const sharedHighlight = sortedNums.length === 1
+              ? firstH
+              : (sortedNums.every(n => highlights.get(`${selectedBook}-${selectedChapter}-${n}`)?.color === firstH?.color) ? firstH : undefined)
+            const refLabel = `${displayBook(selectedBook, translation)} ${formatRef(sortedNums)}`
             return (
               <>
-                {/* Backdrop */}
+                {/* Backdrop — only dims reading content, not the bottom bars */}
                 <div
-                  className="fixed inset-0 z-[55] bg-black/30"
-                  onClick={() => { setActiveColorPicker(null); setShowHighlightPanel(false) }}
+                  className="fixed inset-x-0 top-0 bottom-[120px] z-[55] bg-black/30"
+                  onClick={() => { setSelectedVerses(new Set()); setShowHighlightPanel(false) }}
                 />
                 {/* Sheet */}
                 <div className="fixed bottom-[120px] left-0 right-0 z-[60] bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
@@ -820,15 +865,20 @@ export default function BibleReader() {
                   <div className="flex justify-center pt-3 pb-1">
                     <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
                   </div>
-                  {/* Verse ref */}
-                  <p className="text-center text-sm font-bold text-foreground px-6 py-2">
-                    {displayBook(selectedBook, translation)} {selectedChapter}:{sheetVerse.verse}
-                  </p>
+                  {/* Verse ref + count badge */}
+                  <div className="flex items-center justify-between px-6 py-2">
+                    <p className="text-sm font-bold text-foreground">{refLabel}</p>
+                    {selectedVerses.size > 1 && (
+                      <span className="text-[11px] font-black text-violet-500 bg-violet-100 dark:bg-violet-900/40 px-2.5 py-1 rounded-full">
+                        {selectedVerses.size} verses
+                      </span>
+                    )}
+                  </div>
                   {/* Action buttons */}
                   <div className="flex items-center justify-around px-4 py-3 gap-1">
                     {/* Copy */}
                     <button
-                      onClick={() => copyVerse(sheetVerse)}
+                      onClick={copySelectedVerses}
                       className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
                     >
                       <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
@@ -838,7 +888,7 @@ export default function BibleReader() {
                     </button>
                     {/* Share */}
                     <button
-                      onClick={() => shareVerse(sheetVerse)}
+                      onClick={shareSelectedVerses}
                       className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
                     >
                       <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
@@ -846,20 +896,21 @@ export default function BibleReader() {
                       </div>
                       <span className="text-[11px] text-muted-foreground font-medium">Share</span>
                     </button>
-                    {/* Save / Bookmark */}
+                    {/* Save */}
                     <button
-                      onClick={() => toggleSaveVerse(sheetVerse)}
+                      onClick={saveSelectedVerses}
+                      disabled={savingSelection}
                       className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
                     >
                       <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
-                        isSaved ? 'bg-violet-100 dark:bg-violet-900/40' : 'bg-muted'
+                        allSaved ? 'bg-violet-100 dark:bg-violet-900/40' : 'bg-muted'
                       }`}>
-                        {savingVerse === sheetVerse.verse
+                        {savingSelection
                           ? <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
-                          : <Bookmark className={`w-5 h-5 ${isSaved ? 'text-violet-600 dark:text-violet-400 fill-current' : ''}`} />
+                          : <Bookmark className={`w-5 h-5 ${allSaved ? 'text-violet-600 dark:text-violet-400 fill-current' : ''}`} />
                         }
                       </div>
-                      <span className="text-[11px] text-muted-foreground font-medium">{isSaved ? 'Saved' : 'Save'}</span>
+                      <span className="text-[11px] text-muted-foreground font-medium">{allSaved ? 'Saved' : 'Save'}</span>
                     </button>
                     {/* Highlight */}
                     <button
@@ -867,7 +918,7 @@ export default function BibleReader() {
                       className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
                     >
                       <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
-                        highlight ? highlightBg(highlight.color) : 'bg-muted'
+                        sharedHighlight ? highlightBg(sharedHighlight.color) : 'bg-muted'
                       }`}>
                         <Highlighter className="w-5 h-5" />
                       </div>
@@ -875,7 +926,17 @@ export default function BibleReader() {
                     </button>
                     {/* Note */}
                     <button
-                      onClick={() => { setNoteVerse(sheetVerse); setActiveColorPicker(null); setShowHighlightPanel(false) }}
+                      onClick={() => {
+                        const vObjs = sortedNums.map(n => verses.find(v => v.verse === n)).filter(Boolean) as Verse[]
+                        if (vObjs.length === 0) return
+                        const isMulti = vObjs.length > 1
+                        setNoteVerse(vObjs[0])
+                        setNoteIsMulti(isMulti)
+                        setNoteRef(isMulti ? refLabel : '')
+                        if (isMulti) setNoteContent(vObjs.map(v => `[${selectedChapter}:${v.verse}] ${v.text.trim()}`).join('\n\n'))
+                        setSelectedVerses(new Set())
+                        setShowHighlightPanel(false)
+                      }}
                       className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
                     >
                       <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
@@ -891,15 +952,15 @@ export default function BibleReader() {
                       {HIGHLIGHT_COLORS.map(c => (
                         <button
                           key={c.id}
-                          onClick={() => { setVerseHighlight(sheetVerse, c.id); setShowHighlightPanel(false) }}
+                          onClick={() => highlightSelectedVerses(c.id)}
                           className={`w-8 h-8 rounded-full ${c.dot} transition-transform active:scale-90 ${
-                            highlight?.color === c.id ? 'ring-2 ring-offset-2 ring-foreground scale-110' : 'hover:scale-110'
+                            sharedHighlight?.color === c.id ? 'ring-2 ring-offset-2 ring-foreground scale-110' : 'hover:scale-110'
                           }`}
                         />
                       ))}
-                      {highlight && (
+                      {sharedHighlight && (
                         <button
-                          onClick={() => { setVerseHighlight(sheetVerse, null); setShowHighlightPanel(false) }}
+                          onClick={() => highlightSelectedVerses(null)}
                           className="ml-auto p-2 rounded-xl hover:bg-muted transition"
                           title="Remove highlight"
                         >
@@ -921,7 +982,7 @@ export default function BibleReader() {
       )}
       {/* ── CHAPTER NAV BAR (read view) ── */}
       {view === 'read' && (
-        <div className="fixed bottom-16 left-0 right-0 z-20 bg-background/95 backdrop-blur border-t border-border flex items-center h-14 px-1">
+        <div className="fixed bottom-16 left-0 right-0 z-[56] bg-background/95 backdrop-blur border-t border-border flex items-center h-14 px-1">
           <button
             onClick={prevChapter}
             className="p-3 rounded-xl hover:bg-muted active:bg-muted transition"
@@ -986,29 +1047,33 @@ export default function BibleReader() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-widest text-violet-500 mb-0.5">Add Bible Note</p>
-                <p className="font-black text-base">{displayBook(selectedBook, translation)} {selectedChapter}:{noteVerse.verse}</p>
+                <p className="font-black text-base">
+                  {noteRef || `${displayBook(selectedBook, translation)} ${selectedChapter}:${noteVerse.verse}`}
+                </p>
               </div>
               <button
-                onClick={() => { setNoteVerse(null); setNoteContent('') }}
+                onClick={() => { setNoteVerse(null); setNoteContent(''); setNoteRef(''); setNoteIsMulti(false) }}
                 className="p-1.5 rounded-xl hover:bg-muted transition shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-sm text-muted-foreground italic leading-relaxed border-l-2 border-violet-400 pl-3">
-              &ldquo;{noteVerse.text.trim()}&rdquo;
-            </p>
+            {!noteIsMulti && (
+              <p className="text-sm text-muted-foreground italic leading-relaxed border-l-2 border-violet-400 pl-3">
+                &ldquo;{noteVerse.text.trim()}&rdquo;
+              </p>
+            )}
             <textarea
               autoFocus
               value={noteContent}
               onChange={e => setNoteContent(e.target.value)}
-              placeholder="Add your thoughts, reflections..."
-              rows={4}
+              placeholder={noteIsMulti ? 'Add your thoughts about these verses...' : 'Add your thoughts, reflections...'}
+              rows={noteIsMulti ? 6 : 4}
               className="w-full bg-muted/50 rounded-2xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50 placeholder:text-muted-foreground"
             />
             <div className="flex gap-2">
               <button
-                onClick={() => { setNoteVerse(null); setNoteContent('') }}
+                onClick={() => { setNoteVerse(null); setNoteContent(''); setNoteRef(''); setNoteIsMulti(false) }}
                 className="flex-1 py-3 rounded-2xl border border-border text-sm font-semibold hover:bg-muted transition"
               >
                 Cancel
