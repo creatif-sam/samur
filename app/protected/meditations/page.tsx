@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -27,6 +28,7 @@ export default function MeditationsPage() {
   const [visibilityFilter, setVisibilityFilter] =
     useState<'all' | 'private' | 'shared'>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const router = useRouter()
 
   useEffect(() => {
     loadMeditations()
@@ -286,18 +288,19 @@ ${m.prayer}
       </header>
 
       {/* Bible banner */}
-      <Link href="/protected/bible" className="block">
-        <div className="flex items-center gap-4 px-5 py-4 rounded-3xl bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-sm active:scale-[0.98] transition-transform">
-          <div className="bg-white/20 rounded-2xl p-2.5">
-            <BookOpen className="w-6 h-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-black uppercase tracking-wide text-sm">Holy Bible</p>
-            <p className="text-xs text-white/75 mt-0.5">Read KJV · Save verses · Search passages</p>
-          </div>
-          <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
+      <button
+        onClick={() => router.push('/protected/bible')}
+        className="w-full flex items-center gap-4 px-5 py-4 rounded-3xl bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-sm active:scale-[0.98] transition-transform"
+      >
+        <div className="bg-white/20 rounded-2xl p-2.5">
+          <BookOpen className="w-6 h-6" />
         </div>
-      </Link>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="font-black uppercase tracking-wide text-sm">Holy Bible</p>
+          <p className="text-xs text-white/75 mt-0.5">Read KJV · Save verses · Search passages</p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
+      </button>
 
       {/* Streak */}
       {userId && accountCreatedAt && (

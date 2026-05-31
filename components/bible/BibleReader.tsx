@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
@@ -64,6 +65,7 @@ function chapterArray(book: string) {
 // ── Main component ─────────────────────────────────────────────────────────
 export default function BibleReader() {
   const supabase = createClient()
+  const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
 
   // Navigation
@@ -226,18 +228,17 @@ export default function BibleReader() {
 
       {/* ── TOP BAR ── */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-3">
-        {view !== 'books' && (
-          <button
-            onClick={() => {
-              if (view === 'read') setView('chapters')
-              else if (view === 'chapters') setView('books')
-              else setView('books')
-            }}
-            className="p-1.5 rounded-xl hover:bg-muted transition shrink-0"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-        )}
+        <button
+          onClick={() => {
+            if (view === 'read') setView('chapters')
+            else if (view === 'chapters') setView('books')
+            else if (view === 'saved' || view === 'search') setView('books')
+            else router.back()
+          }}
+          className="p-1.5 rounded-xl hover:bg-muted transition shrink-0"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
 
         <div className="flex-1 min-w-0">
           {view === 'books' && (

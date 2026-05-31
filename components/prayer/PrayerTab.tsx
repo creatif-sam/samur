@@ -1,11 +1,12 @@
 'use client'
 
 import { JSX, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PrayerTimer from './PrayerTimer'
 import PrayerCalendar from './PrayerCalendar'
 import { ThoughtEditor } from '@/components/note/ThoughtEditor'
-import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen } from 'lucide-react'
+import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight } from 'lucide-react'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -388,6 +389,7 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PrayerTab(): JSX.Element {
+  const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0)
@@ -499,6 +501,21 @@ export default function PrayerTab(): JSX.Element {
 
   return (
     <div className="space-y-5 pb-10">
+
+      {/* ── Bible Button ─────────────────────────────────── */}
+      <button
+        onClick={() => router.push('/protected/bible')}
+        className="w-full flex items-center gap-4 px-5 py-4 rounded-3xl bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-sm active:scale-[0.98] transition-transform"
+      >
+        <div className="bg-white/20 rounded-2xl p-2.5">
+          <BookOpen className="w-6 h-6" />
+        </div>
+        <div className="flex-1 min-w-0 text-left">
+          <p className="font-black uppercase tracking-wide text-sm">Holy Bible</p>
+          <p className="text-xs text-white/75 mt-0.5">Read KJV · Save verses · Search passages</p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
+      </button>
 
       {/* ── Prayer Timer ────────────────────────────────────── */}
       {userId && (
