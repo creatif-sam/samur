@@ -12,7 +12,7 @@ import { AddNotebookDialog } from './AddNotebookDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, AlertTriangle, Trash2 } from 'lucide-react'
+import { Loader2, AlertTriangle, Trash2, FolderInput, ChevronRight, X } from 'lucide-react'
 
 export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
   const [activeNotebook, setActiveNotebook] = useState<any | null>(null)
@@ -29,6 +29,11 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
   const [newTitle, setNewTitle] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
+
+  // --- Recent page long-press action state ---
+  const [recentPageAction, setRecentPageAction] = useState<{ page: any; section: any; notebook: any } | null>(null)
+  const [moveStep, setMoveStep] = useState<'pick-notebook' | 'pick-section' | null>(null)
+  const [moveTargetNotebook, setMoveTargetNotebook] = useState<any | null>(null)
 
   const supabase = createClient()
 
@@ -141,6 +146,43 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
       toast.success("Page deleted"); setPageToDelete(null); handleRefresh()
     } catch (err: any) { toast.error("Failed to delete page") }
     finally { setIsProcessing(false) }
+  }
+
+  const handleDeleteRecentPage = async () => {
+    if (!recentPageAction) return
+    setIsProcessing(true)
+    try {
+      const { error } = await supabase.from('pages').delete().eq('id', recentPageAction.page.id)
+      if (error) throw error
+      toast.success('Note deleted')
+      setRecentPageAction(null)
+      await onRefresh()
+    } catch {
+      toast.error('Failed to delete note')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleMovePageToSection = async (targetSection: any) => {
+    if (!recentPageAction) return
+    setIsProcessing(true)
+    try {
+      const { error } = await supabase
+        .from('pages')
+        .update({ section_id: targetSection.id })
+        .eq('id', recentPageAction.page.id)
+      if (error) throw error
+      toast.success(`Moved to "${moveTargetNotebook?.title} › ${targetSection.title}"`)
+      setRecentPageAction(null)
+      setMoveStep(null)
+      setMoveTargetNotebook(null)
+      await onRefresh()
+    } catch {
+      toast.error('Failed to move note')
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const handleQuickAddNote = async () => {
@@ -257,6 +299,11 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
             setEditingPage(page)
             setNavigationSource('recent') // Track that this was opened from recent view
           }}
+          onLongPressPage={(page: any, section: any, notebook: any) => {
+            setRecentPageAction({ page, section, notebook })
+            setMoveStep(null)
+            setMoveTargetNotebook(null)
+          }}
         />
       ) : !activeSection ? (
         <SectionList 
@@ -271,6 +318,103 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
           onSelect={setEditingPage} 
           onDeletePage={setPageToDelete} 
         />
+      )}
+
+      {/* ── Recent page long-press action sheet ── */}
+      {recentPageAction && !moveStep && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => setRecentPageAction(null)}>
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-3 animate-in slide-in-from-bottom duration-300" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-1" />
+            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center truncate px-4">
+              {recentPageAction.page.title || 'Untitled'}
+            </p>
+            <button
+              onClick={() => setMoveStep('pick-notebook')}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
+                <FolderInput className="w-4 h-4 text-violet-600 dark:text-violet-400" />
+              </div>
+              <span className="font-semibold text-sm text-slate-800 dark:text-white flex-1">Move to notebook…</span>
+              <ChevronRight className="w-4 h-4 text-slate-400" />
+            </button>
+            <button
+              onClick={handleDeleteRecentPage}
+              disabled={isProcessing}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4 text-red-500" />
+              </div>
+              <span className="font-semibold text-sm text-red-500 flex-1">Delete note</span>
+            </button>
+            <button onClick={() => setRecentPageAction(null)} className="w-full py-3 rounded-2xl text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Move: pick notebook ── */}
+      {recentPageAction && moveStep === 'pick-notebook' && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setMoveStep(null); setRecentPageAction(null) }}>
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-2 animate-in slide-in-from-bottom duration-300 max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-1 shrink-0" />
+            <div className="flex items-center gap-2 px-1 shrink-0">
+              <button onClick={() => setMoveStep(null)} className="p-1 rounded-full hover:bg-muted transition">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Choose notebook</p>
+            </div>
+            <div className="overflow-y-auto flex-1 space-y-1 pt-1">
+              {notebooks.map((nb: any) => (
+                <button
+                  key={nb.id}
+                  onClick={() => { setMoveTargetNotebook(nb); setMoveStep('pick-section') }}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors text-left"
+                >
+                  <span className="text-xl">{nb.emoji || '📓'}</span>
+                  <span className="flex-1 font-semibold text-sm text-slate-800 dark:text-white truncate">{nb.title}</span>
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Move: pick section ── */}
+      {recentPageAction && moveStep === 'pick-section' && moveTargetNotebook && (
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setMoveStep(null); setRecentPageAction(null) }}>
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-2 animate-in slide-in-from-bottom duration-300 max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-1 shrink-0" />
+            <div className="flex items-center gap-2 px-1 shrink-0">
+              <button onClick={() => setMoveStep('pick-notebook')} className="p-1 rounded-full hover:bg-muted transition">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
+                {moveTargetNotebook.emoji} {moveTargetNotebook.title} — pick section
+              </p>
+            </div>
+            <div className="overflow-y-auto flex-1 space-y-1 pt-1">
+              {(moveTargetNotebook.sections ?? []).length === 0 && (
+                <p className="text-sm text-center text-slate-400 py-8">No sections in this notebook.</p>
+              )}
+              {(moveTargetNotebook.sections ?? []).map((sec: any) => (
+                <button
+                  key={sec.id}
+                  onClick={() => handleMovePageToSection(sec)}
+                  disabled={isProcessing}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors text-left disabled:opacity-50"
+                >
+                  <div className="w-2 h-2 rounded-full bg-violet-500 shrink-0" />
+                  <span className="flex-1 font-semibold text-sm text-slate-800 dark:text-white truncate">{sec.title}</span>
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* DIALOGS REMAIN THE SAME AS PREVIOUS TURN */}

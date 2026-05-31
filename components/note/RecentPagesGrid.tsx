@@ -1,13 +1,34 @@
 'use client'
 
+import { useRef } from 'react'
 import { FileText, Calendar, Book } from 'lucide-react'
+
+const LONG_PRESS_MS = 500
 
 interface RecentPagesGridProps {
   notebooks: any[]
   onSelectPage: (page: any, section: any, notebook: any) => void
+  onLongPress?: (page: any, section: any, notebook: any) => void
 }
 
-export function RecentPagesGrid({ notebooks, onSelectPage }: RecentPagesGridProps) {
+export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: RecentPagesGridProps) {
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress = useRef(false)
+
+  function startLongPress(page: any, section: any, notebook: any) {
+    didLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      onLongPress?.(page, section, notebook)
+    }, LONG_PRESS_MS)
+  }
+
+  function cancelLongPress() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
   // Collect all pages from all notebooks with their metadata
   const allPages: Array<{
     page: any
@@ -69,10 +90,17 @@ export function RecentPagesGrid({ notebooks, onSelectPage }: RecentPagesGridProp
       </h3>
       <div className="grid grid-cols-2 gap-3">
         {recentPages.map(({ page, section, notebook }) => (
-          <button
+          <div
             key={page.id}
-            onClick={() => onSelectPage(page, section, notebook)}
-            className="group relative bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-900 hover:shadow-lg active:scale-[0.97] transition-all text-left overflow-hidden"
+            onPointerDown={() => startLongPress(page, section, notebook)}
+            onPointerUp={() => {
+              cancelLongPress()
+              if (!didLongPress.current) onSelectPage(page, section, notebook)
+            }}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+            onContextMenu={(e) => { e.preventDefault(); onLongPress?.(page, section, notebook) }}
+            className="group relative bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 hover:border-violet-200 dark:hover:border-violet-900 hover:shadow-lg active:scale-[0.97] transition-all text-left overflow-hidden cursor-pointer select-none"
           >
             {/* Notebook color accent */}
             <div 
@@ -108,7 +136,7 @@ export function RecentPagesGrid({ notebooks, onSelectPage }: RecentPagesGridProp
                 <span>{formatDate(page.created_at)}</span>
               </div>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </div>

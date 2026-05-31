@@ -196,15 +196,18 @@ export default function GoalsPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid grid-cols-3 h-11">
-          <TabsTrigger value="overview" className="text-[9px] font-bold uppercase">
+        <TabsList className="grid grid-cols-3 h-14">
+          <TabsTrigger value="overview" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <LayoutDashboard className="w-4 h-4" />
+            Overview
           </TabsTrigger>
-          <TabsTrigger value="goals" className="text-[9px] font-bold uppercase">
+          <TabsTrigger value="goals" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <Target className="w-4 h-4" />
+            Goals
           </TabsTrigger>
-          <TabsTrigger value="visions" className="text-[9px] font-bold uppercase">
+          <TabsTrigger value="visions" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <Rocket className="w-4 h-4" />
+            Visions
           </TabsTrigger>
         </TabsList>
 

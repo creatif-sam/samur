@@ -82,7 +82,7 @@ export default function FloatingPrayerTimer() {
       onClick={() => router.push(PRAYER_PAGE)}
       aria-label="Prayer timer running — tap to return"
       className="
-        fixed top-3 left-3 z-[100]
+        fixed top-3 left-1/2 -translate-x-1/2 z-[100]
         flex items-center gap-1.5
         bg-[#7719aa] text-white
         rounded-full px-3 py-1.5

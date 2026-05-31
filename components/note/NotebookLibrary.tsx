@@ -9,7 +9,7 @@ const PINNED_NOTEBOOKS_STORAGE_KEY = 'pinned_notebook_ids'
 const MAX_PINNED_NOTEBOOKS = 3
 const LONG_PRESS_MS = 500
 
-export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onSelectPage, onQuickAdd }: any) {
+export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onSelectPage, onQuickAdd, onLongPressPage }: any) {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
@@ -281,6 +281,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           <RecentPagesGrid 
             notebooks={notebooks} 
             onSelectPage={onSelectPage}
+            onLongPress={onLongPressPage}
           />
         ) : (
           <>
