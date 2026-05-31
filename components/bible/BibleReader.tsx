@@ -805,11 +805,11 @@ export default function BibleReader() {
               <>
                 {/* Backdrop */}
                 <div
-                  className="fixed inset-0 z-40 bg-black/30"
+                  className="fixed inset-0 z-[55] bg-black/30"
                   onClick={() => { setActiveColorPicker(null); setShowHighlightPanel(false) }}
                 />
                 {/* Sheet */}
-                <div className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
+                <div className="fixed bottom-16 left-0 right-0 z-[60] bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
                   {/* Handle */}
                   <div className="flex justify-center pt-3 pb-1">
                     <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
@@ -904,7 +904,7 @@ export default function BibleReader() {
                   )}
 
                   {/* Safe area spacer */}
-                  <div className="h-6" />
+                  <div className="h-3" />
                 </div>
               </>
             )
