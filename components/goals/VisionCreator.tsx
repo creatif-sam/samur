@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Sparkles, Loader2 } from 'lucide-react'
+import { Eye, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Vision } from '@/app/protected/goals/page'
 
@@ -94,10 +94,10 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
       {!isEditing && (
         <DialogTrigger asChild>
           <Button
-            variant="outline"
-            className="gap-2 border-primary/30 hover:bg-primary/5 active:scale-95 transition-transform font-bold"
+            variant="default"
+            className="gap-2 bg-violet-600 hover:bg-violet-700 text-white active:scale-95 transition-transform font-bold"
           >
-            <Sparkles className="w-4 h-4 text-primary" />
+            <Eye className="w-4 h-4" />
             Cast New Vision
           </Button>
         </DialogTrigger>
@@ -225,7 +225,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
           >
             {isCreating
               ? <Loader2 className="w-5 h-5 animate-spin" />
-              : isEditing ? '✦ Update Vision' : '✦ Cast This Vision'}
+              : isEditing ? '👁 Update Vision' : '👁 Cast This Vision'}
           </Button>
         </div>
       </DialogContent>

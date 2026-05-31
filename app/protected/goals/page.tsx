@@ -51,7 +51,7 @@ export default function GoalsPage() {
   const [visions, setVisions] = useState<Vision[]>([])
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
-  const [view, setView] = useState<GoalView>('weekly')
+  const [view, setView] = useState<GoalView>('monthly')
   const [selectedVisionId, setSelectedVisionId] = useState<string>('all')
 
   const loadAll = async () => {
