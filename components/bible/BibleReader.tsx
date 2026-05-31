@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
   BookOpen, X, BookMarked, Check, Loader2, ChevronDown, Highlighter,
-  Copy, PenLine, History, Share2, Globe,
+  Copy, PenLine, History, Share2, Globe, Type,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
@@ -161,6 +161,17 @@ export default function BibleReader() {
   const [noteIsMulti, setNoteIsMulti] = useState(false)
   const [noteRef, setNoteRef] = useState('')
 
+  // Font size
+  const [fontSize, setFontSize] = useState<'sm' | 'md' | 'lg'>('md')
+  const fontSizeClass = { sm: 'text-[13px]', md: 'text-[15px]', lg: 'text-[18px]' }[fontSize]
+  const fontSizeNext = { sm: 'md', md: 'lg', lg: 'sm' } as const
+
+  // Scroll container ref for chapter changes
+  const readScrollRef = useRef<HTMLDivElement>(null)
+
+  // Swipe tracking
+  const swipeTouchStart = useRef<{ x: number; y: number } | null>(null)
+
   // Version search
   const [versionLang, setVersionLang] = useState<'all' | 'en' | 'fr'>('all')
 
@@ -180,6 +191,32 @@ export default function BibleReader() {
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // ── Scroll to top on chapter/book change ────────────────────────────────
+  useEffect(() => {
+    if (view === 'read') {
+      readScrollRef.current?.scrollTo({ top: 0, behavior: 'instant' })
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }, [selectedBook, selectedChapter])
+
+  // ── Swipe gesture handler ─────────────────────────────────────────────
+  function handleTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0]
+    swipeTouchStart.current = { x: t.clientX, y: t.clientY }
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (!swipeTouchStart.current || selectedVerses.size > 0) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - swipeTouchStart.current.x
+    const dy = Math.abs(t.clientY - swipeTouchStart.current.y)
+    swipeTouchStart.current = null
+    // Only treat as swipe if mostly horizontal and >60px
+    if (Math.abs(dx) < 60 || dy > 60) return
+    if (dx < 0) nextChapter()   // swipe left → next
+    else prevChapter()          // swipe right → prev
+  }
 
   // ── Close chapter sheet when leaving read view ────────────────────────
   useEffect(() => {
@@ -571,6 +608,17 @@ export default function BibleReader() {
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
+          {/* When verses are selected in read view: show clear button instead of normal actions */}
+          {view === 'read' && selectedVerses.size > 0 && (
+            <button
+              onClick={() => { setSelectedVerses(new Set()); setShowHighlightPanel(false) }}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 text-xs font-black transition"
+            >
+              <X className="w-3.5 h-3.5" />
+              Clear
+            </button>
+          )}
+
           {/* Books view: AZ sort + recent history */}
           {view === 'books' && (
             <>
@@ -600,6 +648,19 @@ export default function BibleReader() {
           {/* Other views: search, version, saved */}
           {view !== 'books' && view !== 'search' && (
             <>
+              {/* Font size (read view only) */}
+              {view === 'read' && selectedVerses.size === 0 && (
+                <button
+                  onClick={() => setFontSize(s => fontSizeNext[s])}
+                  title={`Font: ${fontSize.toUpperCase()}`}
+                  className="p-1.5 rounded-xl hover:bg-muted transition relative"
+                >
+                  <Type className="w-5 h-5 text-muted-foreground" />
+                  <span className="absolute -bottom-0.5 -right-0.5 text-[8px] font-black text-violet-500 leading-none">
+                    {fontSize.toUpperCase()}
+                  </span>
+                </button>
+              )}
               <button onClick={() => setView('search')} className="p-1.5 rounded-xl hover:bg-muted transition">
                 <Search className="w-5 h-5 text-muted-foreground" />
               </button>
@@ -801,7 +862,12 @@ export default function BibleReader() {
 
       {/* ── READING VIEW ── */}
       {view === 'read' && (
-        <div className="px-4 pt-4 pb-6 space-y-1">
+        <div
+          ref={readScrollRef}
+          className="px-4 pt-4 pb-6 space-y-1"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           {loading && (
             <div className="flex justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
@@ -837,7 +903,7 @@ export default function BibleReader() {
                   }`}>
                     {isSelected ? '✓' : v.verse}
                   </span>
-                  <p className="flex-1 text-[15px] leading-[1.75] text-foreground">{v.text}</p>
+                  <p className={`flex-1 ${fontSizeClass} leading-[1.75] text-foreground`}>{v.text}</p>
                 </div>
               </div>
             )
@@ -854,25 +920,29 @@ export default function BibleReader() {
             const refLabel = `${displayBook(selectedBook, translation)} ${formatRef(sortedNums)}`
             return (
               <>
-                {/* Backdrop — only dims reading content, not the bottom bars */}
-                <div
-                  className="fixed inset-x-0 top-0 bottom-[120px] z-[55] bg-black/30"
-                  onClick={() => { setSelectedVerses(new Set()); setShowHighlightPanel(false) }}
-                />
                 {/* Sheet */}
                 <div className="fixed bottom-[120px] left-0 right-0 z-[60] bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
                   {/* Handle */}
                   <div className="flex justify-center pt-3 pb-1">
                     <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
                   </div>
-                  {/* Verse ref + count badge */}
-                  <div className="flex items-center justify-between px-6 py-2">
-                    <p className="text-sm font-bold text-foreground">{refLabel}</p>
-                    {selectedVerses.size > 1 && (
-                      <span className="text-[11px] font-black text-violet-500 bg-violet-100 dark:bg-violet-900/40 px-2.5 py-1 rounded-full">
-                        {selectedVerses.size} verses
-                      </span>
-                    )}
+                  {/* Verse ref + count badge + close */}
+                  <div className="flex items-center justify-between px-4 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-sm font-bold text-foreground truncate">{refLabel}</p>
+                      {selectedVerses.size > 1 && (
+                        <span className="text-[11px] font-black text-violet-500 bg-violet-100 dark:bg-violet-900/40 px-2.5 py-1 rounded-full shrink-0">
+                          {selectedVerses.size} verses
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => { setSelectedVerses(new Set()); setShowHighlightPanel(false) }}
+                      className="p-1.5 rounded-xl hover:bg-muted transition shrink-0 ml-2"
+                      aria-label="Clear selection"
+                    >
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
                   </div>
                   {/* Action buttons */}
                   <div className="flex items-center justify-around px-4 py-3 gap-1">
