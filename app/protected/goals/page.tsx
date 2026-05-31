@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Eye,
   Circle,
+  Ban,
 } from 'lucide-react'
 import { NewGoalForm, GoalCategory } from '@/components/goals/NewGoalForm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -98,7 +99,8 @@ export default function GoalsPage() {
     }
 
     return base.filter(g => {
-      if (!g.due_date) return false
+      // Goals with no due date are always shown regardless of period
+      if (!g.due_date) return true
       const d = new Date(g.due_date)
 
       switch (view) {
@@ -216,11 +218,12 @@ export default function GoalsPage() {
           {/* ── Stat Cards ── */}
           <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
             {[
-              { label: 'Total Goals',  value: goals.length,                                       unit: 'goals',   icon: Target,       gradient: 'from-violet-600 to-purple-700',  shadow: 'shadow-violet-500/30' },
-              { label: 'Visions',      value: visions.length,                                     unit: 'visions', icon: Eye,           gradient: 'from-indigo-500 to-blue-600',    shadow: 'shadow-indigo-500/30' },
-              { label: 'Done',         value: goals.filter(g => g.status === 'done').length,       unit: 'done',    icon: CheckCircle2,  gradient: 'from-emerald-600 to-teal-700',   shadow: 'shadow-emerald-500/30' },
-              { label: 'In Progress',  value: goals.filter(g => g.status === 'doing').length,      unit: 'running', icon: TrendingUp,    gradient: 'from-blue-600 to-cyan-700',      shadow: 'shadow-blue-500/30' },
-              { label: 'Not Started',  value: goals.filter(g => g.status === 'to_do').length,      unit: 'pending', icon: Circle,        gradient: 'from-slate-500 to-gray-600',     shadow: 'shadow-slate-500/30' },
+              { label: 'Total Goals',  value: goals.length,                                          unit: 'goals',   icon: Target,       gradient: 'from-violet-600 to-purple-700',  shadow: 'shadow-violet-500/30' },
+              { label: 'Visions',      value: visions.length,                                        unit: 'visions', icon: Eye,           gradient: 'from-indigo-500 to-blue-600',    shadow: 'shadow-indigo-500/30' },
+              { label: 'Done',         value: goals.filter(g => g.status === 'done').length,          unit: 'done',    icon: CheckCircle2,  gradient: 'from-emerald-600 to-teal-700',   shadow: 'shadow-emerald-500/30' },
+              { label: 'In Progress',  value: goals.filter(g => g.status === 'doing').length,         unit: 'running', icon: TrendingUp,    gradient: 'from-blue-600 to-cyan-700',      shadow: 'shadow-blue-500/30' },
+              { label: 'Blocked',      value: goals.filter(g => g.status === 'blocked').length,       unit: 'blocked', icon: Ban,           gradient: 'from-orange-500 to-red-600',     shadow: 'shadow-orange-500/30' },
+              { label: 'Not Started',  value: goals.filter(g => g.status === 'to_do').length,         unit: 'pending', icon: Circle,        gradient: 'from-slate-500 to-gray-600',     shadow: 'shadow-slate-500/30' },
             ].map(({ label, value, unit, icon: Icon, gradient, shadow }) => (
               <div key={label} className={`flex-shrink-0 w-32 rounded-3xl bg-gradient-to-br p-4 shadow-lg ${gradient} ${shadow}`}>
                 <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center mb-3">
@@ -267,32 +270,6 @@ export default function GoalsPage() {
         </TabsContent>
 
         <TabsContent value="goals" className="space-y-6">
-          <div className="flex justify-end">
-            <Button
-              onClick={() => setShowNew(true)}
-              className="h-10 font-bold uppercase text-xs"
-            >
-              <Plus className="w-4 h-4 mr-2" /> New Goal
-            </Button>
-          </div>
-
-          <div className="flex bg-muted/40 p-1 rounded-2xl gap-1">
-            {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={cn(
-                  'flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all',
-                  view === v
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-
           <Dialog open={showNew} onOpenChange={setShowNew}>
             <DialogContent className="w-[95vw] max-w-lg max-h-[90svh] overflow-y-auto">
               <DialogHeader>
@@ -310,6 +287,24 @@ export default function GoalsPage() {
               />
             </DialogContent>
           </Dialog>
+
+          {/* Period summary cards */}
+          <div className="flex bg-muted/40 p-1 rounded-2xl gap-1">
+            {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
+              <button
+                key={v}
+                onClick={() => setView(v)}
+                className={cn(
+                  'flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all',
+                  view === v
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
 
           {/* Period summary cards */}
           <div className="grid grid-cols-2 gap-3">
@@ -351,6 +346,15 @@ export default function GoalsPage() {
               }
               onDeleted={id => setGoals(g => g.filter(x => x.id !== id))}
             />
+
+          {/* FAB – New Goal */}
+          <button
+            onClick={() => setShowNew(true)}
+            className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-700 active:scale-95 text-white shadow-lg shadow-violet-500/40 flex items-center justify-center transition-all"
+            aria-label="New Goal"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
         </TabsContent>
 
         <TabsContent value="visions" className="space-y-6">

@@ -32,6 +32,7 @@ import {
   Plus,
   CheckCircle2,
   Circle,
+  Ban,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import confetti from 'canvas-confetti'
@@ -277,6 +278,8 @@ function GoalCard({
     ? new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     : null
 
+  const isOverdue = !!(goal.due_date && goal.status !== 'done' && new Date(goal.due_date) < new Date())
+
   const toggleMilestones = async () => {
     if (!milestonesLoaded) {
       const { data } = await supabase
@@ -418,8 +421,12 @@ function GoalCard({
                 </span>
               )}
               {formattedDate && (
-                <span className="text-[9px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-                  <Calendar className="w-2.5 h-2.5" /> {formattedDate}
+                <span className={cn(
+                  'text-[9px] font-bold uppercase flex items-center gap-1',
+                  isOverdue ? 'text-red-500 font-black' : 'text-muted-foreground'
+                )}>
+                  <Calendar className="w-2.5 h-2.5" />
+                  {isOverdue ? '⚠ ' : ''}{formattedDate}
                 </span>
               )}
             </div>
@@ -446,14 +453,18 @@ function GoalCard({
           <div className="flex items-center gap-1 shrink-0">
             <Select value={goal.status} onValueChange={(v) => updateStatus(v as Goal['status'])}>
               <SelectTrigger className={cn(
-                "w-[75px] h-8 text-[10px] font-black border-none shrink-0",
-                goal.status === 'done' ? "bg-green-500/10 text-green-600" : "bg-secondary"
+                "w-[80px] h-8 text-[10px] font-black border-none shrink-0",
+                goal.status === 'done'    && 'bg-green-500/10 text-green-600',
+                goal.status === 'doing'  && 'bg-blue-500/10 text-blue-600',
+                goal.status === 'blocked'&& 'bg-orange-500/10 text-orange-600',
+                goal.status === 'to_do'  && 'bg-secondary'
               )}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
                 <SelectItem value="to_do">TO DO</SelectItem>
                 <SelectItem value="doing">DOING</SelectItem>
+                <SelectItem value="blocked">BLOCKED</SelectItem>
                 <SelectItem value="done">DONE</SelectItem>
               </SelectContent>
             </Select>
