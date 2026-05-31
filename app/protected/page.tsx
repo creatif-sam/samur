@@ -13,6 +13,7 @@ import HomeHighlightCards from '@/components/home/HomeHighlightCards'
 import HomeActivityFeed from '@/components/home/HomeActivityFeed'
 import GratitudeCard from '@/components/home/GratitudeCard'
 import YearThemeCard from '@/components/home/YearThemeCard'
+import UpcomingGoalsCountdown from '@/components/home/UpcomingGoalsCountdown'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -102,6 +103,9 @@ export default function HomePage() {
         <div className="px-4 mt-5">
           <DailyVerseCard />
         </div>
+
+        {/* Upcoming Goals Countdown */}
+        <UpcomingGoalsCountdown />
 
       </div>
     </div>

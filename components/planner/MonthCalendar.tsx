@@ -169,42 +169,42 @@ export default function MonthCalendar({
 
       {/* Day plan panel */}
       <div className={`border-t border-slate-200/60 dark:border-slate-700/60 ${!isViewingToday ? 'mt-2 pt-5' : 'mt-6 pt-5'}`}>
-        {/* Day header */}
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
-              {sameDay(selectedDate, today) ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
-            </p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-black text-slate-900 dark:text-white tabular-nums leading-none">
-                {selectedDate.getDate()}
-              </span>
-              <span className="text-[12px] text-slate-400 dark:text-slate-500 font-medium">
-                {tasks.length} event{tasks.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium mt-0.5">
-              {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </p>
+        {/* Day header — full width */}
+        <div className="mb-4">
+          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
+            {sameDay(selectedDate, today) ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
+          </p>
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-black text-slate-900 dark:text-white tabular-nums leading-none">
+              {selectedDate.getDate()}
+            </span>
+            <span className="text-[13px] text-slate-400 dark:text-slate-500 font-semibold">
+              {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long' })}
+            </span>
+            <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+              {tasks.length} event{tasks.length !== 1 ? 's' : ''}
+            </span>
           </div>
-          <div className="flex items-center gap-2">
-            {onAddEvent && (
-              <button
-                onClick={onAddEvent}
-                className="flex items-center gap-1.5 bg-violet-600 text-white text-[12px] font-bold px-3.5 py-2 rounded-2xl active:scale-90 transition-all shadow-sm"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add event
-              </button>
-            )}
+        </div>
+
+        {/* Action buttons row */}
+        <div className="flex gap-2 mb-5">
+          {onAddEvent && (
             <button
-              onClick={onClose}
-              className="flex items-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[12px] font-bold px-3.5 py-2 rounded-2xl active:scale-90 transition-all shadow-sm"
+              onClick={onAddEvent}
+              className="flex-1 flex items-center justify-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-bold px-4 py-2.5 rounded-2xl active:scale-95 transition-all shadow-sm"
             >
-              Open plan
-              <ArrowRight className="w-3.5 h-3.5" />
+              <Plus className="w-4 h-4" />
+              Add event
             </button>
-          </div>
+          )}
+          <button
+            onClick={onClose}
+            className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[13px] font-bold px-4 py-2.5 rounded-2xl active:scale-95 transition-all shadow-sm"
+          >
+            Open plan
+            <ArrowRight className="w-4 h-4" />
+          </button>
         </div>
 
         {/* Task list */}
@@ -222,12 +222,20 @@ export default function MonthCalendar({
                 return (
                   <div
                     key={task.id}
-                    className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-2xl px-4 py-3 flex items-center justify-between gap-3"
+                    className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-2xl px-4 py-3 flex items-center gap-3 border border-white/50 dark:border-slate-700/40"
                   >
+                    {/* Time column */}
+                    <div className="shrink-0 text-center min-w-[42px]">
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 tabular-nums leading-tight">{task.start}</p>
+                      <div className="w-px h-3 bg-slate-200 dark:bg-slate-700 mx-auto my-0.5" />
+                      <p className="text-[10px] font-semibold text-slate-300 dark:text-slate-600 tabular-nums leading-tight">{task.end}</p>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="w-px self-stretch bg-slate-200/70 dark:bg-slate-700/70 shrink-0" />
+
+                    {/* Content */}
                     <div className="min-w-0 flex-1">
-                      <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 tabular-nums">
-                        {task.start} — {task.end}
-                      </p>
                       <p className={`text-[14px] font-bold text-slate-900 dark:text-white truncate ${isDone ? 'line-through opacity-40' : ''}`}>
                         {task.text}
                       </p>
@@ -238,6 +246,7 @@ export default function MonthCalendar({
                         </div>
                       )}
                     </div>
+
                     {isDone && <Check className="w-4 h-4 text-emerald-500 shrink-0" />}
                   </div>
                 )
