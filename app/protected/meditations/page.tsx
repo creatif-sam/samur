@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import FeedSwitch from '@/components/feed/FeedSwitch'
 import MeditationComposer from '@/components/meditations/MeditationComposer'
-import { Pencil, Copy, LayoutGrid, List } from 'lucide-react'
+import { Pencil, Copy, LayoutGrid, List, BookOpen } from 'lucide-react'
 import MeditationStreakBoard from '@/components/meditations/MeditationStreakBoard'
 import PartnerMeditationBoard from '@/components/meditations/PartnerMeditationBoard'
 
@@ -194,6 +194,11 @@ ${m.prayer}
           <div className="flex items-center gap-2 justify-end flex-shrink-0">
             {/* Mobile */}
             <div className="flex sm:hidden items-center gap-2">
+              <Link href="/protected/bible">
+                <Button size="icon" variant="ghost" title="Open Bible">
+                  <BookOpen className="h-5 w-5 text-violet-500" />
+                </Button>
+              </Link>
               <Button
                 size="icon"
                 variant="ghost"
@@ -219,6 +224,12 @@ ${m.prayer}
 
             {/* Desktop */}
             <div className="hidden sm:flex items-center gap-2">
+              <Link href="/protected/bible">
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <BookOpen className="h-4 w-4 text-violet-500" />
+                  Bible
+                </Button>
+              </Link>
               <FeedSwitch />
 
               <Button
