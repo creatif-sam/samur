@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
   BookOpen, X, BookMarked, Check, Loader2, ChevronDown, Highlighter,
+  Copy, PenLine,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
@@ -156,6 +157,11 @@ export default function BibleReader() {
   const [highlights, setHighlights] = useState<Map<string, VerseHighlight>>(new Map())
   const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null)
 
+  // Verse note
+  const [noteVerse, setNoteVerse] = useState<Verse | null>(null)
+  const [noteContent, setNoteContent] = useState('')
+  const [savingNote, setSavingNote] = useState(false)
+
   // Search
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -291,6 +297,85 @@ export default function BibleReader() {
       }
     } finally {
       setSavingVerse(null)
+    }
+  }
+
+  // ── Copy verse ───────────────────────────────────────────────────────────
+  async function copyVerse(v: Verse) {
+    const label = TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'
+    const ref = `${displayBook(selectedBook, translation)} ${selectedChapter}:${v.verse} (${label})`
+    const text = `"${v.text.trim()}" — ${ref}`
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Verse copied!')
+    } catch {
+      toast.error('Could not copy')
+    }
+    setActiveColorPicker(null)
+  }
+
+  // ── Add note to verse ────────────────────────────────────────────────────
+  async function addVerseNote(v: Verse, extraContent: string) {
+    if (!userId) return
+    setSavingNote(true)
+    try {
+      const bookName = displayBook(selectedBook, translation)
+      const pageTitle = `${bookName} ${selectedChapter}:${v.verse}`
+
+      // 1. Find or create "Bible Notes" notebook
+      const { data: nbs } = await supabase
+        .from('notebooks')
+        .select('id, title')
+        .eq('user_id', userId)
+        .ilike('title', 'Bible Notes')
+      let notebookId: string
+      if (nbs && nbs.length > 0) {
+        notebookId = nbs[0].id
+      } else {
+        const { data, error } = await supabase
+          .from('notebooks')
+          .insert({ user_id: userId, title: 'Bible Notes', emoji: '📖', color: '#7719aa' })
+          .select('id')
+          .single()
+        if (error) throw error
+        notebookId = data.id
+      }
+
+      // 2. Find or create section with book name
+      const { data: sects } = await supabase
+        .from('sections')
+        .select('id')
+        .eq('notebook_id', notebookId)
+        .ilike('title', bookName)
+      let sectionId: string
+      if (sects && sects.length > 0) {
+        sectionId = sects[0].id
+      } else {
+        const { data, error } = await supabase
+          .from('sections')
+          .insert({ notebook_id: notebookId, title: bookName })
+          .select('id')
+          .single()
+        if (error) throw error
+        sectionId = data.id
+      }
+
+      // 3. Create page with verse text + user note
+      const content = extraContent.trim()
+        ? `${v.text.trim()}\n\n${extraContent.trim()}`
+        : v.text.trim()
+      const { error } = await supabase
+        .from('pages')
+        .insert({ section_id: sectionId, title: pageTitle, content })
+      if (error) throw error
+
+      toast.success('Note saved to Bible Notes 📖')
+      setNoteVerse(null)
+      setNoteContent('')
+    } catch {
+      toast.error('Could not save note')
+    } finally {
+      setSavingNote(false)
     }
   }
 
@@ -600,15 +685,31 @@ export default function BibleReader() {
                         title={c.id}
                       />
                     ))}
-                    {highlight && (
+                    <div className="flex items-center gap-1 ml-auto pl-2 border-l border-border">
+                      {highlight && (
+                        <button
+                          onClick={() => setVerseHighlight(v, null)}
+                          className="p-1 rounded-lg hover:bg-muted transition"
+                          title="Remove highlight"
+                        >
+                          <X className="w-3.5 h-3.5 text-muted-foreground" />
+                        </button>
+                      )}
                       <button
-                        onClick={() => setVerseHighlight(v, null)}
-                        className="ml-auto p-1 rounded-lg hover:bg-muted transition"
-                        title="Remove highlight"
+                        onClick={() => copyVerse(v)}
+                        className="p-1 rounded-lg hover:bg-muted transition"
+                        title="Copy verse"
                       >
-                        <X className="w-3.5 h-3.5 text-muted-foreground" />
+                        <Copy className="w-3.5 h-3.5 text-muted-foreground" />
                       </button>
-                    )}
+                      <button
+                        onClick={() => { setNoteVerse(v); setActiveColorPicker(null) }}
+                        className="p-1 rounded-lg hover:bg-muted transition"
+                        title="Add note"
+                      >
+                        <PenLine className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -632,6 +733,54 @@ export default function BibleReader() {
               </button>
             </div>
           )}
+        </div>
+      )}
+      {/* ── NOTE MODAL ── */}
+      {noteVerse && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg bg-background rounded-3xl border border-border shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-500 mb-0.5">Add Bible Note</p>
+                <p className="font-black text-base">{displayBook(selectedBook, translation)} {selectedChapter}:{noteVerse.verse}</p>
+              </div>
+              <button
+                onClick={() => { setNoteVerse(null); setNoteContent('') }}
+                className="p-1.5 rounded-xl hover:bg-muted transition shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground italic leading-relaxed border-l-2 border-violet-400 pl-3">
+              &ldquo;{noteVerse.text.trim()}&rdquo;
+            </p>
+            <textarea
+              autoFocus
+              value={noteContent}
+              onChange={e => setNoteContent(e.target.value)}
+              placeholder="Add your thoughts, reflections..."
+              rows={4}
+              className="w-full bg-muted/50 rounded-2xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/50 placeholder:text-muted-foreground"
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setNoteVerse(null); setNoteContent('') }}
+                className="flex-1 py-3 rounded-2xl border border-border text-sm font-semibold hover:bg-muted transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => addVerseNote(noteVerse, noteContent)}
+                disabled={savingNote}
+                className="flex-1 py-3 rounded-2xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingNote ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving...</> : 'Save Note'}
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              Saved to <span className="font-bold">Bible Notes</span> → <span className="font-bold">{displayBook(selectedBook, translation)}</span>
+            </p>
+          </div>
         </div>
       )}
     </div>
