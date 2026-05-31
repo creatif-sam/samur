@@ -74,6 +74,8 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
   const inspirationsRef = useRef<Inspiration[]>([])
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const hasCompletedRef = useRef(false)
+  // Absolute end timestamp — survives tab switches
+  const endTimeRef = useRef<number | null>(null)
 
   const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 0
 
@@ -90,6 +92,8 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
 
   const resetAll = useCallback(() => {
     clearTick()
+    endTimeRef.current = null
+    sessionStorage.removeItem('prayer_timer')
     setTimerState('idle')
     setSecondsLeft(0)
     setTotalSeconds(0)
@@ -123,22 +127,61 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
     resetAll()
   }, [saveSession, onSessionComplete, resetAll])
 
-  // ── Tick interval ─────────────────────────────────────────────────────────
+  // ── Tick interval (timestamp-based so tab/app switches don't pause it) ────
   useEffect(() => {
     if (timerState === 'running') {
-      intervalRef.current = setInterval(() => {
-        setSecondsLeft(prev => {
-          if (prev <= 1) {
-            clearTick()
-            setTimerState('complete')
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
+      const tick = () => {
+        if (!endTimeRef.current) return
+        const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
+        setSecondsLeft(remaining)
+        if (remaining <= 0) {
+          clearTick()
+          setTimerState('complete')
+        }
+      }
+      tick() // immediate first tick
+      intervalRef.current = setInterval(tick, 500)
     }
     return clearTick
   }, [timerState, clearTick])
+
+  // ── Re-sync when tab becomes visible again ────────────────────────────────
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && endTimeRef.current) {
+        const remaining = Math.max(0, Math.ceil((endTimeRef.current - Date.now()) / 1000))
+        setSecondsLeft(remaining)
+        if (remaining <= 0) {
+          clearTick()
+          setTimerState('complete')
+        }
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [clearTick])
+
+  // ── Restore timer state on mount (survives page navigation) ──────────────
+  useEffect(() => {
+    const saved = sessionStorage.getItem('prayer_timer')
+    if (!saved) return
+    try {
+      const { endTime, totalSeconds: total, sessionId } = JSON.parse(saved)
+      const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000))
+      if (remaining > 0) {
+        endTimeRef.current = endTime
+        sessionIdRef.current = sessionId
+        setTotalSeconds(total)
+        setSecondsLeft(remaining)
+        setTimerState('running')
+      } else {
+        sessionStorage.removeItem('prayer_timer')
+      }
+    } catch {
+      sessionStorage.removeItem('prayer_timer')
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Auto-complete when timer hits 0 ──────────────────────────────────────
   useEffect(() => {
@@ -154,9 +197,12 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
     hasCompletedRef.current = false
     inspirationsRef.current = []
     const secs = mins * 60
+    const endTime = Date.now() + secs * 1000
+    endTimeRef.current = endTime
     setTotalSeconds(secs)
     setSecondsLeft(secs)
     setInspirations([])
+    sessionStorage.setItem('prayer_timer', JSON.stringify({ endTime, totalSeconds: secs, sessionId: null }))
     setTimerState('running')
 
     // Create session row in DB
@@ -166,7 +212,11 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
       .insert({ user_id: userId, date: new Date().toISOString().slice(0, 10), duration_seconds: secs })
       .select('id')
       .single()
-    if (data) sessionIdRef.current = data.id
+    if (data) {
+      sessionIdRef.current = data.id
+      // Update sessionStorage with real sessionId
+      sessionStorage.setItem('prayer_timer', JSON.stringify({ endTime, totalSeconds: secs, sessionId: data.id }))
+    }
   }
 
   // ── Save inspiration note ─────────────────────────────────────────────────
@@ -355,14 +405,24 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
         <div className="flex gap-2 justify-center">
           {timerState === 'running' ? (
             <button
-              onClick={() => { clearTick(); setTimerState('paused') }}
+              onClick={() => {
+                clearTick()
+                endTimeRef.current = null
+                sessionStorage.removeItem('prayer_timer')
+                setTimerState('paused')
+              }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition"
             >
               <Pause className="w-4 h-4" /> Pause
             </button>
           ) : (
             <button
-              onClick={() => setTimerState('running')}
+              onClick={() => {
+                const endTime = Date.now() + secondsLeft * 1000
+                endTimeRef.current = endTime
+                sessionStorage.setItem('prayer_timer', JSON.stringify({ endTime, totalSeconds, sessionId: sessionIdRef.current }))
+                setTimerState('running')
+              }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-sm transition"
             >
               <Play className="w-4 h-4" /> Resume

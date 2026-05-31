@@ -180,7 +180,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
 
       handleSelectNotebook(generalNotebook)
       handleSelectSection(notesSection)
-      setNavigationSource('normal')
+      setNavigationSource('recent')
       setTimeout(() => setEditingPage(newPage), 100)
       await onRefresh()
       toast.success('Note created in General')
