@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
-  BookOpen, X, BookMarked, Check, Loader2,
+  BookOpen, X, BookMarked, Check, Loader2, ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
@@ -41,6 +41,19 @@ const CHAPTER_COUNTS: Record<string, number> = {
 
 const NT_START = 'Matthew'
 
+// ── Available translations ────────────────────────────────────────────────
+const TRANSLATIONS = [
+  { id: 'kjv',      label: 'KJV',      name: 'King James Version' },
+  { id: 'asv',      label: 'ASV',      name: 'American Standard Version' },
+  { id: 'web',      label: 'WEB',      name: 'World English Bible' },
+  { id: 'bbe',      label: 'BBE',      name: 'Bible in Basic English' },
+  { id: 'ylt',      label: 'YLT',      name: "Young's Literal Translation" },
+  { id: 'darby',    label: 'DARBY',    name: 'Darby Bible' },
+  { id: 'dra',      label: 'DRA',      name: 'Douay-Rheims' },
+  { id: 'oeb-us',   label: 'OEB',      name: 'Open English Bible' },
+  { id: 'almeida',  label: 'ARA',      name: 'Almeida (Português)' },
+]
+
 interface Verse { verse: number; text: string }
 
 interface SavedVerse {
@@ -52,8 +65,8 @@ interface SavedVerse {
   created_at: string
 }
 
-function apiUrl(book: string, chapter: number) {
-  return `https://bible-api.com/${encodeURIComponent(book)}+${chapter}?translation=kjv`
+function apiUrl(book: string, chapter: number, translation: string) {
+  return `https://bible-api.com/${encodeURIComponent(book)}+${chapter}?translation=${translation}`
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -69,10 +82,11 @@ export default function BibleReader() {
   const [userId, setUserId] = useState<string | null>(null)
 
   // Navigation
-  const [view, setView] = useState<'books' | 'chapters' | 'read' | 'saved' | 'search'>('books')
+  const [view, setView] = useState<'books' | 'chapters' | 'read' | 'saved' | 'search' | 'versions'>('books')
   const [selectedBook, setSelectedBook] = useState('John')
   const [selectedChapter, setSelectedChapter] = useState(1)
   const [testament, setTestament] = useState<'OT' | 'NT'>('NT')
+  const [translation, setTranslation] = useState('kjv')
 
   // Chapter data
   const [verses, setVerses] = useState<Verse[]>([])
@@ -101,13 +115,13 @@ export default function BibleReader() {
   useEffect(() => {
     if (view !== 'read') return
     loadChapter(selectedBook, selectedChapter)
-  }, [view, selectedBook, selectedChapter])
+  }, [view, selectedBook, selectedChapter, translation])
 
   async function loadChapter(book: string, chapter: number) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(apiUrl(book, chapter))
+      const res = await fetch(apiUrl(book, chapter, translation))
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setVerses(data.verses ?? [])
@@ -206,7 +220,7 @@ export default function BibleReader() {
     searchDebounce.current = setTimeout(async () => {
       setSearching(true)
       try {
-        const res = await fetch(`https://bible-api.com/${encodeURIComponent(searchQuery)}?translation=kjv`)
+        const res = await fetch(`https://bible-api.com/${encodeURIComponent(searchQuery)}?translation=${translation}`)
         if (!res.ok) throw new Error()
         const data = await res.json()
         setSearchResults(data.verses ?? [])
@@ -232,7 +246,7 @@ export default function BibleReader() {
           onClick={() => {
             if (view === 'read') setView('chapters')
             else if (view === 'chapters') setView('books')
-            else if (view === 'saved' || view === 'search') setView('books')
+            else if (view === 'saved' || view === 'search' || view === 'versions') setView('books')
             else router.back()
           }}
           className="p-1.5 rounded-xl hover:bg-muted transition shrink-0"
@@ -252,6 +266,7 @@ export default function BibleReader() {
               {selectedBook} <span className="text-violet-500">{selectedChapter}</span>
             </p>
           )}
+          {view === 'versions' && <p className="text-base font-black uppercase tracking-tight">Bible Version</p>}
           {view === 'saved' && <p className="text-base font-black uppercase tracking-tight">Saved Verses</p>}
           {view === 'search' && (
             <input
@@ -273,6 +288,18 @@ export default function BibleReader() {
           {view === 'search' && searchQuery && (
             <button onClick={() => { setSearchQuery(''); setSearchResults([]) }} className="p-1.5 rounded-xl hover:bg-muted transition">
               <X className="w-4 h-4" />
+            </button>
+          )}
+          {/* Version picker button — visible when not in search */}
+          {view !== 'search' && (
+            <button
+              onClick={() => setView(v => v === 'versions' ? 'books' : 'versions')}
+              className={`flex items-center gap-0.5 px-2 py-1 rounded-xl text-[11px] font-black uppercase tracking-wide transition ${
+                view === 'versions' ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400' : 'hover:bg-muted text-muted-foreground'
+              }`}
+            >
+              {TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'}
+              <ChevronDown className="w-3 h-3" />
             </button>
           )}
           <button
@@ -321,6 +348,30 @@ export default function BibleReader() {
               </p>
               <p className="text-sm text-foreground leading-relaxed italic">"{v.text}"</p>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── VERSION PICKER ── */}
+      {view === 'versions' && (
+        <div className="px-4 pt-4 pb-6 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Select Translation</p>
+          {TRANSLATIONS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => { setTranslation(t.id); setView('books') }}
+              className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
+                translation === t.id
+                  ? 'bg-violet-600 border-violet-600 text-white'
+                  : 'bg-card border-border hover:border-violet-300 dark:hover:border-violet-700'
+              }`}
+            >
+              <div className="text-left">
+                <p className="font-black text-sm">{t.label}</p>
+                <p className={`text-xs mt-0.5 ${translation === t.id ? 'text-white/75' : 'text-muted-foreground'}`}>{t.name}</p>
+              </div>
+              {translation === t.id && <Check className="w-4 h-4 shrink-0" />}
+            </button>
           ))}
         </div>
       )}
