@@ -24,6 +24,22 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
   const [prayer, setPrayer] = useState('')
   const [visibility, setVisibility] = useState<'private' | 'shared'>('private')
   const [saving, setSaving] = useState(false)
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+
+  function isDirty() {
+    const lessonContent = editor?.getHTML() || ''
+    if (meditation) {
+      return title !== meditation.title || scripture !== meditation.scripture ||
+        application !== meditation.application || prayer !== meditation.prayer ||
+        lessonContent !== (meditation.lesson || '')
+    }
+    return !!(title || scripture || application || prayer ||
+      (lessonContent && lessonContent !== '<p></p>'))
+  }
+
+  function handleClose() {
+    if (isDirty()) { setShowCloseConfirm(true) } else { onClose() }
+  }
 
   const supabase = createClient()
 
@@ -125,7 +141,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose} 
+        onClick={handleClose} 
         className="absolute inset-0 -z-10" 
       />
 
@@ -146,7 +162,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
               {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             </p>
           </div>
-          <button onClick={onClose} className="bg-white/10 p-2.5 rounded-full hover:bg-white/20 transition-all active:scale-90">
+          <button onClick={handleClose} className="bg-white/10 p-2.5 rounded-full hover:bg-white/20 transition-all active:scale-90">
             <X size={20} />
           </button>
         </div>
@@ -213,6 +229,31 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         </div>
 
       </motion.div>
+
+      {/* Discard confirmation */}
+      {showCloseConfirm && (
+        <div className="absolute inset-0 z-[110] flex items-end justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl p-5 pb-10 space-y-4 animate-in slide-in-from-bottom duration-200">
+            <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+            <h3 className="text-base font-bold text-center text-foreground">Discard meditation?</h3>
+            <p className="text-sm text-center text-muted-foreground">Your unsaved changes will be lost.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCloseConfirm(false)}
+                className="flex-1 h-12 rounded-2xl border border-border bg-muted text-sm font-semibold text-foreground"
+              >
+                Keep editing
+              </button>
+              <button
+                onClick={() => { setShowCloseConfirm(false); onClose() }}
+                className="flex-1 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

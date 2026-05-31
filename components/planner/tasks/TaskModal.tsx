@@ -182,7 +182,17 @@ export function TaskModal({
                   <input 
                     type="time" 
                     value={endTime} 
-                    onChange={(e)=>setEndTime(e.target.value)} 
+                    onChange={(e) => {
+                      const newEnd = e.target.value
+                      const [sH, sM] = startTime.split(':').map(Number)
+                      const [eH, eM] = newEnd.split(':').map(Number)
+                      const diff = (eH * 60 + eM) - (sH * 60 + sM)
+                      if (diff <= 0) {
+                        toast.error('End time must be after start time')
+                        return
+                      }
+                      setEndTime(newEnd)
+                    }}
                     disabled={!canEdit}
                     className="w-full bg-white dark:bg-slate-800 rounded-lg md:rounded-xl p-2 md:p-3 text-sm md:text-xl font-bold text-center border border-slate-200 dark:border-slate-600 dark:text-white outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed" 
                   />
