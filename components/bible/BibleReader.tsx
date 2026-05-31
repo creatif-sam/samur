@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -131,7 +131,7 @@ function chapterArray(book: string) {
 
 // ── Main component ─────────────────────────────────────────────────────────
 export default function BibleReader() {
-  const supabase = createClient()
+  const supabase = useMemo(() => createClient(), [])
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
 
@@ -199,12 +199,13 @@ export default function BibleReader() {
 
   async function loadHighlights(book: string, chapter: number) {
     if (!userId) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('verse_highlights')
       .select('*')
       .eq('user_id', userId)
       .eq('book', book)
       .eq('chapter', chapter)
+    if (error) { console.error('loadHighlights:', error); return }
     const map = new Map<string, VerseHighlight>()
     ;(data ?? []).forEach((h: VerseHighlight) => map.set(`${h.book}-${h.chapter}-${h.verse}`, h))
     setHighlights(map)
@@ -218,24 +219,27 @@ export default function BibleReader() {
     if (color === null || (existing && existing.color === color)) {
       // remove highlight
       if (!existing) return
-      await supabase.from('verse_highlights').delete().eq('id', existing.id)
+      const { error } = await supabase.from('verse_highlights').delete().eq('id', existing.id)
+      if (error) { console.error('removeHighlight:', error); toast.error('Could not remove highlight'); return }
       setHighlights(prev => { const m = new Map(prev); m.delete(key); return m })
     } else if (existing) {
       // update color
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('verse_highlights')
         .update({ color })
         .eq('id', existing.id)
         .select()
         .single()
+      if (error) { console.error('updateHighlight:', error); toast.error('Could not update highlight'); return }
       if (data) setHighlights(prev => new Map(prev).set(key, data))
     } else {
       // insert
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('verse_highlights')
         .insert({ user_id: userId, book: selectedBook, chapter: selectedChapter, verse: verse.verse, color })
         .select()
         .single()
+      if (error) { console.error('insertHighlight:', error); toast.error('Could not save highlight'); return }
       if (data) setHighlights(prev => new Map(prev).set(key, data))
     }
     setActiveColorPicker(null)
@@ -243,11 +247,12 @@ export default function BibleReader() {
 
   async function loadSavedVerses() {
     if (!userId) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('saved_verses')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
+    if (error) { console.error('loadSavedVerses:', error); return }
     setSavedVerses(data ?? [])
     const keys = new Set((data ?? []).map((v: SavedVerse) => `${v.book}-${v.chapter}-${v.verse}`))
     setSavedIds(keys)
@@ -258,34 +263,35 @@ export default function BibleReader() {
     const key = `${selectedBook}-${selectedChapter}-${verse.verse}`
     setSavingVerse(verse.verse)
 
-    if (savedIds.has(key)) {
-      // unsave
-      const { error } = await supabase
-        .from('saved_verses')
-        .delete()
-        .eq('user_id', userId)
-        .eq('book', selectedBook)
-        .eq('chapter', selectedChapter)
-        .eq('verse', verse.verse)
-      if (!error) {
+    try {
+      if (savedIds.has(key)) {
+        const { error } = await supabase
+          .from('saved_verses')
+          .delete()
+          .eq('user_id', userId)
+          .eq('book', selectedBook)
+          .eq('chapter', selectedChapter)
+          .eq('verse', verse.verse)
+        if (error) { console.error('unsaveVerse:', error); toast.error('Could not remove verse'); return }
         setSavedIds(prev => { const s = new Set(prev); s.delete(key); return s })
         setSavedVerses(prev => prev.filter(v => !(v.book === selectedBook && v.chapter === selectedChapter && v.verse === verse.verse)))
         toast.success('Verse removed')
+      } else {
+        const { data, error } = await supabase
+          .from('saved_verses')
+          .insert({ user_id: userId, book: selectedBook, chapter: selectedChapter, verse: verse.verse, text: verse.text })
+          .select()
+          .single()
+        if (error) { console.error('saveVerse:', error); toast.error('Could not save verse'); return }
+        if (data) {
+          setSavedIds(prev => new Set(prev).add(key))
+          setSavedVerses(prev => [data, ...prev])
+          toast.success('Verse saved ✨')
+        }
       }
-    } else {
-      // save
-      const { data, error } = await supabase
-        .from('saved_verses')
-        .insert({ user_id: userId, book: selectedBook, chapter: selectedChapter, verse: verse.verse, text: verse.text })
-        .select()
-        .single()
-      if (!error && data) {
-        setSavedIds(prev => new Set(prev).add(key))
-        setSavedVerses(prev => [data, ...prev])
-        toast.success('Verse saved ✨')
-      }
+    } finally {
+      setSavingVerse(null)
     }
-    setSavingVerse(null)
   }
 
   // ── Navigation helpers ──────────────────────────────────────────────────
