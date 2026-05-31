@@ -130,6 +130,8 @@ export default function MoneyAddModal({
         {/* AMOUNT */}
         <Input
           type="number"
+          inputMode="decimal"
+          min="0"
           placeholder={t.money.amount}
           value={amount}
           onChange={e => setAmount(e.target.value)}

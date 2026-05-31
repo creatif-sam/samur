@@ -67,6 +67,7 @@ export default function MoneyLog({
   }, [])
   const [searchQuery, setSearchQuery] = useState('')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
+  const [deletePending, setDeletePending] = useState<{ id: string; title: string } | null>(null)
   const [scope, setScope] = useState<Scope>('month')
   const [month, setMonth] = useState(initialDate.getMonth())
   const [year, setYear] = useState(initialDate.getFullYear())
@@ -143,38 +144,17 @@ export default function MoneyLog({
     return `${startLabel} to ${endLabel}`
   }
 
-  async function deleteEntry(id: string, title: string) {
-    // Show confirmation toast with action buttons
-    toast.warning(t.money.deleteConfirm.replace('{title}', title), {
-      description: t.money.deleteWarning,
-      action: {
-        label: t.delete,
-        onClick: async () => {
-          const { error } = await supabase.from('money_entries').delete().eq('id', id)
-          
-          if (error) {
-            toast.error(t.error, {
-              description: error.message
-            })
-          } else {
-            toast.success(t.money.deleteSuccess)
-            await checkMonthlyBudgetAlerts()
-            fetchEntries()
-            // Notify parent that entries have changed
-            if (onEntriesChanged) {
-              onEntriesChanged()
-            }
-          }
-        },
-      },
-      cancel: {
-        label: t.cancel,
-        onClick: () => {
-          toast.dismiss()
-        },
-      },
-      duration: 10000,
-    })
+  async function deleteEntry(id: string) {
+    const { error } = await supabase.from('money_entries').delete().eq('id', id)
+    if (error) {
+      toast.error(t.error, { description: error.message })
+    } else {
+      toast.success(t.money.deleteSuccess)
+      await checkMonthlyBudgetAlerts()
+      fetchEntries()
+      if (onEntriesChanged) onEntriesChanged()
+    }
+    setDeletePending(null)
   }
 
   function exportToExcel() {
@@ -363,7 +343,7 @@ export default function MoneyLog({
           <select
             value={month}
             onChange={e => setMonth(Number(e.target.value))}
-            className="flex-1 border rounded-lg px-2 py-1 dark:bg-slate-900"
+            className="flex-1 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
           >
             {Array.from({ length: 12 }).map((_, i) => (
               <option key={i} value={i}>
@@ -377,7 +357,7 @@ export default function MoneyLog({
           <select
             value={year}
             onChange={e => setYear(Number(e.target.value))}
-            className="flex-1 border rounded-lg px-2 py-1 dark:bg-slate-900"
+            className="w-24 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
           >
             {Array.from({ length: 5 }).map((_, i) => {
               const y = initialDate.getFullYear() - i
@@ -415,19 +395,19 @@ export default function MoneyLog({
           <div className={`border rounded-lg p-3 ${
             totals.balance >= 0
               ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
-              : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+              : 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
           }`}>
             <div className={`text-xs font-medium uppercase tracking-wide ${
               totals.balance >= 0
                 ? 'text-blue-600 dark:text-blue-400'
-                : 'text-amber-600 dark:text-amber-400'
+                : 'text-red-600 dark:text-red-400'
             }`}>
               {t.money.balance}
             </div>
             <div className={`text-sm font-bold mt-1 ${
               totals.balance >= 0
                 ? 'text-blue-700 dark:text-blue-300'
-                : 'text-amber-700 dark:text-amber-300'
+                : 'text-red-700 dark:text-red-300'
             }`}>
               {totals.balance.toFixed(2)}
             </div>
@@ -496,7 +476,7 @@ export default function MoneyLog({
                             <Pencil size={14} />
                           </button>
                           <button
-                            onClick={() => deleteEntry(e.id, e.title)}
+                            onClick={() => setDeletePending({ id: e.id, title: e.title })}
                             className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
                             aria-label="Delete"
                           >
@@ -526,6 +506,33 @@ export default function MoneyLog({
         onUpdated={fetchEntries}
         onDeleted={fetchEntries}
       />
+
+      {/* Delete confirm sheet */}
+      {deletePending && (
+        <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl p-5 pb-10 space-y-4 animate-in slide-in-from-bottom duration-200">
+            <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
+            <h3 className="text-base font-bold text-center text-foreground">
+              {t.money.deleteConfirm.replace('{title}', deletePending.title)}
+            </h3>
+            <p className="text-sm text-center text-muted-foreground">{t.money.deleteWarning}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeletePending(null)}
+                className="flex-1 h-12 rounded-2xl border border-border bg-muted text-sm font-semibold text-foreground"
+              >
+                {t.cancel}
+              </button>
+              <button
+                onClick={() => deleteEntry(deletePending.id)}
+                className="flex-1 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold"
+              >
+                {t.delete}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

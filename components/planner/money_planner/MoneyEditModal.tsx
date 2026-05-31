@@ -108,7 +108,7 @@ export default function MoneyEditModal({
           <X size={18} />
         </button>
 
-        <h3 className="text-lg font-bold">Edit Entry</h3>
+        <h3 className="text-lg font-bold">{t.edit} Entry</h3>
 
         {/* TYPE TABS */}
         <div className="flex gap-2 rounded-xl bg-muted p-1">
@@ -122,7 +122,7 @@ export default function MoneyEditModal({
             }`}
           >
             <ArrowDownCircle size={16} />
-            Expense
+            {t.money.expense}
           </Button>
 
           <Button
@@ -135,13 +135,13 @@ export default function MoneyEditModal({
             }`}
           >
             <ArrowUpCircle size={16} />
-            Income
+            {t.money.income}
           </Button>
         </div>
 
         {/* TITLE */}
         <Input
-          placeholder="What for"
+          placeholder={t.money.title}
           value={title}
           onChange={e => setTitle(e.target.value)}
         />
@@ -149,7 +149,9 @@ export default function MoneyEditModal({
         {/* AMOUNT */}
         <Input
           type="number"
-          placeholder="Amount"
+          inputMode="decimal"
+          min="0"
+          placeholder={t.money.amount}
           value={amount}
           onChange={e => setAmount(e.target.value)}
         />
