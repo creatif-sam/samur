@@ -86,25 +86,25 @@ function GoalCard({ goal }: { goal: Goal }) {
       ) : (
         <div className="flex items-center gap-1 flex-wrap">
           {/* Days */}
-          <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-700 rounded-xl px-2 py-1 min-w-[36px]">
+          <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-700 rounded-md px-2 py-1 min-w-[36px]">
             <span className="text-[16px] font-black text-white tabular-nums leading-none">{pad(cd.days)}</span>
             <span className="text-[7px] font-bold text-white/50 uppercase tracking-wider mt-0.5">d</span>
           </div>
           <span className="text-slate-300 dark:text-slate-600 font-black text-sm">:</span>
           {/* Hours */}
-          <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-700 rounded-xl px-2 py-1 min-w-[36px]">
+          <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-700 rounded-md px-2 py-1 min-w-[36px]">
             <span className="text-[16px] font-black text-white tabular-nums leading-none">{pad(cd.hours)}</span>
             <span className="text-[7px] font-bold text-white/50 uppercase tracking-wider mt-0.5">h</span>
           </div>
           <span className="text-slate-300 dark:text-slate-600 font-black text-sm">:</span>
           {/* Minutes */}
-          <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-700 rounded-xl px-2 py-1 min-w-[36px]">
+          <div className="flex flex-col items-center bg-slate-900 dark:bg-slate-700 rounded-md px-2 py-1 min-w-[36px]">
             <span className="text-[16px] font-black text-white tabular-nums leading-none">{pad(cd.minutes)}</span>
             <span className="text-[7px] font-bold text-white/50 uppercase tracking-wider mt-0.5">m</span>
           </div>
           <span className="text-slate-300 dark:text-slate-600 font-black text-sm">:</span>
           {/* Seconds */}
-          <div className={`flex flex-col items-center rounded-xl px-2 py-1 min-w-[36px] ${isUrgent ? 'bg-amber-500' : 'bg-violet-600'}`}>
+          <div className={`flex flex-col items-center rounded-md px-2 py-1 min-w-[36px] ${isUrgent ? 'bg-amber-500' : 'bg-violet-600'}`}>
             <span className="text-[16px] font-black text-white tabular-nums leading-none">{pad(cd.seconds)}</span>
             <span className="text-[7px] font-bold text-white/60 uppercase tracking-wider mt-0.5">s</span>
           </div>
