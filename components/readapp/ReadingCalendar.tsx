@@ -87,21 +87,20 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
       logMap.get(l.reading_date)?.push({ pages_read: l.pages_read, note: l.note })
     })
 
-    // Calculate Streak (Simplified for UI display)
+    // Calculate Streak in memory — single query instead of N+1 loop
+    const { data: recentLogs } = await supabase
+      .from('reading_logs')
+      .select('reading_date')
+      .eq('user_id', user.id)
+      .lte('reading_date', toISODate(today))
+      .order('reading_date', { ascending: false })
+
+    const logDateSet = new Set((recentLogs ?? []).map((l) => l.reading_date))
     let currentStreak = 0
-    let streakCursor = new Date(today)
-    while (true) {
-      const { data: check } = await supabase
-        .from('reading_logs')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('reading_date', toISODate(streakCursor))
-        .maybeSingle()
-      
-      if (check) {
-        currentStreak++
-        streakCursor.setDate(streakCursor.getDate() - 1)
-      } else break
+    const streakCursor = new Date(today)
+    while (logDateSet.has(toISODate(streakCursor))) {
+      currentStreak++
+      streakCursor.setDate(streakCursor.getDate() - 1)
     }
     setStreak(currentStreak)
 

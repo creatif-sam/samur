@@ -145,7 +145,8 @@ export default function ReadingCard({
     reading.total_pages - reading.pages_remaining
 
   const updateStatus = async (value: ReadingStatus) => {
-    setStatus(value)
+    const previous = status
+    setStatus(value) // optimistic
     const supabase = createClient()
     const { error } = await supabase
       .from('readings')
@@ -153,6 +154,7 @@ export default function ReadingCard({
       .eq('id', reading.id)
     
     if (error) {
+      setStatus(previous) // rollback
       toast.error('Failed to update status')
     } else {
       toast.success('Status updated!')

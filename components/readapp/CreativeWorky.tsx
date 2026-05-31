@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -46,7 +47,11 @@ export default function CreativeWork() {
   }, [date, startTime, endTime]);
 
   const submit = async () => {
-    if (!workedOn.trim() || hoursWorked === null) return;
+    if (!workedOn.trim()) return;
+    if (hoursWorked === null) {
+      toast.error('End time must be after start time');
+      return;
+    }
     setLoading(true);
 
     const { data: auth } = await supabase.auth.getUser();
@@ -55,7 +60,7 @@ export default function CreativeWork() {
       return;
     }
 
-    await supabase.from('creative_work').insert({
+    const { error } = await supabase.from('creative_work').insert({
       user_id: auth.user.id,
       work_date: date,
       start_time: startTime,
@@ -69,7 +74,14 @@ export default function CreativeWork() {
       notes: notes.trim() || null,
     });
 
-    // Reset fields
+    if (error) {
+      toast.error('Failed to save session');
+      setLoading(false);
+      return;
+    }
+
+    toast.success('Session logged!');
+    // Reset fields only on success
     setWorkedOn('');
     setProduced('');
     setStartTime('');

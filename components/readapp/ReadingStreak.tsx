@@ -18,8 +18,8 @@ export default function ReadingStreak() {
     if (!auth.user) return;
 
     const { data, error } = await supabase
-      .from('reading_days')
-      .select('date')
+      .from('reading_logs')
+      .select('reading_date')
       .eq('user_id', auth.user.id);
 
     if (error) {
@@ -27,7 +27,7 @@ export default function ReadingStreak() {
       return;
     }
 
-    const dates = (data ?? []).map((d) => d.date);
+    const dates = (data ?? []).map((d) => d.reading_date);
     setStreak(calculateReadingStreak(dates));
     setLoading(false);
   };

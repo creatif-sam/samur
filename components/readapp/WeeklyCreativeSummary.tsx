@@ -6,7 +6,7 @@ import { Clock, Target, Focus } from 'lucide-react';
 
 
 interface CreativeEntry {
-  date: string;
+  work_date: string;
   hours_worked: number;
   focused: boolean | null;
   aligned: boolean | null;
@@ -32,9 +32,9 @@ export default function WeeklyCreativeSummary(): JSX.Element {
 
     const { data } = await supabase
       .from('creative_work')
-      .select('date, hours_worked, focused, aligned')
+      .select('work_date, hours_worked, focused, aligned')
       .eq('user_id', auth.user.id)
-      .gte('date', startOfWeek.toISOString().split('T')[0]);
+      .gte('work_date', startOfWeek.toISOString().split('T')[0]);
 
     setEntries(data ?? []);
   };
@@ -55,7 +55,7 @@ export default function WeeklyCreativeSummary(): JSX.Element {
 
     return {
       totalHours: total.toFixed(2),
-      avgPerDay: (total / 7).toFixed(2),
+      avgPerDay: (total / (entries.length || 1)).toFixed(2),
       focusRate: entries.length
         ? Math.round((focusedCount / entries.length) * 100)
         : 0,
