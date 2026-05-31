@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
   BookOpen, X, BookMarked, Check, Loader2, ChevronDown, Highlighter,
-  Copy, PenLine, History,
+  Copy, PenLine, History, Share2, Globe,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
@@ -156,6 +156,10 @@ export default function BibleReader() {
   // Highlights
   const [highlights, setHighlights] = useState<Map<string, VerseHighlight>>(new Map())
   const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null)
+  const [showHighlightPanel, setShowHighlightPanel] = useState(false)
+
+  // Version search
+  const [versionLang, setVersionLang] = useState<'all' | 'en' | 'fr'>('all')
 
   // Verse note
   const [noteVerse, setNoteVerse] = useState<Verse | null>(null)
@@ -327,7 +331,20 @@ export default function BibleReader() {
     }
     setActiveColorPicker(null)
   }
-
+  // ── Share verse ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  async function shareVerse(v: Verse) {
+    const label = TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'
+    const ref = `${displayBook(selectedBook, translation)} ${selectedChapter}:${v.verse} (${label})`
+    const text = `"${v.text.trim()}" — ${ref}`
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ text })
+      } catch { /* user cancelled */ }
+    } else {
+      await copyVerse(v)
+    }
+    setActiveColorPicker(null)
+  }
   // ── Add note to verse ────────────────────────────────────────────────────
   async function addVerseNote(v: Verse, extraContent: string) {
     if (!userId) return
@@ -501,7 +518,7 @@ export default function BibleReader() {
               {displayBook(selectedBook, translation)} <span className="text-violet-500">{selectedChapter}</span>
             </p>
           )}
-          {view === 'versions' && <p className="text-base font-black uppercase tracking-tight">Bible Version</p>}
+          {view === 'versions' && <p className="text-base font-bold">Versions</p>}
           {view === 'saved' && <p className="text-base font-black uppercase tracking-tight">Saved Verses</p>}
           {view === 'search' && (
             <input
@@ -615,25 +632,50 @@ export default function BibleReader() {
 
       {/* ── VERSION PICKER ── */}
       {view === 'versions' && (
-        <div className="px-4 pt-4 pb-6 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-3">Select Translation</p>
-          {TRANSLATIONS.map(t => (
+        <div className="pb-10">
+          {/* Language filter row */}
+          <div className="px-4 pt-3 pb-4">
             <button
-              key={t.id}
-              onClick={() => { setTranslation(t.id); setView('books') }}
-              className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border transition-all active:scale-[0.98] ${
-                translation === t.id
-                  ? 'bg-violet-600 border-violet-600 text-white'
-                  : 'bg-card border-border hover:border-violet-300 dark:hover:border-violet-700'
-              }`}
+              onClick={() => setVersionLang(l => l === 'fr' ? 'en' : l === 'en' ? 'all' : 'fr')}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-muted active:bg-muted/70 transition"
             >
-              <div className="text-left">
-                <p className="font-black text-sm">{t.label}</p>
-                <p className={`text-xs mt-0.5 ${translation === t.id ? 'text-white/75' : 'text-muted-foreground'}`}>{t.name}</p>
-              </div>
-              {translation === t.id && <Check className="w-4 h-4 shrink-0" />}
+              <Globe className="w-5 h-5 text-muted-foreground shrink-0" />
+              <span className="flex-1 text-left text-base font-medium">Language</span>
+              <span className="text-sm text-muted-foreground font-medium">
+                {versionLang === 'fr' ? 'Français' : versionLang === 'en' ? 'English' : 'All'}
+              </span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
             </button>
-          ))}
+          </div>
+
+          {/* Section label */}
+          <p className="px-4 text-[13px] font-bold text-foreground mb-1">Available</p>
+
+          {/* Flat translation list */}
+          <div className="divide-y divide-border">
+            {TRANSLATIONS
+              .filter(t =>
+                versionLang === 'all' ? true
+                : versionLang === 'fr' ? (t.id === 'lsg' || t.id === 'nef')
+                : (t.id !== 'lsg' && t.id !== 'nef')
+              )
+              .map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => { setTranslation(t.id); setView('books') }}
+                  className="w-full flex items-center gap-3 px-6 py-4 text-left active:bg-muted/60 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-[15px] leading-snug">{t.label}</p>
+                    <p className="text-sm text-muted-foreground mt-0.5 leading-snug">{t.name}</p>
+                  </div>
+                  {translation === t.id
+                    ? <Check className="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0" />
+                    : <ChevronRight className="w-4 h-4 text-muted-foreground/30 shrink-0" />
+                  }
+                </button>
+              ))}
+          </div>
         </div>
       )}
 
@@ -731,78 +773,142 @@ export default function BibleReader() {
           )}
           {!loading && !error && verses.map(v => {
             const key = `${selectedBook}-${selectedChapter}-${v.verse}`
-            const isSaved = savedIds.has(key)
             const highlight = highlights.get(key)
-            const isPickerOpen = activeColorPicker === v.verse
             return (
-              <div key={v.verse} className="space-y-0.5">
+              <div key={v.verse}>
                 <div
-                  className={`flex gap-3 py-2 px-2 rounded-2xl transition-colors group cursor-pointer select-none ${
-                    highlight ? highlightBg(highlight.color) : 'hover:bg-muted/50'
+                  className={`flex gap-3 py-2 px-2 rounded-2xl transition-colors cursor-pointer select-none ${
+                    highlight ? highlightBg(highlight.color) : 'active:bg-muted/60'
                   }`}
-                  onClick={() => setActiveColorPicker(n => n === v.verse ? null : v.verse)}
+                  onClick={() => {
+                    setActiveColorPicker(n => n === v.verse ? null : v.verse)
+                    setShowHighlightPanel(false)
+                  }}
                 >
                   <span className="text-[11px] font-black text-violet-400 dark:text-violet-500 w-6 shrink-0 pt-0.5 text-right tabular-nums">
                     {v.verse}
                   </span>
                   <p className="flex-1 text-[15px] leading-[1.75] text-foreground">{v.text}</p>
-                  <button
-                    onClick={e => { e.stopPropagation(); toggleSaveVerse(v) }}
-                    className="shrink-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    {savingVerse === v.verse
-                      ? <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
-                      : isSaved
-                      ? <Check className="w-4 h-4 text-violet-500" />
-                      : <Bookmark className="w-4 h-4 text-muted-foreground hover:text-violet-500 transition-colors" />
-                    }
-                  </button>
                 </div>
-
-                {/* Inline color picker */}
-                {isPickerOpen && (
-                  <div className="flex items-center gap-2 px-3 py-2 ml-1 rounded-2xl bg-card border border-border shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
-                    <Highlighter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                    {HIGHLIGHT_COLORS.map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => setVerseHighlight(v, c.id)}
-                        className={`w-6 h-6 rounded-full ${c.dot} transition-transform active:scale-90 ${
-                          highlight?.color === c.id ? 'ring-2 ring-offset-2 ring-foreground scale-110' : 'hover:scale-110'
-                        }`}
-                        title={c.id}
-                      />
-                    ))}
-                    <div className="flex items-center gap-1 ml-auto pl-2 border-l border-border">
-                      {highlight && (
-                        <button
-                          onClick={() => setVerseHighlight(v, null)}
-                          className="p-1 rounded-lg hover:bg-muted transition"
-                          title="Remove highlight"
-                        >
-                          <X className="w-3.5 h-3.5 text-muted-foreground" />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => copyVerse(v)}
-                        className="p-1 rounded-lg hover:bg-muted transition"
-                        title="Copy verse"
-                      >
-                        <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-                      </button>
-                      <button
-                        onClick={() => { setNoteVerse(v); setActiveColorPicker(null) }}
-                        className="p-1 rounded-lg hover:bg-muted transition"
-                        title="Add note"
-                      >
-                        <PenLine className="w-3.5 h-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             )
           })}
+
+          {/* ── Verse action bottom sheet ── */}
+          {activeColorPicker !== null && (() => {
+            const sheetVerse = verses.find(v => v.verse === activeColorPicker)
+            if (!sheetVerse) return null
+            const key = `${selectedBook}-${selectedChapter}-${sheetVerse.verse}`
+            const isSaved = savedIds.has(key)
+            const highlight = highlights.get(key)
+            return (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-40 bg-black/30"
+                  onClick={() => { setActiveColorPicker(null); setShowHighlightPanel(false) }}
+                />
+                {/* Sheet */}
+                <div className="fixed bottom-0 left-0 right-0 z-50 bg-background rounded-t-3xl shadow-2xl animate-in slide-in-from-bottom-4 duration-200">
+                  {/* Handle */}
+                  <div className="flex justify-center pt-3 pb-1">
+                    <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
+                  </div>
+                  {/* Verse ref */}
+                  <p className="text-center text-sm font-bold text-foreground px-6 py-2">
+                    {displayBook(selectedBook, translation)} {selectedChapter}:{sheetVerse.verse}
+                  </p>
+                  {/* Action buttons */}
+                  <div className="flex items-center justify-around px-4 py-3 gap-1">
+                    {/* Copy */}
+                    <button
+                      onClick={() => copyVerse(sheetVerse)}
+                      className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
+                    >
+                      <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
+                        <Copy className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-medium">Copy</span>
+                    </button>
+                    {/* Share */}
+                    <button
+                      onClick={() => shareVerse(sheetVerse)}
+                      className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
+                    >
+                      <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
+                        <Share2 className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-medium">Share</span>
+                    </button>
+                    {/* Save / Bookmark */}
+                    <button
+                      onClick={() => toggleSaveVerse(sheetVerse)}
+                      className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
+                    >
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
+                        isSaved ? 'bg-violet-100 dark:bg-violet-900/40' : 'bg-muted'
+                      }`}>
+                        {savingVerse === sheetVerse.verse
+                          ? <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+                          : <Bookmark className={`w-5 h-5 ${isSaved ? 'text-violet-600 dark:text-violet-400 fill-current' : ''}`} />
+                        }
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-medium">{isSaved ? 'Saved' : 'Save'}</span>
+                    </button>
+                    {/* Highlight */}
+                    <button
+                      onClick={() => setShowHighlightPanel(v => !v)}
+                      className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
+                    >
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${
+                        highlight ? highlightBg(highlight.color) : 'bg-muted'
+                      }`}>
+                        <Highlighter className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-medium">Highlight</span>
+                    </button>
+                    {/* Note */}
+                    <button
+                      onClick={() => { setNoteVerse(sheetVerse); setActiveColorPicker(null); setShowHighlightPanel(false) }}
+                      className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
+                    >
+                      <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
+                        <PenLine className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-medium">Note</span>
+                    </button>
+                  </div>
+
+                  {/* Highlight color row (conditional) */}
+                  {showHighlightPanel && (
+                    <div className="flex items-center gap-3 px-6 pb-5 pt-1 border-t border-border">
+                      {HIGHLIGHT_COLORS.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => { setVerseHighlight(sheetVerse, c.id); setShowHighlightPanel(false) }}
+                          className={`w-8 h-8 rounded-full ${c.dot} transition-transform active:scale-90 ${
+                            highlight?.color === c.id ? 'ring-2 ring-offset-2 ring-foreground scale-110' : 'hover:scale-110'
+                          }`}
+                        />
+                      ))}
+                      {highlight && (
+                        <button
+                          onClick={() => { setVerseHighlight(sheetVerse, null); setShowHighlightPanel(false) }}
+                          className="ml-auto p-2 rounded-xl hover:bg-muted transition"
+                          title="Remove highlight"
+                        >
+                          <X className="w-4 h-4 text-muted-foreground" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Safe area spacer */}
+                  <div className="h-6" />
+                </div>
+              </>
+            )
+          })()}
 
           {/* Prev / Next chapter bar */}
           {!loading && !error && (
