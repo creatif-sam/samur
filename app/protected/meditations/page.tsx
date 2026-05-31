@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import FeedSwitch from '@/components/feed/FeedSwitch'
 import MeditationComposer from '@/components/meditations/MeditationComposer'
-import { Pencil, Copy, LayoutGrid, List, BookOpen } from 'lucide-react'
+import { Pencil, Copy, LayoutGrid, List, BookOpen, ChevronRight } from 'lucide-react'
 import MeditationStreakBoard from '@/components/meditations/MeditationStreakBoard'
 import PartnerMeditationBoard from '@/components/meditations/PartnerMeditationBoard'
 
@@ -284,6 +284,20 @@ ${m.prayer}
           </select>
         </div>
       </header>
+
+      {/* Bible banner */}
+      <Link href="/protected/bible" className="block">
+        <div className="flex items-center gap-4 px-5 py-4 rounded-3xl bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-sm active:scale-[0.98] transition-transform">
+          <div className="bg-white/20 rounded-2xl p-2.5">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-black uppercase tracking-wide text-sm">Holy Bible</p>
+            <p className="text-xs text-white/75 mt-0.5">Read KJV · Save verses · Search passages</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
+        </div>
+      </Link>
 
       {/* Streak */}
       {userId && accountCreatedAt && (
