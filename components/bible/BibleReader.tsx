@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
   BookOpen, X, BookMarked, Check, Loader2, ChevronDown, Highlighter,
-  Copy, PenLine, History, Share2, Globe, Type,
+  Copy, PenLine, History, Share2, Globe, Type, BookCopy, Plus,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
@@ -137,7 +137,7 @@ export default function BibleReader() {
   const [userId, setUserId] = useState<string | null>(null)
 
   // Navigation
-  const [view, setView] = useState<'books' | 'chapters' | 'read' | 'saved' | 'search' | 'versions'>('books')
+  const [view, setView] = useState<'books' | 'chapters' | 'read' | 'saved' | 'search' | 'versions' | 'compare'>('books')
   const [selectedBook, setSelectedBook] = useState('John')
   const [selectedChapter, setSelectedChapter] = useState(1)
   const [testament, setTestament] = useState<'OT' | 'NT'>('NT')
@@ -179,6 +179,13 @@ export default function BibleReader() {
   const [noteVerse, setNoteVerse] = useState<Verse | null>(null)
   const [noteContent, setNoteContent] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+
+  // Compare versions
+  const [compareVerseNums, setCompareVerseNums] = useState<number[]>([])
+  const [compareTranslations, setCompareTranslations] = useState<string[]>([])
+  const [compareData, setCompareData] = useState<Map<string, Verse[]>>(new Map())
+  const [compareLoadingSet, setCompareLoadingSet] = useState<Set<string>>(new Set())
+  const [showAddTranslation, setShowAddTranslation] = useState(false)
 
   // Book browser
   const [bookSearch, setBookSearch] = useState('')
@@ -486,6 +493,48 @@ export default function BibleReader() {
     }
   }
 
+  // ── Compare versions ────────────────────────────────────────────────────
+  async function fetchCompareTranslation(tid: string, verseNums: number[]) {
+    setCompareLoadingSet(prev => new Set(prev).add(tid))
+    try {
+      const res = await fetch(apiUrl(selectedBook, selectedChapter, tid))
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      const sorted = [...verseNums].sort((a, b) => a - b)
+      const extracted = sorted
+        .map(n => (data.verses as Verse[]).find(v => v.verse === n))
+        .filter(Boolean) as Verse[]
+      setCompareData(prev => new Map(prev).set(tid, extracted))
+    } catch {
+      setCompareData(prev => new Map(prev).set(tid, []))
+    } finally {
+      setCompareLoadingSet(prev => { const s = new Set(prev); s.delete(tid); return s })
+    }
+  }
+
+  function openCompare() {
+    const nums = [...selectedVerses].sort((a, b) => a - b)
+    setCompareVerseNums(nums)
+    setCompareTranslations([translation])
+    setCompareData(new Map())
+    setSelectedVerses(new Set())
+    setShowHighlightPanel(false)
+    fetchCompareTranslation(translation, nums)
+    setView('compare')
+  }
+
+  function addCompareTranslation(tid: string) {
+    if (compareTranslations.includes(tid)) return
+    setCompareTranslations(prev => [...prev, tid])
+    fetchCompareTranslation(tid, compareVerseNums)
+    setShowAddTranslation(false)
+  }
+
+  function removeCompareTranslation(tid: string) {
+    setCompareTranslations(prev => prev.filter(t => t !== tid))
+    setCompareData(prev => { const m = new Map(prev); m.delete(tid); return m })
+  }
+
   // ── Navigation helpers ──────────────────────────────────────────────────
   function openBook(book: string) {
     setSelectedBook(book)
@@ -575,6 +624,7 @@ export default function BibleReader() {
             if (view === 'read') setView('chapters')
             else if (view === 'chapters') setView('books')
             else if (view === 'saved' || view === 'search' || view === 'versions') setView('books')
+            else if (view === 'compare') setView('read')
             else router.back()
           }}
           className="p-1.5 rounded-xl hover:bg-muted transition shrink-0"
@@ -595,6 +645,7 @@ export default function BibleReader() {
             </p>
           )}
           {view === 'versions' && <p className="text-base font-bold">Versions</p>}
+          {view === 'compare' && <p className="text-base font-bold">Compare Versions</p>}
           {view === 'saved' && <p className="text-base font-black uppercase tracking-tight">Saved Verses</p>}
           {view === 'search' && (
             <input
@@ -646,7 +697,7 @@ export default function BibleReader() {
           )}
 
           {/* Other views: search, version, saved */}
-          {view !== 'books' && view !== 'search' && (
+          {view !== 'books' && view !== 'search' && view !== 'compare' && (
             <>
               {/* Font size (read view only) */}
               {view === 'read' && selectedVerses.size === 0 && (
@@ -945,7 +996,7 @@ export default function BibleReader() {
                     </button>
                   </div>
                   {/* Action buttons */}
-                  <div className="flex items-center justify-around px-4 py-3 gap-1">
+                  <div className="flex items-center px-2 py-3 gap-0.5 overflow-x-auto scrollbar-none">
                     {/* Copy */}
                     <button
                       onClick={copySelectedVerses}
@@ -1014,6 +1065,16 @@ export default function BibleReader() {
                       </div>
                       <span className="text-[11px] text-muted-foreground font-medium">Note</span>
                     </button>
+                    {/* Compare */}
+                    <button
+                      onClick={openCompare}
+                      className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]"
+                    >
+                      <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
+                        <BookCopy className="w-5 h-5" />
+                      </div>
+                      <span className="text-[11px] text-muted-foreground font-medium">Compare</span>
+                    </button>
                   </div>
 
                   {/* Highlight color row (conditional) */}
@@ -1050,6 +1111,117 @@ export default function BibleReader() {
 
         </div>
       )}
+
+      {/* ── COMPARE VIEW ── */}
+      {view === 'compare' && (
+        <div className="pb-40">
+          {compareTranslations.map(tid => {
+            const tInfo = TRANSLATIONS.find(t => t.id === tid)
+            const verseObjs = compareData.get(tid) ?? []
+            const isLoading = compareLoadingSet.has(tid)
+            const refLabel = `${displayBook(selectedBook, tid)} ${formatRef(compareVerseNums)}`
+            return (
+              <div key={tid} className="px-4 pt-5 first:pt-4">
+                {/* Translation header */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-base font-black text-foreground shrink-0">{tInfo?.label ?? tid.toUpperCase()}</span>
+                    <span className="text-xs text-muted-foreground font-medium truncate">{tInfo?.name}</span>
+                  </div>
+                  {compareTranslations.length > 1 && (
+                    <button
+                      onClick={() => removeCompareTranslation(tid)}
+                      className="p-1.5 rounded-xl hover:bg-muted transition shrink-0 ml-2"
+                      aria-label="Remove translation"
+                    >
+                      <X className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
+                {/* Verse block */}
+                <div className="border-l-4 border-violet-500 pl-4">
+                  {isLoading ? (
+                    <div className="py-4 flex justify-start">
+                      <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
+                    </div>
+                  ) : verseObjs.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic py-3">Could not load this translation</p>
+                  ) : (
+                    <p className={`${fontSizeClass} leading-[1.75] text-foreground`}>
+                      {verseObjs.map(v => (
+                        <span key={v.verse}>
+                          <sup className="text-[10px] font-bold text-muted-foreground mr-0.5">{v.verse}</sup>
+                          {v.text.trim()}{' '}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                  {!isLoading && verseObjs.length > 0 && (
+                    <p className="text-xs font-bold text-foreground mt-2">{refLabel}</p>
+                  )}
+                </div>
+                <div className="mt-5 border-b border-border" />
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── COMPARE: ADD VERSION BAR ── */}
+      {view === 'compare' && (
+        <>
+          <div className="fixed bottom-16 left-0 right-0 z-[56] bg-background/95 backdrop-blur border-t border-border px-4 py-3">
+            <button
+              onClick={() => setShowAddTranslation(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-border hover:border-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 active:bg-muted/60 transition text-sm font-bold text-muted-foreground hover:text-violet-600 dark:hover:text-violet-400"
+            >
+              <Plus className="w-4 h-4" />
+              Add Version
+            </button>
+          </div>
+
+          {/* Add translation picker sheet */}
+          {showAddTranslation && (
+            <>
+              <div
+                className="fixed inset-0 z-[60] bg-black/30"
+                onClick={() => setShowAddTranslation(false)}
+              />
+              <div className="fixed bottom-0 left-0 right-0 z-[70] bg-background rounded-t-3xl shadow-2xl border-t border-border animate-in slide-in-from-bottom-4 duration-200">
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="w-10 h-1 rounded-full bg-muted-foreground/25" />
+                </div>
+                <div className="flex items-center justify-between px-4 py-3">
+                  <p className="text-sm font-bold">Add Version</p>
+                  <button
+                    onClick={() => setShowAddTranslation(false)}
+                    className="p-1.5 rounded-xl hover:bg-muted transition"
+                  >
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+                <div className="divide-y divide-border max-h-72 overflow-y-auto pb-8">
+                  {TRANSLATIONS.filter(t => !compareTranslations.includes(t.id)).map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => addCompareTranslation(t.id)}
+                      className="w-full flex items-center gap-3 px-5 py-4 text-left active:bg-muted/60 transition-colors"
+                    >
+                      <span className="font-black text-[15px] w-16 text-foreground shrink-0">{t.label}</span>
+                      <span className="text-sm text-muted-foreground flex-1 leading-snug">{t.name}</span>
+                      <Plus className="w-4 h-4 text-violet-500 shrink-0" />
+                    </button>
+                  ))}
+                  {TRANSLATIONS.filter(t => !compareTranslations.includes(t.id)).length === 0 && (
+                    <p className="text-center text-sm text-muted-foreground py-6">All versions added</p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
       {/* ── CHAPTER NAV BAR (read view) ── */}
       {view === 'read' && (
         <div className="fixed bottom-16 left-0 right-0 z-[56] bg-background/95 backdrop-blur border-t border-border flex items-center h-14 px-1">
