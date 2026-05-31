@@ -51,7 +51,8 @@ const TRANSLATIONS = [
   { id: 'darby',    label: 'DARBY',    name: 'Darby Bible' },
   { id: 'dra',      label: 'DRA',      name: 'Douay-Rheims' },
   { id: 'oeb-us',   label: 'OEB',      name: 'Open English Bible' },
-  { id: 'almeida',  label: 'ARA',      name: 'Almeida (Português)' },
+  { id: 'lsg',      label: 'LSG',      name: 'Louis Segond (Français)' },
+  { id: 'nef',      label: 'NEF',      name: 'Nouvelle Édition de Genève (Français)' },
 ]
 
 interface Verse { verse: number; text: string }
