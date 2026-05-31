@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   ChevronLeft, ChevronRight, Search, Bookmark,
-  BookOpen, X, BookMarked, Check, Loader2, ChevronDown,
+  BookOpen, X, BookMarked, Check, Loader2, ChevronDown, Highlighter,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Toaster } from 'sonner'
@@ -66,6 +66,28 @@ interface SavedVerse {
   created_at: string
 }
 
+interface VerseHighlight {
+  id: string
+  book: string
+  chapter: number
+  verse: number
+  color: string
+}
+
+// ── Highlight colors ───────────────────────────────────────────────────────
+const HIGHLIGHT_COLORS = [
+  { id: 'yellow', bg: 'bg-yellow-200/80 dark:bg-yellow-400/30', dot: 'bg-yellow-400' },
+  { id: 'green',  bg: 'bg-green-200/80 dark:bg-green-400/30',   dot: 'bg-green-500' },
+  { id: 'blue',   bg: 'bg-blue-200/80 dark:bg-blue-400/30',     dot: 'bg-blue-500' },
+  { id: 'pink',   bg: 'bg-pink-200/80 dark:bg-pink-400/30',     dot: 'bg-pink-500' },
+  { id: 'purple', bg: 'bg-violet-200/80 dark:bg-violet-400/30', dot: 'bg-violet-500' },
+  { id: 'orange', bg: 'bg-orange-200/80 dark:bg-orange-400/30', dot: 'bg-orange-500' },
+]
+
+function highlightBg(color: string) {
+  return HIGHLIGHT_COLORS.find(c => c.id === color)?.bg ?? ''
+}
+
 function apiUrl(book: string, chapter: number, translation: string) {
   return `https://bible-api.com/${encodeURIComponent(book)}+${chapter}?translation=${translation}`
 }
@@ -99,6 +121,10 @@ export default function BibleReader() {
   const [savingVerse, setSavingVerse] = useState<number | null>(null)
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set())
 
+  // Highlights
+  const [highlights, setHighlights] = useState<Map<string, VerseHighlight>>(new Map())
+  const [activeColorPicker, setActiveColorPicker] = useState<number | null>(null)
+
   // Search
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
@@ -116,7 +142,8 @@ export default function BibleReader() {
   useEffect(() => {
     if (view !== 'read') return
     loadChapter(selectedBook, selectedChapter)
-  }, [view, selectedBook, selectedChapter, translation])
+    if (userId) loadHighlights(selectedBook, selectedChapter)
+  }, [view, selectedBook, selectedChapter, translation, userId])
 
   async function loadChapter(book: string, chapter: number) {
     setLoading(true)
@@ -138,6 +165,50 @@ export default function BibleReader() {
     if (!userId) return
     loadSavedVerses()
   }, [userId])
+
+  async function loadHighlights(book: string, chapter: number) {
+    if (!userId) return
+    const { data } = await supabase
+      .from('verse_highlights')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('book', book)
+      .eq('chapter', chapter)
+    const map = new Map<string, VerseHighlight>()
+    ;(data ?? []).forEach((h: VerseHighlight) => map.set(`${h.book}-${h.chapter}-${h.verse}`, h))
+    setHighlights(map)
+  }
+
+  async function setVerseHighlight(verse: Verse, color: string | null) {
+    if (!userId) return
+    const key = `${selectedBook}-${selectedChapter}-${verse.verse}`
+    const existing = highlights.get(key)
+
+    if (color === null || (existing && existing.color === color)) {
+      // remove highlight
+      if (!existing) return
+      await supabase.from('verse_highlights').delete().eq('id', existing.id)
+      setHighlights(prev => { const m = new Map(prev); m.delete(key); return m })
+    } else if (existing) {
+      // update color
+      const { data } = await supabase
+        .from('verse_highlights')
+        .update({ color })
+        .eq('id', existing.id)
+        .select()
+        .single()
+      if (data) setHighlights(prev => new Map(prev).set(key, data))
+    } else {
+      // insert
+      const { data } = await supabase
+        .from('verse_highlights')
+        .insert({ user_id: userId, book: selectedBook, chapter: selectedChapter, verse: verse.verse, color })
+        .select()
+        .single()
+      if (data) setHighlights(prev => new Map(prev).set(key, data))
+    }
+    setActiveColorPicker(null)
+  }
 
   async function loadSavedVerses() {
     if (!userId) return
@@ -447,26 +518,58 @@ export default function BibleReader() {
           {!loading && !error && verses.map(v => {
             const key = `${selectedBook}-${selectedChapter}-${v.verse}`
             const isSaved = savedIds.has(key)
+            const highlight = highlights.get(key)
+            const isPickerOpen = activeColorPicker === v.verse
             return (
-              <div
-                key={v.verse}
-                className="flex gap-3 py-2 px-2 rounded-2xl hover:bg-muted/50 transition-colors group"
-              >
-                <span className="text-[11px] font-black text-violet-400 dark:text-violet-500 w-6 shrink-0 pt-0.5 text-right tabular-nums">
-                  {v.verse}
-                </span>
-                <p className="flex-1 text-[15px] leading-[1.75] text-foreground">{v.text}</p>
-                <button
-                  onClick={() => toggleSaveVerse(v)}
-                  className="shrink-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+              <div key={v.verse} className="space-y-0.5">
+                <div
+                  className={`flex gap-3 py-2 px-2 rounded-2xl transition-colors group cursor-pointer select-none ${
+                    highlight ? highlightBg(highlight.color) : 'hover:bg-muted/50'
+                  }`}
+                  onClick={() => setActiveColorPicker(n => n === v.verse ? null : v.verse)}
                 >
-                  {savingVerse === v.verse
-                    ? <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
-                    : isSaved
-                    ? <Check className="w-4 h-4 text-violet-500" />
-                    : <Bookmark className="w-4 h-4 text-muted-foreground hover:text-violet-500 transition-colors" />
-                  }
-                </button>
+                  <span className="text-[11px] font-black text-violet-400 dark:text-violet-500 w-6 shrink-0 pt-0.5 text-right tabular-nums">
+                    {v.verse}
+                  </span>
+                  <p className="flex-1 text-[15px] leading-[1.75] text-foreground">{v.text}</p>
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleSaveVerse(v) }}
+                    className="shrink-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    {savingVerse === v.verse
+                      ? <Loader2 className="w-4 h-4 animate-spin text-violet-400" />
+                      : isSaved
+                      ? <Check className="w-4 h-4 text-violet-500" />
+                      : <Bookmark className="w-4 h-4 text-muted-foreground hover:text-violet-500 transition-colors" />
+                    }
+                  </button>
+                </div>
+
+                {/* Inline color picker */}
+                {isPickerOpen && (
+                  <div className="flex items-center gap-2 px-3 py-2 ml-1 rounded-2xl bg-card border border-border shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
+                    <Highlighter className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                    {HIGHLIGHT_COLORS.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => setVerseHighlight(v, c.id)}
+                        className={`w-6 h-6 rounded-full ${c.dot} transition-transform active:scale-90 ${
+                          highlight?.color === c.id ? 'ring-2 ring-offset-2 ring-foreground scale-110' : 'hover:scale-110'
+                        }`}
+                        title={c.id}
+                      />
+                    ))}
+                    {highlight && (
+                      <button
+                        onClick={() => setVerseHighlight(v, null)}
+                        className="ml-auto p-1 rounded-lg hover:bg-muted transition"
+                        title="Remove highlight"
+                      >
+                        <X className="w-3.5 h-3.5 text-muted-foreground" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
