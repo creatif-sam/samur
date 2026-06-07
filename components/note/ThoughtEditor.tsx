@@ -11,7 +11,7 @@ import {
   ChevronLeft, Trash2, Calendar, Clock,
   Bold, Italic, List, ListOrdered, Plus,
   CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2,
-  Highlighter, X, Copy
+  Highlighter, X, Copy, Undo2, Redo2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
@@ -219,6 +219,8 @@ export function ThoughtEditor({ page, onBack, onRefresh, onDeletePage }: any) {
 
       {/* KEYBOARD TOOLBAR — sits right above the virtual keyboard */}
       <div className="flex items-center bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <ToolbarBtn onClick={() => editor.chain().focus().undo().run()} active={false} disabled={!editor.can().undo()} icon={<Undo2 size={20} />} />
+        <ToolbarBtn onClick={() => editor.chain().focus().redo().run()} active={false} disabled={!editor.can().redo()} icon={<Redo2 size={20} />} />
         <ToolbarBtn onClick={() => editor.chain().focus().insertContent('<p></p>').run()} active={false} icon={<Plus size={20} />} />
         <ToolbarBtn onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} icon={<CheckSquare size={20} />} />
         <ToolbarBtn onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} icon={<List size={20} />} />
@@ -327,15 +329,18 @@ export function ThoughtEditor({ page, onBack, onRefresh, onDeletePage }: any) {
   )
 }
 
-function ToolbarBtn({ onClick, active, icon }: any) {
+function ToolbarBtn({ onClick, active, icon, disabled }: any) {
   return (
     <button
-      onMouseDown={e => { e.preventDefault(); onClick() }}
+      onMouseDown={e => { e.preventDefault(); if (!disabled) onClick() }}
+      disabled={disabled}
       className={cn(
         'flex-1 flex items-center justify-center h-12 transition-colors',
-        active
-          ? 'text-[#7719aa] dark:text-[#a78bfa] bg-violet-50 dark:bg-violet-950/30'
-          : 'text-gray-500 dark:text-zinc-400'
+        disabled
+          ? 'text-gray-300 dark:text-zinc-600'
+          : active
+            ? 'text-[#7719aa] dark:text-[#a78bfa] bg-violet-50 dark:bg-violet-950/30'
+            : 'text-gray-500 dark:text-zinc-400'
       )}
     >
       {icon}
