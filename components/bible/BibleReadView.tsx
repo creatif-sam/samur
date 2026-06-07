@@ -21,7 +21,7 @@ interface Props {
   selectedChapter: number
   highlights: Map<string, VerseHighlight>
   selectedVerses: Set<number>
-  setSelectedVerses: (s: Set<number>) => void
+  setSelectedVerses: (s: Set<number> | ((prev: Set<number>) => Set<number>)) => void
   showHighlightPanel: boolean
   setShowHighlightPanel: (v: boolean | ((prev: boolean) => boolean)) => void
   fontSizeClass: string
