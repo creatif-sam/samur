@@ -31,7 +31,7 @@ let vapidConfigured = false
 function ensureVapidConfigured() {
   if (vapidConfigured) return
 
-  const publicKey = process.env.VAPID_PUBLIC_KEY
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   const privateKey = process.env.VAPID_PRIVATE_KEY
 
   if (!publicKey || !privateKey) {
@@ -114,10 +114,12 @@ export class PushNotificationService {
         data: { ...payload.data, badgeCount: unreadCount ?? 1 }
       }
 
-      /* 5. Send push */
+      /* 5. Send push (web-push for browser subscriptions, Expo Push API for the mobile app) */
       const results = await Promise.allSettled(
         subscriptions.map(sub =>
-          this.sendWebPush(sub, badgePayload, notification.id)
+          typeof sub.endpoint === 'string' && sub.endpoint.startsWith('expo:')
+            ? this.sendExpoPush(sub, badgePayload, notification.id)
+            : this.sendWebPush(sub, badgePayload, notification.id)
         )
       )
 
@@ -141,6 +143,59 @@ export class PushNotificationService {
     await Promise.all(
       userIds.map(id => this.sendToUser(id, payload, type))
     )
+  }
+
+  /**
+   * Deliver to the Expo (React Native) app via the Expo Push API.
+   * Subscriptions created by mastery_mobile store endpoint as `expo:<ExpoPushToken>`.
+   */
+  private async sendExpoPush(
+    subscription: any,
+    payload: PushNotificationPayload,
+    notificationId: string
+  ) {
+    const token = subscription.endpoint.slice('expo:'.length)
+
+    const message = {
+      to: token,
+      title: payload.title,
+      body: payload.body,
+      sound: 'default',
+      badge: payload.data?.badgeCount,
+      data: {
+        ...payload.data,
+        notificationId,
+        url: payload.url
+      }
+    }
+
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify(message)
+    })
+
+    const result = await res.json().catch(() => null)
+    const ticket = result?.data
+
+    // Clean up dead device tokens the same way 404/410 web-push endpoints are removed
+    if (ticket?.status === 'error') {
+      if (ticket.details?.error === 'DeviceNotRegistered') {
+        const serviceSupabase = await this.getServiceSupabase()
+        await serviceSupabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('endpoint', subscription.endpoint)
+      }
+      throw new Error(ticket.message || 'Expo push failed')
+    }
+
+    if (!res.ok) {
+      throw new Error(`Expo push HTTP ${res.status}`)
+    }
   }
 
   private async sendWebPush(
