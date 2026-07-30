@@ -2,22 +2,19 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CACHE CONFIGURATION
 // ─────────────────────────────────────────────────────────────────────────────
-const CACHE_VERSION = 'v4'
+const CACHE_VERSION = 'v5'
 const STATIC_CACHE  = `mastery-static-${CACHE_VERSION}`   // hashed JS/CSS chunks
 const PAGES_CACHE   = `mastery-pages-${CACHE_VERSION}`    // app-shell HTML pages
 const ASSETS_CACHE  = `mastery-assets-${CACHE_VERSION}`   // icons, images, sounds
 const ALL_CACHES    = [STATIC_CACHE, PAGES_CACHE, ASSETS_CACHE]
 
-// App-shell pages to pre-cache on install
+// App-shell pages to pre-cache on install.
+// Only public/unauthenticated routes — precaching /protected/* pages is fragile
+// since a logged-out install would cache a redirect instead of the real page,
+// and stale precached HTML can reference chunk hashes a later deploy removes.
 const PRECACHE_PAGES = [
   '/',
   '/offline',
-  '/protected/posts',
-  '/protected/goals',
-  '/protected/planner',
-  '/protected/note',
-  '/protected/meditations',
-  '/protected/profile',
 ]
 
 // Static public assets to pre-cache
