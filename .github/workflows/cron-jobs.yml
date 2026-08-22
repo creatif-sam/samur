@@ -2,8 +2,9 @@ name: Scheduled Notifications
 
 on:
   schedule:
-    # Task reminders - Every 5 minutes
-    - cron: '*/5 * * * *'
+    # Task reminders - hourly trigger, loops internally every 5 min (GitHub
+    # does not reliably honor schedules more frequent than ~hourly)
+    - cron: '0 * * * *'
     # Morning planner reminder - 8:00 UTC (9:00 AM local UTC+1)
     - cron: '0 8 * * *'
     # Goal deadline check - 7:00 UTC (8:00 AM local UTC+1)
@@ -22,16 +23,27 @@ env:
   APP_URL: https://mastery.samuelgyasi.com
 
 jobs:
+  task-reminders:
+    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Task Reminders (every 5 min for the hour)
+        run: |
+          ITERATIONS=12
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then ITERATIONS=1; fi
+          for i in $(seq 1 $ITERATIONS); do
+            echo "Call $i/$ITERATIONS"
+            curl -fsS -X GET ${{ env.APP_URL }}/api/cron/task-reminders \
+              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+              || echo "::warning::task-reminders call $i failed"
+            if [ "$i" -lt "$ITERATIONS" ]; then sleep 300; fi
+          done
+
   send-notifications:
+    if: github.event.schedule != '0 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Task Reminders (Every 5 minutes)
-        if: github.event.schedule == '*/5 * * * *' || github.event_name == 'workflow_dispatch'
-        run: |
-          curl -fsS -X GET ${{ env.APP_URL }}/api/cron/task-reminders \
-            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
-
       - name: Morning Planner Reminder (9am local / 8am UTC)
         if: github.event.schedule == '0 8 * * *' || github.event_name == 'workflow_dispatch'
         run: |

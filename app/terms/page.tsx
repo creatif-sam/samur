@@ -3,7 +3,7 @@ import { FileText, UserCheck, Shield, AlertCircle, Scale, Gavel } from 'lucide-r
 import Link from 'next/link';
 
 const TermsAndConditions = () => {
-  const lastUpdated = "March 23, 2026";
+  const lastUpdated = "August 22, 2026";
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-gray-800 dark:text-gray-200 font-sans">
@@ -88,8 +88,21 @@ const TermsAndConditions = () => {
             logos, icons, images, and software, are the exclusive property of <strong>Samuel Gyasi and Urbright</strong>.
           </p>
           <p>
-            <strong>Your Content:</strong> You retain ownership of the content you create (goals, visions, posts, etc.). 
+            <strong>Your Content:</strong> You retain ownership of the content you create (goals, visions, posts, etc.).
             By using Mastery, you grant us a license to store, display, and process this content to provide our services.
+          </p>
+        </section>
+
+        {/* Section 4b: Money Planner Disclaimer */}
+        <section className="mb-12 bg-purple-50 dark:bg-slate-900 p-8 rounded-2xl border border-purple-100 dark:border-purple-900">
+          <div className="flex items-center mb-4">
+            <AlertCircle className="text-purple-700 dark:text-purple-400 mr-3" size={28} />
+            <h2 className="text-2xl font-semibold text-purple-900 dark:text-purple-300">4b. Money Planner Disclaimer</h2>
+          </div>
+          <p>
+            The budgeting/money planner feature is a manual personal-tracking tool only. It does not connect
+            to any bank account, card, or payment provider, and does not process real transactions. Figures
+            you enter are for your own record-keeping and are not financial, tax, or investment advice.
           </p>
         </section>
 
