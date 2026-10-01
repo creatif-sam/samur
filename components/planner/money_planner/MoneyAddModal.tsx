@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
 import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
+import { toLocalDateKey } from '@/lib/money/dates'
 import { toast } from 'sonner'
 import { useTranslation } from '@/contexts/TranslationContext'
 
@@ -21,13 +22,14 @@ export default function MoneyAddModal({
 }) {
   const supabase = createClient()
   const { t } = useTranslation()
-  const today = new Date().toISOString().slice(0, 10)
+  const today = toLocalDateKey(new Date())
 
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [type, setType] = useState<'income' | 'expense'>('expense')
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [date, setDate] = useState(today)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) {
@@ -40,11 +42,26 @@ export default function MoneyAddModal({
   }, [open, today])
 
   async function save() {
+    if (saving) return
+    const value = Number(amount)
     if (!title || !amount || !date) {
       toast.error(t.money.fillAllFields)
       return
     }
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error(t.money.invalidAmount)
+      return
+    }
 
+    setSaving(true)
+    try {
+      await insertEntry(value)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function insertEntry(value: number) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -54,7 +71,7 @@ export default function MoneyAddModal({
     const { error } = await supabase.from('money_entries').insert({
       user_id: user.id,
       title,
-      amount: Number(amount),
+      amount: value,
       type,
       category_id: categoryId,
       entry_date: date,
@@ -161,6 +178,7 @@ export default function MoneyAddModal({
           </Button>
           <Button
             onClick={save}
+            disabled={saving}
             className="flex-1 bg-violet-600"
           >
             {t.save}

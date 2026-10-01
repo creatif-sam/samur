@@ -1,4 +1,5 @@
 import { pushNotificationService } from '@/lib/push-notifications'
+import { toLocalDateKey } from '@/lib/money/dates'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -10,8 +11,8 @@ function getCurrentMonthWindow() {
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 1)
 
   return {
-    periodStart: start.toISOString().slice(0, 10),
-    periodEnd: end.toISOString().slice(0, 10),
+    periodStart: toLocalDateKey(start),
+    periodEnd: toLocalDateKey(end),
     monthLabel: start.toLocaleString(undefined, {
       month: 'long',
       year: 'numeric',

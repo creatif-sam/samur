@@ -6,6 +6,9 @@ import BudgetEditModal from './BudgetEditModal'
 import { cn } from '@/lib/utils'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
+import { formatWeekRange, toLocalDateKey, weekStart, yearOptions } from '@/lib/money/dates'
+import { useMoneyFormat } from '@/lib/money/useMoneyFormat'
+import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 type Scope = 'week' | 'month'
@@ -27,11 +30,13 @@ type CategoryBudget = {
 export default function MoneyBudget() {
   const supabase = createClient()
   const { t } = useTranslation()
+  const { format } = useMoneyFormat()
   const now = new Date()
 
   const [scope, setScope] = useState<Scope>('month')
   const [month, setMonth] = useState(now.getMonth())
   const [year, setYear] = useState(now.getFullYear())
+  const [weekOffset, setWeekOffset] = useState(0)
 
   const [budgetId, setBudgetId] = useState<string | null>(null)
   const [totalBudget, setTotalBudget] = useState<number | null>(null)
@@ -43,23 +48,17 @@ export default function MoneyBudget() {
 
 
   const [categories, setCategories] = useState<CategoryBudget[]>([])
+  // All expenses in the period, including uncategorized ones
+  const [spentTotal, setSpentTotal] = useState(0)
   const [categoryInput, setCategoryInput] = useState('')
 
   const periodStart =
-    scope === 'month'
-      ? new Date(year, month, 1)
-      : new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate() - now.getDay()
-        )
+    scope === 'month' ? new Date(year, month, 1) : weekStart(weekOffset)
 
   const periodEnd =
-    scope === 'month'
-      ? new Date(year, month + 1, 1)
-      : new Date(periodStart.getTime() + 7 * 86400000)
-  const periodStartKey = periodStart.toISOString().slice(0, 10)
-  const periodEndKey = periodEnd.toISOString().slice(0, 10)
+    scope === 'month' ? new Date(year, month + 1, 1) : weekStart(weekOffset + 1)
+  const periodStartKey = toLocalDateKey(periodStart)
+  const periodEndKey = toLocalDateKey(periodEnd)
 
   const loadBudgetState = useCallback(async () => {
     const {
@@ -83,14 +82,14 @@ export default function MoneyBudget() {
     ])
 
     if (budgetError) {
-      toast.error('Failed to load budget', {
+      toast.error(t.money.loadBudgetError, {
         description: budgetError.message,
       })
       return
     }
 
     if (categoriesError) {
-      toast.error('Failed to load categories', {
+      toast.error(t.money.loadBudgetError, {
         description: categoriesError.message,
       })
       return
@@ -119,7 +118,7 @@ export default function MoneyBudget() {
       .eq('budget_period_id', budget.id)
 
     if (allocationsError) {
-      toast.error('Failed to load sub-budgets', {
+      toast.error(t.money.loadBudgetError, {
         description: allocationsError.message,
       })
       return
@@ -139,7 +138,7 @@ export default function MoneyBudget() {
         spent: 0,
       }))
     )
-  }, [periodStartKey, scope, supabase])
+  }, [periodStartKey, scope, supabase, t])
 
   const loadSpending = useCallback(async () => {
     const {
@@ -156,14 +155,17 @@ export default function MoneyBudget() {
       .lt('entry_date', periodEndKey)
 
     const totals: Record<string, number> = {}
+    let total = 0
 
     data?.forEach(e => {
+      total += e.amount
       if (e.category_id) {
         totals[e.category_id] =
           (totals[e.category_id] ?? 0) + e.amount
       }
     })
 
+    setSpentTotal(total)
     setCategories(prev =>
       prev.map(c => ({
         ...c,
@@ -182,19 +184,20 @@ export default function MoneyBudget() {
   }, [loadData])
 
   async function saveTotalBudget() {
-    if (totalInput === '') return
+    const total = Number(totalInput)
+    if (totalInput === '' || !Number.isFinite(total) || total < 0) return false
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) return false
 
     const payload = {
       user_id: user.id,
       scope,
       period_start: periodStartKey,
       period_end: periodEndKey,
-      total_budget: Number(totalInput),
+      total_budget: total,
     }
 
     const query = budgetId
@@ -214,25 +217,27 @@ export default function MoneyBudget() {
     const { data, error } = await query
 
     if (error) {
-      toast.error('Failed to save budget', {
+      toast.error(t.money.saveBudgetError, {
         description: error.message,
       })
-      return
+      return false
     }
 
     setBudgetId(data.id)
     setTotalBudget(data.total_budget)
     setTotalInput('')
     await checkMonthlyBudgetAlerts()
+    return true
   }
 
   async function saveCategoryBudget(categoryId: string) {
-    if (categoryInput === '') return
+    const amount = Number(categoryInput)
+    if (categoryInput === '' || !Number.isFinite(amount)) return false
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) return false
 
     let nextBudgetId = budgetId
 
@@ -250,17 +255,15 @@ export default function MoneyBudget() {
         .single()
 
       if (createdBudgetError) {
-        toast.error('Failed to create budget period', {
+        toast.error(t.money.saveBudgetError, {
           description: createdBudgetError.message,
         })
-        return
+        return false
       }
 
       nextBudgetId = createdBudget.id
       setBudgetId(createdBudget.id)
     }
-
-    const amount = Number(categoryInput)
 
     const query =
       amount <= 0
@@ -285,10 +288,10 @@ export default function MoneyBudget() {
     const { error } = await query
 
     if (error) {
-      toast.error('Failed to save sub-budget', {
+      toast.error(t.money.saveBudgetError, {
         description: error.message,
       })
-      return
+      return false
     }
 
     setCategories(prev =>
@@ -300,28 +303,23 @@ export default function MoneyBudget() {
     )
 
     setCategoryInput('')
+    return true
   }
 
-  const spentTotal = categories.reduce(
-    (a, b) => a + b.spent,
-    0
-  )
   const allocatedTotal = categories.reduce(
     (sum, category) => sum + category.budget,
     0
   )
 
-  const remaining =
-    totalBudget !== null
-      ? Math.max(0, totalBudget - spentTotal)
-      : 0
-  const unallocated =
-    totalBudget !== null ? totalBudget - allocatedTotal : 0
+  const hasBudget = totalBudget !== null && totalBudget > 0
+  // Negative when overspent, so the card can say by how much
+  const remaining = hasBudget ? totalBudget - spentTotal : 0
+  const overspent = hasBudget && remaining < 0
+  const unallocated = hasBudget ? totalBudget - allocatedTotal : 0
 
-  const percent =
-    totalBudget && totalBudget > 0
-      ? Math.round((remaining / totalBudget) * 100)
-      : 100
+  const percent = hasBudget
+    ? Math.max(0, Math.round((remaining / totalBudget) * 100))
+    : 0
 
   return (
     <div className="space-y-4 pb-24">
@@ -344,6 +342,26 @@ export default function MoneyBudget() {
         ))}
       </div>
 
+      {/* ── WEEK NAVIGATION ───────────────────────── */}
+      {scope === 'week' && (
+        <>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setWeekOffset(weekOffset - 1)} className="flex-1">
+              {t.previous}
+            </Button>
+            <Button variant="outline" onClick={() => setWeekOffset(0)} className="flex-1">
+              {t.planner.thisWeek}
+            </Button>
+            <Button variant="outline" onClick={() => setWeekOffset(weekOffset + 1)} className="flex-1">
+              {t.next}
+            </Button>
+          </div>
+          <div className="text-center text-sm text-muted-foreground">
+            {formatWeekRange(weekOffset, t.money.weekRange)}
+          </div>
+        </>
+      )}
+
       {/* ── MONTH / YEAR SELECTORS ─────────────────── */}
       {scope === 'month' && (
         <div className="flex gap-2">
@@ -363,10 +381,7 @@ export default function MoneyBudget() {
             onChange={e => setYear(Number(e.target.value))}
             className="w-24 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
           >
-            {Array.from({ length: 5 }).map((_, i) => {
-              const y = now.getFullYear() - i
-              return <option key={y} value={y}>{y}</option>
-            })}
+            {yearOptions().map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
       )}
@@ -374,13 +389,13 @@ export default function MoneyBudget() {
       {/* ── HERO BUDGET CARD ──────────────────────── */}
       <div className={cn(
         'relative overflow-hidden rounded-3xl p-5 shadow-xl',
-        percent > 50
+        !hasBudget
+          ? 'bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-900 shadow-violet-900/30'
+          : percent > 50
           ? 'bg-gradient-to-br from-emerald-600 to-teal-700 shadow-emerald-900/30'
           : percent > 20
           ? 'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-900/30'
-          : totalBudget
-          ? 'bg-gradient-to-br from-red-600 to-rose-700 shadow-red-900/30'
-          : 'bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-900 shadow-violet-900/30'
+          : 'bg-gradient-to-br from-red-600 to-rose-700 shadow-red-900/30'
       )}>
         <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5" />
         <div className="absolute right-14 -top-8 w-28 h-28 rounded-full bg-white/5" />
@@ -389,23 +404,27 @@ export default function MoneyBudget() {
           {scope === 'week'
             ? t.money.week
             : `${new Date(year, month).toLocaleString(undefined, { month: 'long' })} ${year}`
-          } · Budget
+          } · {t.money.budget}
         </p>
 
         <div className="flex items-center justify-between relative z-10">
           <div className="space-y-3">
             <div>
-              <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">{t.money.remaining}</p>
-              <p className="text-5xl font-black text-white leading-none">{remaining}</p>
+              <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-0.5">
+                {overspent ? t.money.overBy : t.money.remaining}
+              </p>
+              <p className="text-4xl font-black text-white leading-none break-all">
+                {hasBudget ? format(Math.abs(remaining)) : '—'}
+              </p>
             </div>
             <div className="flex gap-6">
               <div>
                 <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{t.money.budget}</p>
-                <p className="text-xl font-black text-white">{totalBudget ?? '—'}</p>
+                <p className="text-xl font-black text-white">{hasBudget ? format(totalBudget) : '—'}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{t.money.spent}</p>
-                <p className="text-xl font-black text-white">{spentTotal}</p>
+                <p className="text-xl font-black text-white">{format(spentTotal)}</p>
               </div>
             </div>
           </div>
@@ -424,20 +443,20 @@ export default function MoneyBudget() {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <p className="text-xl font-black text-white leading-none">{percent}%</p>
-              <p className="text-[9px] font-bold text-white/50 uppercase">Left</p>
+              <p className="text-[9px] font-bold text-white/50 uppercase">{t.money.left}</p>
             </div>
           </div>
         </div>
 
         {/* Allocation note */}
-        {totalBudget && totalBudget > 0 && (
+        {hasBudget && (
           <div className="mt-3 pt-3 border-t border-white/15 relative z-10">
             {unallocated < 0 ? (
-              <p className="text-xs text-white/70 font-medium">⚠️ {Math.abs(unallocated)} over-allocated across categories</p>
+              <p className="text-xs text-white/70 font-medium">⚠️ {t.money.overAllocated.replace('{amount}', format(Math.abs(unallocated)))}</p>
             ) : unallocated > 0 ? (
-              <p className="text-xs text-white/60 font-medium">{unallocated} still unallocated</p>
+              <p className="text-xs text-white/60 font-medium">{t.money.unallocated.replace('{amount}', format(unallocated))}</p>
             ) : (
-              <p className="text-xs text-white/60 font-medium">✓ Fully allocated</p>
+              <p className="text-xs text-white/60 font-medium">✓ {t.money.fullyAllocated}</p>
             )}
           </div>
         )}
@@ -453,13 +472,13 @@ export default function MoneyBudget() {
         }}
         className="w-full py-3 rounded-2xl border-2 border-dashed border-violet-500/40 text-violet-500 text-sm font-bold hover:bg-violet-500/5 transition-all"
       >
-        {totalBudget ? `✏️ ${t.money.setTotalBudget}` : `+ ${t.money.setTotalBudget}`}
+        {hasBudget ? `✏️ ${t.money.setTotalBudget}` : `+ ${t.money.setTotalBudget}`}
       </button>
 
       {/* ── CATEGORY CARDS ────────────────────────── */}
       {categories.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-black tracking-tight px-1">Categories</h3>
+          <h3 className="text-sm font-black tracking-tight px-1">{t.money.categories}</h3>
           {categories.map(c => {
             const ratio    = c.budget > 0 ? c.spent / c.budget : 0
             const barColor = ratio >= 1 ? 'bg-red-500' : ratio >= 0.8 ? 'bg-amber-400' : 'bg-emerald-500'
@@ -476,7 +495,7 @@ export default function MoneyBudget() {
                     <div>
                       <p className="text-sm font-bold leading-none">{c.name}</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {c.spent} / {c.budget > 0 ? c.budget : '—'}
+                        {format(c.spent)} / {c.budget > 0 ? format(c.budget) : '—'}
                       </p>
                     </div>
                   </div>
@@ -497,7 +516,7 @@ export default function MoneyBudget() {
                       }}
                       className="text-[11px] font-bold text-violet-500 hover:text-violet-400 transition-colors px-2 py-1 rounded-lg hover:bg-violet-500/10"
                     >
-                      {c.budget > 0 ? 'Edit' : 'Set'}
+                      {c.budget > 0 ? t.edit : t.money.set}
                     </button>
                   </div>
                 </div>
@@ -523,12 +542,13 @@ export default function MoneyBudget() {
           budgetTarget === 'total' ? setTotalInput(v) : setCategoryInput(v)
         }
         onSave={async () => {
-          if (budgetTarget === 'total') {
-            await saveTotalBudget()
-          } else if (budgetTarget) {
-            await saveCategoryBudget(budgetTarget)
-          }
-          setBudgetModalOpen(false)
+          const saved =
+            budgetTarget === 'total'
+              ? await saveTotalBudget()
+              : budgetTarget
+              ? await saveCategoryBudget(budgetTarget)
+              : false
+          if (saved) setBudgetModalOpen(false)
         }}
         onClose={() => setBudgetModalOpen(false)}
       />

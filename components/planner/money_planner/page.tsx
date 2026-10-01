@@ -14,13 +14,7 @@ type Tab = 'log' | 'charts' | 'budget'
 export default function MoneyTabs() {
   const [tab, setTab] = useState<Tab>('log')
   const [open, setOpen] = useState(false)
-  const [refreshKey, setRefreshKey] = useState(0)
   const { t } = useTranslation()
-
-  const handleEntriesChanged = () => {
-    // Trigger refresh in budget component
-    setRefreshKey(prev => prev + 1)
-  }
 
   return (
     <div className="relative pb-24">
@@ -38,9 +32,9 @@ export default function MoneyTabs() {
       </div>
 
       {/* CONTENT */}
-      {tab === 'log' && <MoneyLog open={open} setOpen={setOpen} onEntriesChanged={handleEntriesChanged} />}
-     {tab === 'charts' && <MoneyCharts />}
-      {tab === 'budget' && <MoneyBudget key={refreshKey} />}
+      {tab === 'log' && <MoneyLog open={open} setOpen={setOpen} />}
+      {tab === 'charts' && <MoneyCharts />}
+      {tab === 'budget' && <MoneyBudget />}
 
       {/* FLOATING PLUS */}
       {tab === 'log' && (

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowDownCircle, ArrowUpCircle, X, Trash2 } from 'lucide-react'
+import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
 import MoneyCategorySelector from './MoneyCategorySelector'
 import { MoneyEntry } from '@/lib/types'
 import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
@@ -15,12 +15,10 @@ export default function MoneyEditModal({
   entry,
   onClose,
   onUpdated,
-  onDeleted,
 }: {
   entry: MoneyEntry | null
   onClose: () => void
   onUpdated: () => void
-  onDeleted: () => void
 }) {
   const supabase = createClient()
   const { t } = useTranslation()
@@ -30,7 +28,7 @@ export default function MoneyEditModal({
   const [type, setType] = useState<'income' | 'expense'>('expense')
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [date, setDate] = useState('')
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (entry) {
@@ -43,16 +41,31 @@ export default function MoneyEditModal({
   }, [entry])
 
   async function save() {
+    if (saving) return
+    const value = Number(amount)
     if (!title || !amount || !date || !entry) {
       toast.error(t.money.fillAllFields)
       return
     }
+    if (!Number.isFinite(value) || value <= 0) {
+      toast.error(t.money.invalidAmount)
+      return
+    }
 
+    setSaving(true)
+    try {
+      await updateEntry(entry, value)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function updateEntry(entry: MoneyEntry, value: number) {
     const { error } = await supabase
       .from('money_entries')
       .update({
         title,
-        amount: Number(amount),
+        amount: value,
         type,
         category_id: categoryId,
         entry_date: date,
@@ -73,28 +86,6 @@ export default function MoneyEditModal({
     onClose()
   }
 
-  async function handleDelete() {
-    if (!entry) return
-
-    const { error } = await supabase
-      .from('money_entries')
-      .delete()
-      .eq('id', entry.id)
-
-    if (error) {
-      toast.error(t.error, {
-        description: error.message
-      })
-      return
-    }
-
-    toast.success(t.money.deleteSuccess)
-    await checkMonthlyBudgetAlerts()
-    
-    onDeleted()
-    onClose()
-  }
-
   if (!entry) return null
 
   return (
@@ -108,7 +99,7 @@ export default function MoneyEditModal({
           <X size={18} />
         </button>
 
-        <h3 className="text-lg font-bold">{t.edit} Entry</h3>
+        <h3 className="text-lg font-bold">{t.money.editEntry}</h3>
 
         {/* TYPE TABS */}
         <div className="flex gap-2 rounded-xl bg-muted p-1">
@@ -169,53 +160,21 @@ export default function MoneyEditModal({
           onChange={setCategoryId}
         />
 
-        {/* DELETE CONFIRMATION */}
-        {showDeleteConfirm && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-            <p className="text-sm text-red-800 dark:text-red-200 mb-3 font-medium">
-              Are you sure you want to delete this entry?
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1"
-                size="sm"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDelete}
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                size="sm"
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        )}
-
         {/* ACTIONS */}
         <div className="flex gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="px-4"
-          >
-            <Trash2 size={16} />
-          </Button>
           <Button
             variant="outline"
             onClick={onClose}
             className="flex-1"
           >
-            Cancel
+            {t.cancel}
           </Button>
           <Button
             onClick={save}
+            disabled={saving}
             className="flex-1 bg-violet-600"
           >
-            Save Changes
+            {t.money.saveChanges}
           </Button>
         </div>
       </div>

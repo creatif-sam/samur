@@ -202,7 +202,7 @@ export const translations = {
       income: 'Income',
       expense: 'Expense',
       currency: 'Currency',
-      noEntries: 'No money activity today',
+      noEntries: 'No entries for this period',
       expenses: 'Expenses',
       
       // Budget
@@ -228,6 +228,42 @@ export const translations = {
       addSuccess: '{type} added successfully',
       updateSuccess: 'Entry updated successfully',
       fillAllFields: 'Please fill all fields',
+      invalidAmount: 'Enter an amount greater than 0',
+
+      // Log / charts
+      uncategorized: 'Uncategorized',
+      searchPlaceholder: 'Search entries...',
+      weekRange: '{start} to {end}',
+      editEntry: 'Edit entry',
+      saveChanges: 'Save changes',
+      year: 'Year',
+      total: 'Total',
+      noData: 'No data',
+      expensesInCategory: 'Expenses in category',
+      incomeInCategory: 'Income in category',
+      categoryTotal: '{amount} total',
+      noEntriesInCategory: 'Nothing found for this category in the selected period.',
+
+      // Budget card
+      categories: 'Categories',
+      set: 'Set',
+      left: 'Left',
+      overBy: 'Over by',
+      enterAmount: 'Enter amount',
+      overAllocated: '{amount} over-allocated across categories',
+      unallocated: '{amount} still unallocated',
+      fullyAllocated: 'Fully allocated',
+      loadBudgetError: 'Failed to load budget',
+      saveBudgetError: 'Failed to save budget',
+
+      // Categories
+      manageCategories: 'Manage categories',
+      categoryAddError: 'Failed to add category',
+      categoryUpdateError: 'Failed to update category',
+      categoryUpdated: 'Category updated',
+      categoryDeleteError: 'Failed to delete category',
+      categoryDeleted: 'Category deleted',
+      categoryEntriesMoved: 'Existing entries were moved to Uncategorized.',
     },
   },
   
@@ -420,7 +456,7 @@ export const translations = {
       income: 'Revenu',
       expense: 'Dépense',
       currency: 'Devise',
-      noEntries: 'Aucune activité financière aujourd\'hui',
+      noEntries: 'Aucune entrée pour cette période',
       expenses: 'Dépenses',
       
       // Budget
@@ -446,6 +482,42 @@ export const translations = {
       addSuccess: '{type} ajouté avec succès',
       updateSuccess: 'Entrée mise à jour avec succès',
       fillAllFields: 'Veuillez remplir tous les champs',
+      invalidAmount: 'Saisissez un montant supérieur à 0',
+
+      // Log / charts
+      uncategorized: 'Sans catégorie',
+      searchPlaceholder: 'Rechercher des entrées...',
+      weekRange: 'du {start} au {end}',
+      editEntry: "Modifier l'entrée",
+      saveChanges: 'Enregistrer',
+      year: 'Année',
+      total: 'Total',
+      noData: 'Aucune donnée',
+      expensesInCategory: 'Dépenses dans la catégorie',
+      incomeInCategory: 'Revenus dans la catégorie',
+      categoryTotal: '{amount} au total',
+      noEntriesInCategory: 'Rien trouvé pour cette catégorie sur la période choisie.',
+
+      // Budget card
+      categories: 'Catégories',
+      set: 'Définir',
+      left: 'Restant',
+      overBy: 'Dépassé de',
+      enterAmount: 'Saisir un montant',
+      overAllocated: '{amount} alloué en trop entre les catégories',
+      unallocated: '{amount} encore non alloué',
+      fullyAllocated: 'Entièrement alloué',
+      loadBudgetError: 'Impossible de charger le budget',
+      saveBudgetError: "Impossible d'enregistrer le budget",
+
+      // Categories
+      manageCategories: 'Gérer les catégories',
+      categoryAddError: "Impossible d'ajouter la catégorie",
+      categoryUpdateError: 'Impossible de modifier la catégorie',
+      categoryUpdated: 'Catégorie modifiée',
+      categoryDeleteError: 'Impossible de supprimer la catégorie',
+      categoryDeleted: 'Catégorie supprimée',
+      categoryEntriesMoved: 'Les entrées existantes ont été déplacées vers Sans catégorie.',
     },
   },
 }

@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { currencies } from '@/lib/currencies'
 import MoneyAddModal from './MoneyAddModal'
 import MoneyEditModal from './MoneyEditModal'
 import { MoneyEntry } from '@/lib/types'
 import { checkMonthlyBudgetAlerts } from '@/lib/money/checkMonthlyBudgetAlerts'
+import { formatWeekRange, parseDateKey, toLocalDateKey, weekStart, yearOptions } from '@/lib/money/dates'
+import { useMoneyFormat } from '@/lib/money/useMoneyFormat'
 import { Pencil, Trash2, Download, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
@@ -35,36 +36,16 @@ function getEntryAccent(e: MoneyEntry) {
 export default function MoneyLog({
   open,
   setOpen,
-  onEntriesChanged,
 }: {
   open: boolean
   setOpen: (v: boolean) => void
-  onEntriesChanged?: () => void
 }) {
   const supabase = createClient()
   const { t } = useTranslation()
   const initialDate = new Date()
   
   const [entries, setEntries] = useState<MoneyEntry[]>([])
-  const [symbol, setSymbol] = useState('₵')
-
-  // Load currency symbol from user preferences (set via profile page)
-  useEffect(() => {
-    const loadSymbol = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data } = await supabase
-        .from('user_preferences')
-        .select('currency')
-        .eq('user_id', user.id)
-        .single()
-      if (data?.currency) {
-        const c = currencies.find(x => x.code === data.currency)
-        if (c) setSymbol(c.symbol)
-      }
-    }
-    void loadSymbol()
-  }, [])
+  const { symbol, format } = useMoneyFormat()
   const [searchQuery, setSearchQuery] = useState('')
   const [editingEntry, setEditingEntry] = useState<MoneyEntry | null>(null)
   const [deletePending, setDeletePending] = useState<{ id: string; title: string } | null>(null)
@@ -87,23 +68,19 @@ export default function MoneyLog({
 
     // Apply date filtering based on scope
     if (scope === 'week') {
-      const now = new Date()
-      const base = new Date(now)
-      base.setDate(now.getDate() - now.getDay() + weekOffset * 7)
-      const start = new Date(base)
-      const end = new Date(base)
-      end.setDate(base.getDate() + 7)
-      
+      const start = weekStart(weekOffset)
+      const end = weekStart(weekOffset + 1)
+
       query = query
-        .gte('entry_date', start.toISOString())
-        .lt('entry_date', end.toISOString())
+        .gte('entry_date', toLocalDateKey(start))
+        .lt('entry_date', toLocalDateKey(end))
     } else if (scope === 'month') {
       const start = new Date(year, month, 1)
       const end = new Date(year, month + 1, 1)
-      
+
       query = query
-        .gte('entry_date', start.toISOString())
-        .lt('entry_date', end.toISOString())
+        .gte('entry_date', toLocalDateKey(start))
+        .lt('entry_date', toLocalDateKey(end))
     }
 
     const { data } = await query
@@ -111,38 +88,11 @@ export default function MoneyLog({
       .order('created_at', { ascending: false })
 
     setEntries(data ?? [])
-    
-    // Notify parent that entries have changed
-    if (onEntriesChanged) {
-      onEntriesChanged()
-    }
-  }, [month, onEntriesChanged, scope, supabase, weekOffset, year])
+  }, [month, scope, supabase, weekOffset, year])
 
   useEffect(() => {
     void fetchEntries()
   }, [fetchEntries])
-
-  function formatWeekRange(baseDate: Date, offset: number) {
-    const start = new Date(baseDate)
-    start.setDate(baseDate.getDate() - baseDate.getDay() + offset * 7)
-
-    const end = new Date(start)
-    end.setDate(start.getDate() + 6)
-
-    const startLabel = start.toLocaleDateString(undefined, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
-
-    const endLabel = end.toLocaleDateString(undefined, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
-
-    return `${startLabel} to ${endLabel}`
-  }
 
   async function deleteEntry(id: string) {
     const { error } = await supabase.from('money_entries').delete().eq('id', id)
@@ -152,7 +102,6 @@ export default function MoneyLog({
       toast.success(t.money.deleteSuccess)
       await checkMonthlyBudgetAlerts()
       fetchEntries()
-      if (onEntriesChanged) onEntriesChanged()
     }
     setDeletePending(null)
   }
@@ -165,7 +114,7 @@ export default function MoneyLog({
 
     // Sort entries chronologically (oldest first)
     const sortedEntries = [...entries].sort(
-      (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
+      (a, b) => a.entry_date.localeCompare(b.entry_date)
     )
 
     const escape = (val: string) => `"${String(val).replace(/"/g, '""')}"`
@@ -173,15 +122,20 @@ export default function MoneyLog({
     const csvRows: string[] = []
 
     // Column headers
-    csvRows.push(['Date', 'Title', `Amount (${symbol})`, 'Type'].map(escape).join(','))
+    csvRows.push(
+      [t.money.date, t.money.title, `${t.money.amount} (${symbol})`, t.money.type, t.money.category]
+        .map(escape)
+        .join(',')
+    )
 
     // One row per entry
     sortedEntries.forEach(entry => {
       const row = [
-        new Date(entry.entry_date).toLocaleDateString(),
+        parseDateKey(entry.entry_date).toLocaleDateString(),
         entry.title,
         entry.amount.toFixed(2),
-        entry.type === 'income' ? 'Income' : 'Expense',
+        entry.type === 'income' ? t.money.income : t.money.expense,
+        entry.money_categories?.name ?? t.money.uncategorized,
       ]
       csvRows.push(row.map(escape).join(','))
     })
@@ -204,20 +158,21 @@ export default function MoneyLog({
     })
   }
 
-  const grouped = useMemo<Grouped[]>(() => {
+  const visibleEntries = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    const source = q
-      ? entries.filter(
-          e =>
-            e.title.toLowerCase().includes(q) ||
-            (e.money_categories?.name ?? '').toLowerCase().includes(q)
-        )
-      : entries
+    if (!q) return entries
+    return entries.filter(
+      e =>
+        e.title.toLowerCase().includes(q) ||
+        (e.money_categories?.name ?? '').toLowerCase().includes(q)
+    )
+  }, [entries, searchQuery])
 
+  const grouped = useMemo<Grouped[]>(() => {
     const map: Record<string, Grouped> = {}
 
-    source.forEach(e => {
-      const d = new Date(e.entry_date)
+    visibleEntries.forEach(e => {
+      const d = parseDateKey(e.entry_date)
       const label = d.toLocaleDateString(undefined, {
         month: 'short',
         day: 'numeric',
@@ -236,21 +191,21 @@ export default function MoneyLog({
     })
 
     return Object.values(map)
-  }, [entries, searchQuery])
+  }, [visibleEntries])
 
   const totals = useMemo(() => {
-    const income = entries
+    const income = visibleEntries
       .filter(e => e.type === 'income')
       .reduce((sum, e) => sum + e.amount, 0)
     
-    const expense = entries
+    const expense = visibleEntries
       .filter(e => e.type === 'expense')
       .reduce((sum, e) => sum + e.amount, 0)
     
     return { income, expense, balance: income - expense }
-  }, [entries])
+  }, [visibleEntries])
 
-  const weekLabel = formatWeekRange(new Date(), weekOffset)
+  const weekLabel = formatWeekRange(weekOffset, t.money.weekRange)
 
   return (
     <div className="flex flex-col gap-4">
@@ -274,7 +229,7 @@ export default function MoneyLog({
         <Input
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search entries..."
+          placeholder={t.money.searchPlaceholder}
           className="pl-9 pr-9 rounded-xl"
         />
         {searchQuery && (
@@ -359,27 +314,24 @@ export default function MoneyLog({
             onChange={e => setYear(Number(e.target.value))}
             className="w-24 bg-muted/40 border-0 rounded-xl px-3 py-2.5 text-sm font-semibold text-foreground"
           >
-            {Array.from({ length: 5 }).map((_, i) => {
-              const y = initialDate.getFullYear() - i
-              return (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              )
-            })}
+            {yearOptions().map(y => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
           </select>
         </div>
       )}
 
       {/* TOTALS DISPLAY */}
-      {entries.length > 0 && (
+      {visibleEntries.length > 0 && (
         <div className="grid grid-cols-3 gap-2">
           <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3">
             <div className="text-xs text-green-600 dark:text-green-400 font-medium uppercase tracking-wide">
               {t.money.income}
             </div>
             <div className="text-sm font-bold text-green-700 dark:text-green-300 mt-1">
-              {totals.income.toFixed(2)}
+              {format(totals.income)}
             </div>
           </div>
           
@@ -388,7 +340,7 @@ export default function MoneyLog({
               {t.money.expenses}
             </div>
             <div className="text-sm font-bold text-red-700 dark:text-red-300 mt-1">
-              {totals.expense.toFixed(2)}
+              {format(totals.expense)}
             </div>
           </div>
           
@@ -409,7 +361,7 @@ export default function MoneyLog({
                 ? 'text-blue-700 dark:text-blue-300'
                 : 'text-red-700 dark:text-red-300'
             }`}>
-              {totals.balance.toFixed(2)}
+              {format(totals.balance)}
             </div>
           </div>
         </div>
@@ -455,7 +407,7 @@ export default function MoneyLog({
                             {e.title}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                            {e.money_categories?.name || 'Uncategorized'}
+                            {e.money_categories?.name || t.money.uncategorized}
                           </div>
                         </div>
                       </div>
@@ -463,7 +415,7 @@ export default function MoneyLog({
                       {/* Right: Amount + Actions */}
                       <div className="flex items-center gap-3 shrink-0">
                         <div className={`text-sm font-semibold ${accent.amount}`}>
-                          {accent.sign}{symbol}{e.amount.toFixed(2)}
+                          {accent.sign}{format(e.amount)}
                         </div>
                         
                         {/* Action buttons - always visible */}
@@ -471,14 +423,14 @@ export default function MoneyLog({
                           <button
                             onClick={() => setEditingEntry(e)}
                             className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                            aria-label="Edit"
+                            aria-label={t.edit}
                           >
                             <Pencil size={14} />
                           </button>
                           <button
                             onClick={() => setDeletePending({ id: e.id, title: e.title })}
                             className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                            aria-label="Delete"
+                            aria-label={t.delete}
                           >
                             <Trash2 size={14} />
                           </button>
@@ -504,7 +456,6 @@ export default function MoneyLog({
         entry={editingEntry}
         onClose={() => setEditingEntry(null)}
         onUpdated={fetchEntries}
-        onDeleted={fetchEntries}
       />
 
       {/* Delete confirm sheet */}

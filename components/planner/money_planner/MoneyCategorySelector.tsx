@@ -82,7 +82,7 @@ export default function MoneyCategorySelector({
       .single()
 
     if (error) {
-      toast.error('Failed to add category', {
+      toast.error(t.money.categoryAddError, {
         description: error.message,
       })
       return
@@ -129,7 +129,7 @@ export default function MoneyCategorySelector({
       .single()
 
     if (error) {
-      toast.error('Failed to update category', {
+      toast.error(t.money.categoryUpdateError, {
         description: error.message,
       })
       return
@@ -142,7 +142,7 @@ export default function MoneyCategorySelector({
     )
 
     cancelEditing()
-    toast.success('Category updated')
+    toast.success(t.money.categoryUpdated)
   }
 
   async function deleteCategory(category: Category) {
@@ -159,7 +159,7 @@ export default function MoneyCategorySelector({
       .eq('category_id', category.id)
 
     if (countError) {
-      toast.error('Failed to verify category usage', {
+      toast.error(t.money.categoryDeleteError, {
         description: countError.message,
       })
       return
@@ -173,7 +173,7 @@ export default function MoneyCategorySelector({
         .eq('category_id', category.id)
 
       if (unlinkError) {
-        toast.error('Failed to detach costs from category', {
+        toast.error(t.money.categoryDeleteError, {
           description: unlinkError.message,
         })
         return
@@ -187,7 +187,7 @@ export default function MoneyCategorySelector({
       .eq('user_id', user.id)
 
     if (error) {
-      toast.error('Failed to delete category', {
+      toast.error(t.money.categoryDeleteError, {
         description: error.message,
       })
       return
@@ -197,10 +197,10 @@ export default function MoneyCategorySelector({
     if (value === category.id) {
       onChange(null)
     }
-    toast.success('Category deleted', {
+    toast.success(t.money.categoryDeleted, {
       description:
         (count ?? 0) > 0
-          ? 'Existing costs were moved to Uncategorized.'
+          ? t.money.categoryEntriesMoved
           : undefined,
     })
   }
@@ -215,7 +215,7 @@ export default function MoneyCategorySelector({
           className="flex items-center gap-1"
         >
           <span>❔</span>
-          <span>Uncategorized</span>
+          <span>{t.money.uncategorized}</span>
         </Button>
 
         {categories.map(c => (
@@ -234,7 +234,7 @@ export default function MoneyCategorySelector({
 
       <div className="space-y-2 border rounded-lg p-3">
         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          Manage categories
+          {t.money.manageCategories}
         </div>
 
         {categories.map(c => (
@@ -261,7 +261,7 @@ export default function MoneyCategorySelector({
                   className="h-8"
                 />
                 <Button size="sm" onClick={saveCategoryEdit}>
-                  Save
+                  {t.save}
                 </Button>
                 <Button
                   size="sm"

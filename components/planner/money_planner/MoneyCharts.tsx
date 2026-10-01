@@ -10,6 +10,9 @@ import {
 } from 'recharts'
 import { Button } from '@/components/ui/button'
 import { ArrowDownCircle, ArrowUpCircle, X } from 'lucide-react'
+import { formatWeekRange, parseDateKey, toLocalDateKey, weekStart, yearOptions } from '@/lib/money/dates'
+import { useMoneyFormat } from '@/lib/money/useMoneyFormat'
+import { useTranslation } from '@/contexts/TranslationContext'
 
 type Mode = 'expense' | 'income'
 type Scope = 'week' | 'month' | 'year'
@@ -42,6 +45,9 @@ type MoneyChartEntry = {
     | null
 }
 
+// Bucket for entries without a category so they still count in the totals
+const UNCATEGORIZED_ID = '__uncategorized__'
+
 const COLORS = [
   '#facc15',
   '#60a5fa',
@@ -54,6 +60,8 @@ const COLORS = [
 
 export default function MoneyCharts() {
   const supabase = createClient()
+  const { t } = useTranslation()
+  const { format } = useMoneyFormat()
   const initialDate = new Date()
 
   const [mode, setMode] = useState<Mode>('expense')
@@ -61,7 +69,7 @@ export default function MoneyCharts() {
   const [month, setMonth] = useState(initialDate.getMonth())
   const [year, setYear] = useState(initialDate.getFullYear())
   const [weekOffset, setWeekOffset] = useState(0)
-  const weekLabel = formatWeekRange(new Date(), weekOffset)
+  const weekLabel = formatWeekRange(weekOffset, t.money.weekRange)
   const [selectedCategory, setSelectedCategory] =
     useState<CategoryTotal | null>(null)
 
@@ -77,14 +85,8 @@ export default function MoneyCharts() {
     let end: Date
 
     if (scope === 'week') {
-      const currentDate = new Date()
-      const base = new Date(currentDate)
-      base.setDate(
-        currentDate.getDate() - currentDate.getDay() + weekOffset * 7
-      )
-      start = new Date(base)
-      end = new Date(base)
-      end.setDate(base.getDate() + 7)
+      start = weekStart(weekOffset)
+      end = weekStart(weekOffset + 1)
     } else if (scope === 'month') {
       start = new Date(year, month, 1)
       end = new Date(year, month + 1, 1)
@@ -98,8 +100,8 @@ export default function MoneyCharts() {
       .select('id, title, amount, entry_date, money_categories(id, name, icon)')
       .eq('user_id', user.id)
       .eq('type', mode)
-      .gte('entry_date', start.toISOString())
-      .lt('entry_date', end.toISOString())
+      .gte('entry_date', toLocalDateKey(start))
+      .lt('entry_date', toLocalDateKey(end))
 
     setEntries((data ?? []) as MoneyChartEntry[])
   }, [mode, month, scope, supabase, weekOffset, year])
@@ -112,10 +114,14 @@ export default function MoneyCharts() {
     const map: Record<string, CategoryTotal> = {}
 
     entries.forEach(e => {
-      const c = Array.isArray(e.money_categories)
-        ? e.money_categories[0]
-        : e.money_categories
-      if (!c) return
+      const c =
+        (Array.isArray(e.money_categories)
+          ? e.money_categories[0]
+          : e.money_categories) ?? {
+          id: UNCATEGORIZED_ID,
+          name: t.money.uncategorized,
+          icon: '💰',
+        }
 
       if (!map[c.id]) {
         map[c.id] = {
@@ -145,7 +151,7 @@ export default function MoneyCharts() {
             : Number(((c.total / total) * 100).toFixed(2)),
       }))
       .sort((a, b) => b.total - a.total)
-  }, [entries])
+  }, [entries, t])
 
   const totalAmount = categories.reduce(
     (a, b) => a + b.total,
@@ -161,37 +167,10 @@ export default function MoneyCharts() {
           ? entry.money_categories[0]
           : entry.money_categories
 
-        return category?.id === selectedCategory.id
+        return (category?.id ?? UNCATEGORIZED_ID) === selectedCategory.id
       })
-      .sort(
-        (a, b) =>
-          new Date(b.entry_date).getTime() -
-          new Date(a.entry_date).getTime()
-      )
+      .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
   }, [entries, selectedCategory])
-
-function formatWeekRange(baseDate: Date, offset: number) {
-  const start = new Date(baseDate)
-  start.setDate(baseDate.getDate() - baseDate.getDay() + offset * 7)
-
-  const end = new Date(start)
-  end.setDate(start.getDate() + 6)
-
-  const startLabel = start.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
-
-  const endLabel = end.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  })
-
-  return `${startLabel} to ${endLabel}`
-}
-
 
   return (
     <div className="space-y-4 pb-24">
@@ -202,7 +181,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
         ) : (
           <ArrowUpCircle className="text-green-500" />
         )}
-        {mode === 'expense' ? 'Expenses' : 'Income'}
+        {mode === 'expense' ? t.money.expenses : t.money.income}
       </div>
 
       {/* MODE TOGGLE */}
@@ -216,7 +195,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
               : 'text-muted-foreground'
           }`}
         >
-          Expenses
+          {t.money.expenses}
         </Button>
         <Button
           variant="ghost"
@@ -227,7 +206,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
               : 'text-muted-foreground'
           }`}
         >
-          Income
+          {t.money.income}
         </Button>
       </div>
 
@@ -240,11 +219,11 @@ function formatWeekRange(baseDate: Date, offset: number) {
             onClick={() => setScope(s)}
             className={`flex-1 rounded-lg capitalize ${
               scope === s
-                ? 'bg-black text-white'
+                ? 'bg-background text-foreground shadow'
                 : 'text-muted-foreground'
             }`}
           >
-            {s}
+            {s === 'week' ? t.money.week : s === 'month' ? t.money.month : t.money.year}
           </Button>
         ))}
       </div>
@@ -255,23 +234,23 @@ function formatWeekRange(baseDate: Date, offset: number) {
           <Button
             variant="outline"
             onClick={() => setWeekOffset(weekOffset - 1)}
-
-            
+            className="flex-1"
           >
-
-            Previous
+            {t.previous}
           </Button>
           <Button
             variant="outline"
             onClick={() => setWeekOffset(0)}
+            className="flex-1"
           >
-            This week
+            {t.planner.thisWeek}
           </Button>
           <Button
             variant="outline"
             onClick={() => setWeekOffset(weekOffset + 1)}
+            className="flex-1"
           >
-            Next
+            {t.next}
           </Button>
         </div>
       )}
@@ -304,14 +283,11 @@ function formatWeekRange(baseDate: Date, offset: number) {
             onChange={e => setYear(Number(e.target.value))}
             className="flex-1 border rounded-lg px-2 py-1"
           >
-            {Array.from({ length: 5 }).map((_, i) => {
-              const y = initialDate.getFullYear() - i
-              return (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              )
-            })}
+            {yearOptions().map(y => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
           </select>
         </div>
       )}
@@ -322,14 +298,11 @@ function formatWeekRange(baseDate: Date, offset: number) {
           onChange={e => setYear(Number(e.target.value))}
           className="w-full border rounded-lg px-2 py-1"
         >
-          {Array.from({ length: 5 }).map((_, i) => {
-            const y = initialDate.getFullYear() - i
-            return (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            )
-          })}
+          {yearOptions().map(y => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
         </select>
       )}
 
@@ -337,7 +310,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
       <div className="h-56">
         {categories.length === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
-            No data
+            {t.money.noData}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -361,10 +334,10 @@ function formatWeekRange(baseDate: Date, offset: number) {
       {/* TOTAL */}
       <div className="text-center">
         <div className="text-xs text-muted-foreground">
-          Total {mode}
+          {t.money.total} · {mode === 'expense' ? t.money.expenses : t.money.income}
         </div>
         <div className="text-2xl font-semibold">
-          {totalAmount.toFixed(2)} MAD
+          {format(totalAmount)}
         </div>
       </div>
 
@@ -393,7 +366,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
                 </div>
               </div>
               <div className="text-sm font-medium">
-                {c.total.toFixed(2)} MAD
+                {format(c.total)}
               </div>
             </div>
 
@@ -402,7 +375,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
                 className="h-full rounded-full"
                 style={{
                   width: `${c.percent}%`,
-                  background: '#facc15',
+                  background: c.color,
                 }}
               />
             </div>
@@ -422,20 +395,20 @@ function formatWeekRange(baseDate: Date, offset: number) {
 
             <div className="pr-8">
               <div className="text-sm text-muted-foreground">
-                {mode === 'expense' ? 'Expenses in category' : 'Income in category'}
+                {mode === 'expense' ? t.money.expensesInCategory : t.money.incomeInCategory}
               </div>
               <div className="text-base font-semibold flex items-center gap-2">
                 <span>{selectedCategory.icon}</span>
                 <span>{selectedCategory.name}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-1">
-                {selectedCategory.total.toFixed(2)} MAD total
+                {t.money.categoryTotal.replace('{amount}', format(selectedCategory.total))}
               </div>
             </div>
 
             {selectedCategoryCosts.length === 0 ? (
               <div className="text-sm text-muted-foreground py-4 text-center">
-                No costs found for this category in the selected period.
+                {t.money.noEntriesInCategory}
               </div>
             ) : (
               <div className="space-y-2">
@@ -447,7 +420,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
                     <div>
                       <div className="text-sm font-medium">{item.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {new Date(item.entry_date).toLocaleDateString(undefined, {
+                        {parseDateKey(item.entry_date).toLocaleDateString(undefined, {
                           weekday: 'short',
                           month: 'short',
                           day: 'numeric',
@@ -455,7 +428,7 @@ function formatWeekRange(baseDate: Date, offset: number) {
                       </div>
                     </div>
                     <div className="text-sm font-semibold">
-                      {item.amount.toFixed(2)} MAD
+                      {format(item.amount)}
                     </div>
                   </div>
                 ))}
