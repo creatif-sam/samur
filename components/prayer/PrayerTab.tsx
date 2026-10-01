@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PrayerTimer from './PrayerTimer'
 import PrayerCalendar from './PrayerCalendar'
+import PartnerPrayerBoard from './PartnerPrayerBoard'
 import { ThoughtEditor } from '@/components/note/ThoughtEditor'
 import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight } from 'lucide-react'
 
@@ -529,6 +530,9 @@ export default function PrayerTab(): JSX.Element {
       {userId && (
         <PrayerCalendar userId={userId} refreshKey={calendarRefreshKey} />
       )}
+
+      {/* ── Partner Streaks ─────────────────────────────────── */}
+      <PartnerPrayerBoard refreshKey={calendarRefreshKey} />
 
       {/* ── Active Requests ─────────────────────────────────── */}
       <div>

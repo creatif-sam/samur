@@ -209,7 +209,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
     const supabase = createClient()
     const { data } = await supabase
       .from('prayer_sessions')
-      .insert({ user_id: userId, date: new Date().toISOString().slice(0, 10), duration_seconds: secs })
+      .insert({ user_id: userId, date: new Date().toLocaleDateString('en-CA'), duration_seconds: secs })
       .select('id')
       .single()
     if (data) {

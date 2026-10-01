@@ -129,7 +129,7 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
   )
 }
 
-function Avatar({
+export function Avatar({
   name,
   avatar,
 }: {
