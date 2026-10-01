@@ -1,15 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { Layers, MoreHorizontal, Trash2, Search, X, Pencil } from 'lucide-react'
+import { Layers, MoreHorizontal, Trash2, Search, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import type { Notebook, Section } from './types'
 
-export function SectionList({ notebook, onSelect, onDeleteSection, onRenameSection }: any) {
+type SectionListProps = {
+  notebook: Notebook
+  onSelect: (section: Section) => void
+  onDeleteSection: (section: Section) => void
+  onRenameSection: (section: Section) => void
+}
+
+export function SectionList({ notebook, onSelect, onDeleteSection, onRenameSection }: SectionListProps) {
   const [searchQuery, setSearchQuery] = useState('')
 
-  const filteredSections = notebook.sections?.filter((s: any) =>
+  const filteredSections = notebook.sections?.filter(s =>
     s.title.toLowerCase().includes(searchQuery.toLowerCase())
   ) || []
 
@@ -28,7 +36,7 @@ export function SectionList({ notebook, onSelect, onDeleteSection, onRenameSecti
       </div>
 
       <div className="px-2 pb-20">
-        {filteredSections.map((s: any) => (
+        {filteredSections.map(s => (
           <div key={s.id} className="px-4 py-5 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between active:bg-slate-50 dark:active:bg-slate-900 rounded-xl transition-all">
             <div onClick={() => onSelect(s)} className="flex items-center gap-4 flex-1 min-w-0 cursor-pointer">
               <div className="w-10 h-10 rounded-xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center shrink-0">

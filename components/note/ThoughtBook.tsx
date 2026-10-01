@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Toaster, toast } from 'sonner'
+import { toast } from 'sonner'
 import { ThoughtBookHeader } from './ThoughtBookHeader'
 import { NotebookLibrary } from './NotebookLibrary'
 import { SectionList } from './SectionList'
@@ -12,159 +12,214 @@ import { AddNotebookDialog } from './AddNotebookDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Loader2, AlertTriangle, Trash2, FolderInput, ChevronRight, X } from 'lucide-react'
+import { AlertTriangle, Trash2, FolderInput, ChevronRight, X } from 'lucide-react'
+import { MAX_PINNED_NOTEBOOKS, type Notebook, type Page, type PagePatch, type Section } from './types'
 
-export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
-  const [activeNotebook, setActiveNotebook] = useState<any | null>(null)
-  const [activeSection, setActiveSection] = useState<any | null>(null)
-  const [editingPage, setEditingPage] = useState<any | null>(null)
+const ACTIVE_NOTEBOOK_KEY = 'active_notebook_id'
+const ACTIVE_SECTION_KEY = 'active_section_id'
+// Pins used to live only in this browser; they are moved to the database once
+const LEGACY_PINNED_KEY = 'pinned_notebook_ids'
+const UNDO_WINDOW_MS = 5000
+
+type ThoughtBookProps = {
+  notebooks: Notebook[]
+  onRefresh: () => Promise<void>
+  onPagePatched: (patch: PagePatch) => void
+  userId: string | null
+}
+
+type DeletableTable = 'notebooks' | 'sections' | 'pages'
+
+function storageGet(key: string) {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+function storageSet(key: string, value: string | null) {
+  try {
+    if (value === null) localStorage.removeItem(key)
+    else localStorage.setItem(key, value)
+  } catch { /* storage unavailable */ }
+}
+
+export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: ThoughtBookProps) {
+  const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null)
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
+  const [editingPage, setEditingPage] = useState<Page | null>(null)
   const [navigationSource, setNavigationSource] = useState<'recent' | 'normal'>('normal')
-  
+  // Items deleted but still inside the undo window
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set())
+
   const [showAddNotebook, setShowAddNotebook] = useState(false)
-  const [notebookToDelete, setNotebookToDelete] = useState<any | null>(null)
-  const [sectionToDelete, setSectionToDelete] = useState<any | null>(null)
-  const [pageToDelete, setPageToDelete] = useState<any | null>(null)
-  const [itemToRename, setItemToRename] = useState<any | null>(null) 
+  const [notebookToDelete, setNotebookToDelete] = useState<Notebook | null>(null)
+  const [sectionToDelete, setSectionToDelete] = useState<Section | null>(null)
+  const [itemToRename, setItemToRename] = useState<Notebook | Section | null>(null)
   const [isAddingSection, setIsAddingSection] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
 
   // --- Recent page long-press action state ---
-  const [recentPageAction, setRecentPageAction] = useState<{ page: any; section: any; notebook: any } | null>(null)
+  const [recentPageAction, setRecentPageAction] = useState<{ page: Page; section: Section; notebook: Notebook } | null>(null)
   const [moveStep, setMoveStep] = useState<'pick-notebook' | 'pick-section' | null>(null)
-  const [moveTargetNotebook, setMoveTargetNotebook] = useState<any | null>(null)
+  const [moveTargetNotebook, setMoveTargetNotebook] = useState<Notebook | null>(null)
 
-  const supabase = createClient()
+  const [supabase] = useState(createClient)
+  const legacyPinsMigrated = useRef(false)
 
-  // --- PERSISTENCE LOGIC (Fixes the Refresh Issue) ---
+  // Restore where the user was after a reload
   useEffect(() => {
-    setIsMounted(true)
-    const savedNb = localStorage.getItem('active_notebook')
-    const savedSect = localStorage.getItem('active_section')
-    
-    if (savedNb) setActiveNotebook(JSON.parse(savedNb))
-    if (savedSect) setActiveSection(JSON.parse(savedSect))
+    setActiveNotebookId(storageGet(ACTIVE_NOTEBOOK_KEY))
+    setActiveSectionId(storageGet(ACTIVE_SECTION_KEY))
+    // Old keys stored whole objects that went stale
+    storageSet('active_notebook', null)
+    storageSet('active_section', null)
   }, [])
 
-  const handleSelectNotebook = (nb: any) => {
-    setActiveNotebook(nb)
-    localStorage.setItem('active_notebook', JSON.stringify(nb))
+  // Hide anything waiting to be deleted
+  const visibleNotebooks = useMemo(
+    () => notebooks
+      .filter(nb => !hiddenIds.has(nb.id))
+      .map(nb => ({
+        ...nb,
+        sections: (nb.sections ?? [])
+          .filter(s => !hiddenIds.has(s.id))
+          .map(s => ({ ...s, pages: (s.pages ?? []).filter(p => !hiddenIds.has(p.id)) })),
+      })),
+    [notebooks, hiddenIds]
+  )
+
+  const activeNotebook = visibleNotebooks.find(nb => nb.id === activeNotebookId) ?? null
+  const activeSection = activeNotebook?.sections.find(s => s.id === activeSectionId) ?? null
+
+  // Move pins saved in this browser to the account, once
+  useEffect(() => {
+    if (legacyPinsMigrated.current || notebooks.length === 0) return
+    legacyPinsMigrated.current = true
+    const raw = storageGet(LEGACY_PINNED_KEY)
+    if (!raw) return
+    let ids: string[] = []
+    try { ids = JSON.parse(raw) } catch { storageSet(LEGACY_PINNED_KEY, null); return }
+    const known = new Set(notebooks.map(nb => nb.id))
+    ids = ids.filter(id => known.has(id)).slice(0, MAX_PINNED_NOTEBOOKS)
+    if (ids.length === 0 || notebooks.some(nb => nb.pinned)) {
+      storageSet(LEGACY_PINNED_KEY, null)
+      return
+    }
+    void (async () => {
+      const { error } = await supabase.from('notebooks').update({ pinned: true }).in('id', ids)
+      if (error) return // keep the old pins until the database supports them
+      storageSet(LEGACY_PINNED_KEY, null)
+      await onRefresh()
+    })()
+  }, [notebooks, supabase, onRefresh])
+
+  const handleSelectNotebook = (nb: Notebook) => {
+    setActiveNotebookId(nb.id)
+    storageSet(ACTIVE_NOTEBOOK_KEY, nb.id)
   }
 
-  const handleSelectSection = (sect: any) => {
-    setActiveSection(sect)
-    localStorage.setItem('active_section', JSON.stringify(sect))
+  const handleSelectSection = (sect: Section) => {
+    setActiveSectionId(sect.id)
+    storageSet(ACTIVE_SECTION_KEY, sect.id)
+  }
+
+  const handleLeaveSection = () => {
+    setActiveSectionId(null)
+    storageSet(ACTIVE_SECTION_KEY, null)
   }
 
   const handleClearNavigation = () => {
-    setActiveSection(null)
-    setActiveNotebook(null)
-    localStorage.removeItem('active_notebook')
-    localStorage.removeItem('active_section')
+    handleLeaveSection()
+    setActiveNotebookId(null)
+    storageSet(ACTIVE_NOTEBOOK_KEY, null)
   }
 
-  const handleRefresh = async () => {
-    const result = await onRefresh();
-    if (result?.data && activeNotebook) {
-      const updated = result.data.find((n: any) => n.id === activeNotebook.id);
-      if (updated) {
-        setActiveNotebook(updated)
-        localStorage.setItem('active_notebook', JSON.stringify(updated))
-      }
-    }
-  };
+  const hide = (id: string) => setHiddenIds(prev => new Set(prev).add(id))
+  const unhide = (id: string) => setHiddenIds(prev => {
+    const next = new Set(prev)
+    next.delete(id)
+    return next
+  })
+
+  // Hide the item now and only delete it once the undo window has passed
+  const deleteWithUndo = (table: DeletableTable, id: string, label: string) => {
+    hide(id)
+    const timer = window.setTimeout(async () => {
+      const { error } = await supabase.from(table).delete().eq('id', id)
+      if (error) toast.error(`Failed to delete ${label.toLowerCase()}`)
+      else await onRefresh()
+      unhide(id)
+    }, UNDO_WINDOW_MS)
+    toast(`${label} deleted`, {
+      duration: UNDO_WINDOW_MS,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          window.clearTimeout(timer)
+          unhide(id)
+        },
+      },
+    })
+  }
 
   // --- LOGIC FUNCTIONS ---
   const handleCreateSection = async () => {
-    if (!newTitle.trim()) return
+    if (!newTitle.trim() || !activeNotebook) return
     setIsProcessing(true)
     try {
-      const { data, error } = await supabase.from('sections').insert({ 
-        notebook_id: activeNotebook.id, title: newTitle 
-      }).select().single()
+      const { error } = await supabase.from('sections').insert({
+        notebook_id: activeNotebook.id, title: newTitle.trim()
+      })
       if (error) throw error
-      setActiveNotebook((prev: any) => ({
-        ...prev,
-        sections: [...(prev.sections || []), { ...data, pages: [] }]
-      }))
+      await onRefresh()
       toast.success("Section created")
-      setIsAddingSection(false); setNewTitle(''); handleRefresh()
-    } catch (err: any) { toast.error(err.message) }
-    finally { setIsProcessing(false) }
-  }
-
-  const handleDeleteSection = async () => {
-    if (!sectionToDelete) return
-    setIsProcessing(true)
-    try {
-      const { error } = await supabase.from('sections').delete().eq('id', sectionToDelete.id)
-      if (error) throw error
-      setActiveNotebook((prev: any) => ({
-        ...prev,
-        sections: prev.sections.filter((s: any) => s.id !== sectionToDelete.id)
-      }))
-      toast.success("Section deleted")
-      setSectionToDelete(null); handleRefresh()
-    } catch (err: any) { toast.error("Failed to delete section") }
+      setIsAddingSection(false); setNewTitle('')
+    } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to create section') }
     finally { setIsProcessing(false) }
   }
 
   const handleUpdateItem = async () => {
     if (!newTitle.trim() || !itemToRename) return
     setIsProcessing(true)
-    const table = itemToRename.notebook_id ? 'sections' : 'notebooks'
+    const table = 'notebook_id' in itemToRename ? 'sections' : 'notebooks'
     try {
-      const { error } = await supabase.from(table).update({ title: newTitle }).eq('id', itemToRename.id)
+      const { error } = await supabase.from(table).update({ title: newTitle.trim() }).eq('id', itemToRename.id)
       if (error) throw error
-      toast.success("Updated successfully")
-      setItemToRename(null); setNewTitle(''); onRefresh(); handleRefresh()
-    } catch (err: any) { toast.error("Update failed") }
-    finally { setIsProcessing(false) }
-  }
-
-  const handleDeleteNotebook = async () => {
-    if (!notebookToDelete) return
-    setIsProcessing(true)
-    try {
-      const { error } = await supabase.from('notebooks').delete().eq('id', notebookToDelete.id)
-      if (error) throw error
-      toast.success("Notebook deleted")
-      setNotebookToDelete(null); onRefresh()
-    } catch (err: any) { toast.error(err.message) }
-    finally { setIsProcessing(false) }
-  }
-
-  const handleDeletePage = async () => {
-    if (!pageToDelete) return
-    setIsProcessing(true)
-    try {
-      const { error } = await supabase.from('pages').delete().eq('id', pageToDelete.id)
-      if (error) throw error
-      const updatedSect = { ...activeSection, pages: activeSection.pages.filter((p: any) => p.id !== pageToDelete.id) }
-      setActiveSection(updatedSect)
-      toast.success("Page deleted"); setPageToDelete(null); handleRefresh()
-    } catch (err: any) { toast.error("Failed to delete page") }
-    finally { setIsProcessing(false) }
-  }
-
-  const handleDeleteRecentPage = async () => {
-    if (!recentPageAction) return
-    setIsProcessing(true)
-    try {
-      const { error } = await supabase.from('pages').delete().eq('id', recentPageAction.page.id)
-      if (error) throw error
-      toast.success('Note deleted')
-      setRecentPageAction(null)
       await onRefresh()
-    } catch {
-      toast.error('Failed to delete note')
-    } finally {
-      setIsProcessing(false)
-    }
+      toast.success("Updated successfully")
+      setItemToRename(null); setNewTitle('')
+    } catch { toast.error("Update failed") }
+    finally { setIsProcessing(false) }
   }
 
-  const handleMovePageToSection = async (targetSection: any) => {
+  const handleDeleteNotebook = () => {
+    if (!notebookToDelete) return
+    deleteWithUndo('notebooks', notebookToDelete.id, 'Notebook')
+    setNotebookToDelete(null)
+  }
+
+  const handleDeleteSection = () => {
+    if (!sectionToDelete) return
+    deleteWithUndo('sections', sectionToDelete.id, 'Section')
+    setSectionToDelete(null)
+  }
+
+  const handleDeleteRecentPage = () => {
+    if (!recentPageAction) return
+    deleteWithUndo('pages', recentPageAction.page.id, 'Note')
+    setRecentPageAction(null)
+  }
+
+  const handleTogglePin = async (nb: Notebook) => {
+    const pinnedCount = notebooks.filter(n => n.pinned).length
+    if (!nb.pinned && pinnedCount >= MAX_PINNED_NOTEBOOKS) {
+      toast.error(`You can pin up to ${MAX_PINNED_NOTEBOOKS} notebooks`)
+      return
+    }
+    const { error } = await supabase.from('notebooks').update({ pinned: !nb.pinned }).eq('id', nb.id)
+    if (error) { toast.error('Failed to update pin'); return }
+    await onRefresh()
+  }
+
+  const handleMovePageToSection = async (targetSection: Section) => {
     if (!recentPageAction) return
     setIsProcessing(true)
     try {
@@ -186,11 +241,11 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
   }
 
   const handleQuickAddNote = async () => {
-    if (isProcessing) return
+    if (isProcessing || !userId) return
     setIsProcessing(true)
     try {
       // Find or create "General" notebook
-      let generalNotebook = notebooks.find((nb: any) => nb.title.toLowerCase() === 'general')
+      let generalNotebook = notebooks.find(nb => nb.title.toLowerCase() === 'general')
 
       if (!generalNotebook) {
         const { data: newNb, error: nbError } = await supabase
@@ -198,11 +253,11 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
           .insert({ user_id: userId, title: 'General', emoji: '📝', color: '#7719aa' })
           .select().single()
         if (nbError) throw nbError
-        generalNotebook = { ...newNb, sections: [] }
+        generalNotebook = { ...newNb, sections: [] } as Notebook
       }
 
       // Find or create "Notes" section
-      let notesSection = generalNotebook.sections?.find((s: any) => s.title.toLowerCase() === 'notes')
+      let notesSection = generalNotebook.sections?.find(s => s.title.toLowerCase() === 'notes')
 
       if (!notesSection) {
         const { data: newSect, error: sectError } = await supabase
@@ -210,23 +265,22 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
           .insert({ notebook_id: generalNotebook.id, title: 'Notes' })
           .select().single()
         if (sectError) throw sectError
-        notesSection = { ...newSect, pages: [] }
+        notesSection = { ...newSect, pages: [] } as Section
       }
 
       // Create blank page
       const { data: newPage, error: pageError } = await supabase
         .from('pages')
-        .insert({ section_id: notesSection.id, title: 'Untitled', content: '' })
+        .insert({ section_id: notesSection.id, title: '', content: '' })
         .select().single()
       if (pageError) throw pageError
 
       handleSelectNotebook(generalNotebook)
       handleSelectSection(notesSection)
       setNavigationSource('recent')
-      setTimeout(() => setEditingPage(newPage), 100)
+      setEditingPage(newPage as Page)
       await onRefresh()
-      toast.success('Note created in General')
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to create note')
     } finally {
       setIsProcessing(false)
@@ -237,107 +291,98 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
     if (!activeSection) return
     setIsProcessing(true)
     try {
-      const { data: newPage, error } = await supabase.from('pages').insert({ 
-        section_id: activeSection.id, title: 'Untitled Page', content: '' 
+      const { data: newPage, error } = await supabase.from('pages').insert({
+        section_id: activeSection.id, title: '', content: ''
       }).select().single()
       if (error) throw error
-      
-      // Immediately update activeSection to show the new page
-      const updatedSection = {
-        ...activeSection,
-        pages: [...(activeSection.pages || []), newPage]
-      }
-      setActiveSection(updatedSection)
-      localStorage.setItem('active_section', JSON.stringify(updatedSection))
-      
-      toast.success('Page created!')
-      // Open the editor after a brief moment to let the UI update
-      setTimeout(() => setEditingPage(newPage), 100)
-      handleRefresh()
-    } catch (err) { 
-      toast.error("Failed to create page") 
+      setNavigationSource('normal')
+      setEditingPage(newPage as Page)
+      await onRefresh()
+    } catch {
+      toast.error("Failed to create page")
     }
     finally { setIsProcessing(false) }
   }
 
   if (editingPage) {
-    const goBack = () => {
+    const closeEditor = () => {
       if (navigationSource === 'recent') {
         handleClearNavigation()
-        setEditingPage(null)
         setNavigationSource('normal')
-      } else {
-        setEditingPage(null)
+      }
+      setEditingPage(null)
+    }
+
+    const handleEditorBack = async ({ isEmpty }: { isEmpty: boolean }) => {
+      const pageId = editingPage.id
+      closeEditor()
+      // Don't leave blank "Untitled" pages behind
+      if (isEmpty) {
+        hide(pageId)
+        const { error } = await supabase.from('pages').delete().eq('id', pageId)
+        if (!error) await onRefresh()
+        unhide(pageId)
       }
     }
 
-    const handleEditorDeletePage = async () => {
-      const { error } = await supabase.from('pages').delete().eq('id', editingPage.id)
-      if (error) { toast.error('Failed to delete page'); return }
-      toast.success('Page deleted')
-      if (activeSection) {
-        setActiveSection((prev: any) => prev
-          ? { ...prev, pages: prev.pages.filter((p: any) => p.id !== editingPage.id) }
-          : prev
-        )
-      }
-      await onRefresh()
-      goBack()
+    const handleEditorDeletePage = () => {
+      deleteWithUndo('pages', editingPage.id, 'Page')
+      closeEditor()
     }
 
     return <ThoughtEditor
+      key={editingPage.id}
       page={editingPage}
-      onBack={goBack}
-      onRefresh={onRefresh}
+      onBack={handleEditorBack}
+      onSaved={onPagePatched}
       onDeletePage={handleEditorDeletePage}
     />
   }
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0f172a] max-w-2xl mx-auto flex flex-col font-poppins transition-colors duration-500 relative">
-      {isMounted && <Toaster position="bottom-center" richColors theme="dark" />}
-
-      <ThoughtBookHeader 
-        activeNotebook={activeNotebook} 
-        activeSection={activeSection} 
+      <ThoughtBookHeader
+        activeNotebook={activeNotebook}
+        activeSection={activeSection}
         isProcessing={isProcessing}
-        onBack={() => activeSection ? (setActiveSection(null), localStorage.removeItem('active_section')) : handleClearNavigation()}
+        onBack={() => activeSection ? handleLeaveSection() : handleClearNavigation()}
         onAdd={() => activeSection ? handleAddPage() : (setIsAddingSection(true), setNewTitle(''))}
       />
 
       {!activeNotebook ? (
-        <NotebookLibrary 
-          notebooks={notebooks} 
-          onSelect={handleSelectNotebook} 
-          onAdd={() => setShowAddNotebook(true)} 
+        <NotebookLibrary
+          notebooks={visibleNotebooks}
+          onSelect={handleSelectNotebook}
+          onAdd={() => setShowAddNotebook(true)}
           onQuickAdd={handleQuickAddNote}
           onDelete={setNotebookToDelete}
-          onRename={(nb: any) => { setItemToRename(nb); setNewTitle(nb.title); }}
-          onSelectPage={(page: any, section: any, notebook: any) => {
+          onRename={(nb) => { setItemToRename(nb); setNewTitle(nb.title); }}
+          onTogglePin={handleTogglePin}
+          onSelectPage={(page, section, notebook) => {
             // Navigate directly to the page editor from recent view
             handleSelectNotebook(notebook)
             handleSelectSection(section)
             setEditingPage(page)
             setNavigationSource('recent') // Track that this was opened from recent view
           }}
-          onLongPressPage={(page: any, section: any, notebook: any) => {
+          onLongPressPage={(page, section, notebook) => {
             setRecentPageAction({ page, section, notebook })
             setMoveStep(null)
             setMoveTargetNotebook(null)
           }}
         />
       ) : !activeSection ? (
-        <SectionList 
-          notebook={activeNotebook} 
-          onSelect={handleSelectSection} 
+        <SectionList
+          notebook={activeNotebook}
+          onSelect={handleSelectSection}
           onDeleteSection={setSectionToDelete}
-          onRenameSection={(s: any) => { setItemToRename(s); setNewTitle(s.title); }}
+          onRenameSection={(s) => { setItemToRename(s); setNewTitle(s.title); }}
         />
       ) : (
-        <PageList 
-          section={activeSection} 
-          onSelect={setEditingPage} 
-          onDeletePage={setPageToDelete} 
+        <PageList
+          section={activeSection}
+          onSelect={(page) => { setNavigationSource('normal'); setEditingPage(page) }}
+          onDeletePage={(page) => deleteWithUndo('pages', page.id, 'Note')}
         />
       )}
 
@@ -361,7 +406,6 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
             </button>
             <button
               onClick={handleDeleteRecentPage}
-              disabled={isProcessing}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-left"
             >
               <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
@@ -388,7 +432,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Choose notebook</p>
             </div>
             <div className="overflow-y-auto flex-1 space-y-1 pt-1">
-              {notebooks.map((nb: any) => (
+              {visibleNotebooks.map(nb => (
                 <button
                   key={nb.id}
                   onClick={() => { setMoveTargetNotebook(nb); setMoveStep('pick-section') }}
@@ -421,7 +465,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
               {(moveTargetNotebook.sections ?? []).length === 0 && (
                 <p className="text-sm text-center text-slate-400 py-8">No sections in this notebook.</p>
               )}
-              {(moveTargetNotebook.sections ?? []).map((sec: any) => (
+              {(moveTargetNotebook.sections ?? []).map(sec => (
                 <button
                   key={sec.id}
                   onClick={() => handleMovePageToSection(sec)}
@@ -438,17 +482,16 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
         </div>
       )}
 
-      {/* DIALOGS REMAIN THE SAME AS PREVIOUS TURN */}
       <Dialog open={!!notebookToDelete} onOpenChange={() => setNotebookToDelete(null)}>
         <DialogContent className="max-w-[340px] rounded-[32px] p-8 text-center bg-white dark:bg-slate-950 border-none shadow-2xl">
           <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="text-red-500 w-8 h-8" />
           </div>
           <DialogTitle className="text-xl font-semibold dark:text-white">Delete Notebook?</DialogTitle>
-          <DialogDescription className="text-slate-500 mt-2">"{notebookToDelete?.title}" will be lost forever.</DialogDescription>
+          <DialogDescription className="text-slate-500 mt-2">&quot;{notebookToDelete?.title}&quot; and everything in it will be deleted. You can undo for a few seconds.</DialogDescription>
           <DialogFooter className="flex gap-2 mt-6 sm:justify-center">
             <Button variant="ghost" onClick={() => setNotebookToDelete(null)} className="rounded-full flex-1">Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteNotebook} disabled={isProcessing} className="rounded-full flex-1">Delete</Button>
+            <Button variant="destructive" onClick={handleDeleteNotebook} className="rounded-full flex-1">Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -459,25 +502,11 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
             <Trash2 className="text-red-500 w-8 h-8" />
           </div>
           <DialogTitle className="text-xl font-semibold dark:text-white">Delete Section?</DialogTitle>
-          <DialogDescription className="text-slate-500 mt-2 text-xs">All content inside will be removed.</DialogDescription>
+          <DialogDescription className="text-slate-500 mt-2 text-xs">All pages inside will be deleted. You can undo for a few seconds.</DialogDescription>
           <div className="flex gap-2 mt-6">
             <Button variant="ghost" onClick={() => setSectionToDelete(null)} className="rounded-full flex-1">Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteSection} disabled={isProcessing} className="rounded-full flex-1">Delete</Button>
+            <Button variant="destructive" onClick={handleDeleteSection} className="rounded-full flex-1">Delete</Button>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!pageToDelete} onOpenChange={() => setPageToDelete(null)}>
-        <DialogContent className="max-w-[340px] rounded-[32px] p-8 text-center bg-white dark:bg-slate-950 border-none shadow-2xl">
-          <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Trash2 className="text-red-500 w-8 h-8" />
-          </div>
-          <DialogTitle className="text-xl font-semibold dark:text-white">Delete Page?</DialogTitle>
-          <DialogDescription className="text-slate-500 mt-2">Permanently remove this note?</DialogDescription>
-          <DialogFooter className="flex gap-2 mt-6">
-            <Button variant="ghost" onClick={() => setPageToDelete(null)} className="rounded-full flex-1">Cancel</Button>
-            <Button variant="destructive" onClick={handleDeletePage} disabled={isProcessing} className="rounded-full flex-1">Delete</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -501,7 +530,7 @@ export function ThoughtBook({ notebooks, onRefresh, userId }: any) {
         </DialogContent>
       </Dialog>
 
-      <AddNotebookDialog open={showAddNotebook} onOpenChange={setShowAddNotebook} userId={userId} onCreated={handleRefresh} />
+      <AddNotebookDialog open={showAddNotebook} onOpenChange={setShowAddNotebook} userId={userId} onCreated={onRefresh} />
     </div>
   )
 }

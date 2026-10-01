@@ -1,24 +1,16 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { FileText, Pencil, Trash2, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { pageSortTime, type Page as PageItem, type Section } from './types'
 
 const LONG_PRESS_MS = 500
 
-type PageItem = {
-  id: string
-  title: string
-}
-
-type SectionWithPages = {
-  pages?: PageItem[]
-}
-
 type PageListProps = {
-  section: SectionWithPages
+  section: Section
   onSelect: (page: PageItem) => void
   onDeletePage: (page: PageItem) => void
 }
@@ -77,10 +69,13 @@ export function PageList({ section, onSelect, onDeletePage }: PageListProps) {
     setActionPage(null)
   }
 
-  // Filter logic for pages
-  const filteredPages = section.pages?.filter((p: PageItem) =>
-    p.title.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || []
+  // Most recently edited first, then filtered by the search box
+  const filteredPages = useMemo(
+    () => [...(section.pages ?? [])]
+      .sort((a, b) => pageSortTime(b) - pageSortTime(a))
+      .filter(p => (p.title || 'Untitled').toLowerCase().includes(searchQuery.toLowerCase())),
+    [section.pages, searchQuery]
+  )
 
   return (
     <main className="flex-grow overflow-y-auto flex flex-col font-poppins transition-all">
@@ -117,7 +112,7 @@ export function PageList({ section, onSelect, onDeletePage }: PageListProps) {
         )}
 
         {filteredPages.length > 0 ? (
-          filteredPages.map((p: PageItem) => (
+          filteredPages.map(p => (
             <div 
               key={p.id} 
               onPointerDown={() => handlePagePointerDown(p)}
@@ -133,7 +128,7 @@ export function PageList({ section, onSelect, onDeletePage }: PageListProps) {
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <FileText className="w-4 h-4 shrink-0 text-slate-300 dark:text-slate-600" />
                 <span className="text-[14px] font-medium text-slate-700 dark:text-slate-300 truncate tracking-tight">
-                  {p.title}
+                  {p.title || 'Untitled'}
                 </span>
               </div>
             </div>
@@ -151,7 +146,7 @@ export function PageList({ section, onSelect, onDeletePage }: PageListProps) {
         <DialogContent className="max-w-[320px] rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-center">
-              {actionPage?.title}
+              {actionPage?.title || 'Untitled'}
             </DialogTitle>
           </DialogHeader>
 

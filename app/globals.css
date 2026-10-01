@@ -107,3 +107,12 @@
 .animate-\[bell-ring_0\.6s_ease-in-out\] {
   animation: bell-ring 0.6s ease-in-out;
 }
+
+/* Tiptap placeholder (Placeholder extension marks the empty first paragraph) */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: hsl(var(--muted-foreground) / 0.6);
+}

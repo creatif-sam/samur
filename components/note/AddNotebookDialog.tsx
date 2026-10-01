@@ -28,7 +28,7 @@ export function AddNotebookDialog({
 }: { 
   open: boolean, 
   onOpenChange: (open: boolean) => void, 
-  userId: string,
+  userId: string | null,
   onCreated: () => Promise<void> 
 }) {
   const [title, setTitle] = useState('')
@@ -39,6 +39,7 @@ export function AddNotebookDialog({
   const supabase = createClient()
 
   async function handleCreate() {
+    if (!userId) return
     if (!title.trim()) {
       toast.error("Please enter a notebook name")
       return
@@ -63,7 +64,7 @@ export function AddNotebookDialog({
       // We await the refresh from the parent before proceeding
       try {
         await onCreated() 
-      } catch (refreshErr) {
+      } catch {
         // Silently log refresh errors so user still gets success message
         console.warn("UI sync pending...")
       }
@@ -73,9 +74,10 @@ export function AddNotebookDialog({
       setTitle('')
       onOpenChange(false)
 
-    } catch (err: any) {
-      console.error("❌ Creation Error:", err.message)
-      toast.error(err.message || "Failed to create notebook")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
+      console.error("❌ Creation Error:", message)
+      toast.error(message || "Failed to create notebook")
     } finally {
       setLoading(false)
     }

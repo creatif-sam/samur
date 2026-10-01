@@ -1,7 +1,16 @@
 import { ChevronLeft, Plus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import type { Notebook, Section } from './types'
 
-export function ThoughtBookHeader({ activeNotebook, activeSection, onBack, onAdd, isProcessing }: any) {
+type ThoughtBookHeaderProps = {
+  activeNotebook: Notebook | null
+  activeSection: Section | null
+  onBack: () => void
+  onAdd: () => void
+  isProcessing: boolean
+}
+
+export function ThoughtBookHeader({ activeNotebook, activeSection, onBack, onAdd, isProcessing }: ThoughtBookHeaderProps) {
   if (!activeNotebook) return null;
   return (
     <header className="px-4 py-4 bg-[#7719aa] dark:bg-[#7c3aed] text-white flex items-center justify-between sticky top-0 z-20 shadow-md">

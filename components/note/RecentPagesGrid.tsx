@@ -2,20 +2,21 @@
 
 import { useRef } from 'react'
 import { FileText, Calendar, Book } from 'lucide-react'
+import { pageSortTime, type Notebook, type Page, type Section } from './types'
 
 const LONG_PRESS_MS = 500
 
 interface RecentPagesGridProps {
-  notebooks: any[]
-  onSelectPage: (page: any, section: any, notebook: any) => void
-  onLongPress?: (page: any, section: any, notebook: any) => void
+  notebooks: Notebook[]
+  onSelectPage: (page: Page, section: Section, notebook: Notebook) => void
+  onLongPress?: (page: Page, section: Section, notebook: Notebook) => void
 }
 
 export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: RecentPagesGridProps) {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
 
-  function startLongPress(page: any, section: any, notebook: any) {
+  function startLongPress(page: Page, section: Section, notebook: Notebook) {
     didLongPress.current = false
     longPressTimer.current = setTimeout(() => {
       didLongPress.current = true
@@ -31,14 +32,14 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
   }
   // Collect all pages from all notebooks with their metadata
   const allPages: Array<{
-    page: any
-    section: any
-    notebook: any
+    page: Page
+    section: Section
+    notebook: Notebook
   }> = []
 
   notebooks.forEach(notebook => {
-    notebook.sections?.forEach((section: any) => {
-      section.pages?.forEach((page: any) => {
+    notebook.sections?.forEach(section => {
+      section.pages?.forEach(page => {
         allPages.push({ page, section, notebook })
       })
     })
@@ -46,14 +47,10 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
 
   // Sort by updated_at (falls back to created_at) — most recently edited first
   const recentPages = allPages
-    .sort((a, b) => {
-      const dateA = new Date(a.page.updated_at ?? a.page.created_at).getTime()
-      const dateB = new Date(b.page.updated_at ?? b.page.created_at).getTime()
-      return dateB - dateA
-    })
+    .sort((a, b) => pageSortTime(b.page) - pageSortTime(a.page))
     .slice(0, 60) // Show most recent 60 pages
 
-  const getPreviewText = (content: string) => {
+  const getPreviewText = (content: string | null) => {
     if (!content) return 'Empty page...'
     const plainText = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
     return plainText.substring(0, 100) + (plainText.length > 100 ? '...' : '')

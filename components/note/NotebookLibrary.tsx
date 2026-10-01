@@ -3,48 +3,39 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { RecentPagesGrid } from './RecentPagesGrid'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { toast } from 'sonner'
+import type { Notebook, Page, Section } from './types'
 
-const PINNED_NOTEBOOKS_STORAGE_KEY = 'pinned_notebook_ids'
-const MAX_PINNED_NOTEBOOKS = 3
 const LONG_PRESS_MS = 500
 
-export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onSelectPage, onQuickAdd, onLongPressPage }: any) {
+type NotebookLibraryProps = {
+  notebooks: Notebook[]
+  onSelect: (nb: Notebook) => void
+  onAdd: () => void
+  onDelete: (nb: Notebook) => void
+  onRename: (nb: Notebook) => void
+  onTogglePin: (nb: Notebook) => void
+  onSelectPage: (page: Page, section: Section, notebook: Notebook) => void
+  onQuickAdd: () => void
+  onLongPressPage: (page: Page, section: Section, notebook: Notebook) => void
+}
+
+export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onTogglePin, onSelectPage, onQuickAdd, onLongPressPage }: NotebookLibraryProps) {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
-  const [pinnedNotebookIds, setPinnedNotebookIds] = useState<string[]>([])
-  const [actionNotebook, setActionNotebook] = useState<any | null>(null)
+  const [actionNotebook, setActionNotebook] = useState<Notebook | null>(null)
   const longPressTimerRef = useRef<number | null>(null)
   const didLongPressRef = useRef(false)
 
   useEffect(() => {
-    const savedPinned = localStorage.getItem(PINNED_NOTEBOOKS_STORAGE_KEY)
-    if (!savedPinned) return
-
-    try {
-      const parsed = JSON.parse(savedPinned)
-      if (Array.isArray(parsed)) {
-        setPinnedNotebookIds(parsed.slice(0, MAX_PINNED_NOTEBOOKS))
-      }
-    } catch {
-      localStorage.removeItem(PINNED_NOTEBOOKS_STORAGE_KEY)
+    return () => {
+      if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current)
     }
   }, [])
 
-  useEffect(() => {
-    const validIds = new Set(notebooks.map((nb: any) => nb.id))
-
-    setPinnedNotebookIds(prev => {
-      const cleaned = prev.filter(id => validIds.has(id)).slice(0, MAX_PINNED_NOTEBOOKS)
-      localStorage.setItem(PINNED_NOTEBOOKS_STORAGE_KEY, JSON.stringify(cleaned))
-      return cleaned
-    })
-  }, [notebooks])
-
   const sortedNotebooks = useMemo(
     () =>
-      [...notebooks].sort((a: any, b: any) =>
+      [...notebooks].sort((a, b) =>
         a.title.localeCompare(b.title, undefined, {
           sensitivity: 'base',
         })
@@ -54,18 +45,17 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
 
   const filtered = useMemo(
     () =>
-      sortedNotebooks.filter((n: any) =>
+      sortedNotebooks.filter(n =>
         n.title.toLowerCase().includes(query.toLowerCase())
       ),
     [query, sortedNotebooks]
   )
 
-  const orderedFiltered = useMemo(() => {
-    const pinnedSet = new Set(pinnedNotebookIds)
-    const pinned = filtered.filter((nb: any) => pinnedSet.has(nb.id))
-    const others = filtered.filter((nb: any) => !pinnedSet.has(nb.id))
-    return [...pinned, ...others]
-  }, [filtered, pinnedNotebookIds])
+  // Pinned notebooks first, each group alphabetical
+  const orderedFiltered = useMemo(
+    () => [...filtered.filter(nb => nb.pinned), ...filtered.filter(nb => !nb.pinned)],
+    [filtered]
+  )
 
   function clearLongPressTimer() {
     if (longPressTimerRef.current !== null) {
@@ -74,7 +64,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
     }
   }
 
-  function handleNotebookPointerDown(nb: any) {
+  function handleNotebookPointerDown(nb: Notebook) {
     didLongPressRef.current = false
     clearLongPressTimer()
 
@@ -84,7 +74,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
     }, LONG_PRESS_MS)
   }
 
-  function handleNotebookPointerUp(nb: any) {
+  function handleNotebookPointerUp(nb: Notebook) {
     clearLongPressTimer()
     if (!didLongPressRef.current) {
       onSelect(nb)
@@ -93,27 +83,6 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
 
   function handleNotebookPointerCancel() {
     clearLongPressTimer()
-  }
-
-  function togglePin(nb: any) {
-    setPinnedNotebookIds(prev => {
-      const isPinned = prev.includes(nb.id)
-
-      if (isPinned) {
-        const next = prev.filter(id => id !== nb.id)
-        localStorage.setItem(PINNED_NOTEBOOKS_STORAGE_KEY, JSON.stringify(next))
-        return next
-      }
-
-      if (prev.length >= MAX_PINNED_NOTEBOOKS) {
-        toast.error('You can pin up to 3 notebooks')
-        return prev
-      }
-
-      const next = [...prev, nb.id]
-      localStorage.setItem(PINNED_NOTEBOOKS_STORAGE_KEY, JSON.stringify(next))
-      return next
-    })
   }
 
   function handleRenameFromActions() {
@@ -130,7 +99,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
 
   function handlePinFromActions() {
     if (!actionNotebook) return
-    togglePin(actionNotebook)
+    onTogglePin(actionNotebook)
     setActionNotebook(null)
   }
   
@@ -140,26 +109,24 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
 
     const query = searchQuery.toLowerCase()
     const results: Array<{
-      page: any
-      section: any
-      notebook: any
+      page: Page
+      section: Section
+      notebook: Notebook
       matchedText: string
     }> = []
 
-    notebooks.forEach((notebook: any) => {
-      notebook.sections?.forEach((section: any) => {
-        section.pages?.forEach((page: any) => {
+    notebooks.forEach(notebook => {
+      notebook.sections?.forEach(section => {
+        section.pages?.forEach(page => {
           const titleMatch = page.title?.toLowerCase().includes(query)
-          const content = typeof page.content === 'string' 
-            ? page.content 
-            : JSON.stringify(page.content)
+          const content = page.content ?? ''
           const plainContent = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
           const contentMatch = plainContent.toLowerCase().includes(query)
 
           if (titleMatch || contentMatch) {
             let matchedText = ''
             if (titleMatch) {
-              matchedText = page.title
+              matchedText = page.title || 'Untitled'
             } else {
               const index = plainContent.toLowerCase().indexOf(query)
               const start = Math.max(0, index - 40)
@@ -291,8 +258,8 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
               </p>
             </div>
 
-            {orderedFiltered.map((nb: any) => {
-              const isPinned = pinnedNotebookIds.includes(nb.id)
+            {orderedFiltered.map(nb => {
+              const isPinned = !!nb.pinned
 
               return (
               <div
@@ -348,7 +315,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
               className="w-full justify-start gap-2"
               onClick={handlePinFromActions}
             >
-              {actionNotebook && pinnedNotebookIds.includes(actionNotebook.id) ? (
+              {actionNotebook?.pinned ? (
                 <>
                   <PinOff className="w-4 h-4" /> Unpin
                 </>

@@ -663,8 +663,8 @@ export default function PrayerTab(): JSX.Element {
               setSelectedDiaryPage(null)
               if (userId) await loadDiary(userId)
             }}
-            onRefresh={async () => {
-              if (userId) await loadDiary(userId)
+            onSaved={(patch) => {
+              setDiaryPages(prev => prev.map(p => (p.id === patch.id ? { ...p, ...patch } : p)))
             }}
           />
         </div>
