@@ -172,6 +172,8 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
         <div className="grid grid-cols-7 gap-y-3 justify-items-center">
           {days.map((day, i) => {
             const isToday = day.date.toDateString() === new Date().toDateString()
+            // Colour prayed days by total minutes: 60+ green, 30–59 amber, under 30 red
+            const tone = day.totalMinutes >= 60 ? 'green' : day.totalMinutes >= 30 ? 'amber' : 'red'
 
             return (
               <button
@@ -180,7 +182,10 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
                 onClick={() => day.state === 'prayed' && setSelectedDay(day)}
                 className={clsx(
                   'relative h-9 w-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all active:scale-90',
-                  day.state === 'prayed' && 'bg-amber-500 text-white shadow-lg shadow-amber-500/30',
+                  day.state === 'prayed' && 'text-white shadow-lg',
+                  day.state === 'prayed' && tone === 'green' && 'bg-green-500 shadow-green-500/30',
+                  day.state === 'prayed' && tone === 'amber' && 'bg-amber-500 shadow-amber-500/30',
+                  day.state === 'prayed' && tone === 'red' && 'bg-red-500 shadow-red-500/30',
                   day.state === 'missed' && 'bg-muted text-muted-foreground/50',
                   day.state === 'future' && 'text-muted-foreground/30',
                   day.state === 'before' && 'opacity-0 pointer-events-none',
@@ -206,13 +211,19 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
         </div>
 
         {/* Legend */}
-        <div className="flex items-center gap-4 mt-5 pt-4 border-t border-border/40">
-          <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded-md bg-amber-500 flex items-center justify-center">
-              <Flame className="w-2.5 h-2.5 fill-white text-white" />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-5 pt-4 border-t border-border/40">
+          {[
+            { bg: 'bg-green-500', label: '60m+' },
+            { bg: 'bg-amber-500', label: '30–59m' },
+            { bg: 'bg-red-500', label: '<30m' },
+          ].map(({ bg, label }) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div className={clsx('w-4 h-4 rounded-md flex items-center justify-center', bg)}>
+                <Flame className="w-2.5 h-2.5 fill-white text-white" />
+              </div>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
             </div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Prayed</span>
-          </div>
+          ))}
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded-md bg-muted" />
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Missed</span>
