@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Avatar } from '@/components/meditations/PartnerMeditationBoard'
+import { intersect, streakFrom, toISO } from '@/lib/prayer/streak'
 
 type Person = {
   name: string
@@ -17,20 +18,6 @@ type BoardData = {
   me: Person
   partner: Person
   togetherStreak: number
-}
-
-const toISO = (d: Date) => d.toLocaleDateString('en-CA')
-
-// Consecutive days with prayer; today may still be in progress
-function streakFrom(days: Set<string>) {
-  let streak = 0
-  const cursor = new Date()
-  if (!days.has(toISO(cursor))) cursor.setDate(cursor.getDate() - 1)
-  while (days.has(toISO(cursor))) {
-    streak++
-    cursor.setDate(cursor.getDate() - 1)
-  }
-  return streak
 }
 
 export default function PartnerPrayerBoard({ refreshKey }: { refreshKey?: number }) {
@@ -86,7 +73,7 @@ export default function PartnerPrayerBoard({ refreshKey }: { refreshKey?: number
 
       const myDays = daysByUser.get(me.id)!
       const partnerDays = daysByUser.get(partner.id)!
-      const bothDays = new Set([...myDays].filter(d => partnerDays.has(d)))
+      const bothDays = intersect(myDays, partnerDays)
 
       setData({
         me: {

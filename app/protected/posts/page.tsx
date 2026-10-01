@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Post, Profile } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -216,7 +217,11 @@ function PostsTab() {
 }
 
 function FeedPageContent() {
-  const [activeTab, setActiveTab] = useState<Tab>('meditations')
+  // ?tab=prayer etc. lets notifications open a specific tab
+  const requestedTab = useSearchParams().get('tab')
+  const [activeTab, setActiveTab] = useState<Tab>(
+    TABS.some(t => t.id === requestedTab) ? (requestedTab as Tab) : 'meditations'
+  )
 
   return (
     <div className="w-full max-w-2xl mx-auto px-4 md:px-6 py-6">

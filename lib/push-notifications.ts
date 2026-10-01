@@ -66,7 +66,9 @@ export class PushNotificationService {
     type: 'message' | 'planner_reminder' | 'task_reminder' | 'goal_deadline' | 'goal_progress' | 'goal_created' | 'meditation' | 'post' | 'system' = 'system'
   ) {
     try {
-      const supabase = await this.getSupabase()
+      // Service client: the target is often not the signed-in user (partner
+      // notifications, cron jobs), and RLS would hide their preferences/devices
+      const supabase = await this.getServiceSupabase()
 
       /* 1. Preference check */
       const { data: preferences } = await supabase
@@ -87,8 +89,7 @@ export class PushNotificationService {
       if (!subscriptions || subscriptions.length === 0) return
 
       /* 3. Persist notification */
-      const serviceSupabase = await this.getServiceSupabase()
-      const { data: notification } = await serviceSupabase
+      const { data: notification } = await supabase
         .from('notifications')
         .insert({
           user_id: userId,
@@ -103,7 +104,7 @@ export class PushNotificationService {
       if (!notification) return
 
       /* 4. Get unread count for Android app badge */
-      const { count: unreadCount } = await serviceSupabase
+      const { count: unreadCount } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)

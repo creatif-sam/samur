@@ -120,6 +120,12 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
     await saveSession()
     setSavingSession(false)
     onSessionComplete?.()
+    // Let the partner know (server only sends for the first prayer of the day)
+    fetch('/api/prayer/partner-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: new Date().toLocaleDateString('en-CA') }),
+    }).catch(() => {})
     const count = inspirationsRef.current.length
     toast.success(
       `Prayer complete! 🙏${count > 0 ? ` ${count} inspiration${count > 1 ? 's' : ''} saved ✨` : ''}`
