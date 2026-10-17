@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
 import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
@@ -72,6 +74,13 @@ export default function AnalyticsPage() {
 
       {/* Header */}
       <div className="px-4 pt-5 pb-1">
+        <Link
+          href="/protected/planner"
+          className="inline-flex items-center gap-1 mb-3 pl-2 pr-3 h-8 rounded-full bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Planner
+        </Link>
         <p className="text-sm text-muted-foreground font-medium">Your growth</p>
         <h1 className="text-3xl font-black tracking-tight leading-none">
           Analytics <span className="text-violet-500">Lab</span>
