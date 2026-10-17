@@ -11,6 +11,7 @@ import MeditationComposer from '@/components/meditations/MeditationComposer'
 import { Pencil, Copy, LayoutGrid, List, BookOpen, ChevronRight } from 'lucide-react'
 import MeditationStreakBoard from '@/components/meditations/MeditationStreakBoard'
 import PartnerMeditationBoard from '@/components/meditations/PartnerMeditationBoard'
+import MemoryVerseCard from '@/components/meditations/MemoryVerseCard'
 
 import type { MeditationDB } from '@/lib/types'
 
@@ -286,6 +287,9 @@ ${m.prayer}
           </select>
         </div>
       </header>
+
+      {/* Memory verse */}
+      <MemoryVerseCard />
 
       {/* Streak */}
       {userId && accountCreatedAt && (
