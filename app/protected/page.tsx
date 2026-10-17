@@ -14,6 +14,9 @@ import HomeActivityFeed from '@/components/home/HomeActivityFeed'
 import GratitudeCard from '@/components/home/GratitudeCard'
 import YearThemeCard from '@/components/home/YearThemeCard'
 import UpcomingGoalsCountdown from '@/components/home/UpcomingGoalsCountdown'
+import { toLocalDateKey } from '@/lib/dates'
+import { fetchRecurringRows } from '@/lib/planner/queries'
+import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks'
 
 export default function HomePage() {
   const supabase = createClient()
@@ -33,21 +36,30 @@ export default function HomePage() {
     if (!auth.user) return
     const uid      = auth.user.id
     setUserId(uid)
-    const todayStr = today.toISOString().split('T')[0]
+    const todayStr = toLocalDateKey(today)
 
     const [profileRes, goalsRes, meditationsRes, bookRes, plannerRes] = await Promise.all([
       supabase.from('profiles').select('name, avatar_url').eq('id', uid).single(),
       supabase.from('goals').select('*').or(`owner_id.eq.${uid},partner_id.eq.${uid}`),
       supabase.from('meditations').select('created_at, period, author_id').eq('author_id', uid).order('created_at', { ascending: false }),
       supabase.from('readings').select('id, title, author, total_pages, pages_remaining').eq('user_id', uid).eq('status', 'reading').limit(1).maybeSingle(),
-      supabase.from('planner_days').select('morning, tasks, mood').eq('user_id', uid).eq('day', todayStr).maybeSingle(),
+      supabase.from('planner_days').select('day, user_id, morning, tasks, mood, completed_task_ids').eq('user_id', uid).eq('day', todayStr).maybeSingle(),
     ])
+    const recurringRows = await fetchRecurringRows(supabase, [uid], todayStr).catch(() => [] as PlannerDayRow[])
 
     setUserName(profileRes.data?.name ?? null)
     setGoals(goalsRes.data ?? [])
     setMeditations(meditationsRes.data ?? [])
     setCurrentBook(bookRes.data ?? null)
-    setTodayPlanner(plannerRes.data ?? null)
+    // Today's tasks including recurring ones, with completion from completed_task_ids
+    const [todayTasks] = expandDays({
+      userId: uid,
+      rows: plannerRes.data ? [plannerRes.data as PlannerDayRow] : [],
+      recurringRows,
+      from: todayStr,
+      to: todayStr,
+    })
+    setTodayPlanner({ ...(plannerRes.data ?? {}), tasks: todayTasks.tasks })
   }
 
   const meditationStreak = (() => {

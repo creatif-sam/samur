@@ -1,5 +1,8 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
+import { zonedNow } from '@/lib/dates';
+import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries';
+import { buildDayTasks } from '@/lib/planner/tasks';
 
 export async function GET(request: Request) {
   try {
@@ -26,19 +29,16 @@ export async function GET(request: Request) {
     }
 
     let notificationsSent = 0;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-
     // For each user, count their activities planned for today
     for (const user of users) {
-      // Fetch today's planner data
-      const { data: plannerDay } = await serviceSupabase
-        .from('planner_days')
-        .select('tasks')
-        .eq('user_id', user.id)
-        .eq('day', today)
-        .single();
-      
-      const taskCount = plannerDay?.tasks?.length || 0;
+      // "Today" in the user's own time zone, including recurring tasks
+      const { dateKey: today } = zonedNow(user.user_metadata?.timezone as string | undefined);
+      const [dayRows, recurringRows] = await Promise.all([
+        fetchDayRows(serviceSupabase, [user.id], today),
+        fetchRecurringRows(serviceSupabase, [user.id], today),
+      ]);
+
+      const taskCount = buildDayTasks({ dateKey: today, userId: user.id, dayRows, recurringRows }).length;
       const message = taskCount > 0 
         ? `You have ${taskCount} ${taskCount === 1 ? 'activity' : 'activities'} planned for today`
         : 'Check your planner for today';

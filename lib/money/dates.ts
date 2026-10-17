@@ -1,18 +1,4 @@
-// money_entries.entry_date and budget period keys are plain `YYYY-MM-DD` dates.
-// Build and parse them in local time; toISOString() would shift them to UTC
-// and land on the wrong day for anyone not at UTC+0.
-
-export function toLocalDateKey(date: Date) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-export function parseDateKey(key: string) {
-  const [y, m, d] = key.slice(0, 10).split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
+export { toLocalDateKey, parseDateKey } from '@/lib/dates'
 
 // Next year first (for planning ahead), then the four years before this one
 export function yearOptions(now = new Date()) {

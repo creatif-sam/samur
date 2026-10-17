@@ -15,6 +15,9 @@ import {
   Calendar,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toLocalDateKey } from '@/lib/dates'
+import { fetchRecurringRows } from '@/lib/planner/queries'
+import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks'
 
 interface WeekData {
   goals: { total: number; done: number; doing: number }
@@ -34,7 +37,7 @@ function weekRange() {
   start.setHours(0, 0, 0, 0)
   const end = new Date(start)
   end.setDate(start.getDate() + 7)
-  return { start, end, startStr: start.toISOString().split('T')[0], endStr: end.toISOString().split('T')[0] }
+  return { start, end, startStr: toLocalDateKey(start), endStr: toLocalDateKey(end) }
 }
 
 function dayLabels() {
@@ -42,7 +45,7 @@ function dayLabels() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start)
     d.setDate(start.getDate() + i)
-    return d.toISOString().split('T')[0]
+    return toLocalDateKey(d)
   })
 }
 
@@ -75,7 +78,11 @@ export default function WeeklyReviewPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
 
-    const [goalsRes, meditationsRes, plannerRes, readingsRes, moneyRes, gratitudeRes] = await Promise.all([
+    // Only count days up to today; future planned tasks aren't missed yet
+    const today = toLocalDateKey(new Date())
+    const lastDay = days[6] < today ? days[6] : today
+
+    const [goalsRes, meditationsRes, plannerRes, readingsRes, moneyRes, gratitudeRes, recurringRows] = await Promise.all([
       supabase.from('goals')
         .select('status, due_date, created_at')
         .or(`owner_id.eq.${user.id},partner_id.eq.${user.id}`)
@@ -89,7 +96,7 @@ export default function WeeklyReviewPage() {
         .lt('created_at', `${endStr}T00:00:00`),
 
       supabase.from('planner_days')
-        .select('tasks')
+        .select('day, user_id, tasks, completed_task_ids')
         .eq('user_id', user.id)
         .in('day', days),
 
@@ -110,6 +117,8 @@ export default function WeeklyReviewPage() {
         .gte('date', startStr)
         .lt('date', endStr)
         .order('date', { ascending: true }),
+
+      fetchRecurringRows(supabase, [user.id], lastDay).catch(() => [] as PlannerDayRow[]),
     ])
 
     // Goals
@@ -122,13 +131,15 @@ export default function WeeklyReviewPage() {
 
     // Planner tasks
     let tasksTotal = 0; let tasksDone = 0
-    for (const day of plannerRes.data ?? []) {
-      const tasks = day.tasks as Record<string, { completed: boolean }> | null
-      if (tasks && typeof tasks === 'object') {
-        const arr = Object.values(tasks)
-        tasksTotal += arr.length
-        tasksDone += arr.filter(t => t.completed).length
-      }
+    for (const day of expandDays({
+      userId: user.id,
+      rows: (plannerRes.data ?? []) as PlannerDayRow[],
+      recurringRows,
+      from: days[0],
+      to: lastDay,
+    })) {
+      tasksTotal += day.tasks.length
+      tasksDone += day.tasks.filter(t => t.completed).length
     }
 
     // Money
@@ -233,7 +244,7 @@ export default function WeeklyReviewPage() {
                 {Array.from({ length: 7 }, (_, i) => {
                   const d = new Date(start)
                   d.setDate(start.getDate() + i)
-                  const ds = d.toISOString().split('T')[0]
+                  const ds = toLocalDateKey(d)
                   const filled = data.gratitude.some(g => g.date === ds)
                   return (
                     <div

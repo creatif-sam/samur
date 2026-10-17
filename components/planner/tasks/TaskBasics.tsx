@@ -63,10 +63,10 @@ export function TaskBasics({
       {/* Vision Link Section */}
       <div>
         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-3 block">
-          Link to Vision <span className="text-red-500">*</span>
+          Link to Vision <span className="normal-case tracking-normal font-medium">(optional)</span>
         </label>
         
-        <div className="bg-slate-50 rounded-[22px] overflow-hidden border border-slate-100/50 hover:bg-slate-100/50 transition-colors">
+        <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[22px] overflow-hidden border border-slate-100/50 dark:border-slate-700 hover:bg-slate-100/50 dark:hover:bg-slate-800/60 transition-colors">
           <div className="flex items-center gap-3 px-4 py-4">
             <div className="bg-indigo-100 p-2.5 rounded-xl">
               <Sparkles size={18} className="text-indigo-600" />
@@ -76,9 +76,9 @@ export function TaskBasics({
               <select
                 value={visionId ?? ''}
                 onChange={(e) => onVisionChange(e.target.value === '' ? null : e.target.value)}
-                className="w-full bg-transparent border-none text-[16px] font-semibold focus:ring-0 cursor-pointer appearance-none outline-none pr-8"
+                className="w-full bg-transparent border-none text-[16px] font-semibold focus:ring-0 cursor-pointer appearance-none outline-none pr-8 dark:text-white"
               >
-                <option value="" disabled>Select a vision…</option>
+                <option value="">{visions.length ? 'No vision' : 'No visions yet'}</option>
                 {visions.map((v) => (
                   <option key={v.id} value={v.id}>
                     {v.title}

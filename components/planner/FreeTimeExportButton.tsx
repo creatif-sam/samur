@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Modal } from './tasks/Modal'
 import type { PlannerTask } from './DailyPlanner'
+import { taskSpan } from '@/lib/planner/tasks'
 
 const HOURS_START = 5
 const HOURS_END = 23
@@ -15,11 +16,6 @@ interface FreeBlock {
 interface Props {
   tasks: PlannerTask[]
   date: Date
-}
-
-function parseMinutes(time: string) {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + (m || 0)
 }
 
 function formatMinutes(mins: number) {
@@ -35,12 +31,7 @@ export default function FreeTimeExportButton({
   const [freeBlocks, setFreeBlocks] = useState<FreeBlock[] | null>(null)
 
   function calculateFreeTime() {
-    const busy = tasks
-      .map((t) => ({
-        start: parseMinutes(t.start),
-        end: parseMinutes(t.end),
-      }))
-      .sort((a, b) => a.start - b.start)
+    const busy = tasks.map(taskSpan).sort((a, b) => a.start - b.start)
 
     let cursor = HOURS_START * 60
     const end = HOURS_END * 60
@@ -48,9 +39,10 @@ export default function FreeTimeExportButton({
 
     for (const b of busy) {
       if (b.start > cursor) {
-        free.push({ start: cursor, end: b.start })
+        free.push({ start: cursor, end: Math.min(b.start, end) })
       }
       cursor = Math.max(cursor, b.end)
+      if (cursor >= end) break
     }
 
     if (cursor < end) {

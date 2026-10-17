@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import type { PlannerTask } from '../DailyPlanner'
 import { Repeat, X } from 'lucide-react'
 
@@ -13,23 +12,10 @@ export function TaskRecurrence({
   value: PlannerTask['recurring'] | null
   onChange: (v: PlannerTask['recurring'] | null) => void
 }) {
-  const [enabled, setEnabled] = useState(!!value)
-
-  const base = value ?? {
-    interval: 1,
-    unit: 'week' as RecurringUnit,
-    daysOfWeek: [] as number[],
-    until: '',
-  }
-
-  useEffect(() => {
-    if (!enabled) onChange(null)
-  }, [enabled, onChange])
-
-  if (!enabled) {
+  if (!value) {
     return (
       <button
-        onClick={() => setEnabled(true)}
+        onClick={() => onChange({ interval: 1, unit: 'week', daysOfWeek: [], until: '' })}
         className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all mt-3"
       >
         <Repeat size={16} />
@@ -37,6 +23,8 @@ export function TaskRecurrence({
       </button>
     )
   }
+
+  const base = value
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-[24px] p-5 space-y-4 mt-3 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -46,7 +34,7 @@ export function TaskRecurrence({
           <span>Recurrence Rules</span>
         </div>
         <button 
-          onClick={() => setEnabled(false)}
+          onClick={() => onChange(null)}
           className="p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full text-slate-400 hover:text-red-500 transition-colors"
         >
           <X size={14} />
@@ -62,7 +50,7 @@ export function TaskRecurrence({
             type="number"
             min={1}
             value={base.interval}
-            onChange={(e) => onChange({ ...base, interval: Number(e.target.value) })}
+            onChange={(e) => onChange({ ...base, interval: Math.max(1, Math.floor(Number(e.target.value)) || 1) })}
             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-100 dark:text-white outline-none"
           />
         </div>
@@ -72,7 +60,7 @@ export function TaskRecurrence({
           <p className="text-[10px] font-bold text-purple-500 mb-1.5 ml-1 uppercase tracking-tight">Unit</p>
           <select
             value={base.unit}
-            onChange={(e) => onChange({ ...base, unit: e.target.value as any })}
+            onChange={(e) => onChange({ ...base, unit: e.target.value as RecurringUnit })}
             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-100 dark:text-white outline-none appearance-none"
           >
             <option value="day">Days</option>
@@ -86,7 +74,7 @@ export function TaskRecurrence({
           <p className="text-[10px] font-bold text-slate-400 mb-1.5 ml-1 uppercase tracking-tight">Until (Optional)</p>
           <input
             type="date"
-            value={base.until}
+            value={base.until ?? ''}
             onChange={(e) => onChange({ ...base, until: e.target.value })}
             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-100 dark:text-white [color-scheme:dark] outline-none"
           />
@@ -116,6 +104,12 @@ export function TaskRecurrence({
             </button>
           ))}
         </div>
+      )}
+      {base.unit === 'week' && base.daysOfWeek.length === 0 && (
+        <p className="text-[11px] text-slate-400 px-1">No days picked: repeats on the weekday it starts.</p>
+      )}
+      {base.unit === 'month' && (
+        <p className="text-[11px] text-slate-400 px-1">Repeats on the same date of the month (last day for shorter months).</p>
       )}
     </div>
   )

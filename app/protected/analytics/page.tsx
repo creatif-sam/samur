@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
 import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
 import { PlannerTask } from '@/components/planner/DailyPlanner'
+import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks'
+import { addDays, toLocalDateKey } from '@/lib/dates'
 import VisionProgressDashboard from '@/components/planner/VisionTimeUsageDashboard'
 import AnalyticsHero from '@/components/analytics/AnalyticsHero'
 import AnalyticsStatCards from '@/components/analytics/AnalyticsStatCards'
@@ -16,7 +18,7 @@ export default function AnalyticsPage() {
   const [goals, setGoals]           = useState<Goal[]>([])
   const [meditations, setMeditations] = useState<{ created_at: string; period?: string; author_id: string }[]>([])
   const [booksRead, setBooksRead]   = useState(0)
-  const [allTasks, setAllTasks]     = useState<PlannerTask[]>([])
+  const [allTasks, setAllTasks]     = useState<(PlannerTask & { day: string })[]>([])
   const [visionsMap, setVisionsMap] = useState<Record<string, any>>({})
 
   useEffect(() => { loadData() }, [])
@@ -31,7 +33,7 @@ export default function AnalyticsPage() {
       supabase.from('goals').select('*').or(`owner_id.eq.${uid},partner_id.eq.${uid}`),
       supabase.from('meditations').select('created_at, period, author_id').eq('author_id', uid).order('created_at', { ascending: false }),
       supabase.from('readings').select('id').eq('user_id', uid).eq('status', 'done'),
-      supabase.from('planner_days').select('tasks').eq('user_id', uid),
+      supabase.from('planner_days').select('day, user_id, tasks, completed_task_ids').eq('user_id', uid).lte('day', toLocalDateKey(new Date())),
       supabase.from('visions').select('id, title, emoji').eq('owner_id', uid),
     ])
 
@@ -39,8 +41,14 @@ export default function AnalyticsPage() {
     setMeditations(meditationsRes.data ?? [])
     setBooksRead(booksRes.data?.length ?? 0)
 
-    const flat = historyRes.data?.flatMap(d => Array.isArray(d.tasks) ? d.tasks : []) ?? []
-    setAllTasks(flat)
+    // Expand recurring tasks over the last year so time per vision counts every occurrence
+    const rows = (historyRes.data ?? []) as PlannerDayRow[]
+    const today = toLocalDateKey(new Date())
+    const firstDay = rows.reduce((min, r) => (r.day < min ? r.day : min), today)
+    const from = firstDay > addDays(today, -364) ? firstDay : addDays(today, -364)
+    const recurringRows = rows.filter(r => Array.isArray(r.tasks) && r.tasks.some(t => t?.recurring))
+    const days = expandDays({ userId: uid, rows, recurringRows, from, to: today })
+    setAllTasks(days.flatMap(d => d.tasks.map(t => ({ ...t, day: d.day }))))
 
     const vMap: Record<string, any> = {}
     visionsRes.data?.forEach(v => { vMap[v.id] = v })

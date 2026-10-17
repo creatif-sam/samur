@@ -1,6 +1,9 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { addDays, zonedNow } from '@/lib/dates';
+import { fetchRecurringRows } from '@/lib/planner/queries';
+import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks';
 
 export async function GET(request: Request) {
   try {
@@ -32,8 +35,6 @@ export async function GET(request: Request) {
     // 3. Build date range: last 7 days
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const weekAgoStr = weekAgo.toISOString().split('T')[0];
-    const todayStr = now.toISOString().split('T')[0];
     const appUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com';
     const fromEmail = process.env.FROM_EMAIL || 'SamUr <noreply@mastery.samuelgyasi.com>';
 
@@ -42,18 +43,24 @@ export async function GET(request: Request) {
     for (const user of users) {
       if (!user.email) continue;
 
-      // Planner: tasks and reflections for the week
+      // Planner: tasks (recurring included) and reflections for the user's last 7 local days
+      const { dateKey: todayStr } = zonedNow(user.user_metadata?.timezone as string | undefined);
+      const weekAgoStr = addDays(todayStr, -6);
       const { data: plannerDays } = await serviceSupabase
         .from('planner_days')
-        .select('tasks, reflection, day')
+        .select('day, user_id, tasks, reflection, completed_task_ids')
         .eq('user_id', user.id)
         .gte('day', weekAgoStr)
         .lte('day', todayStr);
+      const recurringRows = await fetchRecurringRows(serviceSupabase, [user.id], todayStr).catch(() => [] as PlannerDayRow[]);
 
-      const totalTasks = plannerDays?.reduce(
-        (acc, d) => acc + (Array.isArray(d.tasks) ? d.tasks.length : 0),
-        0
-      ) ?? 0;
+      const totalTasks = expandDays({
+        userId: user.id,
+        rows: (plannerDays ?? []) as PlannerDayRow[],
+        recurringRows,
+        from: weekAgoStr,
+        to: todayStr,
+      }).reduce((acc, d) => acc + d.tasks.length, 0);
       const daysWithReflections = plannerDays?.filter(
         d => typeof d.reflection === 'string' && d.reflection.trim().length > 0
       ).length ?? 0;

@@ -2,6 +2,7 @@
 
 import { useMemo, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { parseDateKey, toLocalDateKey } from '@/lib/dates'
 
 interface TopCalendarProps {
   selectedDate: Date
@@ -128,8 +129,8 @@ export default function TopCalendar({
       <input
         ref={dateInputRef}
         type="date"
-        value={selectedDate.toISOString().split('T')[0]}
-        onChange={e => onChange(new Date(e.target.value))}
+        value={toLocalDateKey(selectedDate)}
+        onChange={e => { if (e.target.value) onChange(parseDateKey(e.target.value)) }}
         className="sr-only"
       />
     </div>

@@ -2,6 +2,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { Topbar } from "@/components/topbar";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import FloatingPrayerTimer from "@/components/prayer/FloatingPrayerTimer";
+import TimezoneSync from "@/components/TimezoneSync";
 
 export default function ProtectedLayout({
   children,
@@ -13,6 +14,7 @@ export default function ProtectedLayout({
       <div className="min-h-screen bg-background">
         <Topbar />
         <FloatingPrayerTimer />
+        <TimezoneSync />
         <main className="pb-20">
           {children}
         </main>

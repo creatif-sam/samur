@@ -2,6 +2,7 @@
 
 import { PlannerTask } from './DailyPlanner'
 import { ListChecks, Clock, Trophy, CheckCircle2, Lightbulb } from 'lucide-react'
+import { busyMinutes as countBusyMinutes, taskDuration } from '@/lib/planner/tasks'
 
 const HOURS_START = 5
 const HOURS_END = 23
@@ -13,19 +14,15 @@ interface DaySummaryProps {
 }
 
 export default function DaySummary({ tasks, completedTaskIds, visions }: DaySummaryProps) {
-  function parseMinutes(time: string) {
-    const [h, m] = time.split(':').map(Number)
-    return h * 60 + (m || 0)
-  }
-
   const totalDayMinutes = (HOURS_END - HOURS_START) * 60
 
   const taskDurations = tasks.map((task) => ({
     ...task,
-    duration: parseMinutes(task.end) - parseMinutes(task.start),
+    duration: taskDuration(task),
   }))
 
-  const busyMinutes = taskDurations.reduce((sum, task) => sum + task.duration, 0)
+  // Overlapping events count once; only the 05:00–23:00 window counts as plannable
+  const busyMinutes = countBusyMinutes(tasks, HOURS_START * 60, HOURS_END * 60)
   const freeMinutes = Math.max(totalDayMinutes - busyMinutes, 0)
   const freeHours = (freeMinutes / 60).toFixed(1)
 

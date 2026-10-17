@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
+import { zonedNow } from '@/lib/dates';
 
 export async function GET(request: Request) {
   try {
@@ -26,17 +27,16 @@ export async function GET(request: Request) {
     }
 
     let notificationsSent = 0;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-
     // For each user, check if they have written an evening reflection today
     for (const user of users) {
-      // Check if user has an evening reflection for today in planner_days table
+      // Check if user has an evening reflection for their local today
+      const { dateKey: today } = zonedNow(user.user_metadata?.timezone as string | undefined);
       const { data: plannerDay } = await serviceSupabase
         .from('planner_days')
         .select('reflection')
         .eq('user_id', user.id)
         .eq('day', today)
-        .single();
+        .maybeSingle();
 
       // If no reflection found or reflection is empty, send reminder
       if (!plannerDay || !plannerDay.reflection || plannerDay.reflection.trim() === '') {

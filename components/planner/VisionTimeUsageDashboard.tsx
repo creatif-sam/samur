@@ -7,40 +7,29 @@ import {
 } from 'recharts'
 import { Target, Calendar, TrendingUp, BarChart3 } from 'lucide-react'
 import { PlannerTask } from './DailyPlanner'
+import { taskDuration } from '@/lib/planner/tasks'
+import { addDays, toLocalDateKey } from '@/lib/dates'
 
 type Period = 'week' | 'month' | 'year'
 
 interface DashboardProps {
-  allTasks: PlannerTask[] 
+  allTasks: (PlannerTask & { day?: string })[]
   visionsMap: Record<string, { title: string; emoji: string }>
 }
 
 export default function VisionProgressDashboard({ allTasks, visionsMap }: DashboardProps) {
   const [period, setPeriod] = useState<Period>('week')
 
-  function parseMinutes(time: string) {
-    const [h, m] = time.split(':').map(Number)
-    return h * 60 + (m || 0)
-  }
-
   const stats = useMemo(() => {
     const data: Record<string, { hours: number; sessions: number }> = {}
-    
+    const today = toLocalDateKey(new Date())
+    const since = addDays(today, period === 'week' ? -6 : period === 'month' ? -29 : -364)
+
     allTasks.forEach(task => {
       if (!task.vision_id || !visionsMap[task.vision_id]) return
-      
-      const startMins = parseMinutes(task.start)
-      let endMins = parseMinutes(task.end)
-      
-      /** * FIX: MIDNIGHT CROSSING LOGIC 
-       * If end time is before start time (e.g., 23:00 to 02:00), 
-       * add 1440 minutes (24 hours).
-       */
-      if (endMins < startMins) {
-        endMins += 1440
-      }
+      if (task.day && (task.day < since || task.day > today)) return
 
-      const hours = (endMins - startMins) / 60
+      const hours = taskDuration(task) / 60
       const title = visionsMap[task.vision_id].title
       
       if (!data[title]) data[title] = { hours: 0, sessions: 0 }

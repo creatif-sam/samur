@@ -2,37 +2,48 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import MonthCalendar from './MonthCalendar'
 
-import { TaskModal } from './tasks/TaskModal'
+import { TaskModal, type SaveScope } from './tasks/TaskModal'
 import TopCalendar from './TopCalendar'
 import DaySummary from './DailySummary'
 import FreeTimeExportButton from './FreeTimeExportButton'
 import MoodPicker, { moodThemes } from './MoodPicker'
+import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
+import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries'
+import {
+  buildDayTasks,
+  endsNextDay,
+  sortByStart,
+  tasksToStore,
+  type PlannerDayRow,
+  type PlannerTask,
+} from '@/lib/planner/tasks'
 
-export interface PlannerTask {
-  id: string
-  text: string
-  start: string
-  end: string
-  completed: boolean
-  vision_id?: string 
-  visibility?: 'private' | 'shared'
-  owner_id?: string
-  source_day?: string // The day this recurring task was originally created
-  recurring?: {
-    interval: number
-    unit: 'day' | 'week' | 'month' 
-    daysOfWeek: number[]
-    until?: string
-  }
-}
+export type { PlannerTask } from '@/lib/planner/tasks'
 
 type Vision = { id: string; title: string; emoji: string }
 type UserProfile = { id: string; name?: string; avatar_url?: string }
+
+type DaySnapshot = {
+  dateKey: string
+  tasks: PlannerTask[]
+  morning: string
+  reflection: string
+  mood: string
+  completedTaskIds: string[]
+}
+
+type StoredRow = {
+  tasks: PlannerTask[]
+  completed_task_ids: string[]
+  morning: string
+  reflection: string
+  mood: string
+}
 
 const TASK_GRADIENTS = [
   'from-violet-600 to-purple-700',
@@ -44,6 +55,27 @@ const TASK_GRADIENTS = [
   'from-green-500 to-emerald-600',
   'from-orange-500 to-amber-600',
 ]
+const NO_VISION_GRADIENT = 'from-slate-500 to-slate-700'
+const TEXT_SAVE_DELAY = 700
+
+// Same vision → same colour, whatever the order of the day's tasks
+function gradientFor(task: PlannerTask) {
+  if (!task.vision_id) return NO_VISION_GRADIENT
+  let hash = 0
+  for (const ch of task.vision_id) hash = (hash * 31 + ch.charCodeAt(0)) | 0
+  return TASK_GRADIENTS[Math.abs(hash) % TASK_GRADIENTS.length]
+}
+
+function formatDateKey(key: string) {
+  return parseDateKey(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
+function withException(task: PlannerTask, dateKey: string): PlannerTask {
+  if (!task.recurring) return task
+  const exceptions = new Set(task.recurring.exceptions ?? [])
+  exceptions.add(dateKey)
+  return { ...task, recurring: { ...task.recurring, exceptions: Array.from(exceptions).sort() } }
+}
 
 export default function DailyPlanner() {
   const supabase = createClient()
@@ -51,9 +83,12 @@ export default function DailyPlanner() {
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [tasks, setTasks] = useState<PlannerTask[]>([])
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([])
+  const [partnerCompletedIds, setPartnerCompletedIds] = useState<string[]>([])
   const [morning, setMorning] = useState('')
   const [reflection, setReflection] = useState('')
   const [mood, setMood] = useState('')
+  const [loadedDateKey, setLoadedDateKey] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState(false)
   const [taskModalHour, setTaskModalHour] = useState<number | null>(null)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
   const [visionsMap, setVisionsMap] = useState<Record<string, Vision>>({})
@@ -65,299 +100,417 @@ export default function DailyPlanner() {
   const [schedulingForDate, setSchedulingForDate] = useState<string | null>(null)
   const advanceDateRef = useRef<HTMLInputElement>(null)
 
-  const dateKey = selectedDate.toISOString().split('T')[0]
+  const dateKey = toLocalDateKey(selectedDate)
+  const todayKey = toLocalDateKey(new Date())
   const theme = moodThemes[mood] || moodThemes['default']
+  const loading = loadedDateKey !== dateKey
 
-  /**
-   * STANDARD TIME CALCULATION
-   * Corrects for tasks crossing midnight (e.g., 23:00 to 02:00)
-   */
-  function parseMinutes(time: string) {
-    const [h, m] = time.split(':').map(Number)
-    return h * 60 + (m || 0)
+  // Latest state for async callbacks (debounced saves, undo actions)
+  const stateRef = useRef<DaySnapshot & { loadedDateKey: string | null; userId: string | null }>(null!)
+  stateRef.current = { dateKey, tasks, morning, reflection, mood, completedTaskIds, loadedDateKey, userId }
+
+  // All writes run one after another so a slow save can never land after a newer one
+  const writeChain = useRef<Promise<unknown>>(Promise.resolve())
+  const pendingSave = useRef<{ snapshot: DaySnapshot; timer: ReturnType<typeof setTimeout> } | null>(null)
+  const loadSeq = useRef(0)
+
+  function enqueue<T>(job: () => Promise<T>, errorMessage: string): Promise<T | undefined> {
+    const run = writeChain.current.then(job).catch((err) => {
+      console.error(errorMessage, err)
+      toast.error(errorMessage)
+      return undefined
+    })
+    writeChain.current = run
+    return run
   }
 
-  // Used for sorting and checking relative order
-  function getEffectiveMinutes(start: string, end: string) {
-    const s = parseMinutes(start)
-    let e = parseMinutes(end)
-    if (e < s) e += 1440 // Add 24 hours if it ends the next day
-    return { start: s, end: e }
-  }
+  // ---------- loading ----------
 
-  function shouldShowTask(task: PlannerTask, date: Date) {
-    if (!task.recurring) return false; 
-    const dayOfWeek = date.getDay();
-    const untilDate = task.recurring.until ? new Date(task.recurring.until) : null;
-    if (untilDate && date > untilDate) return false;
-    if (task.recurring.unit === 'day') return true;
-    if (task.recurring.unit === 'week') return task.recurring.daysOfWeek.includes(dayOfWeek);
-    if (task.recurring.unit === 'month') return date.getDate() === new Date(dateKey).getDate(); 
-    return false;
-  }
-
-  useEffect(() => { loadDay() }, [dateKey])
-  useEffect(() => { 
-    loadVisions()
-    loadUserProfile()
-  }, [])
+  useEffect(() => { init() }, [])
+  useEffect(() => { if (userId) loadDay() }, [dateKey, userId, partnerId])
   useEffect(() => {
-    if (view === 'monthly') loadTaskDays(selectedDate.getFullYear(), selectedDate.getMonth())
-  }, [view])
+    if (view === 'monthly' && userId) loadTaskDays(selectedDate.getFullYear(), selectedDate.getMonth())
+  }, [view, userId, tasks])
 
-  async function loadUserProfile() {
+  // Flush a pending text save when switching day, leaving the page or backgrounding the app
+  useEffect(() => () => flushPendingSave(), [dateKey])
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flushPendingSave() }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [])
+
+  async function init() {
     const { data: auth } = await supabase.auth.getUser()
     if (!auth?.user) return
-    
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, name, avatar_url, partner_id')
-      .eq('id', auth.user.id)
-      .single()
-    
-    if (profile) {
-      setPartnerId(profile.partner_id || null)
-      
-      // Load both user and partner profiles
-      const profileIds = [auth.user.id]
-      if (profile.partner_id) profileIds.push(profile.partner_id)
-      
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name, avatar_url')
-        .in('id', profileIds)
-      
-      if (profiles) {
-        const map: Record<string, UserProfile> = {}
-        profiles.forEach((p) => { map[p.id] = p })
-        setProfilesMap(map)
-      }
-    }
-  }
+    const uid = auth.user.id
 
-  async function loadVisions() {
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth?.user) return
-    const { data: visions } = await supabase.from('visions').select('id, title, emoji').eq('owner_id', auth.user.id) 
+    const [{ data: profile }, { data: visions }] = await Promise.all([
+      supabase.from('profiles').select('partner_id').eq('id', uid).single(),
+      supabase.from('visions').select('id, title, emoji').eq('owner_id', uid),
+    ])
+
     if (visions) {
       const map: Record<string, Vision> = {}
       visions.forEach((v) => { map[v.id] = v })
       setVisionsMap(map)
     }
+
+    const pid: string | null = profile?.partner_id || null
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name, avatar_url')
+      .in('id', pid ? [uid, pid] : [uid])
+    if (profiles) {
+      const map: Record<string, UserProfile> = {}
+      profiles.forEach((p) => { map[p.id] = p })
+      setProfilesMap(map)
+    }
+
+    setPartnerId(pid)
+    setUserId(uid)
   }
 
   async function loadDay() {
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth?.user) return
-    
-    setUserId(auth.user.id)
-    
-    // Get user's partner_id
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('partner_id')
-      .eq('id', auth.user.id)
-      .single()
-    
-    // Load today's data for current user
-    const { data: todayData } = await supabase
-      .from('planner_days')
-      .select('tasks, morning, reflection, mood, completed_task_ids')
-      .eq('day', dateKey)
-      .eq('user_id', auth.user.id)
-      .maybeSingle()
+    if (!userId) return
+    // Read the date from the ref: this may run after an await, once the user moved to another day
+    const key = stateRef.current.dateKey
+    const seq = ++loadSeq.current
+    setLoadedDateKey(null)
+    setLoadError(false)
 
-    // Load all days to find recurring tasks - include both user and partner
-    const userIds = [auth.user.id]
-    if (profile?.partner_id) userIds.push(profile.partner_id)
-    
-    const { data: allDays } = await supabase
-      .from('planner_days')
-      .select('tasks, user_id, day')
-      .in('user_id', userIds)
-      .not('tasks', 'is', null)
+    // Let queued writes land first so we never read a row mid-update
+    await writeChain.current
 
-    const allUniqueTasks = new Map<string, PlannerTask>();
-    
-    // Add today's tasks
-    if (Array.isArray(todayData?.tasks)) {
-      todayData.tasks.forEach((t: PlannerTask) => {
-        // Ensure owner_id is set for existing tasks
-        if (!t.owner_id) t.owner_id = auth.user.id
-        if (t.visibility === undefined) t.visibility = 'private'
-        allUniqueTasks.set(t.id, t)
-      })
+    try {
+      const ids = partnerId ? [userId, partnerId] : [userId]
+      const [dayRows, recurringRows] = await Promise.all([
+        fetchDayRows(supabase, ids, key),
+        fetchRecurringRows(supabase, ids, key),
+      ])
+      if (seq !== loadSeq.current) return
+
+      const own = dayRows.find(r => r.user_id === userId)
+      const partnerRow = partnerId ? dayRows.find(r => r.user_id === partnerId) : undefined
+
+      setTasks(buildDayTasks({ dateKey: key, userId, dayRows, recurringRows }))
+      setCompletedTaskIds(own?.completed_task_ids ?? [])
+      setPartnerCompletedIds(partnerRow?.completed_task_ids ?? [])
+      setMorning(own?.morning ?? '')
+      setReflection(own?.reflection ?? '')
+      setMood(own?.mood ?? '')
+      setLoadedDateKey(key)
+    } catch (err) {
+      if (seq !== loadSeq.current) return
+      console.error('Failed to load planner day', err)
+      setLoadError(true)
     }
-    
-    // Add recurring tasks from all days (both user and partner)
-    allDays?.forEach(dayRecord => {
-      if (Array.isArray(dayRecord.tasks)) {
-        dayRecord.tasks.forEach((t: PlannerTask) => {
-          if (t.recurring && !allUniqueTasks.has(t.id)) {
-            // Check if task should show on this date
-            if (shouldShowTask(t, selectedDate)) {
-              // Ensure owner_id is set
-              if (!t.owner_id) t.owner_id = dayRecord.user_id
-              if (!t.source_day) t.source_day = dayRecord.day
-              if (t.visibility === undefined) t.visibility = 'private'
-              
-              // Only show partner tasks if they're shared
-              if (dayRecord.user_id === auth.user.id || t.visibility === 'shared') {
-                allUniqueTasks.set(t.id, t)
-              }
-            }
-          }
-        });
-      }
-    });
-
-    setTasks(Array.from(allUniqueTasks.values()))
-    setCompletedTaskIds(todayData?.completed_task_ids || [])
-    setMorning(todayData?.morning ?? '')
-    setReflection(todayData?.reflection ?? '')
-    setMood(todayData?.mood ?? '')
   }
 
   async function loadTaskDays(year: number, month: number) {
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth?.user) return
-    const start = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const lastDay = new Date(year, month + 1, 0).getDate()
-    const end = `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    const { data } = await supabase
-      .from('planner_days')
-      .select('day')
-      .eq('user_id', auth.user.id)
-      .gte('day', start)
-      .lte('day', end)
-      .not('tasks', 'is', null)
-    if (data) {
-      setTaskDays(new Set(data.map(d => d.day)))
-    }
-  }
+    if (!userId) return
+    const ids = partnerId ? [userId, partnerId] : [userId]
+    const start = toLocalDateKey(new Date(year, month, 1))
+    const end = toLocalDateKey(new Date(year, month + 1, 0))
 
-  async function saveDay(
-    updatedTasks = tasks, 
-    updatedMorning = morning, 
-    updatedReflection = reflection, 
-    updatedMood = mood,
-    updatedCompletedIds = completedTaskIds
-  ) {
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth?.user) return
-    
-    // Separate user's tasks from partner's tasks
-    const userTasks = updatedTasks.filter(t => !t.owner_id || t.owner_id === auth.user.id)
-    
-    // Save current day data with only user's tasks
-    await supabase.from('planner_days').upsert({
-      day: dateKey, 
-      user_id: auth.user.id, 
-      tasks: userTasks,
-      completed_task_ids: updatedCompletedIds, 
-      morning: updatedMorning, 
-      reflection: updatedReflection, 
-      mood: updatedMood, 
-      visibility: 'private',
-    }, { onConflict: 'user_id,day' })
-  }
-  
-  async function updateRecurringTask(task: PlannerTask) {
-    // Update the recurring task at its source day
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth?.user) return
-    if (!task.source_day || task.owner_id !== auth.user.id) return
-    
-    // Load the source day
-    const { data: sourceData } = await supabase
-      .from('planner_days')
-      .select('tasks')
-      .eq('day', task.source_day)
-      .eq('user_id', auth.user.id)
-      .maybeSingle()
-    
-    if (sourceData && Array.isArray(sourceData.tasks)) {
-      // Update the task in the source day
-      const updatedSourceTasks = sourceData.tasks.map((t: PlannerTask) => 
-        t.id === task.id ? task : t
-      )
-      
-      await supabase
-        .from('planner_days')
-        .update({ tasks: updatedSourceTasks })
-        .eq('day', task.source_day)
-        .eq('user_id', auth.user.id)
-    }
-  }
-  
-  async function deleteRecurringTask(taskId: string, ownerId: string) {
-    // Delete recurring task from all days
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth?.user || ownerId !== auth.user.id) return
-    
-    // Load all the user's days
-    const { data: allDays } = await supabase
-      .from('planner_days')
-      .select('day, tasks')
-      .eq('user_id', auth.user.id)
-      .not('tasks', 'is', null)
-    
-    if (allDays) {
-      // Remove the task from all days
-      const updates = allDays
-        .map(dayRecord => {
-          if (!Array.isArray(dayRecord.tasks)) return null
-          const filtered = dayRecord.tasks.filter((t: PlannerTask) => t.id !== taskId)
-          if (filtered.length === dayRecord.tasks.length) return null // No change
-          return { day: dayRecord.day, tasks: filtered }
-        })
-        .filter(Boolean)
-      
-      // Batch update all affected days
-      for (const update of updates) {
-        if (update) {
-          await supabase
-            .from('planner_days')
-            .update({ tasks: update.tasks })
-            .eq('day', update.day)
-            .eq('user_id', auth.user.id)
-        }
+    try {
+      const [{ data, error }, recurringRows] = await Promise.all([
+        supabase
+          .from('planner_days')
+          .select('day, user_id, tasks')
+          .in('user_id', ids)
+          .gte('day', start)
+          .lte('day', end),
+        fetchRecurringRows(supabase, ids, end),
+      ])
+      if (error) throw error
+
+      const rows = (data ?? []) as PlannerDayRow[]
+      const days = new Set<string>()
+      for (let key = start; key <= end; key = addDays(key, 1)) {
+        const dayRows = rows.filter(r => r.day === key)
+        if (buildDayTasks({ dateKey: key, userId, dayRows, recurringRows }).length > 0) days.add(key)
       }
+      setTaskDays(days)
+    } catch (err) {
+      console.error('Failed to load month', err)
     }
   }
 
-  async function saveTaskToDate(task: PlannerTask, targetDateKey: string) {
-    const { data: auth } = await supabase.auth.getUser()
-    if (!auth?.user) return
+  // ---------- saving the visible day ----------
 
-    const { data: existing } = await supabase
+  function writeDay(s: DaySnapshot) {
+    const uid = stateRef.current.userId
+    if (!uid) return Promise.resolve(undefined)
+    return enqueue(async () => {
+      const { error } = await supabase.from('planner_days').upsert({
+        day: s.dateKey,
+        user_id: uid,
+        tasks: tasksToStore(s.tasks, uid, s.dateKey),
+        completed_task_ids: s.completedTaskIds,
+        morning: s.morning,
+        reflection: s.reflection,
+        mood: s.mood,
+        visibility: 'private',
+      }, { onConflict: 'user_id,day' })
+      if (error) throw error
+    }, "Couldn't save your planner. Check your connection.")
+  }
+
+  function snapshot(overrides: Partial<DaySnapshot> = {}): DaySnapshot | null {
+    const { loadedDateKey, dateKey: key, tasks, morning, reflection, mood, completedTaskIds } = stateRef.current
+    // Never write state that belongs to a different (or not yet loaded) day
+    if (loadedDateKey !== key) return null
+    return { dateKey: key, tasks, morning, reflection, mood, completedTaskIds, ...overrides }
+  }
+
+  function flushPendingSave() {
+    const pending = pendingSave.current
+    if (!pending) return
+    clearTimeout(pending.timer)
+    pendingSave.current = null
+    writeDay(pending.snapshot)
+  }
+
+  function saveNow(overrides: Partial<DaySnapshot> = {}) {
+    const s = snapshot(overrides)
+    if (!s) return
+    if (pendingSave.current) {
+      clearTimeout(pendingSave.current.timer)
+      pendingSave.current = null
+    }
+    writeDay(s)
+  }
+
+  function saveDebounced(overrides: Partial<DaySnapshot>) {
+    const s = snapshot(overrides)
+    if (!s) return
+    if (pendingSave.current) clearTimeout(pendingSave.current.timer)
+    pendingSave.current = {
+      snapshot: s,
+      timer: setTimeout(() => {
+        pendingSave.current = null
+        writeDay(s)
+      }, TEXT_SAVE_DELAY),
+    }
+  }
+
+  // ---------- row-level writes (other days, recurring series) ----------
+
+  // Read-modify-write of one of the user's day rows, queued with every other write
+  async function mutateRow(day: string, mutate: (row: StoredRow) => StoredRow) {
+    if (!userId) return
+    const { data, error } = await supabase
       .from('planner_days')
-      .select('tasks, morning, reflection, mood, completed_task_ids')
-      .eq('day', targetDateKey)
-      .eq('user_id', auth.user.id)
+      .select('tasks, completed_task_ids, morning, reflection, mood')
+      .eq('day', day)
+      .eq('user_id', userId)
       .maybeSingle()
+    if (error) throw error
 
-    const existingTasks: PlannerTask[] = Array.isArray(existing?.tasks) ? existing.tasks : []
-    const updatedTasks = [...existingTasks, task]
+    const next = mutate({
+      tasks: Array.isArray(data?.tasks) ? data.tasks : [],
+      completed_task_ids: data?.completed_task_ids ?? [],
+      morning: data?.morning ?? '',
+      reflection: data?.reflection ?? '',
+      mood: data?.mood ?? '',
+    })
 
-    await supabase.from('planner_days').upsert({
-      day: targetDateKey,
-      user_id: auth.user.id,
-      tasks: updatedTasks,
-      completed_task_ids: existing?.completed_task_ids || [],
-      morning: existing?.morning || '',
-      reflection: existing?.reflection || '',
-      mood: existing?.mood || '',
+    const { error: upsertError } = await supabase.from('planner_days').upsert({
+      day,
+      user_id: userId,
+      ...next,
       visibility: 'private',
     }, { onConflict: 'user_id,day' })
+    if (upsertError) throw upsertError
   }
+
+  // Applies `change` to the stored series (null removes it). If an older app
+  // version lost the source copy, the series is re-created in its source row.
+  async function mutateSeries(series: PlannerTask, change: (t: PlannerTask) => PlannerTask | null) {
+    const sourceDay = series.source_day ?? dateKey
+    await mutateRow(sourceDay, (row) => {
+      const stored = row.tasks.find(t => t.id === series.id)
+      const updated = change({ ...(stored ?? series), source_day: sourceDay })
+      const others = row.tasks.filter(t => t.id !== series.id)
+      return { ...row, tasks: updated ? [...others, updated] : others }
+    })
+  }
+
+  async function deleteSeriesEverywhere(taskId: string) {
+    if (!userId) return
+    const rows = await fetchRecurringRows(supabase, [userId], '9999-12-31')
+    for (const row of rows) {
+      if (!row.tasks?.some(t => t.id === taskId)) continue
+      const { error } = await supabase
+        .from('planner_days')
+        .update({ tasks: row.tasks.filter(t => t.id !== taskId) })
+        .eq('day', row.day)
+        .eq('user_id', userId)
+      if (error) throw error
+    }
+  }
+
+  // Move the "done" mark from a series occurrence to the one-off that replaced it
+  function swapCompletion(ids: string[], fromId: string, toId: string) {
+    return ids.includes(fromId) ? [...ids.filter(id => id !== fromId), toId] : ids
+  }
+
+  // ---------- actions ----------
 
   function toggleComplete(taskId: string) {
-    const updatedIds = completedTaskIds.includes(taskId) 
-      ? completedTaskIds.filter(id => id !== taskId) : [...completedTaskIds, taskId];
-    setCompletedTaskIds(updatedIds);
-    saveDay(tasks, morning, reflection, mood, updatedIds);
+    const updatedIds = completedTaskIds.includes(taskId)
+      ? completedTaskIds.filter(id => id !== taskId)
+      : [...completedTaskIds, taskId]
+    setCompletedTaskIds(updatedIds)
+    saveNow({ completedTaskIds: updatedIds })
   }
+
+  function closeModal() {
+    setTaskModalHour(null)
+    setEditingTask(null)
+    setSchedulingForDate(null)
+  }
+
+  async function handleSave(task: PlannerTask, scope: SaveScope) {
+    const original = editingTask
+    const targetDay = schedulingForDate
+    closeModal()
+    if (!userId) return
+    task.owner_id = task.owner_id || userId
+
+    // New task
+    if (!original) {
+      if (targetDay && targetDay !== dateKey) {
+        if (task.recurring) task.source_day = targetDay
+        flushPendingSave()
+        const ok = await enqueue(
+          () => mutateRow(targetDay, row => ({ ...row, tasks: [...row.tasks, task] })).then(() => true),
+          "Couldn't schedule the event.",
+        )
+        if (ok) toast.success(`Event scheduled for ${formatDateKey(targetDay)}`)
+        if (view === 'monthly') loadTaskDays(selectedDate.getFullYear(), selectedDate.getMonth())
+        return
+      }
+      if (task.recurring) task.source_day = dateKey
+      const updated = [...tasks, task]
+      setTasks(updated)
+      saveNow({ tasks: updated })
+      return
+    }
+
+    // One-off task (possibly turned into a recurring one starting today)
+    if (!original.recurring) {
+      if (task.recurring) task.source_day = dateKey
+      const updated = tasks.map(t => (t.id === task.id ? task : t))
+      setTasks(updated)
+      saveNow({ tasks: updated })
+      return
+    }
+
+    // Recurring task
+    const sourceDay = original.source_day ?? dateKey
+    flushPendingSave()
+
+    if (scope === 'this') {
+      const detached: PlannerTask = { ...task, id: crypto.randomUUID(), recurring: undefined, source_day: undefined }
+      await enqueue(async () => {
+        await mutateSeries(original, t => withException(t, dateKey))
+        await mutateRow(dateKey, row => ({
+          ...row,
+          tasks: [...row.tasks, detached],
+          completed_task_ids: swapCompletion(row.completed_task_ids, original.id, detached.id),
+        }))
+      }, "Couldn't update the event.")
+    } else if (task.recurring) {
+      await enqueue(
+        () => mutateSeries(original, () => ({ ...task, source_day: sourceDay })),
+        "Couldn't update the recurring event.",
+      )
+    } else if (dateKey > sourceDay) {
+      // Repeat turned off: keep past occurrences, end the series yesterday, keep today as a one-off
+      const oneOff: PlannerTask = { ...task, id: crypto.randomUUID(), source_day: undefined }
+      await enqueue(async () => {
+        await mutateSeries(original, t => ({ ...t, recurring: { ...t.recurring!, until: addDays(dateKey, -1) } }))
+        await mutateRow(dateKey, row => ({
+          ...row,
+          tasks: [...row.tasks, oneOff],
+          completed_task_ids: swapCompletion(row.completed_task_ids, original.id, oneOff.id),
+        }))
+      }, "Couldn't update the event.")
+    } else {
+      await enqueue(
+        () => mutateSeries(original, () => ({ ...task, recurring: undefined, source_day: undefined })),
+        "Couldn't update the event.",
+      )
+    }
+    await loadDay()
+  }
+
+  async function handleDelete(task: PlannerTask, scope: SaveScope) {
+    closeModal()
+
+    if (!task.recurring) {
+      const updated = tasks.filter(t => t.id !== task.id)
+      const day = dateKey
+      setTasks(updated)
+      saveNow({ tasks: updated })
+      toast.success('Event deleted', {
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            const s = stateRef.current
+            if (s.dateKey === day && s.loadedDateKey === day) {
+              const restored = [...s.tasks, task]
+              setTasks(restored)
+              saveNow({ tasks: restored })
+            } else {
+              await enqueue(() => mutateRow(day, row => ({ ...row, tasks: [...row.tasks, task] })), "Couldn't restore the event.")
+            }
+          },
+        },
+      })
+      return
+    }
+
+    flushPendingSave()
+    if (scope === 'this') {
+      await enqueue(() => mutateSeries(task, t => withException(t, dateKey)), "Couldn't delete the event.")
+      toast.success('Event removed from this day')
+    } else {
+      await enqueue(() => deleteSeriesEverywhere(task.id), "Couldn't delete the recurring event.")
+      toast.success('All recurring events deleted')
+    }
+    await loadDay()
+  }
+
+  const unfinishedOneOffs = tasks.filter(t =>
+    !t.recurring && (!t.owner_id || t.owner_id === userId) && !completedTaskIds.includes(t.id),
+  )
+
+  async function moveUnfinishedToTomorrow() {
+    const moving = unfinishedOneOffs
+    if (moving.length === 0) return
+    const tomorrow = addDays(dateKey, 1)
+    const movingIds = new Set(moving.map(t => t.id))
+    const remaining = tasks.filter(t => !movingIds.has(t.id))
+
+    flushPendingSave()
+    const ok = await enqueue(
+      () => mutateRow(tomorrow, row => ({
+        ...row,
+        tasks: [...row.tasks.filter(t => !movingIds.has(t.id)), ...moving],
+      })).then(() => true),
+      "Couldn't move the events.",
+    )
+    if (!ok) return
+    setTasks(remaining)
+    saveNow({ tasks: remaining })
+    toast.success(`${moving.length} event${moving.length !== 1 ? 's' : ''} moved to ${formatDateKey(tomorrow)}`)
+  }
+
+  const sortedTasks = sortByStart(tasks)
+  const isToday = dateKey === todayKey
 
   return (
     <div className={`min-h-screen transition-colors duration-1000 ${theme.bg} font-sans pb-32`}>
@@ -370,7 +523,7 @@ export default function DailyPlanner() {
               <span className={`text-lg font-semibold uppercase opacity-40 ${theme.text}`}>{selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}</span>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-5">
             <Link href="/protected/analytics" className="transition-transform active:scale-90">
               <BarChart3 className={`w-7 h-7 ${theme.text} opacity-80`} />
@@ -395,7 +548,7 @@ export default function DailyPlanner() {
           onAddEvent={() => setTaskModalHour(new Date().getHours())}
           taskDays={taskDays}
           onMonthChange={loadTaskDays}
-          tasks={tasks}
+          tasks={loading ? [] : tasks}
           completedTaskIds={completedTaskIds}
           visionsMap={visionsMap}
         />
@@ -406,12 +559,13 @@ export default function DailyPlanner() {
       </div>
 
       <div className="mt-8 px-6">
-        <MoodPicker 
-          currentMood={mood} 
+        <MoodPicker
+          currentMood={mood}
           onMoodSelect={(newMood) => {
+            if (loading) return
             setMood(newMood)
-            saveDay(tasks, morning, reflection, newMood, completedTaskIds)
-          }} 
+            saveNow({ mood: newMood })
+          }}
         />
 
         <div className="space-y-3 mb-6">
@@ -433,103 +587,138 @@ export default function DailyPlanner() {
               </div>
               <textarea
                 value={morning}
+                disabled={loading}
                 placeholder="Focus of the day..."
-                onChange={(e) => { setMorning(e.target.value); saveDay(tasks, e.target.value, reflection, mood, completedTaskIds); }}
-                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[70px]"
+                onChange={(e) => { setMorning(e.target.value); saveDebounced({ morning: e.target.value }) }}
+                onBlur={flushPendingSave}
+                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[70px] disabled:opacity-60"
               />
             </div>
           </div>
         </div>
 
-        {tasks.length > 0 && (
-          <div className="flex items-center justify-between mb-3 px-1">
-            <span className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-50 ${theme.text}`}>
-              Today&apos;s Schedule
-            </span>
+        <div className="flex items-center justify-between mb-3 px-1">
+          <span className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-50 ${theme.text}`}>
+            {isToday ? 'Today’s Schedule' : 'Schedule'}
+          </span>
+          {!loading && tasks.length > 0 && (
             <span className={`text-[10px] font-semibold opacity-40 ${theme.text}`}>
               {tasks.length} event{tasks.length !== 1 ? 's' : ''}
             </span>
-          </div>
-        )}
+          )}
+        </div>
+
         <div className="space-y-3 relative mb-8">
-          {tasks
-            .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start))
-            .map((task, idx) => {
-              const isDone = completedTaskIds.includes(task.id);
-              const vision = task.vision_id ? visionsMap[task.vision_id] : null;
-              const isPartnerTask = task.owner_id && task.owner_id !== userId;
-              const gradient = TASK_GRADIENTS[idx % TASK_GRADIENTS.length]
+          {loadError ? (
+            <div className="rounded-3xl border-2 border-dashed border-red-200 dark:border-red-900/50 p-6 text-center">
+              <p className={`text-sm font-semibold opacity-70 ${theme.text}`}>Couldn&apos;t load this day</p>
+              <button onClick={loadDay} className="mt-3 px-4 py-2 rounded-2xl bg-violet-600 text-white text-xs font-bold active:scale-95">
+                Try again
+              </button>
+            </div>
+          ) : loading ? (
+            <>
+              <div className="h-20 rounded-3xl bg-slate-200/60 dark:bg-slate-800/60 animate-pulse" />
+              <div className="h-20 rounded-3xl bg-slate-200/40 dark:bg-slate-800/40 animate-pulse" />
+            </>
+          ) : sortedTasks.length === 0 ? (
+            <div className="rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-6 text-center">
+              <p className={`text-sm font-semibold opacity-60 ${theme.text}`}>Nothing planned yet</p>
+              <p className={`text-xs opacity-40 mt-1 ${theme.text}`}>Add an event to start shaping your day.</p>
+            </div>
+          ) : sortedTasks.map((task) => {
+            const isPartnerTask = !!task.owner_id && task.owner_id !== userId
+            const isDone = isPartnerTask ? partnerCompletedIds.includes(task.id) : completedTaskIds.includes(task.id)
+            const vision = task.vision_id ? visionsMap[task.vision_id] : null
+            const partner = isPartnerTask ? profilesMap[task.owner_id!] : null
 
-              return (
-                <div
-                  key={task.id}
-                  onClick={() => !isPartnerTask && setEditingTask(task)}
-                  className={`relative overflow-hidden rounded-3xl p-4 bg-gradient-to-br ${gradient} ${isDone ? 'opacity-60' : ''} ${!isPartnerTask ? 'active:scale-[0.98] cursor-pointer' : 'cursor-default'} transition-all shadow-sm`}
-                >
-                  {/* Decorative circle */}
-                  <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
+            return (
+              <div
+                key={task.id}
+                onClick={() => !isPartnerTask && setEditingTask(task)}
+                className={`relative overflow-hidden rounded-3xl p-4 bg-gradient-to-br ${gradientFor(task)} ${isDone ? 'opacity-60' : ''} ${!isPartnerTask ? 'active:scale-[0.98] cursor-pointer' : 'cursor-default'} transition-all shadow-sm`}
+              >
+                {/* Decorative circle */}
+                <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
 
-                  <div className="relative z-10">
-                    {/* Time + completion row */}
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest tabular-nums">
-                          {task.start} — {task.end}
-                        </span>
-                        {task.recurring && <RefreshCw className="w-3 h-3 text-white/40" />}
-                      </div>
-                      {!isPartnerTask && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggleComplete(task.id); }}
-                          className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-white border-white' : 'border-white/50 hover:border-white'}`}
-                        >
-                          {isDone && <Check className="w-3 h-3 text-slate-600 stroke-[3]" />}
-                        </button>
-                      )}
+                <div className="relative z-10">
+                  {/* Time + completion row */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest tabular-nums">
+                        {task.start} — {task.end}{endsNextDay(task) && ' (+1)'}
+                      </span>
+                      {task.recurring && <RefreshCw className="w-3 h-3 text-white/40" />}
                     </div>
-
-                    {/* Task title */}
-                    <h3 className={`text-base font-black text-white leading-snug ${isDone ? 'line-through' : ''}`}>
-                      {task.text}
-                    </h3>
-
-                    {/* Vision badge */}
-                    {vision && (
-                      <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
-                        <span className="text-[10px]">{vision.emoji}</span>
-                        <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{vision.title}</span>
-                      </div>
-                    )}
-
-                    {/* Partner badge */}
-                    {task.owner_id && task.owner_id !== userId && profilesMap[task.owner_id] && (
-                      <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
-                        {profilesMap[task.owner_id].avatar_url ? (
-                          <img
-                            src={profilesMap[task.owner_id].avatar_url}
-                            alt={profilesMap[task.owner_id].name || 'Partner'}
-                            className="w-3.5 h-3.5 rounded-full"
-                          />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full bg-white/30 flex items-center justify-center text-[7px] font-bold text-white">
-                            {(profilesMap[task.owner_id].name || 'P')[0].toUpperCase()}
-                          </div>
-                        )}
-                        <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">
-                          {profilesMap[task.owner_id].name || 'Partner'}
-                        </span>
-                      </div>
+                    {isPartnerTask ? (
+                      isDone && (
+                        <div className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center">
+                          <Check className="w-3 h-3 text-slate-600 stroke-[3]" />
+                        </div>
+                      )
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleComplete(task.id) }}
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-white border-white' : 'border-white/50 hover:border-white'}`}
+                      >
+                        {isDone && <Check className="w-3 h-3 text-slate-600 stroke-[3]" />}
+                      </button>
                     )}
                   </div>
+
+                  {/* Task title */}
+                  <h3 className={`text-base font-black text-white leading-snug ${isDone ? 'line-through' : ''}`}>
+                    {task.text}
+                  </h3>
+
+                  {/* Vision badge */}
+                  {vision && (
+                    <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
+                      <span className="text-[10px]">{vision.emoji}</span>
+                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{vision.title}</span>
+                    </div>
+                  )}
+
+                  {/* Partner badge */}
+                  {partner && (
+                    <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
+                      {partner.avatar_url ? (
+                        <img
+                          src={partner.avatar_url}
+                          alt={partner.name || 'Partner'}
+                          className="w-3.5 h-3.5 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-3.5 h-3.5 rounded-full bg-white/30 flex items-center justify-center text-[7px] font-bold text-white">
+                          {(partner.name || 'P')[0].toUpperCase()}
+                        </div>
+                      )}
+                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">
+                        {partner.name || 'Partner'}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )
-            })}
+              </div>
+            )
+          })}
         </div>
+
+        {!loading && dateKey <= todayKey && unfinishedOneOffs.length > 0 && (
+          <button
+            onClick={moveUnfinishedToTomorrow}
+            className={`w-full mb-3 py-3 px-6 rounded-3xl border border-dashed border-slate-300 dark:border-slate-600 text-[13px] font-semibold flex justify-between items-center active:scale-[0.98] transition-all ${theme.text} opacity-80`}
+          >
+            Move {unfinishedOneOffs.length} unfinished to tomorrow
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
 
         <div className="flex flex-col gap-3">
           <button
             onClick={() => setTaskModalHour(new Date().getHours())}
-            className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-3xl font-bold text-[15px] flex justify-between items-center active:scale-[0.98] transition-all shadow-sm"
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-3xl font-bold text-[15px] flex justify-between items-center active:scale-[0.98] transition-all shadow-sm disabled:opacity-60"
           >
             Add event on {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
             <Plus className="w-5 h-5" />
@@ -569,9 +758,11 @@ export default function DailyPlanner() {
               </div>
               <textarea
                 value={reflection}
+                disabled={loading}
                 placeholder="How did you finish your day?"
-                onChange={(e) => { setReflection(e.target.value); saveDay(tasks, morning, e.target.value, mood, completedTaskIds); }}
-                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[100px]"
+                onChange={(e) => { setReflection(e.target.value); saveDebounced({ reflection: e.target.value }) }}
+                onBlur={flushPendingSave}
+                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[100px] disabled:opacity-60"
               />
             </div>
           </div>
@@ -580,65 +771,24 @@ export default function DailyPlanner() {
         </>
       )}
 
-      <button onClick={() => setTaskModalHour(new Date().getHours())} className="fixed bottom-[100px] right-6 w-16 h-16 bg-white dark:bg-slate-800 shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] border border-slate-50 dark:border-slate-700 rounded-full flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40">
+      <button
+        onClick={() => setTaskModalHour(new Date().getHours())}
+        disabled={loading}
+        className="fixed bottom-[100px] right-6 w-16 h-16 bg-white dark:bg-slate-800 shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_rgba(0,0,0,0.4)] border border-slate-50 dark:border-slate-700 rounded-full flex items-center justify-center hover:scale-110 active:scale-90 transition-all z-40 disabled:opacity-60"
+      >
         <Plus className="w-9 h-9 text-slate-800 dark:text-slate-200" strokeWidth={1.5} />
       </button>
 
       {(taskModalHour !== null || editingTask) && (
-        <TaskModal 
-          hour={editingTask ? parseInt(editingTask.start.split(':')[0]) : taskModalHour!} 
-          existingTask={editingTask} 
+        <TaskModal
+          hour={editingTask ? parseInt(editingTask.start.split(':')[0]) : taskModalHour!}
+          existingTask={editingTask}
           userId={userId}
-          onClose={() => { setTaskModalHour(null); setEditingTask(null); setSchedulingForDate(null) }} 
-          onSave={async (task) => {
-            // Ensure new tasks have correct owner_id and source_day
-            if (!task.owner_id) task.owner_id = userId || undefined
-            if (task.recurring && !task.source_day) task.source_day = schedulingForDate || dateKey
-            
-            if (editingTask) {
-              // Editing existing task
-              if (task.recurring && editingTask.recurring) {
-                // Recurring task being edited - update at source
-                await updateRecurringTask(task)
-                // Reload to get fresh data
-                await loadDay()
-              } else {
-                // Non-recurring or converted from/to recurring
-                const updated = tasks.map((t) => (t.id === task.id ? task : t))
-                setTasks(updated)
-                saveDay(updated, morning, reflection, mood, completedTaskIds)
-              }
-            } else if (schedulingForDate) {
-              // New task scheduled for a different date
-              await saveTaskToDate(task, schedulingForDate)
-              const label = new Date(schedulingForDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-              toast.success(`Event scheduled for ${label}`)
-              setSchedulingForDate(null)
-            } else {
-              // New task for currently selected date
-              const updated = [...tasks, task]
-              setTasks(updated)
-              saveDay(updated, morning, reflection, mood, completedTaskIds)
-            }
-            
-            setTaskModalHour(null)
-            setEditingTask(null)
-          }}
-          onDelete={async (taskId, deleteAll) => {
-            if (deleteAll && editingTask?.recurring && editingTask.owner_id) {
-              // Delete all recurring instances
-              await deleteRecurringTask(taskId, editingTask.owner_id)
-              // Reload to get fresh data
-              await loadDay()
-            } else {
-              // Delete only from current day
-              const updated = tasks.filter((t) => t.id !== taskId)
-              setTasks(updated)
-              saveDay(updated, morning, reflection, mood, completedTaskIds)
-            }
-            setTaskModalHour(null)
-            setEditingTask(null)
-          }}
+          dayTasks={schedulingForDate && schedulingForDate !== dateKey ? [] : tasks}
+          dayLabel={schedulingForDate ? formatDateKey(schedulingForDate) : formatDateKey(dateKey)}
+          onClose={closeModal}
+          onSave={handleSave}
+          onDelete={editingTask ? (scope) => handleDelete(editingTask, scope) : undefined}
         />
       )}
     </div>

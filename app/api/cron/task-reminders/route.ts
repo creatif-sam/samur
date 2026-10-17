@@ -1,5 +1,12 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
+import { zonedNow } from '@/lib/dates';
+import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries';
+import { buildDayTasks, parseMinutes } from '@/lib/planner/tasks';
+
+// The workflow calls this every ~5 minutes. The window is a bit wider than the
+// interval so a late call never skips a task; already-sent reminders are deduped.
+const WINDOW_MINUTES = 7
 
 export async function GET(request: Request) {
   try {
@@ -16,95 +23,92 @@ export async function GET(request: Request) {
     }
 
     const serviceSupabase = createServiceClient();
-    
+
     // Get all users
     const { data: { users }, error: usersError } = await serviceSupabase.auth.admin.listUsers();
-    
+
     if (usersError || !users) {
       console.error('Error fetching users:', usersError);
       return NextResponse.json({ ok: false, error: 'Failed to fetch users' });
     }
 
     let notificationsSent = 0;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-    const now = new Date();
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTotalMinutes = currentHours * 60 + currentMinutes;
+    const dedupeSince = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+    const visionEmojis = new Map<string, string>();
 
-    // For each user, check their tasks for today
     for (const user of users) {
-      // Fetch today's planner data
-      const { data: plannerDay } = await serviceSupabase
-        .from('planner_days')
-        .select('tasks, completed_task_ids')
-        .eq('user_id', user.id)
-        .eq('day', today)
-        .single();
-      
-      if (!plannerDay?.tasks || plannerDay.tasks.length === 0) continue;
+      // Task times are in the user's local time (synced to their metadata by the app)
+      const { dateKey: today, minutes: nowMinutes } = zonedNow(user.user_metadata?.timezone as string | undefined);
 
-      const tasks = plannerDay.tasks;
-      const completedTaskIds = plannerDay.completed_task_ids || [];
+      let dayRows, recurringRows;
+      try {
+        [dayRows, recurringRows] = await Promise.all([
+          fetchDayRows(serviceSupabase, [user.id], today),
+          fetchRecurringRows(serviceSupabase, [user.id], today),
+        ]);
+      } catch (err) {
+        console.error('Task reminders: failed to load planner for', user.id, err);
+        continue;
+      }
 
-      // Check each task
+      const tasks = buildDayTasks({ dateKey: today, userId: user.id, dayRows, recurringRows });
+      if (tasks.length === 0) continue;
+
+      const completedTaskIds = dayRows[0]?.completed_task_ids ?? [];
+
       for (const task of tasks) {
-        // Skip completed tasks
         if (completedTaskIds.includes(task.id)) continue;
 
-        // Parse task start time
-        const [taskHours, taskMinutes] = task.start.split(':').map(Number);
-        const taskStartMinutes = taskHours * 60 + (taskMinutes || 0);
-        
-        // Calculate minutes until task starts
-        const minutesUntilTask = taskStartMinutes - currentTotalMinutes;
+        const minutesUntilTask = parseMinutes(task.start) - nowMinutes;
+        if (minutesUntilTask < 0 || minutesUntilTask > WINDOW_MINUTES) continue;
 
-        // Send notification if task starts in 4-6 minutes (accounting for cron timing)
-        if (minutesUntilTask >= 4 && minutesUntilTask <= 6) {
-          // Check if we've already sent notification for this task today
-          const { data: existingNotif } = await serviceSupabase
-            .from('notifications')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('type', 'task_reminder')
-            .gte('created_at', `${today}T00:00:00`)
-            .lte('created_at', `${today}T23:59:59`)
-            .eq('data->>taskId', task.id)
-            .single();
+        // Recurring tasks keep their id every day, so dedupe on a recent window
+        const { data: existing } = await serviceSupabase
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('type', 'task_reminder')
+          .eq('data->>taskId', task.id)
+          .gte('created_at', dedupeSince)
+          .limit(1);
 
-          if (existingNotif) continue; // Already sent notification for this task today
+        if (existing && existing.length > 0) continue;
 
-          // Get vision emoji if task has a vision
-          let visionEmoji = '⏰';
-          if (task.vision_id) {
+        let visionEmoji = '⏰';
+        if (task.vision_id) {
+          if (!visionEmojis.has(task.vision_id)) {
             const { data: vision } = await serviceSupabase
               .from('visions')
               .select('emoji')
               .eq('id', task.vision_id)
-              .single();
-            
-            if (vision?.emoji) visionEmoji = vision.emoji;
+              .maybeSingle();
+            visionEmojis.set(task.vision_id, vision?.emoji || '⏰');
           }
-
-          // Send notification using internal endpoint
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${cronSecret}`
-            },
-            body: JSON.stringify({
-              targetUserId: user.id,
-              type: 'task_reminder',
-              title: `${visionEmoji} Task in 5 minutes`,
-              body: `${task.text} starts at ${task.start}`,
-              url: '/protected/planner',
-              data: { taskId: task.id, taskStart: task.start }
-            })
-          });
-
-          notificationsSent++;
+          visionEmoji = visionEmojis.get(task.vision_id)!;
         }
+
+        const title = minutesUntilTask === 0
+          ? `${visionEmoji} Starting now`
+          : `${visionEmoji} Task in ${minutesUntilTask} minute${minutesUntilTask === 1 ? '' : 's'}`;
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${cronSecret}`
+          },
+          body: JSON.stringify({
+            targetUserId: user.id,
+            type: 'task_reminder',
+            title,
+            body: `${task.text} starts at ${task.start}`,
+            url: '/protected/planner',
+            data: { taskId: task.id, taskStart: task.start, day: today }
+          })
+        });
+
+        if (res.ok) notificationsSent++;
+        else console.error('Task reminder send failed:', res.status, await res.text().catch(() => ''));
       }
     }
 
