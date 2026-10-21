@@ -2,6 +2,7 @@ import { pushNotificationService } from '@/lib/push-notifications'
 import { createServiceClient } from '@/lib/supabase/service'
 import { days, getPartnerPrayerState } from '@/lib/prayer/partnerPrayerState'
 import { NextResponse } from 'next/server'
+import { zonedNow } from '@/lib/dates'
 
 const PRAYER_URL = '/protected/posts?tab=prayer'
 
@@ -19,8 +20,10 @@ export async function GET(request: Request) {
     }
 
     const service = createServiceClient()
-    // Runs in the evening UTC, which is still the same day for UTC+0/+1 users
-    const today = new Date().toISOString().slice(0, 10)
+
+    // "Today" is each user's local day (time zone synced to their auth metadata)
+    const { data: { users } } = await service.auth.admin.listUsers()
+    const timeZones = new Map((users ?? []).map(u => [u.id, u.user_metadata?.timezone as string | undefined]))
 
     const { data: profiles, error } = await service
       .from('profiles')
@@ -32,6 +35,7 @@ export async function GET(request: Request) {
 
     let sent = 0
     for (const profile of profiles ?? []) {
+      const today = zonedNow(timeZones.get(profile.id)).dateKey
       const state = await getPartnerPrayerState(service, profile.id, today)
       if (!state || state.iPrayedToday) continue
 

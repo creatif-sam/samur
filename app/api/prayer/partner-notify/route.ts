@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { days, getPartnerPrayerState } from '@/lib/prayer/partnerPrayerState'
 import { NextResponse } from 'next/server'
+import { zonedNow } from '@/lib/dates'
 
 const PRAYER_URL = '/protected/posts?tab=prayer'
 
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     const today =
       typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date)
         ? body.date
-        : new Date().toISOString().slice(0, 10)
+        : zonedNow(user.user_metadata?.timezone as string | undefined).dateKey
 
     const service = createServiceClient()
 

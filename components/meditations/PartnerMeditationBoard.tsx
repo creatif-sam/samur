@@ -6,6 +6,7 @@ import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { Users } from 'lucide-react'
+import { toLocalDateKey } from '@/lib/dates'
 
 export default function PartnerMeditationBoard() {
   const [data, setData] = useState<any>(null)
@@ -15,7 +16,7 @@ export default function PartnerMeditationBoard() {
     if (!res) return
 
     const reduced = reduceMeditations(res.meditations)
-    const todayKey = new Date().toISOString().slice(0, 10)
+    const todayKey = toLocalDateKey(new Date())
 
     const meDays = reduced[res.meId] ?? {}
     const partnerDays = res.partnerId

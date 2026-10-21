@@ -1,3 +1,5 @@
+import { toLocalDateKey } from '@/lib/dates';
+
 export interface HeatmapDay {
   date: string;
   count: number;
@@ -21,7 +23,7 @@ export function buildHeatmap(
     d <= today;
     d.setDate(d.getDate() + 1)
   ) {
-    const key = d.toISOString().split('T')[0];
+    const key = toLocalDateKey(d);
     result.push({
       date: key,
       count: map.get(key) ?? 0,

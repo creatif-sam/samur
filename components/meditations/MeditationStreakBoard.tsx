@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { MeditationDB } from '@/lib/types'
 import StreakCalendarModal from '@/components/meditations/StreakCalendarModal'
+import { toLocalDateKey } from '@/lib/dates'
 
 interface Meditation {
   id: string
@@ -25,9 +26,7 @@ interface DayCell {
 }
 
 function formatDay(date: Date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString().slice(0, 10)
+  return toLocalDateKey(date)
 }
 
 function getStreakDays(meditations: Meditation[]): DayCell[] {

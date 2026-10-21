@@ -147,7 +147,7 @@ export default function MoneyLog({
     
     const periodLabel = scope === 'all' ? 'all' : scope === 'week' ? `week-${weekOffset}` : `${year}-${String(month + 1).padStart(2, '0')}`
     link.setAttribute('href', url)
-    link.setAttribute('download', `money-log-${periodLabel}-${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute('download', `money-log-${periodLabel}-${toLocalDateKey(new Date())}.csv`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()

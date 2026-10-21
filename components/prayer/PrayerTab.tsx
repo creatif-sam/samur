@@ -8,6 +8,7 @@ import PrayerCalendar from './PrayerCalendar'
 import PartnerPrayerBoard from './PartnerPrayerBoard'
 import { ThoughtEditor } from '@/components/note/ThoughtEditor'
 import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight } from 'lucide-react'
+import { toLocalDateKey } from '@/lib/dates'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -71,7 +72,7 @@ const CATEGORY_COLORS: Record<Category, string> = {
 const QUICK_DURATIONS = [5, 10, 15, 20, 30]
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10)
+  return toLocalDateKey(new Date())
 }
 
 function daysAgo(iso: string) {
@@ -88,7 +89,7 @@ function calcStreak(entries: PrayerEntry[]): number {
   const d = new Date()
   // allow today to be incomplete (streak extends if yesterday was done)
   if (!doneSet.has(todayISO())) d.setDate(d.getDate() - 1)
-  while (doneSet.has(d.toISOString().slice(0, 10))) {
+  while (doneSet.has(toLocalDateKey(d))) {
     streak++
     d.setDate(d.getDate() - 1)
   }

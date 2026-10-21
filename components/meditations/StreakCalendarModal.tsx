@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { toLocalDateKey } from '@/lib/dates'
 
 interface Props {
   open: boolean
@@ -12,9 +13,7 @@ interface Props {
 }
 
 function formatDay(date: Date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d.toISOString().slice(0, 10)
+  return toLocalDateKey(date)
 }
 
 function startOfMonth(date: Date) {

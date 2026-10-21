@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
+import { zonedDayRange, zonedNow } from '@/lib/dates';
 
 export async function GET(request: Request) {
   try {
@@ -26,10 +27,12 @@ export async function GET(request: Request) {
     }
 
     let notificationsSent = 0;
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-
-    // For each user, check if they have read today
+    // For each user, check if they have read today (their local day)
     for (const user of users) {
+      const timeZone = user.user_metadata?.timezone as string | undefined;
+      const { dateKey: today } = zonedNow(timeZone);
+      const range = zonedDayRange(timeZone, today);
+
       // Check if user has any reading logs for today
       const { data: readingLogs } = await serviceSupabase
         .from('reading_logs')
@@ -43,8 +46,8 @@ export async function GET(request: Request) {
         .from('reading_sessions')
         .select('*')
         .eq('user_id', user.id)
-        .gte('created_at', `${today}T00:00:00`)
-        .lte('created_at', `${today}T23:59:59`)
+        .gte('created_at', range.start)
+        .lt('created_at', range.end)
         .limit(1);
 
       // If no reading activity found, send reminder

@@ -19,13 +19,14 @@ import {
 } from 'lucide-react';
 import CreativeWorkyLogs from './CreativeWorkyLogs';
 import { cn } from "@/lib/utils";
+import { toLocalDateKey } from '@/lib/dates';
 
 type WorkType = 'creation' | 'production' | 'reproduction';
 
 export default function CreativeWork() {
   const supabase = createClient();
 
-  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(toLocalDateKey(new Date()));
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [workedOn, setWorkedOn] = useState<string>('');
@@ -38,7 +39,7 @@ export default function CreativeWork() {
 
   const hoursWorked = useMemo<number | null>(() => {
     if (!date || !startTime || !endTime) return null;
-    const isoDate = new Date(date).toISOString().split('T')[0];
+    const isoDate = date;
     const start = new Date(`${isoDate}T${startTime}`);
     const end = new Date(`${isoDate}T${endTime}`);
     const diff = end.getTime() - start.getTime();

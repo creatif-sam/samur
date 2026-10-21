@@ -38,3 +38,34 @@ export function addDays(key: string, days: number) {
   d.setDate(d.getDate() + days)
   return toLocalDateKey(d)
 }
+
+// Minutes the zone is ahead of UTC at `instant` (e.g. +60 for Europe/Paris in winter)
+function zoneOffsetMinutes(timeZone: string, instant: number) {
+  const { dateKey, minutes } = zonedNow(timeZone, new Date(instant))
+  const [y, m, d] = dateKey.split('-').map(Number)
+  const wall = Date.UTC(y, m - 1, d) + minutes * 60_000
+  return Math.round((wall - Math.floor(instant / 60_000) * 60_000) / 60_000)
+}
+
+// UTC instants bounding a local day in `timeZone`, for filtering timestamptz columns
+export function zonedDayRange(timeZone: string | undefined, dateKey: string) {
+  const tz = timeZone || 'UTC'
+  const [y, m, d] = dateKey.split('-').map(Number)
+  const localMidnight = (year: number, month: number, day: number) => {
+    const guess = Date.UTC(year, month - 1, day)
+    // Second pass corrects for a DST change between the guess and the real instant
+    const first = guess - zoneOffsetMinutes(tz, guess) * 60_000
+    return guess - zoneOffsetMinutes(tz, first) * 60_000
+  }
+  return {
+    start: new Date(localMidnight(y, m, d)).toISOString(),
+    end: new Date(localMidnight(y, m, d + 1)).toISOString(),
+  }
+}
+
+// Whole days from `fromKey` to `toKey` (negative if `toKey` is earlier)
+export function daysBetween(fromKey: string, toKey: string) {
+  const [y1, m1, d1] = fromKey.slice(0, 10).split('-').map(Number)
+  const [y2, m2, d2] = toKey.slice(0, 10).split('-').map(Number)
+  return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 86_400_000)
+}

@@ -1,3 +1,5 @@
+import { toLocalDateKey } from '@/lib/dates'
+
 // lib/meditations/reducer.ts
 type Period = 'morning' | 'evening'
 
@@ -14,7 +16,7 @@ export function reduceMeditations(meditations: any[]) {
   meditations.forEach((m) => {
     if (!m?.author_id || !m.created_at) return
 
-    const day = new Date(m.created_at).toISOString().slice(0, 10)
+    const day = toLocalDateKey(new Date(m.created_at))
 
     if (!byUser[m.author_id]) byUser[m.author_id] = {}
     if (!byUser[m.author_id][day]) {
@@ -41,7 +43,7 @@ export function calculateStreak(days: Record<string, ReducedDay>) {
   for (let i = 0; ; i++) {
     const date = new Date(today)
     date.setDate(today.getDate() - i)
-    const key = date.toISOString().slice(0, 10)
+    const key = toLocalDateKey(date)
 
     if (!days[key]) break
     streak++

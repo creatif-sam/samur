@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
+import { addDays, daysBetween, zonedNow } from '@/lib/dates';
 
 export async function GET(request: Request) {
   try {
@@ -16,103 +17,70 @@ export async function GET(request: Request) {
     }
 
     const serviceSupabase = createServiceClient();
-    
-    // Calculate dates
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const threeDaysFromNow = new Date(now);
-    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-    const oneWeekFromNow = new Date(now);
-    oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
 
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const threeDaysStr = threeDaysFromNow.toISOString().split('T')[0];
-    const oneWeekStr = oneWeekFromNow.toISOString().split('T')[0];
+    // Deadlines count in each owner's local day; query a UTC window wide
+    // enough to cover every time zone, then filter per owner
+    const { data: { users } } = await serviceSupabase.auth.admin.listUsers();
+    const timeZones = new Map((users ?? []).map(u => [u.id, u.user_metadata?.timezone as string | undefined]));
+    const utcToday = zonedNow('UTC').dateKey;
+    const windowStart = addDays(utcToday, -1);
+    const windowEnd = addDays(utcToday, 9);
+    const REMINDER_DAYS = new Set([1, 3, 7]);
+    const daysLeftFor = (ownerId: string, due: string) =>
+      daysBetween(zonedNow(timeZones.get(ownerId)).dateKey, due.slice(0, 10));
+    const whenLabel = (daysLeft: number) =>
+      daysLeft === 1 ? 'tomorrow' : daysLeft === 3 ? 'in 3 days' : 'in 1 week';
 
     let notificationsSent = 0;
+    const send = async (targetUserId: string, title: string, body: string) => {
+      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${cronSecret}`
+        },
+        body: JSON.stringify({ targetUserId, type: 'goal_deadline', title, body, url: '/protected/goals' })
+      });
+      notificationsSent++;
+    };
 
-    // 1. Check goals with approaching deadlines
+    // 1. Goals with approaching deadlines
     const { data: goals } = await serviceSupabase
       .from('goals')
-      .select('*, owner:owner_id(id, name)')
+      .select('id, title, owner_id, due_date')
       .not('due_date', 'is', null)
-      .eq('status', 'active')
-      .or(`due_date.eq.${tomorrowStr},due_date.eq.${threeDaysStr},due_date.eq.${oneWeekStr}`);
+      .neq('status', 'done')
+      .gte('due_date', windowStart)
+      .lte('due_date', windowEnd);
 
-    if (goals && goals.length > 0) {
-      for (const goal of goals) {
-        const dueDate = new Date(goal.due_date);
-        const daysLeft = Math.ceil((dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        let message = '';
-        if (daysLeft === 1) {
-          message = `Goal "${goal.title}" is due tomorrow!`;
-        } else if (daysLeft === 3) {
-          message = `Goal "${goal.title}" is due in 3 days`;
-        } else if (daysLeft === 7) {
-          message = `Goal "${goal.title}" is due in 1 week`;
-        }
-
-        if (message && goal.owner_id) {
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${cronSecret}`
-            },
-            body: JSON.stringify({
-              targetUserId: goal.owner_id,
-              type: 'goal_deadline',
-              title: 'Goal Deadline Approaching ⏰',
-              body: message,
-              url: '/protected/goals'
-            })
-          });
-          notificationsSent++;
-        }
-      }
+    for (const goal of goals ?? []) {
+      if (!goal.owner_id) continue;
+      const daysLeft = daysLeftFor(goal.owner_id, goal.due_date);
+      if (!REMINDER_DAYS.has(daysLeft)) continue;
+      await send(
+        goal.owner_id,
+        'Goal Deadline Approaching ⏰',
+        daysLeft === 1 ? `Goal "${goal.title}" is due tomorrow!` : `Goal "${goal.title}" is due ${whenLabel(daysLeft)}`
+      );
     }
 
-    // 2. Check visions with approaching target dates
+    // 2. Visions with approaching target dates
     const { data: visions } = await serviceSupabase
       .from('visions')
-      .select('*, owner:owner_id(id, name)')
+      .select('id, title, owner_id, target_date')
       .not('target_date', 'is', null)
-      .or(`target_date.eq.${tomorrowStr},target_date.eq.${threeDaysStr},target_date.eq.${oneWeekStr}`);
+      .gte('target_date', windowStart)
+      .lte('target_date', windowEnd);
 
-    if (visions && visions.length > 0) {
-      for (const vision of visions) {
-        const targetDate = new Date(vision.target_date);
-        const daysLeft = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        
-        let message = '';
-        if (daysLeft === 1) {
-          message = `Vision "${vision.title}" target date is tomorrow!`;
-        } else if (daysLeft === 3) {
-          message = `Vision "${vision.title}" target date in 3 days`;
-        } else if (daysLeft === 7) {
-          message = `Vision "${vision.title}" target date in 1 week`;
-        }
-
-        if (message && vision.owner_id) {
-          await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
-            method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${cronSecret}`
-            },
-            body: JSON.stringify({
-              targetUserId: vision.owner_id,
-              type: 'goal_deadline',
-              title: 'Vision Target Approaching 🎯',
-              body: message,
-              url: '/protected/goals'
-            })
-          });
-          notificationsSent++;
-        }
-      }
+    for (const vision of visions ?? []) {
+      if (!vision.owner_id) continue;
+      const daysLeft = daysLeftFor(vision.owner_id, vision.target_date);
+      if (!REMINDER_DAYS.has(daysLeft)) continue;
+      await send(
+        vision.owner_id,
+        'Vision Target Approaching 🎯',
+        daysLeft === 1 ? `Vision "${vision.title}" target date is tomorrow!` : `Vision "${vision.title}" target date ${whenLabel(daysLeft)}`
+      );
     }
 
     return NextResponse.json({ ok: true, sent: notificationsSent });

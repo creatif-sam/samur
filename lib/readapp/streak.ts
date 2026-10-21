@@ -1,3 +1,5 @@
+import { toLocalDateKey } from '@/lib/dates';
+
 export function calculateReadingStreak(dates: string[]): number {
   if (dates.length === 0) return 0;
 
@@ -11,7 +13,7 @@ export function calculateReadingStreak(dates: string[]): number {
   for (;;) {
     const check = new Date(today);
     check.setDate(today.getDate() - streak);
-    const key = check.toISOString().split('T')[0];
+    const key = toLocalDateKey(check);
 
     if (dateSet.has(key)) {
       streak += 1;

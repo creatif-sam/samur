@@ -1,3 +1,5 @@
+import { toLocalDateKey } from '@/lib/dates';
+
 export function getWeekRange(date: Date): {
   start: string;
   end: string;
@@ -13,7 +15,7 @@ export function getWeekRange(date: Date): {
   end.setDate(start.getDate() + 6);
 
   return {
-    start: start.toISOString().split('T')[0],
-    end: end.toISOString().split('T')[0],
+    start: toLocalDateKey(start),
+    end: toLocalDateKey(end),
   };
 }

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { toLocalDateKey } from '@/lib/dates'
 
 interface Entry {
   id: string
@@ -16,7 +17,7 @@ interface Entry {
 
 export default function GratitudeCard() {
   const supabase = createClient()
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = toLocalDateKey(new Date())
 
   const [entry, setEntry] = useState<Entry | null>(null)
   const [draft, setDraft] = useState(['', '', ''])

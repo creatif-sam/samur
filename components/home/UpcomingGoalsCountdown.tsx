@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import { Target, ChevronRight, Flag } from 'lucide-react'
+import { toLocalDateKey } from '@/lib/dates'
 
 interface Goal {
   id: string
@@ -129,7 +130,7 @@ export default function UpcomingGoalsCountdown() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
 
-      const today = new Date().toISOString().split('T')[0]
+      const today = toLocalDateKey(new Date())
 
       const { data } = await supabase
         .from('goals')
