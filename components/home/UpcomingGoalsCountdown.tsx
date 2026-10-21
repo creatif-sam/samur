@@ -55,8 +55,9 @@ function GoalCard({ goal }: { goal: Goal }) {
   const isUrgent = !cd.overdue && cd.days < 3
 
   return (
-    <div
-      className={`relative overflow-hidden rounded-3xl p-4 border transition-colors duration-300 ${
+    <Link
+      href={`/protected/goals/${goal.id}`}
+      className={`block relative overflow-hidden rounded-3xl p-4 border transition-colors duration-300 active:scale-[0.99] ${
         cd.overdue
           ? 'bg-red-50 dark:bg-red-950/30 border-red-200/60 dark:border-red-800/40'
           : isUrgent
@@ -116,7 +117,7 @@ function GoalCard({ goal }: { goal: Goal }) {
       <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2">
         Due {new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
       </p>
-    </div>
+    </Link>
   )
 }
 

@@ -32,14 +32,14 @@ export async function GET(request: Request) {
       daysLeft === 1 ? 'tomorrow' : daysLeft === 3 ? 'in 3 days' : 'in 1 week';
 
     let notificationsSent = 0;
-    const send = async (targetUserId: string, title: string, body: string) => {
+    const send = async (targetUserId: string, title: string, body: string, url = '/protected/goals') => {
       await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${cronSecret}`
         },
-        body: JSON.stringify({ targetUserId, type: 'goal_deadline', title, body, url: '/protected/goals' })
+        body: JSON.stringify({ targetUserId, type: 'goal_deadline', title, body, url })
       });
       notificationsSent++;
     };
@@ -60,7 +60,8 @@ export async function GET(request: Request) {
       await send(
         goal.owner_id,
         'Goal Deadline Approaching ⏰',
-        daysLeft === 1 ? `Goal "${goal.title}" is due tomorrow!` : `Goal "${goal.title}" is due ${whenLabel(daysLeft)}`
+        daysLeft === 1 ? `Goal "${goal.title}" is due tomorrow!` : `Goal "${goal.title}" is due ${whenLabel(daysLeft)}`,
+        `/protected/goals/${goal.id}`
       );
     }
 

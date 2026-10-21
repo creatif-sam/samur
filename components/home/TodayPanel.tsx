@@ -243,7 +243,7 @@ export default function TodayPanel({ userId, goals }: { userId: string | null; g
             <ul className="space-y-1">
               {dueGoals.map(g => (
                 <li key={g.id}>
-                  <Link href="/protected/goals" className="flex items-center gap-3 rounded-2xl bg-muted/50 px-3 py-2">
+                  <Link href={`/protected/goals/${g.id}`} className="flex items-center gap-3 rounded-2xl bg-muted/50 px-3 py-2">
                     <Target className={`w-4 h-4 shrink-0 ${isOverdue(g) ? 'text-red-500' : 'text-violet-600'}`} />
                     <span className="text-sm font-semibold truncate flex-1">{g.title}</span>
                     <span className={`text-[10px] font-bold ${isOverdue(g) ? 'text-red-500' : 'text-muted-foreground'}`}>

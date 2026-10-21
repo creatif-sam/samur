@@ -179,7 +179,7 @@ export function NewGoalForm({
               type: 'goal_created',
               title: 'Shared Goal Created',
               body: `${myProfile?.name || 'Your partner'} created a new goal: ${title.trim()}`,
-              url: '/protected/goals',
+              url: `/protected/goals/${data.id}`,
             }),
           }).catch(console.error)
         }

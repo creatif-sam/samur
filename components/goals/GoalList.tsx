@@ -1,6 +1,7 @@
 'use client'
 
-import { JSX, useMemo, useState, useRef } from 'react'
+import { JSX, useEffect, useMemo, useState, useRef } from 'react'
+import Link from 'next/link'
 import { Goal } from '@/lib/types'
 import {
   Dialog,
@@ -58,6 +59,8 @@ interface GoalListProps {
   onUpdated: (goal: Goal) => void
   onDeleted: (id: string) => void
 }
+
+export type { EnhancedGoal }
 
 export function GoalList({
   goals,
@@ -268,18 +271,22 @@ export function GoalList({
   )
 }
 
-function GoalCard({
+export function GoalCard({
   goal,
   canManage,
   onUpdated,
   onEditInitiated,
-  onDeleteInitiated
+  onDeleteInitiated,
+  defaultExpanded = false,
+  linkTitle = true,
 }: {
   goal: EnhancedGoal,
   canManage: boolean,
   onUpdated: (goal: Goal) => void, 
   onEditInitiated: () => void,
-  onDeleteInitiated: () => void
+  onDeleteInitiated: () => void,
+  defaultExpanded?: boolean,
+  linkTitle?: boolean,
 }) {
   const supabase = createClient()
   const [showMilestones, setShowMilestones] = useState(false)
@@ -294,18 +301,27 @@ function GoalCard({
   const formattedDate = due ? due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
   const isOverdue = goalIsOverdue(goal)
 
+  const loadMilestones = async () => {
+    const { data } = await supabase
+      .from('goal_milestones')
+      .select('*')
+      .eq('goal_id', goal.id)
+      .order('position')
+    setMilestones(data ?? [])
+    setMilestonesLoaded(true)
+  }
+
   const toggleMilestones = async () => {
-    if (!milestonesLoaded) {
-      const { data } = await supabase
-        .from('goal_milestones')
-        .select('*')
-        .eq('goal_id', goal.id)
-        .order('position')
-      setMilestones(data ?? [])
-      setMilestonesLoaded(true)
-    }
+    if (!milestonesLoaded) await loadMilestones()
     setShowMilestones(v => !v)
   }
+
+  // The goal page opens with milestones and progress visible
+  useEffect(() => {
+    if (!defaultExpanded) return
+    loadMilestones().then(() => setShowMilestones(true))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultExpanded, goal.id])
 
   const addMilestone = async () => {
     const title = newMilestone.trim()
@@ -396,7 +412,7 @@ function GoalCard({
         type: 'goal_progress',
         title: 'Partner Goal Progress',
         body: newStatus === 'done' ? `${who} completed: ${goal.title}! 🎯` : `${who} is working on: ${goal.title}`,
-        url: '/protected/goals',
+        url: `/protected/goals/${goal.id}`,
       }),
     }).catch(err => console.error('Failed to send partner notification:', err))
   }
@@ -431,12 +447,24 @@ function GoalCard({
               )}
             </div>
 
-            <span className={cn(
-              "text-[13px] leading-tight font-bold",
-              goal.status === 'done' ? "text-muted-foreground/60 line-through" : "text-foreground"
-            )}>
-              {goal.title}
-            </span>
+            {linkTitle ? (
+              <Link
+                href={`/protected/goals/${goal.id}`}
+                className={cn(
+                  "text-[13px] leading-tight font-bold hover:underline",
+                  goal.status === 'done' ? "text-muted-foreground/60 line-through" : "text-foreground"
+                )}
+              >
+                {goal.title}
+              </Link>
+            ) : (
+              <span className={cn(
+                "text-[13px] leading-tight font-bold",
+                goal.status === 'done' ? "text-muted-foreground/60 line-through" : "text-foreground"
+              )}>
+                {goal.title}
+              </span>
+            )}
 
             {(goal.progress ?? 0) > 0 && goal.status !== 'done' && (
               <div className="flex items-center gap-2">
