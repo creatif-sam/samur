@@ -11,7 +11,10 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { content, visibility } = await req.json()
+    const body = await req.json()
+    const content = typeof body.content === 'string' ? body.content.trim() : ''
+    const visibility: 'private' | 'shared' = body.visibility === 'private' ? 'private' : 'shared'
+    if (!content) return NextResponse.json({ error: 'Write something first' }, { status: 400 })
 
     // 2. Fetch Partner ID for the notification
     const { data: profile } = await supabase
@@ -50,7 +53,7 @@ export async function POST(req: Request) {
           type: 'post',
           title: 'New post from your partner 🤍',
           body: content.slice(0, 60) + (content.length > 60 ? '...' : ''),
-          url: '/protected/posts',
+          url: '/protected/posts?tab=posts',
         })
       } catch (notifyError) {
         console.error("⚠️ Notification failed, but post was saved:", notifyError)
@@ -80,7 +83,7 @@ export async function POST(req: Request) {
             type: 'mention',
             title: `${userName} mentioned you 📣`,
             body: `"${content.slice(0, 50)}..."`,
-            url: '/protected/posts'
+            url: '/protected/posts?tab=posts'
           })
         } catch (notifyError) {
           console.error("⚠️ Mention notification failed:", notifyError)

@@ -12,11 +12,15 @@ import { FormattedContent } from './FormattedContent';
 interface CommentItemProps {
   comment: PostComment;
   currentUserId: string;
-  onReply: (parentId: string, content: string) => void;
-  onEdit: (commentId: string, content: string) => void;
+  onReply: (parentId: string, content: string) => Promise<boolean>;
+  onEdit: (commentId: string, content: string) => Promise<boolean>;
   onDelete: (commentId: string) => void;
   loading: boolean;
+  depth?: number;
 }
+
+// Replies indent up to this depth; deeper ones line up so they stay readable on phones
+const MAX_INDENT_DEPTH = 2
 
 export function CommentItem({
   comment,
@@ -24,7 +28,8 @@ export function CommentItem({
   onReply,
   onEdit,
   onDelete,
-  loading
+  loading,
+  depth = 0,
 }: CommentItemProps) {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -34,15 +39,15 @@ export function CommentItem({
   const canManage = comment.author_id === currentUserId;
 
   const handleSaveEdit = async () => {
-    await onEdit(comment.id, editContent);
-    setIsEditing(false);
+    if (await onEdit(comment.id, editContent)) setIsEditing(false);
   };
 
-  const handleReplySubmit = () => {
+  const handleReplySubmit = async () => {
     if (!replyContent.trim()) return;
-    onReply(comment.id, replyContent);
-    setReplyContent('');
-    setShowReplyInput(false);
+    if (await onReply(comment.id, replyContent)) {
+      setReplyContent('');
+      setShowReplyInput(false);
+    }
   };
 
   return (
@@ -54,7 +59,7 @@ export function CommentItem({
             {comment.profiles?.name?.charAt(0).toUpperCase() || 'U'}
           </AvatarFallback>
         </Avatar>
-        
+
         <div className="flex-1 min-w-0">
           <div className="bg-muted/40 rounded-2xl px-4 py-2 inline-block max-w-full">
             <div className="flex items-center space-x-2 mb-0.5">
@@ -91,24 +96,27 @@ export function CommentItem({
           </div>
 
           {!isEditing && (
-            <div className="flex items-center space-x-4 mt-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
+            <div className="flex items-center space-x-4 mt-1 ml-2 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity">
+              <button
                 onClick={() => setShowReplyInput(!showReplyInput)}
                 className="text-[11px] font-bold text-muted-foreground hover:text-primary flex items-center gap-1"
               >
                 <Reply className="w-3 h-3" /> Reply
               </button>
-              
+
               {canManage && (
                 <>
-                  <button 
+                  <button
                     onClick={() => setIsEditing(true)}
                     className="text-[11px] font-bold text-muted-foreground hover:text-foreground flex items-center gap-1"
                   >
                     <Edit className="w-3 h-3" /> Edit
                   </button>
-                  <button 
-                    onClick={() => onDelete(comment.id)}
+                  <button
+                    onClick={() => {
+                      const hasReplies = (comment.replies?.length ?? 0) > 0
+                      if (window.confirm(hasReplies ? 'Delete this comment and its replies?' : 'Delete this comment?')) onDelete(comment.id)
+                    }}
                     className="text-[11px] font-bold text-red-400 hover:text-red-600 flex items-center gap-1"
                   >
                     <Trash2 className="w-3 h-3" /> Delete
@@ -121,7 +129,7 @@ export function CommentItem({
       </div>
 
       {showReplyInput && (
-        <div className="ml-11 flex items-start gap-2 animate-in zoom-in-95 duration-200">
+        <div className={`${depth < MAX_INDENT_DEPTH ? 'ml-11' : 'ml-2'} flex items-start gap-2 animate-in zoom-in-95 duration-200`}>
           <CornerDownRight className="w-4 h-4 text-muted-foreground mt-2" />
           <div className="flex-1 space-y-2">
             <Textarea
@@ -145,7 +153,7 @@ export function CommentItem({
       )}
 
       {comment.replies && comment.replies.length > 0 && (
-        <div className="ml-11 space-y-4 pt-2 border-l-2 border-muted/30">
+        <div className={`${depth < MAX_INDENT_DEPTH ? 'ml-11 pl-2 border-l-2 border-muted/30' : ''} space-y-4 pt-2`}>
           {comment.replies.map((reply) => (
             <CommentItem
               key={reply.id}
@@ -155,6 +163,7 @@ export function CommentItem({
               onEdit={onEdit}
               onDelete={onDelete}
               loading={loading}
+              depth={depth + 1}
             />
           ))}
         </div>

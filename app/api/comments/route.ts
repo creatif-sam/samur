@@ -3,62 +3,89 @@ import { createClient } from '@/lib/supabase/server'
 import { detectMentions, getPartnerId } from '@/lib/mentions'
 import { notify } from '@/lib/push-notifications'
 
+// Add a comment to a post, or a reply to a comment (parentId)
 export async function POST(req: Request) {
   try {
     const supabase = await createClient()
     const { data: { user: sender } } = await supabase.auth.getUser()
     if (!sender) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { postId, content } = await req.json()
+    const { postId, content, parentId } = await req.json()
+    const text = typeof content === 'string' ? content.trim() : ''
+    if (typeof postId !== 'string' || !text) {
+      return NextResponse.json({ error: 'Missing post or comment text' }, { status: 400 })
+    }
 
-    // 1. CRITICAL CHANGE: Table name must be 'post_comments' to match your schema
+    let parentAuthorId: string | null = null
+    if (typeof parentId === 'string') {
+      const { data: parent } = await supabase
+        .from('post_comments')
+        .select('author_id, post_id')
+        .eq('id', parentId)
+        .maybeSingle()
+      if (!parent || parent.post_id !== postId) {
+        return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
+      }
+      parentAuthorId = parent.author_id
+    }
+
     const { data: comment, error: dbError } = await supabase
-      .from('post_comments') 
+      .from('post_comments')
       .insert({
         post_id: postId,
-        author_id: sender.id, // Your schema uses author_id
-        content: content.trim()
+        author_id: sender.id,
+        parent_comment_id: typeof parentId === 'string' ? parentId : null,
+        content: text,
       })
-      .select(`
-        *,
-        post:post_id (
-          author_id
-        )
-      `)
+      .select('*, profiles:author_id (name, avatar_url), post:post_id (author_id)')
       .single()
 
     if (dbError) {
-      console.error("❌ Database Error:", dbError.message)
+      console.error('Comment insert error:', dbError.message)
       return NextResponse.json({ error: dbError.message }, { status: 500 })
     }
 
     const senderName = sender.user_metadata?.name || 'Your partner'
+    const snippet = text.length > 50 ? `${text.slice(0, 50)}…` : text
+    const postOwnerId = (comment.post as { author_id?: string } | null)?.author_id ?? null
+    const notified = new Set<string>([sender.id])
 
-    // 2. Notification to post owner (if not commenting on own post)
-    const postOwnerId = (comment.post as any)?.author_id
-    if (postOwnerId && postOwnerId !== sender.id) {
+    // Reply → the person replied to
+    if (parentAuthorId && !notified.has(parentAuthorId)) {
+      notified.add(parentAuthorId)
+      await notify({
+        userId: parentAuthorId,
+        type: 'comment',
+        title: `${senderName} replied 💬`,
+        body: `"${snippet}"`,
+        url: '/protected/posts?tab=posts',
+      })
+    }
+
+    // Comment → the post's author
+    if (postOwnerId && !notified.has(postOwnerId)) {
+      notified.add(postOwnerId)
       await notify({
         userId: postOwnerId,
         type: 'comment',
         title: 'New Comment 💬',
-        body: `${senderName}: "${content.slice(0, 40)}..."`,
-        url: `/protected/posts` 
+        body: `${senderName}: "${snippet}"`,
+        url: '/protected/posts?tab=posts',
       })
     }
 
-    // 3. Check for @ mentions and notify mentioned users
-    const mentions = detectMentions(content)
+    // @mention of the partner (if they weren't already notified above)
+    const mentions = detectMentions(text)
     if (mentions.length > 0) {
       const partnerId = await getPartnerId(supabase, sender.id)
-      if (partnerId && partnerId !== postOwnerId) {
-        // Get partner's name to check if they were mentioned
+      if (partnerId && !notified.has(partnerId)) {
         const { data: partnerProfile } = await supabase
           .from('profiles')
           .select('name, full_name')
           .eq('id', partnerId)
           .single()
 
-        const partnerMentioned = mentions.some(mention => 
+        const partnerMentioned = mentions.some(mention =>
           mention.toLowerCase() === partnerProfile?.name?.toLowerCase() ||
           mention.toLowerCase() === partnerProfile?.full_name?.toLowerCase()
         )
@@ -68,15 +95,16 @@ export async function POST(req: Request) {
             userId: partnerId,
             type: 'mention',
             title: `${senderName} mentioned you 📣`,
-            body: `"${content.slice(0, 50)}..."`,
-            url: `/protected/posts`
+            body: `"${snippet}"`,
+            url: '/protected/posts?tab=posts',
           })
         }
       }
     }
 
     return NextResponse.json({ success: true, comment })
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }
