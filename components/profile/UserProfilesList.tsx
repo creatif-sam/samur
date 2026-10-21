@@ -1,114 +1,106 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { Profile } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { useEffect, useMemo, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { Search, Users } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-interface UserProfile extends Profile {
-  isOnline?: boolean;
-}
+type AdminUser = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  last_seen: string | null;
+  online: boolean;
+  partner_name: string | null;
+  is_you: boolean;
+};
 
+// Admin-only list of every account (data comes from /api/admin/users)
 export default function UserProfilesList() {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
-    fetchUsers();
+    fetch('/api/admin/users')
+      .then(async res => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not load users');
+        setUsers(data.users ?? []);
+      })
+      .catch(err => setError(err instanceof Error ? err.message : 'Could not load users'))
+      .finally(() => setLoading(false));
   }, []);
 
-  const fetchUsers = async () => {
-    const supabase = createClient();
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(u => (u.name ?? '').toLowerCase().includes(q) || (u.email ?? '').toLowerCase().includes(q));
+  }, [users, query]);
 
-    // Get all profiles except current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  if (loading) return <div className="text-center py-4 text-sm text-muted-foreground">Loading users…</div>;
+  if (error) return <p className="text-sm text-destructive py-2">{error}</p>;
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .neq('id', user.id)
-      .order('last_seen', { ascending: false, nullsFirst: false });
-
-    if (error) {
-      console.error('Error fetching users:', error);
-      setLoading(false);
-      return;
-    }
-
-    // Mark users as online if last_seen is within last 5 minutes
-    const now = new Date();
-    const onlineThreshold = 5 * 60 * 1000; // 5 minutes in milliseconds
-
-    const usersWithOnlineStatus = data?.map(user => ({
-      ...user,
-      isOnline: user.last_seen ? (now.getTime() - new Date(user.last_seen).getTime()) < onlineThreshold : false
-    })) || [];
-
-    setUsers(usersWithOnlineStatus);
-    setLoading(false);
-  };
-
-  const getLastSeenText = (lastSeen?: string) => {
-    if (!lastSeen) return 'Never seen';
-
-    try {
-      return `Last seen ${formatDistanceToNow(new Date(lastSeen), { addSuffix: true })}`;
-    } catch {
-      return 'Unknown';
-    }
-  };
-
-  if (loading) {
-    return <div className="text-center py-4">Loading users...</div>;
-  }
+  const onlineCount = users.filter(u => u.online).length;
+  const pairedCount = users.filter(u => u.partner_name).length;
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Other Users</h2>
-      {users.length === 0 ? (
-        <p className="text-gray-500">No other users found.</p>
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {[
+          { label: 'Users', value: users.length },
+          { label: 'Online now', value: onlineCount },
+          { label: 'With partner', value: pairedCount },
+        ].map(s => (
+          <div key={s.label} className="rounded-2xl bg-muted/50 py-2">
+            <p className="text-lg font-black leading-tight">{s.value}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search name or email"
+          className="w-full rounded-2xl bg-muted/50 pl-9 pr-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-violet-500"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4 flex items-center justify-center gap-2">
+          <Users className="w-4 h-4" /> No users match.
+        </p>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {users.map((user) => (
-            <Card key={user.id} className="hover:shadow-md transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-center space-x-3">
-                  <Avatar className="h-12 w-12">
-                    <AvatarImage src={user.avatar_url} alt={user.name || 'User'} />
-                    <AvatarFallback>
-                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">
-                      {user.name || 'Anonymous User'}
-                    </CardTitle>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Badge
-                        variant={user.isOnline ? "default" : "secondary"}
-                        className={user.isOnline ? "bg-green-500" : ""}
-                      >
-                        {user.isOnline ? 'Online' : 'Offline'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600">
-                  {getLastSeenText(user.last_seen)}
+        <ul className="divide-y divide-border/60">
+          {filtered.map(u => (
+            <li key={u.id} className="flex items-center gap-3 py-2.5">
+              <div className="relative shrink-0">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={u.avatar_url ?? undefined} alt={u.name || 'User'} />
+                  <AvatarFallback>{(u.name || u.email || 'U').charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                {u.online && <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background" aria-label="Online" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold truncate">
+                  {u.name || 'No name'}{u.is_you && <span className="text-muted-foreground font-normal"> (you)</span>}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Joined {user.created_at ? formatDistanceToNow(new Date(user.created_at), { addSuffix: true }) : 'Unknown'}
+                <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  {u.online ? 'Online now' : u.last_seen ? `Seen ${formatDistanceToNow(new Date(u.last_seen), { addSuffix: true })}` : 'Never seen'}
+                  {' · '}Joined {formatDistanceToNow(new Date(u.created_at), { addSuffix: true })}
+                  {u.partner_name && ` · 🤝 ${u.partner_name}`}
                 </p>
-              </CardContent>
-            </Card>
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

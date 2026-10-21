@@ -10,9 +10,6 @@ import { useTranslation } from '@/contexts/TranslationContext'
 import { LanguageSwitcher } from '@/components/language-switcher'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
-import {
   LogOut, Camera, Save, Users, Trash2, AlertTriangle, UserPlus, Check,
   X, Clock, Link2Off, ChevronRight, Globe, DollarSign, Bell, CreditCard,
   Shield, Pencil, Target, BookOpen, Eye, Crown, CalendarDays,
@@ -29,6 +26,13 @@ import { useRouter } from 'next/navigation'
 import { currencies } from '@/lib/currencies'
 import { cn } from '@/lib/utils'
 
+type PartnerPerson = { id: string; name: string; avatar_url: string | null }
+type PartnerState = {
+  partner: PartnerPerson | null
+  incoming: { id: string; from: PartnerPerson }[]
+  outgoing: { id: string; to: PartnerPerson }[]
+}
+
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,11 +42,10 @@ export default function ProfilePage() {
   const [goalStats, setGoalStats] = useState({ total: 0, completed: 0 })
   const [meditationCount, setMeditationCount] = useState(0)
   const [visionCount, setVisionCount] = useState(0)
-  const [availablePartners, setAvailablePartners] = useState<Profile[]>([])
-  const [incomingRequest, setIncomingRequest] = useState<{ id: string; from_user_id: string; from_name: string } | null>(null)
-  const [outgoingRequest, setOutgoingRequest] = useState<{ id: string; to_user_id: string; to_name: string } | null>(null)
-  const [sendingInvite, setSendingInvite] = useState(false)
-  const [inviteTargetId, setInviteTargetId] = useState('')
+  const [partnerState, setPartnerState] = useState<PartnerState>({ partner: null, incoming: [], outgoing: [] })
+  const [partnerBusy, setPartnerBusy] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [isAdminUser, setIsAdminUser] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [deleteType, setDeleteType] = useState<'account' | 'data' | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
@@ -60,9 +63,12 @@ export default function ProfilePage() {
   useEffect(() => {
     fetchProfile()
     fetchStats()
-    fetchPartners()
-    fetchPendingRequests()
+    loadPartnerState()
     loadCurrency()
+    fetch('/api/admin/users?check=1')
+      .then(res => (res.ok ? res.json() : { isAdmin: false }))
+      .then(data => setIsAdminUser(!!data.isAdmin))
+      .catch(() => setIsAdminUser(false))
   }, [])
 
   const toggle = (key: string) => setExpanded(e => e === key ? null : key)
@@ -93,33 +99,35 @@ export default function ProfilePage() {
     setVisionCount(visionsRes.data?.length ?? 0)
   }
 
-  const fetchPartners = async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data } = await supabase.from('profiles').select('*').neq('id', user.id).order('name')
-    setAvailablePartners(data || [])
+  // Partner and invites come from the server, which links/unlinks both sides together
+  const loadPartnerState = async () => {
+    try {
+      const res = await fetch('/api/partner')
+      if (res.ok) setPartnerState(await res.json())
+    } catch { /* offline: keep what we have */ }
   }
 
-  const fetchPendingRequests = async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const [incRes, outRes] = await Promise.all([
-      supabase.from('partner_requests')
-        .select('id, from_user_id, profiles!partner_requests_from_user_id_fkey(name)')
-        .eq('to_user_id', user.id).eq('status', 'pending').limit(1).maybeSingle(),
-      supabase.from('partner_requests')
-        .select('id, to_user_id, profiles!partner_requests_to_user_id_fkey(name)')
-        .eq('from_user_id', user.id).eq('status', 'pending').limit(1).maybeSingle(),
-    ])
-    if (incRes.data) {
-      const p = incRes.data.profiles as any
-      setIncomingRequest({ id: incRes.data.id, from_user_id: incRes.data.from_user_id, from_name: p?.name || 'Unknown' })
-    }
-    if (outRes.data) {
-      const p = outRes.data.profiles as any
-      setOutgoingRequest({ id: outRes.data.id, to_user_id: outRes.data.to_user_id, to_name: p?.name || 'Unknown' })
+  const partnerAction = async (payload: Record<string, unknown>, success: string) => {
+    setPartnerBusy(true)
+    try {
+      const res = await fetch('/api/partner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error || 'Something went wrong')
+        return false
+      }
+      toast.success(success)
+      await Promise.all([loadPartnerState(), fetchProfile()])
+      return true
+    } catch {
+      toast.error("You're offline. This will work when you reconnect.")
+      return false
+    } finally {
+      setPartnerBusy(false)
     }
   }
 
@@ -189,67 +197,17 @@ export default function ProfilePage() {
   }
 
   const sendPartnerInvite = async () => {
-    if (!inviteTargetId || !profile) return
-    setSendingInvite(true)
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSendingInvite(false); return }
-    const { error } = await supabase.from('partner_requests').insert({ from_user_id: user.id, to_user_id: inviteTargetId })
-    if (!error) {
-      const target = availablePartners.find(p => p.id === inviteTargetId)
-      setOutgoingRequest({ id: '', to_user_id: inviteTargetId, to_name: target?.name || 'Unknown' })
-      setInviteTargetId('')
-      toast.success('Invite sent!')
-      fetch('/api/notifications/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: inviteTargetId, type: 'partner_invite', title: 'New Partner Invite 🤝', body: `${profile.name || 'Someone'} invited you to be their accountability partner.`, url: '/protected/profile' })
-      }).catch(() => {})
-    } else toast.error('Could not send invite')
-    setSendingInvite(false)
+    if (!inviteEmail.trim()) return
+    if (await partnerAction({ action: 'invite', email: inviteEmail.trim() }, 'Invite sent!')) setInviteEmail('')
   }
 
-  const acceptInvite = async () => {
-    if (!incomingRequest || !profile) return
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('partner_requests').update({ status: 'accepted' }).eq('id', incomingRequest.id)
-    await supabase.from('profiles').update({ partner_id: incomingRequest.from_user_id }).eq('id', user.id)
-    await supabase.from('profiles').update({ partner_id: user.id }).eq('id', incomingRequest.from_user_id)
-    setProfile({ ...profile, partner_id: incomingRequest.from_user_id })
-    setIncomingRequest(null)
-    toast.success('Partner connected! 🎉')
-    fetch('/api/notifications/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUserId: incomingRequest.from_user_id, type: 'partner_invite', title: 'Invite Accepted! 🎉', body: `${profile.name || 'Your invitee'} accepted your partner invite.`, url: '/protected/profile' })
-    }).catch(() => {})
-  }
-
-  const declineInvite = async () => {
-    if (!incomingRequest) return
-    const supabase = createClient()
-    await supabase.from('partner_requests').update({ status: 'declined' }).eq('id', incomingRequest.id)
-    setIncomingRequest(null)
-    toast.success('Invite declined')
-  }
-
-  const cancelOutgoingInvite = async () => {
-    if (!outgoingRequest) return
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('partner_requests').delete().eq('id', outgoingRequest.id)
-    setOutgoingRequest(null)
-    toast.success('Invite cancelled')
-  }
+  const acceptInvite = (requestId: string) => partnerAction({ action: 'accept', requestId }, 'Partner connected! 🎉')
+  const declineInvite = (requestId: string) => partnerAction({ action: 'decline', requestId }, 'Invite declined')
+  const cancelOutgoingInvite = (requestId: string) => partnerAction({ action: 'cancel', requestId }, 'Invite cancelled')
 
   const removePartner = async () => {
-    if (!profile) return
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from('profiles').update({ partner_id: null }).eq('id', user.id)
-    if (profile.partner_id) await supabase.from('profiles').update({ partner_id: null }).eq('id', profile.partner_id)
-    setProfile({ ...profile, partner_id: undefined })
-    toast.success('Partner disconnected')
+    if (!window.confirm(`Disconnect from ${partnerState.partner?.name || 'your partner'}? Shared goals and posts will stop being shared.`)) return
+    await partnerAction({ action: 'disconnect' }, 'Partner disconnected')
   }
 
   const handleLogout = async () => {
@@ -264,64 +222,81 @@ export default function ProfilePage() {
     </div>
   )
 
-  const partnerName = availablePartners.find(p => p.id === profile?.partner_id)?.name
+  const partnerName = partnerState.partner?.name
   const completionPct = goalStats.total === 0 ? 0 : Math.round((goalStats.completed / goalStats.total) * 100)
 
   /* ── partner section content ── */
   const PartnerContent = () => (
     <div className="px-5 pb-4 pt-1 space-y-3">
-      {profile?.partner_id ? (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-violet-600 font-bold text-sm">
-              {(partnerName ?? '?')[0]?.toUpperCase()}
-            </div>
-            <div>
-              <p className="text-sm font-semibold">{partnerName || 'Partner'}</p>
-              <p className="text-xs text-muted-foreground">Connected âœ“</p>
+      {partnerState.partner ? (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar className="w-9 h-9">
+              <AvatarImage src={partnerState.partner.avatar_url ?? undefined} />
+              <AvatarFallback className="bg-violet-100 dark:bg-violet-900/40 text-violet-600 font-bold text-sm">
+                {partnerState.partner.name[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">{partnerState.partner.name}</p>
+              <p className="text-xs text-muted-foreground">Connected ✓</p>
             </div>
           </div>
-          <Button size="sm" variant="outline" className="text-destructive border-destructive/30 gap-1 text-xs" onClick={removePartner}>
+          <Button size="sm" variant="outline" className="text-destructive border-destructive/30 gap-1 text-xs shrink-0" onClick={removePartner} disabled={partnerBusy}>
             <Link2Off className="w-3 h-3" /> Disconnect
           </Button>
         </div>
-      ) : incomingRequest ? (
-        <div className="rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-violet-200 dark:bg-violet-800 flex items-center justify-center text-violet-700 font-bold text-xs">
-              {incomingRequest.from_name[0]?.toUpperCase()}
-            </div>
-            <div>
-              <p className="text-sm font-semibold">{incomingRequest.from_name}</p>
-              <p className="text-xs text-muted-foreground">Wants to be your partner</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button size="sm" className="flex-1 gap-1 bg-violet-600 hover:bg-violet-700 h-8 text-xs" onClick={acceptInvite}><Check className="w-3 h-3" /> Accept</Button>
-            <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={declineInvite}><X className="w-3 h-3" /> Decline</Button>
-          </div>
-        </div>
-      ) : outgoingRequest ? (
-        <div className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
-            <Clock className="w-3.5 h-3.5" />
-            <div>
-              <p className="text-xs font-semibold">Invite sent to {outgoingRequest.to_name}</p>
-              <p className="text-[10px] opacity-70">Waiting for acceptance…</p>
-            </div>
-          </div>
-          <Button size="sm" variant="ghost" className="text-xs" onClick={cancelOutgoingInvite}>Cancel</Button>
-        </div>
       ) : (
-        <div className="space-y-2">
-          <Select value={inviteTargetId} onValueChange={setInviteTargetId}>
-            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Choose a person…" /></SelectTrigger>
-            <SelectContent>{availablePartners.map(p => <SelectItem key={p.id} value={p.id}>{p.name || 'Unnamed'}</SelectItem>)}</SelectContent>
-          </Select>
-          <Button size="sm" className="w-full gap-1 bg-violet-600 hover:bg-violet-700 h-9 text-sm" onClick={sendPartnerInvite} disabled={!inviteTargetId || sendingInvite}>
-            <UserPlus className="w-3.5 h-3.5" /> {sendingInvite ? 'Sending…' : 'Send Invite'}
-          </Button>
-        </div>
+        <>
+          {partnerState.incoming.map(req => (
+            <div key={req.id} className="rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-violet-200 dark:bg-violet-800 flex items-center justify-center text-violet-700 font-bold text-xs">
+                  {req.from.name[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">{req.from.name}</p>
+                  <p className="text-xs text-muted-foreground">Wants to be your partner</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1 gap-1 bg-violet-600 hover:bg-violet-700 h-8 text-xs" onClick={() => acceptInvite(req.id)} disabled={partnerBusy}><Check className="w-3 h-3" /> Accept</Button>
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => declineInvite(req.id)} disabled={partnerBusy}><X className="w-3 h-3" /> Decline</Button>
+              </div>
+            </div>
+          ))}
+
+          {partnerState.outgoing.map(req => (
+            <div key={req.id} className="rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <Clock className="w-3.5 h-3.5" />
+                <div>
+                  <p className="text-xs font-semibold">Invite sent to {req.to.name}</p>
+                  <p className="text-[10px] opacity-70">Waiting for acceptance…</p>
+                </div>
+              </div>
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => cancelOutgoingInvite(req.id)} disabled={partnerBusy}>Cancel</Button>
+            </div>
+          ))}
+
+          {partnerState.outgoing.length === 0 && (
+            <form onSubmit={e => { e.preventDefault(); sendPartnerInvite() }} className="space-y-2">
+              <p className="text-xs text-muted-foreground">Invite your accountability partner with the email they signed up with.</p>
+              <Input
+                type="email"
+                inputMode="email"
+                autoComplete="off"
+                placeholder="partner@example.com"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                className="h-9 text-sm"
+              />
+              <Button type="submit" size="sm" className="w-full gap-1 bg-violet-600 hover:bg-violet-700 h-9 text-sm" disabled={!inviteEmail.trim() || partnerBusy}>
+                <UserPlus className="w-3.5 h-3.5" /> {partnerBusy ? 'Sending…' : 'Send Invite'}
+              </Button>
+            </form>
+          )}
+        </>
       )}
     </div>
   )
@@ -503,7 +478,7 @@ export default function ProfilePage() {
           <SettingsRow
             icon={<Users className="w-4 h-4" />}
             label="Accountability Partner"
-            sublabel={profile?.partner_id ? partnerName || 'Connected' : incomingRequest ? '1 invite pending' : outgoingRequest ? 'Invite sent' : 'None'}
+            sublabel={partnerState.partner ? partnerName || 'Connected' : partnerState.incoming.length ? `${partnerState.incoming.length} invite${partnerState.incoming.length > 1 ? 's' : ''} pending` : partnerState.outgoing.length ? 'Invite sent' : 'None'}
             expanded={expanded === 'partner'}
             onTap={() => toggle('partner')}
           />
@@ -604,8 +579,8 @@ export default function ProfilePage() {
           />
         </div>
 
-        {/* All users list — dev/admin */}
-        <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
+        {/* All users list — admins only (ADMIN_EMAILS) */}
+        {isAdminUser && <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
           <SettingsRow
             icon={<Users className="w-4 h-4" />}
             label="All Users"
@@ -617,7 +592,7 @@ export default function ProfilePage() {
               <UserProfilesList />
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Sign out */}
         <button
