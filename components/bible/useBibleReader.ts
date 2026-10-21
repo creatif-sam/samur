@@ -7,8 +7,28 @@ import { toast } from 'sonner'
 import {
   BOOKS, CHAPTER_COUNTS, FRENCH_BOOK_NAMES, TRANSLATIONS,
   type Verse, type SavedVerse, type VerseHighlight,
-  isFrench, displayBook, apiUrl,
+  isFrench, displayBook,
 } from './bibleConstants'
+import {
+  ChapterUnavailableError, fetchChapter, hasWholeBibleCached, parseReference,
+  searchBook, searchWholeBible, searchesOtherTranslation, type SearchHit,
+} from '@/lib/bible/source'
+import { toLocalDateKey } from '@/lib/dates'
+
+// Where you were, so the Bible reopens on the same chapter, version and text size
+const STATE_KEY = 'bible_state'
+type StoredState = { book: string; chapter: number; translation: string; fontSize: 'sm' | 'md' | 'lg' }
+
+function loadStoredState(): StoredState | null {
+  try {
+    const raw = localStorage.getItem(STATE_KEY)
+    const s = raw ? JSON.parse(raw) : null
+    if (!s || !BOOKS.includes(s.book) || !TRANSLATIONS.some(t => t.id === s.translation)) return null
+    return s
+  } catch {
+    return null
+  }
+}
 
 export type BibleView = 'books' | 'chapters' | 'read' | 'saved' | 'search' | 'versions' | 'compare'
 
@@ -53,9 +73,18 @@ export function useBibleReader() {
   const [recentBooks, setRecentBooks] = useState<string[]>([])
   const [showRecent, setShowRecent] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [searchResults, setSearchResults] = useState<SearchHit[]>([])
   const [searching, setSearching] = useState(false)
+  const [searchScope, setSearchScope] = useState<'book' | 'bible'>('book')
+  const [searchMode, setSearchMode] = useState<'reference' | 'words' | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [wholeBibleReady, setWholeBibleReady] = useState(false)
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const searchSeq = useRef(0)
+  const chapterSeq = useRef(0)
+  const [restored, setRestored] = useState(false)
+  const [lastRead, setLastRead] = useState<{ book: string; chapter: number } | null>(null)
+  const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (view === 'read') {
@@ -75,40 +104,102 @@ export function useBibleReader() {
       const stored = localStorage.getItem('bible_recent_books')
       if (stored) setRecentBooks(JSON.parse(stored))
     } catch {}
+    const state = loadStoredState()
+    if (state) {
+      setSelectedBook(state.book)
+      setSelectedChapter(Math.min(Math.max(1, state.chapter), CHAPTER_COUNTS[state.book] ?? 1))
+      setTranslation(state.translation)
+      setFontSize(state.fontSize ?? 'md')
+      setLastRead({ book: state.book, chapter: state.chapter })
+      setView('read')
+    }
+    setRestored(true)
   }, [])
 
+  // Remember position and settings (only once the saved state has been applied)
   useEffect(() => {
-    if (view !== 'read') return
+    if (!restored) return
+    try {
+      localStorage.setItem(STATE_KEY, JSON.stringify({ book: selectedBook, chapter: selectedChapter, translation, fontSize }))
+    } catch { /* storage unavailable */ }
+    if (view === 'read') setLastRead({ book: selectedBook, chapter: selectedChapter })
+  }, [restored, selectedBook, selectedChapter, translation, fontSize, view])
+
+  // Reading progress (chapters read), synced to the account when the table exists
+  useEffect(() => {
+    if (!userId) return
+    supabase.from('bible_progress').select('book, chapter').eq('user_id', userId).then(({ data, error }) => {
+      if (error) return
+      setReadChapters(new Set((data ?? []).map((r: { book: string; chapter: number }) => `${r.book}-${r.chapter}`)))
+    })
+  }, [userId])
+
+  useEffect(() => {
+    if (view !== 'read' || !restored) return
     loadChapter(selectedBook, selectedChapter)
     if (userId) loadHighlights(selectedBook, selectedChapter)
-  }, [view, selectedBook, selectedChapter, translation, userId])
+  }, [view, selectedBook, selectedChapter, translation, userId, restored])
 
   useEffect(() => { if (userId) loadSavedVerses() }, [userId])
 
+  // A reference ("John 3:16") shows those verses; anything else is a word search
+  // in the current book, or the whole Bible once you ask for it
   useEffect(() => {
-    if (!searchQuery.trim()) { setSearchResults([]); return }
+    const q = searchQuery.trim()
+    if (!q) { setSearchResults([]); setSearchMode(null); setSearchError(null); return }
     if (searchDebounce.current) clearTimeout(searchDebounce.current)
     searchDebounce.current = setTimeout(async () => {
+      const seq = ++searchSeq.current
       setSearching(true)
+      setSearchError(null)
       try {
-        const res = await fetch(`https://bible-api.com/${encodeURIComponent(searchQuery)}?translation=${translation}`)
-        if (!res.ok) throw new Error()
-        const data = await res.json()
-        setSearchResults(data.verses ?? [])
-      } catch { setSearchResults([]) }
-      finally { setSearching(false) }
-    }, 600)
-  }, [searchQuery])
+        const ref = parseReference(q, FRENCH_BOOK_NAMES)
+        let hits: SearchHit[]
+        if (ref) {
+          setSearchMode('reference')
+          const verses = await fetchChapter(ref.book, ref.chapter, translation)
+          const from = ref.verseStart ?? 1
+          const to = ref.verseEnd ?? ref.verseStart ?? Number.MAX_SAFE_INTEGER
+          hits = verses.filter(v => v.verse >= from && v.verse <= to)
+            .map(v => ({ book: ref.book, chapter: ref.chapter, verse: v.verse, text: v.text }))
+        } else {
+          if (q.length < 3) { if (seq === searchSeq.current) { setSearchResults([]); setSearchMode('words') }; return }
+          setSearchMode('words')
+          hits = searchScope === 'bible'
+            ? await searchWholeBible(q, translation)
+            : await searchBook(selectedBook, q, translation)
+        }
+        if (seq === searchSeq.current) setSearchResults(hits)
+      } catch (err) {
+        if (seq !== searchSeq.current) return
+        setSearchResults([])
+        setSearchError(err instanceof ChapterUnavailableError ? err.message : "Couldn't search. Check your connection.")
+      } finally {
+        if (seq === searchSeq.current) setSearching(false)
+      }
+    }, 500)
+  }, [searchQuery, searchScope, translation, selectedBook])
+
+  useEffect(() => {
+    if (view === 'search') hasWholeBibleCached(translation).then(setWholeBibleReady)
+  }, [view, translation, searchScope])
 
   async function loadChapter(book: string, chapter: number) {
+    const seq = ++chapterSeq.current
     setLoading(true); setError(null)
     try {
-      const res = await fetch(apiUrl(book, chapter, translation))
-      if (!res.ok) throw new Error()
-      const data = await res.json()
-      setVerses(data.verses ?? [])
-    } catch { setError('Could not load chapter. Check your connection.') }
-    finally { setLoading(false) }
+      const result = await fetchChapter(book, chapter, translation)
+      if (seq !== chapterSeq.current) return // a newer chapter was requested meanwhile
+      setVerses(result)
+    } catch (err) {
+      if (seq !== chapterSeq.current) return
+      setVerses([])
+      setError(err instanceof ChapterUnavailableError
+        ? `${err.message}. Try another version.`
+        : 'Could not load chapter. Check your connection.')
+    } finally {
+      if (seq === chapterSeq.current) setLoading(false)
+    }
   }
 
   async function loadHighlights(book: string, chapter: number) {
@@ -310,11 +401,9 @@ export function useBibleReader() {
   async function fetchCompareTranslation(tid: string, verseNums: number[]) {
     setCompareLoadingSet(prev => new Set(prev).add(tid))
     try {
-      const res = await fetch(apiUrl(selectedBook, selectedChapter, tid))
-      if (!res.ok) throw new Error()
-      const data = await res.json()
+      const chapterVerses = await fetchChapter(selectedBook, selectedChapter, tid)
       const sorted = [...verseNums].sort((a, b) => a - b)
-      const extracted = sorted.map(n => (data.verses as Verse[]).find(v => v.verse === n)).filter(Boolean) as Verse[]
+      const extracted = sorted.map(n => chapterVerses.find(v => v.verse === n)).filter(Boolean) as Verse[]
       setCompareData(prev => new Map(prev).set(tid, extracted))
     } catch { setCompareData(prev => new Map(prev).set(tid, [])) }
     finally { setCompareLoadingSet(prev => { const s = new Set(prev); s.delete(tid); return s }) }
@@ -354,6 +443,50 @@ export function useBibleReader() {
 
   function openChapter(ch: number) { setSelectedChapter(ch); setView('read') }
 
+  // Jump to a passage from search results, saved verses or "Continue reading"
+  function openPassage(book: string, chapter: number) {
+    setSelectedBook(book)
+    setSelectedChapter(chapter)
+    setSelectedVerses(new Set())
+    setView('read')
+  }
+
+  async function setChapterRead(book: string, chapter: number, read: boolean) {
+    const key = `${book}-${chapter}`
+    setReadChapters(prev => { const s = new Set(prev); if (read) s.add(key); else s.delete(key); return s })
+    if (!userId) return
+    const { error } = read
+      ? await supabase.from('bible_progress').upsert({ user_id: userId, book, chapter, read_at: new Date().toISOString() }, { onConflict: 'user_id,book,chapter' })
+      : await supabase.from('bible_progress').delete().eq('user_id', userId).eq('book', book).eq('chapter', chapter)
+    if (error) console.error('Bible progress not saved', error)
+  }
+
+  const chapterIsRead = readChapters.has(`${selectedBook}-${selectedChapter}`)
+  const bookProgress = (book: string) => {
+    const total = CHAPTER_COUNTS[book] ?? 1
+    let read = 0
+    for (let c = 1; c <= total; c++) if (readChapters.has(`${book}-${c}`)) read++
+    return { read, total }
+  }
+
+  // Make a saved verse today's memory verse
+  async function setAsMemoryVerse(v: SavedVerse) {
+    if (!userId) return
+    const reference = `${displayBook(v.book, translation)} ${v.chapter}:${v.verse}`
+    const { error } = await supabase.from('memory_verses').upsert({
+      user_id: userId,
+      day: toLocalDateKey(new Date()),
+      reference,
+      text: v.text.trim(),
+      translation,
+      visibility: 'shared',
+      memorized: false,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,day' })
+    if (error) toast.error(error.message || 'Could not set the memory verse')
+    else toast.success(`${reference} is today's memory verse 🧠`)
+  }
+
   function prevChapter() {
     if (selectedChapter > 1) { setSelectedChapter(c => c - 1) }
     else {
@@ -363,6 +496,7 @@ export function useBibleReader() {
   }
 
   function nextChapter() {
+    if (view === 'read' && verses.length > 0 && !chapterIsRead) void setChapterRead(selectedBook, selectedChapter, true)
     const max = CHAPTER_COUNTS[selectedBook] ?? 1
     if (selectedChapter < max) { setSelectedChapter(c => c + 1) }
     else {
@@ -416,7 +550,11 @@ export function useBibleReader() {
     displayedBooks,
     searchQuery, setSearchQuery,
     searchResults, setSearchResults,
-    searching,
+    searching, searchScope, setSearchScope, searchMode, searchError, wholeBibleReady,
+    searchesOtherTranslation: searchesOtherTranslation(translation),
+    lastRead, openPassage,
+    chapterIsRead, setChapterRead, bookProgress, readChapters,
+    setAsMemoryVerse,
     handleTouchStart, handleTouchEnd,
     formatRef,
     copySelectedVerses, shareSelectedVerses, saveSelectedVerses,

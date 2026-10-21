@@ -61,9 +61,9 @@ export const TRANSLATIONS = [
   { id: 'ylt',    label: 'YLT',   name: "Young's Literal Translation" },
   { id: 'darby',  label: 'DARBY', name: 'Darby Bible' },
   { id: 'dra',    label: 'DRA',   name: 'Douay-Rheims' },
-  { id: 'oeb-us', label: 'OEB',   name: 'Open English Bible' },
-  { id: 'lsg',    label: 'LSG',   name: 'Louis Segond (Français)' },
-  { id: 'nef',    label: 'NEF',   name: 'Nouvelle Édition de Genève (Français)' },
+  { id: 'oeb-us', label: 'OEB',   name: 'Open English Bible (New Testament and some Old Testament books)' },
+  { id: 'lsg',    label: 'LSG',   name: 'Louis Segond 1910 (Français)' },
+  { id: 'martin', label: 'MAR',   name: 'Martin 1744 (Français)' },
 ]
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -89,7 +89,7 @@ export const HIGHLIGHT_COLORS = [
 
 // ── Pure helpers ──────────────────────────────────────────────────────────
 export function isFrench(translation: string) {
-  return translation === 'lsg' || translation === 'nef'
+  return translation === 'lsg' || translation === 'martin'
 }
 
 export function displayBook(book: string, translation: string): string {
@@ -98,10 +98,6 @@ export function displayBook(book: string, translation: string): string {
 
 export function highlightBg(color: string): string {
   return HIGHLIGHT_COLORS.find(c => c.id === color)?.bg ?? ''
-}
-
-export function apiUrl(book: string, chapter: number, translation: string): string {
-  return `https://bible-api.com/${encodeURIComponent(book)}+${chapter}?translation=${translation}`
 }
 
 export function chapterArray(book: string): number[] {

@@ -2,6 +2,7 @@
 
 import type { RefObject, MutableRefObject } from 'react'
 import {
+  Check,
   Loader2, ChevronLeft, ChevronRight, ChevronDown,
   Copy, Share2, Bookmark, Highlighter, PenLine, BookCopy, X,
 } from 'lucide-react'
@@ -40,6 +41,8 @@ interface Props {
   setSelectedChapter: (ch: number) => void
   prevChapter: () => void
   nextChapter: () => void
+  chapterIsRead: boolean
+  setChapterRead: (book: string, chapter: number, read: boolean) => void
 }
 
 export function BibleReadView({
@@ -51,6 +54,7 @@ export function BibleReadView({
   copySelectedVerses, shareSelectedVerses, saveSelectedVerses,
   highlightSelectedVerses, openNoteForSelection, openCompare,
   showChapterSheet, setShowChapterSheet, setSelectedChapter, prevChapter, nextChapter,
+  chapterIsRead, setChapterRead,
 }: Props) {
   return (
     <>
@@ -199,6 +203,21 @@ export function BibleReadView({
           )
         })()}
       </div>
+
+      {!loading && !error && verses.length > 0 && (
+        <div className="px-4 pb-6 flex justify-center">
+          <button
+            onClick={() => setChapterRead(selectedBook, selectedChapter, !chapterIsRead)}
+            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition active:scale-95 ${
+              chapterIsRead
+                ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            <Check className="w-4 h-4" /> {chapterIsRead ? 'Chapter read' : 'Mark chapter as read'}
+          </button>
+        </div>
+      )}
 
       {/* ── Chapter nav bar ── */}
       <div className="fixed bottom-16 left-0 right-0 z-[56] bg-background/95 backdrop-blur border-t border-border flex items-center h-14 px-1">

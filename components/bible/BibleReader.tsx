@@ -45,11 +45,25 @@ export default function BibleReader() {
           searching={r.searching}
           searchQuery={r.searchQuery}
           searchResults={r.searchResults}
+          searchMode={r.searchMode}
+          searchError={r.searchError}
+          searchScope={r.searchScope}
+          setSearchScope={r.setSearchScope}
+          wholeBibleReady={r.wholeBibleReady}
+          searchesOtherTranslation={r.searchesOtherTranslation}
+          selectedBook={r.selectedBook}
+          translation={r.translation}
+          openPassage={r.openPassage}
         />
       )}
 
       {r.view === 'saved' && (
-        <BibleSavedView savedVerses={r.savedVerses} />
+        <BibleSavedView
+          savedVerses={r.savedVerses}
+          translation={r.translation}
+          openPassage={r.openPassage}
+          setAsMemoryVerse={r.setAsMemoryVerse}
+        />
       )}
 
       {r.view === 'versions' && (
@@ -64,6 +78,9 @@ export default function BibleReader() {
 
       {r.view === 'books' && (
         <BibleBookBrowser
+          lastRead={r.lastRead}
+          openPassage={r.openPassage}
+          bookProgress={r.bookProgress}
           bookSearch={r.bookSearch}
           setBookSearch={r.setBookSearch}
           showRecent={r.showRecent}
@@ -76,6 +93,7 @@ export default function BibleReader() {
 
       {r.view === 'chapters' && (
         <BibleChapterBrowser
+          readChapters={r.readChapters}
           selectedBook={r.selectedBook}
           selectedChapter={r.selectedChapter}
           openChapter={r.openChapter}
@@ -114,6 +132,8 @@ export default function BibleReader() {
           setSelectedChapter={r.setSelectedChapter}
           prevChapter={r.prevChapter}
           nextChapter={r.nextChapter}
+          chapterIsRead={r.chapterIsRead}
+          setChapterRead={r.setChapterRead}
         />
       )}
 

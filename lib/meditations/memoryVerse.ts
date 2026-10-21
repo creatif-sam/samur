@@ -1,4 +1,5 @@
-import { TRANSLATIONS } from '@/components/bible/bibleConstants'
+import { FRENCH_BOOK_NAMES, TRANSLATIONS, displayBook } from '@/components/bible/bibleConstants'
+import { fetchChapter, parseReference } from '@/lib/bible/source'
 import { addDays } from '@/lib/dates'
 
 export type MemoryVerse = {
@@ -32,21 +33,26 @@ export function reviewUpdate(verse: MemoryVerse, remembered: boolean, today: str
   return { review_stage: stage, next_review: addDays(today, REVIEW_GAPS[stage - 1]) }
 }
 
-// bible-api.com has no French texts (LSG/NEF return 404); those verses can be typed in
-export const LOOKUP_TRANSLATIONS = TRANSLATIONS.filter(t => t.id !== 'lsg' && t.id !== 'nef')
+// Every Bible version in the app can be looked up (French included, via getBible)
+export const LOOKUP_TRANSLATIONS = TRANSLATIONS
 
 export function lookupTranslation(id: string | null | undefined) {
   return id && LOOKUP_TRANSLATIONS.some(t => t.id === id) ? id : 'kjv'
 }
 
-// Resolves a reference like "Psalm 119:11" to its normalised reference and text
+// Resolves a reference like "Psalm 119:11" or "Jean 3:16" to its normalised reference and text
 export async function lookUpVerse(reference: string, translation: string) {
-  const res = await fetch(`https://bible-api.com/${encodeURIComponent(reference.trim())}?translation=${translation}`)
-  if (!res.ok) throw new Error(`Verse lookup failed (${res.status})`)
-  const data = await res.json()
-  if (!data?.text) throw new Error('Verse not found')
+  const ref = parseReference(reference, FRENCH_BOOK_NAMES)
+  if (!ref) throw new Error('Not a reference')
+  const verses = await fetchChapter(ref.book, ref.chapter, translation)
+  const from = ref.verseStart ?? 1
+  const to = ref.verseEnd ?? ref.verseStart ?? verses.length
+  const picked = verses.filter(v => v.verse >= from && v.verse <= to)
+  if (picked.length === 0) throw new Error('Verse not found')
+  const book = displayBook(ref.book, translation)
+  const span = ref.verseStart ? `:${from}${to !== from ? `-${to}` : ''}` : ''
   return {
-    reference: String(data.reference || reference).trim(),
-    text: String(data.text).replace(/\s+/g, ' ').trim(),
+    reference: `${book} ${ref.chapter}${span}`,
+    text: picked.map(v => v.text).join(' '),
   }
 }

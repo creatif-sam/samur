@@ -73,7 +73,7 @@ export function BibleTopBar({
             autoFocus
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search passage (e.g. John 3:16)"
+            placeholder="Passage (John 3:16) or words"
             className="w-full bg-transparent text-sm font-medium focus:outline-none placeholder:text-muted-foreground"
           />
         )}
