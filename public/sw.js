@@ -216,12 +216,13 @@ self.addEventListener('push', function (event) {
         requireInteraction: false, // Don't force user interaction, auto-dismiss
         silent: false, // Always make sound
         data: {
-          url: data.url || '/protected/posts',
-          dateOfArrival: Date.now(),
-          primaryKey: 1
+          url: data.url || (data.data && data.data.url) || '/protected',
+          notificationId: data.data && data.data.notificationId,
+          dateOfArrival: Date.now()
         },
-        // Tag allows replacing old notifications instead of stacking
-        tag: data.tag || 'samur-notification',
+        // Each notification gets its own tag so they stack in the tray; the server
+        // reuses a tag only to replace an outdated version of the same notification
+        tag: data.tag || ('samur-' + Date.now()),
         renotify: true, // Vibrate/sound even if replacing same tag
         // Actions for Android expandable notifications
         actions: data.actions || [
@@ -275,7 +276,7 @@ self.addEventListener('notificationclick', function (event) {
     self.navigator.clearAppBadge().catch(() => {})
   }
 
-  const urlToOpen = event.notification.data?.url || '/protected/posts';
+  const urlToOpen = event.notification.data?.url || '/protected';
 
   // Handle action buttons (if clicked)
   if (event.action === 'close') {

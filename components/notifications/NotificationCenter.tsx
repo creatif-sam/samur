@@ -2,7 +2,6 @@
 
 import { Bell, BellRing, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,38 +11,28 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { formatDistanceToNow } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { notificationIcon, notificationUrl } from '@/lib/notifications/categories'
 
-interface Notification {
+export interface AppNotification {
   id: string
   type: string
   title: string
   body: string
   read: boolean
   created_at: string
+  data?: { url?: string } | null
 }
 
-export function NotificationCenter({ 
-  notifications, 
-  unreadCount, 
-  loading, 
-  onMarkRead, 
-  onMarkAllRead 
-}: any) {
-  const router = useRouter()
+interface Props {
+  notifications: AppNotification[]
+  unreadCount: number
+  loading: boolean
+  onMarkRead: (id: string) => void
+  onMarkAllRead: () => void
+}
 
-  const iconFor = (type: string) => {
-    switch (type) {
-      case 'comment': return '💬'
-      case 'meditation': return '🧘'
-      case 'post': return '📝'
-      case 'mention': return '📣'
-      case 'planner_reminder': return '📅'
-      case 'goal_deadline': return '⏰'
-      case 'reading_reminder': return '📚'
-      case 'work_log_reminder': return '📝'
-      default: return '🔔'
-    }
-  }
+export function NotificationCenter({ notifications, unreadCount, loading, onMarkRead, onMarkAllRead }: Props) {
+  const router = useRouter()
 
   return (
     <DropdownMenu>
@@ -51,6 +40,7 @@ export function NotificationCenter({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
           className="relative w-10 h-10 rounded-full text-white hover:bg-white/10 transition-colors"
         >
           {/* Pulse ring — only visible when there are unread notifications */}
@@ -66,15 +56,17 @@ export function NotificationCenter({
 
           {unreadCount > 0 && (
             <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-black border-2 border-[#7c3aed] leading-none">
-              {unreadCount > 9 ? '9+' : unreadCount}
+              {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="w-80 mt-2 rounded-2xl p-2 shadow-2xl border-muted/20">
+      <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))] mt-2 rounded-2xl p-2 shadow-2xl border-muted/20">
         <div className="flex justify-between items-center px-2 py-2">
-          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Notifications</span>
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+            Notifications{unreadCount > 0 && ` · ${unreadCount} new`}
+          </span>
           {unreadCount > 0 && (
             <button onClick={onMarkAllRead} className="text-[10px] font-bold text-primary hover:underline uppercase">
               Mark all read
@@ -90,21 +82,21 @@ export function NotificationCenter({
           ) : notifications.length === 0 ? (
             <div className="px-2 py-10 text-center text-sm text-slate-400">No new updates.</div>
           ) : (
-            notifications.map((n: Notification) => (
+            notifications.map((n) => (
               <DropdownMenuItem
                 key={n.id}
                 onClick={() => {
                   if (!n.read) onMarkRead(n.id)
-                  router.push('/protected/posts')
+                  router.push(notificationUrl(n))
                 }}
                 className={`px-3 py-3 mb-1 rounded-xl transition-all cursor-pointer ${!n.read ? 'bg-primary/5 border-l-4 border-primary' : 'opacity-70'}`}
               >
                 <div className="flex gap-3 w-full">
-                  <span className="text-xl shrink-0">{iconFor(n.type)}</span>
+                  <span className="text-xl shrink-0">{notificationIcon(n.type)}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
                       <p className={`text-sm ${!n.read ? 'font-bold' : 'font-medium'} truncate text-foreground flex-1`}>{n.title}</p>
-                      <span className="text-[10px] text-slate-400 ml-2">
+                      <span className="text-[10px] text-slate-400 ml-2 shrink-0">
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                       </span>
                     </div>
@@ -115,6 +107,13 @@ export function NotificationCenter({
             ))
           )}
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => router.push('/protected/notifications')}
+          className="justify-center rounded-xl py-2.5 text-xs font-bold text-primary cursor-pointer"
+        >
+          See all notifications
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

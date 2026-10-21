@@ -161,6 +161,7 @@ export function NewGoalForm({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               targetUserId: partnerId,
+              type: 'goal_created',
               title: 'Shared Goal Created',
               body: `${myProfile?.name || 'Your partner'} created a new goal: ${title.trim()}`,
               url: '/protected/goals',
@@ -173,6 +174,7 @@ export function NewGoalForm({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             targetUserId: auth.user.id,
+            type: 'goal_created',
             title: 'Goal Created! 🎯',
             body: `Keep focused on: ${title.trim()}`,
             url: '/protected/goals',

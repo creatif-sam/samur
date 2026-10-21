@@ -74,11 +74,24 @@ export function Topbar() {
   const fetchNotifications = async () => {
     try {
       const res = await fetch('/api/notifications?limit=10')
+      if (!res.ok) return
       const data = await res.json()
       setNotifications(data.notifications || [])
-      setUnreadCount(data.notifications?.filter((n: any) => !n.read).length || 0)
+      setUnreadCount(typeof data.unreadCount === 'number' ? data.unreadCount : 0)
     } finally { setLoading(false) }
   }
+
+  // Re-sync when coming back to the app or after changes on the notifications page
+  useEffect(() => {
+    if (!mounted) return
+    const resync = () => { if (document.visibilityState === 'visible') fetchNotifications() }
+    document.addEventListener('visibilitychange', resync)
+    window.addEventListener('notifications-changed', resync)
+    return () => {
+      document.removeEventListener('visibilitychange', resync)
+      window.removeEventListener('notifications-changed', resync)
+    }
+  }, [mounted])
 
   // ── App Badging ─────────────────────────────────────────────────────────────
   // Sync the home-screen icon badge with the unread notification count.
@@ -109,8 +122,9 @@ export function Topbar() {
   // ────────────────────────────────────────────────────────────────────────────
 
   const markAsRead = async (id: string) => {
+    const wasUnread = notifications.some(n => n.id === id && !n.read)
     setNotifications(prev => prev.map(n => (n.id === id ? { ...n, read: true } : n)))
-    setUnreadCount(c => Math.max(0, c - 1))
+    if (wasUnread) setUnreadCount(c => Math.max(0, c - 1))
     await fetch('/api/notifications/mark-read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notificationId: id }) })
   }
 

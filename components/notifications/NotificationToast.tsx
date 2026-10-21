@@ -2,6 +2,7 @@
 
 import { X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { notificationIcon, notificationUrl } from '@/lib/notifications/categories'
 
 export function NotificationToast({ notification, onClose }: any) {
   const router = useRouter()
@@ -10,11 +11,12 @@ export function NotificationToast({ notification, onClose }: any) {
   return (
     <div 
       onClick={() => {
-        router.push('/protected/posts')
+        router.push(notificationUrl(notification))
         onClose()
       }}
       className="fixed top-16 left-4 right-4 z-[100] bg-white dark:bg-slate-900 border-2 border-[#7c3aed] rounded-2xl p-4 shadow-2xl animate-in slide-in-from-top-10 cursor-pointer flex items-center gap-3"
     >
+      <span className="text-xl shrink-0">{notificationIcon(notification.type)}</span>
       <div className="flex-1 min-w-0">
         <p className="text-[10px] font-bold text-[#7c3aed] uppercase tracking-tighter">Just Now</p>
         <p className="text-sm text-slate-700 dark:text-slate-200 line-clamp-1 font-bold">{notification.title}</p>

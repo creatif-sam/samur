@@ -37,8 +37,15 @@ export async function GET(request: Request) {
 
     let emailsSent = 0;
 
+    // Users who switched the weekly email off in notification settings
+    const { data: optedOut } = await serviceSupabase
+      .from('notification_preferences')
+      .select('user_id')
+      .eq('weekly_summary', false);
+    const skip = new Set((optedOut ?? []).map(p => p.user_id));
+
     for (const user of users) {
-      if (!user.email) continue;
+      if (!user.email || skip.has(user.id)) continue;
 
       // Planner: tasks (recurring included) and reflections for the user's last 7 local days
       const timeZone = user.user_metadata?.timezone as string | undefined;

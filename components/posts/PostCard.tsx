@@ -151,7 +151,7 @@ export default function PostCard({ post, currentUserId, onUpdate, onDelete }: Po
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               targetUserId: post.author_id,
-              type: 'post',
+              type: 'like',
               title: 'New Like ❤️',
               body: `${userName} liked your post`,
               url: '/protected/posts'

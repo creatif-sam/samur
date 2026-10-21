@@ -367,6 +367,7 @@ function GoalCard({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 targetUserId: goal.partner_id,
+                type: 'goal_progress',
                 title: 'Partner Goal Progress',
                 body: `${profile?.full_name || 'Your partner'} completed: ${goal.title}! 🎯`,
                 url: '/protected/goals'
@@ -391,6 +392,7 @@ function GoalCard({
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               targetUserId: goal.partner_id,
+              type: 'goal_progress',
               title: 'Partner Goal Progress',
               body: `${profile?.full_name || 'Your partner'} is working on: ${goal.title}`,
               url: '/protected/goals'

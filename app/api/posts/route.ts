@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { detectMentions } from '@/lib/mentions'
+import { notify } from '@/lib/push-notifications'
 
 export async function POST(req: Request) {
   try {
@@ -39,22 +40,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: dbError.message }, { status: 500 })
     }
 
-    const origin = new URL(req.url).origin
     const userName = user.user_metadata?.name || 'Your partner'
 
     // 4. Trigger Notification (Only if shared and partner exists)
     if (partnerId && visibility === 'shared') {
       try {
-        await fetch(`${origin}/api/notifications`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            targetUserId: partnerId,
-            type: 'post',
-            title: 'New post from your partner 🤍',
-            body: content.slice(0, 60) + (content.length > 60 ? '...' : ''),
-            url: '/protected/posts',
-          })
+        await notify({
+          userId: partnerId,
+          type: 'post',
+          title: 'New post from your partner 🤍',
+          body: content.slice(0, 60) + (content.length > 60 ? '...' : ''),
+          url: '/protected/posts',
         })
       } catch (notifyError) {
         console.error("⚠️ Notification failed, but post was saved:", notifyError)
@@ -79,16 +75,12 @@ export async function POST(req: Request) {
       // Only send mention notification if post is NOT already shared (to avoid duplicate)
       if (partnerMentioned && visibility !== 'shared') {
         try {
-          await fetch(`${origin}/api/notifications`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              targetUserId: partnerId,
-              type: 'mention',
-              title: `${userName} mentioned you 📣`,
-              body: `"${content.slice(0, 50)}..."`,
-              url: '/protected/posts'
-            })
+          await notify({
+            userId: partnerId,
+            type: 'mention',
+            title: `${userName} mentioned you 📣`,
+            body: `"${content.slice(0, 50)}..."`,
+            url: '/protected/posts'
           })
         } catch (notifyError) {
           console.error("⚠️ Mention notification failed:", notifyError)

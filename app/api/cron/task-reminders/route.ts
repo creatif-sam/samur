@@ -111,7 +111,8 @@ export async function GET(request: Request) {
             title,
             body: `${task.text} starts at ${task.start}`,
             url: '/protected/planner',
-            data: { taskId: task.id, taskStart: task.start, day }
+            data: { taskId: task.id, taskStart: task.start, day },
+            tag: `task-${task.id}-${day}`
           })
         });
 

@@ -201,7 +201,7 @@ export default function ProfilePage() {
       setInviteTargetId('')
       toast.success('Invite sent!')
       fetch('/api/notifications/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: inviteTargetId, title: 'New Partner Invite 🤝', body: `${profile.name || 'Someone'} invited you to be their accountability partner.`, url: '/protected/profile' })
+        body: JSON.stringify({ targetUserId: inviteTargetId, type: 'partner_invite', title: 'New Partner Invite 🤝', body: `${profile.name || 'Someone'} invited you to be their accountability partner.`, url: '/protected/profile' })
       }).catch(() => {})
     } else toast.error('Could not send invite')
     setSendingInvite(false)
@@ -219,7 +219,7 @@ export default function ProfilePage() {
     setIncomingRequest(null)
     toast.success('Partner connected! 🎉')
     fetch('/api/notifications/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUserId: incomingRequest.from_user_id, title: 'Invite Accepted! 🎉', body: `${profile.name || 'Your invitee'} accepted your partner invite.`, url: '/protected/profile' })
+      body: JSON.stringify({ targetUserId: incomingRequest.from_user_id, type: 'partner_invite', title: 'Invite Accepted! 🎉', body: `${profile.name || 'Your invitee'} accepted your partner invite.`, url: '/protected/profile' })
     }).catch(() => {})
   }
 

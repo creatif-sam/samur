@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { detectMentions, getPartnerId } from '@/lib/mentions'
+import { notify } from '@/lib/push-notifications'
 
 export async function POST(req: Request) {
   try {
@@ -32,21 +33,16 @@ export async function POST(req: Request) {
     }
 
     const senderName = sender.user_metadata?.name || 'Your partner'
-    const origin = new URL(req.url).origin
 
     // 2. Notification to post owner (if not commenting on own post)
     const postOwnerId = (comment.post as any)?.author_id
     if (postOwnerId && postOwnerId !== sender.id) {
-      await fetch(`${origin}/api/notifications`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          targetUserId: postOwnerId,
-          type: 'comment',
-          title: 'New Comment 💬',
-          body: `${senderName}: "${content.slice(0, 40)}..."`,
-          url: `/protected/posts` 
-        })
+      await notify({
+        userId: postOwnerId,
+        type: 'comment',
+        title: 'New Comment 💬',
+        body: `${senderName}: "${content.slice(0, 40)}..."`,
+        url: `/protected/posts` 
       })
     }
 
@@ -68,16 +64,12 @@ export async function POST(req: Request) {
         )
 
         if (partnerMentioned) {
-          await fetch(`${origin}/api/notifications`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              targetUserId: partnerId,
-              type: 'mention',
-              title: `${senderName} mentioned you 📣`,
-              body: `"${content.slice(0, 50)}..."`,
-              url: `/protected/posts`
-            })
+          await notify({
+            userId: partnerId,
+            type: 'mention',
+            title: `${senderName} mentioned you 📣`,
+            body: `"${content.slice(0, 50)}..."`,
+            url: `/protected/posts`
           })
         }
       }

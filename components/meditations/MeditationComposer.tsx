@@ -199,6 +199,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               targetUserId: profile.partner_id,
+              type: 'meditation',
               title: 'Partner Meditation',
               body: `${profile.full_name || 'Your partner'} completed their meditation! 🙏`,
               url: '/protected/meditations'

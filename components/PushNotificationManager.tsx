@@ -7,28 +7,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Bell, BellOff, AlertCircle, Loader2, ShieldCheck } from 'lucide-react'
+import { Bell, BellOff, AlertCircle, Loader2, ShieldCheck, Moon } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  DEFAULT_PREFERENCES,
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategoryKey,
+  type NotificationPreferences,
+} from '@/lib/notifications/categories'
 
-interface NotificationPreferences {
-  messages: boolean
-  planner_reminders: boolean
-  goal_deadlines: boolean
-  goal_progress: boolean
-  posts: boolean
-}
+const GROUPS = ['Planning', 'Partner', 'Habits'] as const
 
 export default function PushNotificationManager() {
   const [isSupported, setIsSupported] = useState(true)
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission>('default')
-  const [preferences, setPreferences] = useState<NotificationPreferences>({
-    messages: true,
-    planner_reminders: true,
-    goal_deadlines: true,
-    goal_progress: true,
-    posts: true
-  })
+  const [preferences, setPreferences] = useState<NotificationPreferences>(DEFAULT_PREFERENCES)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
 
@@ -56,13 +50,14 @@ export default function PushNotificationManager() {
       .maybeSingle()
 
     if (data) {
-      setPreferences({
-        messages: data.messages,
-        planner_reminders: data.planner_reminders,
-        goal_deadlines: data.goal_deadlines,
-        goal_progress: data.goal_progress,
-        posts: data.posts
-      })
+      // Unknown or missing columns (e.g. before the migration) fall back to defaults
+      const loaded = { ...DEFAULT_PREFERENCES }
+      for (const c of NOTIFICATION_CATEGORIES) {
+        if (typeof data[c.key] === 'boolean') loaded[c.key] = data[c.key]
+      }
+      loaded.quiet_start = typeof data.quiet_start === 'string' ? data.quiet_start : null
+      loaded.quiet_end = typeof data.quiet_end === 'string' ? data.quiet_end : null
+      setPreferences(loaded)
     }
   }, [supabase])
 
@@ -178,20 +173,33 @@ export default function PushNotificationManager() {
     } catch (error) { toast.error('Error disabling push.') } finally { setActionLoading(false) }
   }
 
-  const updatePreference = async (key: keyof NotificationPreferences, value: boolean) => {
-    const updatedPrefs = { ...preferences, [key]: value }
-    setPreferences(updatedPrefs)
+  const savePreferences = async (patch: Partial<NotificationPreferences>) => {
+    const previous = preferences
+    const updated = { ...preferences, ...patch }
+    setPreferences(updated)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { error } = await supabase.from('notification_preferences').upsert({
-      user_id: user.id,
-      ...updatedPrefs
-    })
+    // Update the existing row, or create it on first change
+    const updateRes = await supabase
+      .from('notification_preferences')
+      .update(patch)
+      .eq('user_id', user.id)
+      .select('user_id')
+    const updatedRows = updateRes.data
+    let error = updateRes.error
+    if (!error && (!updatedRows || updatedRows.length === 0)) {
+      ;({ error } = await supabase.from('notification_preferences').insert({ user_id: user.id, ...updated }))
+    }
     if (error) {
-      toast.error('Sync failed')
-      setPreferences(preferences)
+      console.error('Failed to save notification preferences', error)
+      toast.error('Could not save. If this keeps happening, the latest database update may not be installed yet.')
+      setPreferences(previous)
     }
   }
+
+  const updatePreference = (key: NotificationCategoryKey, value: boolean) => savePreferences({ [key]: value })
+
+  const quietEnabled = !!(preferences.quiet_start && preferences.quiet_end)
 
   const sendTestNotification = async () => {
     setActionLoading(true)
@@ -204,6 +212,7 @@ export default function PushNotificationManager() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           targetUserId: user.id,
+          type: 'system',
           title: 'Test Notification',
           body: 'This is a test push notification from SamUr!',
           url: '/protected'
@@ -212,9 +221,12 @@ export default function PushNotificationManager() {
 
       const result = await response.json()
 
-      if (response.ok) {
-        const deviceText = result.total > 1 ? `${result.sent} of ${result.total} devices` : 'your device'
-        toast.success(`Test notification sent to ${deviceText}!`)
+      if (response.ok && result.pushed > 0) {
+        toast.success(`Test notification sent to ${result.pushed > 1 ? `${result.pushed} devices` : 'your device'}!`)
+      } else if (response.ok) {
+        toast.error(result.skipped === 'no_devices'
+          ? 'No device is registered. Turn notifications off and on again on this device.'
+          : 'The notification was saved but no device accepted the push.')
       } else {
         console.error('Push notification error:', result)
         toast.error(`Failed: ${result.error}`, {
@@ -243,7 +255,7 @@ export default function PushNotificationManager() {
   )
 
   return (
-    <Card className="rounded-[32px] border-none shadow-2xl bg-card overflow-hidden">
+    <Card id="notifications" className="rounded-[32px] border-none shadow-2xl bg-card overflow-hidden scroll-mt-20">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
@@ -283,25 +295,67 @@ export default function PushNotificationManager() {
           </Button>
         </div>
 
-        <div className="space-y-3 px-1">
-          <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Delivery Channels</h4>
-          <div className="space-y-1">
-            {Object.entries(preferences).map(([key, value]) => (
-              <div key={key} className="flex items-center justify-between p-3 rounded-2xl hover:bg-muted/50 transition-colors">
+        <div className="space-y-5 px-1">
+          <p className="text-[11px] text-muted-foreground px-2 leading-relaxed">
+            Choose what you hear about. Switching a category off stops it in the app, on your phone and by email.
+          </p>
+          {GROUPS.map(group => (
+            <div key={group} className="space-y-1">
+              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">{group}</h4>
+              {NOTIFICATION_CATEGORIES.filter(c => c.group === group).map(c => (
+                <div key={c.key} className="flex items-center justify-between gap-3 p-3 rounded-2xl hover:bg-muted/50 transition-colors">
+                  <div className="min-w-0">
+                    <Label htmlFor={`pref-${c.key}`} className="text-sm font-bold">{c.label}</Label>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{c.description}</p>
+                  </div>
+                  <Switch
+                    id={`pref-${c.key}`}
+                    checked={preferences[c.key]}
+                    onCheckedChange={v => updatePreference(c.key, v)}
+                    className="data-[state=checked]:bg-[#7c3aed] shrink-0"
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
+
+          {/* Quiet hours */}
+          <div className="space-y-2">
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Quiet Hours</h4>
+            <div className="p-3 rounded-2xl bg-muted/30 space-y-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <Label className="capitalize text-sm font-bold">
-                    {key.replace(/_/g, ' ')}
-                  </Label>
-                  <p className="text-[10px] text-muted-foreground">Alert me for {key.replace(/_/g, ' ')}</p>
+                  <Label htmlFor="pref-quiet" className="text-sm font-bold flex items-center gap-1.5"><Moon size={14} /> Don&apos;t buzz me at night</Label>
+                  <p className="text-[11px] text-muted-foreground leading-snug">
+                    Notifications still arrive in the app; your phone stays silent. Task reminders you set still come through.
+                  </p>
                 </div>
                 <Switch
-                  checked={value}
-                  disabled={!isSubscribed}
-                  onCheckedChange={v => updatePreference(key as keyof NotificationPreferences, v)}
-                  className="data-[state=checked]:bg-[#7c3aed]"
+                  id="pref-quiet"
+                  checked={quietEnabled}
+                  onCheckedChange={v => savePreferences(v ? { quiet_start: '22:00', quiet_end: '07:00' } : { quiet_start: null, quiet_end: null })}
+                  className="data-[state=checked]:bg-[#7c3aed] shrink-0"
                 />
               </div>
-            ))}
+              {quietEnabled && (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-muted-foreground text-xs">From</span>
+                  <input
+                    type="time"
+                    value={preferences.quiet_start ?? ''}
+                    onChange={e => e.target.value && savePreferences({ quiet_start: e.target.value })}
+                    className="flex-1 min-w-0 rounded-xl border bg-background px-2 py-1.5 text-sm font-semibold"
+                  />
+                  <span className="text-muted-foreground text-xs">to</span>
+                  <input
+                    type="time"
+                    value={preferences.quiet_end ?? ''}
+                    onChange={e => e.target.value && savePreferences({ quiet_end: e.target.value })}
+                    className="flex-1 min-w-0 rounded-xl border bg-background px-2 py-1.5 text-sm font-semibold"
+                  />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
