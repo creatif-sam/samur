@@ -20,6 +20,7 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { PLACEHOLDER_TITLES, type Page, type PagePatch } from './types'
+import { clearDraft, isOffline, loadDraft, saveDraft } from '@/lib/offline'
 
 const HIGHLIGHT_COLORS = [
   { label: 'Yellow',  value: '#fef08a' },
@@ -32,14 +33,17 @@ const HIGHLIGHT_COLORS = [
 
 const SAVE_DELAY_MS = 800
 
-type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error'
+type SaveStatus = 'saved' | 'unsaved' | 'saving' | 'error' | 'offline'
 
 const STATUS_LABEL: Record<SaveStatus, string> = {
   saved: 'Saved',
   unsaved: 'Editing…',
   saving: 'Saving…',
   error: 'Not saved',
+  offline: 'Offline · kept on device',
 }
+
+type NoteDraft = { title: string; content: string }
 
 type ThoughtEditorProps = {
   page: Pick<Page, 'id' | 'title' | 'content' | 'created_at'>
@@ -75,6 +79,12 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
     latestRef.current.title !== savedRef.current.title ||
     latestRef.current.content !== savedRef.current.content
 
+  // Unsaved changes are mirrored to the device so closing the app offline loses nothing
+  const draftKey = `note:${page.id}`
+  const backupDraft = () => {
+    if (isDirty()) saveDraft<NoteDraft>(draftKey, { ...latestRef.current })
+  }
+
   const flushSave = useCallback((): Promise<void> => {
     if (saveTimerRef.current !== null) {
       window.clearTimeout(saveTimerRef.current)
@@ -90,10 +100,12 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
         .update({ title: snapshot.title, content: snapshot.content, updated_at })
         .eq('id', page.id)
       if (error) {
-        setStatus('error')
+        backupDraft()
+        setStatus(isOffline() ? 'offline' : 'error')
         return
       }
       savedRef.current = snapshot
+      if (!isDirty()) clearDraft(draftKey)
       onSavedRef.current({ id: page.id, title: snapshot.title, content: snapshot.content, updated_at })
       setStatus(isDirty() ? 'unsaved' : 'saved')
     })
@@ -101,6 +113,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
   }, [page.id, supabase])
 
   const scheduleSave = useCallback(() => {
+    backupDraft()
     setStatus('unsaved')
     if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current)
     saveTimerRef.current = window.setTimeout(() => { void flushSave() }, SAVE_DELAY_MS)
@@ -141,6 +154,30 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
       scheduleSave()
     },
   })
+
+  // Bring back changes that never reached the server (e.g. app closed while offline)
+  useEffect(() => {
+    if (!editor) return
+    const draft = loadDraft<NoteDraft>(draftKey)
+    if (!draft) return
+    if (draft.title === savedRef.current.title && draft.content === savedRef.current.content) {
+      clearDraft(draftKey)
+      return
+    }
+    latestRef.current = { title: draft.title, content: draft.content }
+    setTitle(draft.title)
+    editor.commands.setContent(draft.content, { emitUpdate: false })
+    toast('Restored changes that hadn\'t been saved yet')
+    scheduleSave()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
+
+  // Retry as soon as the connection comes back
+  useEffect(() => {
+    const onOnline = () => { void flushSave() }
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [flushSave])
 
   // Save straight away when the app is backgrounded or closed, and when leaving the editor
   useEffect(() => {
@@ -213,7 +250,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
           <ChevronLeft className="w-5 h-5 mr-0.5" /> Back
         </Button>
         <div className="flex items-center gap-3">
-          <span className={cn('text-[9px] font-bold uppercase tracking-widest', status === 'error' ? 'text-red-200' : 'opacity-60')}>
+          <span className={cn('text-[9px] font-bold uppercase tracking-widest', status === 'error' ? 'text-red-200' : status === 'offline' ? 'text-amber-200' : 'opacity-60')}>
             {STATUS_LABEL[status]}
           </span>
           {onDeletePage && (

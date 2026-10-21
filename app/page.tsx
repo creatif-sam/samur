@@ -80,9 +80,12 @@ export default function Home() {
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      // getSession() reads the session stored on this device (no network), so an
+      // installed app opened offline still goes straight to the dashboard
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user ?? (await supabase.auth.getUser()).data.user;
       if (user) {
-        router.push('/protected');
+        router.replace('/protected');
       } else {
         setAuthChecked(true);
       }

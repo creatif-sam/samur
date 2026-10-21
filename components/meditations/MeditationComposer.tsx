@@ -11,6 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner'
 import { Bold, Italic, ListOrdered, BookOpen, X, Loader2, Brain, Search } from 'lucide-react'
 import { toLocalDateKey } from '@/lib/dates'
+import { clearDraft, loadDraft, saveDraft } from '@/lib/offline'
+
+type MeditationDraft = {
+  title: string
+  scripture: string
+  lesson: string
+  application: string
+  prayer: string
+  verseRef: string
+  verseText: string
+}
 import { LOOKUP_TRANSLATIONS, lookUpVerse, lookupTranslation, type MemoryVerse } from '@/lib/meditations/memoryVerse'
 
 // Tiptap Imports
@@ -34,6 +45,8 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
   const [verseRef, setVerseRef] = useState('')
   const [verseText, setVerseText] = useState('')
   const [verseTranslation, setVerseTranslation] = useState('kjv')
+  const [lessonTick, setLessonTick] = useState(0)
+  const draftKey = `meditation:${meditation?.id ?? 'new'}`
   const [lookingUp, setLookingUp] = useState(false)
 
   function isDirty() {
@@ -67,6 +80,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     ],
     content: meditation?.lesson || '',
     immediatelyRender: false,
+    onUpdate: () => setLessonTick(t => t + 1),
     editorProps: {
       attributes: {
         class: 'prose prose-sm dark:prose-invert focus:outline-none min-h-[160px] md:min-h-[200px] p-4 bg-white/50 dark:bg-slate-900/50 text-slate-900 dark:text-slate-100 w-full font-poppins',
@@ -82,6 +96,34 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     }
   }, [meditation, editor])
 
+  // Bring back an unsaved draft (closed by accident, or saved while offline)
+  useEffect(() => {
+    if (!editor) return
+    const draft = loadDraft<MeditationDraft>(draftKey)
+    if (!draft) return
+    setTitle(draft.title); setScripture(draft.scripture)
+    setApplication(draft.application); setPrayer(draft.prayer)
+    setVerseRef(draft.verseRef); setVerseText(draft.verseText)
+    editor.commands.setContent(draft.lesson)
+    toast('Draft restored', {
+      action: { label: 'Discard', onClick: () => { clearDraft(draftKey); onClose() } },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor])
+
+  // Keep a draft on the device while writing
+  useEffect(() => {
+    if (!editor || !isDirty()) return
+    const timer = setTimeout(() => {
+      saveDraft<MeditationDraft>(draftKey, {
+        title, scripture, application, prayer, verseRef, verseText,
+        lesson: editor.getHTML(),
+      })
+    }, 500)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, scripture, application, prayer, verseRef, verseText, lessonTick, editor])
+
   useEffect(() => {
     async function loadVerse() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -94,8 +136,9 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         .maybeSingle()
       if (!data) return
       setStoredVerse(data as MemoryVerse)
-      setVerseRef(data.reference)
-      setVerseText(data.text)
+      // Don't overwrite a verse restored from a draft
+      setVerseRef(prev => prev || data.reference)
+      setVerseText(prev => prev || data.text)
       setVerseTranslation(lookupTranslation(data.translation))
     }
     loadVerse()
@@ -160,7 +203,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
   async function saveMeditation() {
     const lessonContent = editor?.getHTML() || ''
-    
+
     // Validate all required fields
     if (!title.trim()) return toast.error("Title is required ✍️")
     if (!scripture.trim()) return toast.error("Scripture reference is required 📖")
@@ -175,7 +218,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
     try {
       const payload = { author_id: user?.id, title, scripture, lesson: lessonContent, application, prayer, visibility, period }
-      const { data, error } = meditation?.id 
+      const { data, error } = meditation?.id
         ? await supabase.from('meditations').update(payload).eq('id', meditation.id).select().single()
         : await supabase.from('meditations').insert(payload).select().single()
       if (error) throw error
@@ -208,6 +251,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         }
       }
 
+      clearDraft(draftKey)
       onCreated?.(); onClose()
     } catch (err: any) {
       toast.error(err.message)
@@ -218,14 +262,14 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/40 dark:bg-black/70 backdrop-blur-sm p-0 md:p-4 font-poppins overflow-y-auto">
-      
+
       {/* Background Overlay to close on PC */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={handleClose} 
-        className="absolute inset-0 -z-10" 
+        onClick={handleClose}
+        className="absolute inset-0 -z-10"
       />
 
       {/* THE GLIDING CARD */}
@@ -236,7 +280,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         transition={{ type: "spring", damping: 25, stiffness: 200 }} // This is the "Glide" logic
         className="w-full max-w-full h-[94dvh] md:h-auto md:max-h-[85dvh] md:max-w-3xl border-none shadow-2xl md:rounded-[32px] rounded-t-[40px] bg-white dark:bg-[#0f172a] flex flex-col overflow-hidden"
       >
-        
+
         {/* Header */}
         <div className="bg-[#7c3aed] p-5 md:p-6 text-white flex justify-between items-center shrink-0">
           <div className="min-w-0">
@@ -252,7 +296,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-10 space-y-4 md:space-y-8 pb-8 md:pb-10">
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             <div className="space-y-2">
                <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Focus</label>
@@ -352,8 +396,8 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
             </SelectContent>
           </Select>
 
-          <Button 
-            onClick={saveMeditation} 
+          <Button
+            onClick={saveMeditation}
             disabled={saving}
             className="w-full sm:flex-1 md:flex-none rounded-full bg-[#7c3aed] px-10 h-12 font-semibold text-md shadow-lg shadow-violet-200 dark:shadow-none active:scale-95 transition-all"
           >
@@ -378,7 +422,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
                 Keep editing
               </button>
               <button
-                onClick={() => { setShowCloseConfirm(false); onClose() }}
+                onClick={() => { setShowCloseConfirm(false); clearDraft(draftKey); onClose() }}
                 className="flex-1 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold"
               >
                 Discard

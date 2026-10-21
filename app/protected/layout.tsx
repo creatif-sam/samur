@@ -3,6 +3,7 @@ import { Topbar } from "@/components/topbar";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import FloatingPrayerTimer from "@/components/prayer/FloatingPrayerTimer";
 import TimezoneSync from "@/components/TimezoneSync";
+import OfflineSupport from "@/components/OfflineSupport";
 
 export default function ProtectedLayout({
   children,
@@ -15,6 +16,7 @@ export default function ProtectedLayout({
         <Topbar />
         <FloatingPrayerTimer />
         <TimezoneSync />
+        <OfflineSupport />
         <main className="pb-20">
           {children}
         </main>

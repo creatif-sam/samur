@@ -6,7 +6,18 @@ const CACHE_VERSION = 'v5'
 const STATIC_CACHE  = `mastery-static-${CACHE_VERSION}`   // hashed JS/CSS chunks
 const PAGES_CACHE   = `mastery-pages-${CACHE_VERSION}`    // app-shell HTML pages
 const ASSETS_CACHE  = `mastery-assets-${CACHE_VERSION}`   // icons, images, sounds
-const ALL_CACHES    = [STATIC_CACHE, PAGES_CACHE, ASSETS_CACHE]
+// Last-seen Supabase reads, used only when offline. Not versioned (data, not code);
+// the app deletes it on sign-out. Name must match DATA_CACHE in lib/offline.ts.
+const DATA_CACHE    = 'mastery-data'
+const ALL_CACHES    = [STATIC_CACHE, PAGES_CACHE, ASSETS_CACHE, DATA_CACHE]
+
+// Size limits so old deploys' chunks and old data don't pile up on the device
+const CACHE_LIMITS = {
+  [STATIC_CACHE]: 400,
+  [PAGES_CACHE]: 80,
+  [ASSETS_CACHE]: 200,
+  [DATA_CACHE]: 500,
+}
 
 // App-shell pages to pre-cache on install.
 // Only public/unauthenticated routes — precaching /protected/* pages is fragile
@@ -64,8 +75,22 @@ self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
 
-  // Only intercept same-origin and GET requests
+  // Only intercept GET requests
   if (request.method !== 'GET') return
+
+  // Supabase: reads are network-first with the last copy kept for offline use;
+  // public storage files (avatars, images) are cache-first. Everything else
+  // (auth token refreshes, realtime) goes straight to the network.
+  if (url.hostname.includes('supabase')) {
+    if (url.pathname.startsWith('/rest/v1/') || url.pathname === '/auth/v1/user') {
+      event.respondWith(networkFirstData(request))
+    } else if (url.pathname.startsWith('/storage/v1/object/public/')) {
+      event.respondWith(cacheFirst(request, ASSETS_CACHE))
+    }
+    return
+  }
+
+  // Other cross-origin requests are left alone
   if (url.origin !== self.location.origin) return
 
   // 1. Next.js static chunks — Cache First (immutable hashed URLs)
@@ -74,8 +99,9 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // 2. Public images / icons / sounds — Cache First
+  // 2. Public images / icons / sounds / optimised images — Cache First
   if (
+    url.pathname.startsWith('/_next/image') ||
     url.pathname.startsWith('/icons/') ||
     url.pathname.startsWith('/images/') ||
     url.pathname.startsWith('/sounds/') ||
@@ -88,11 +114,6 @@ self.addEventListener('fetch', (event) => {
   // 3. API routes — Network Only (auth-sensitive, never cache)
   if (url.pathname.startsWith('/api/')) {
     return // let the browser handle it normally
-  }
-
-  // 4. Supabase / external — Network Only
-  if (url.hostname.includes('supabase.co')) {
-    return
   }
 
   // 5. HTML navigation — Network First, fall back to cache, then /offline
@@ -109,6 +130,16 @@ self.addEventListener('fetch', (event) => {
 // STRATEGY HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Store a response and keep the cache within its size limit (oldest entries go first) */
+async function putAndTrim(cacheName, key, response) {
+  const cache = await caches.open(cacheName)
+  await cache.put(key, response)
+  const limit = CACHE_LIMITS[cacheName]
+  if (!limit) return
+  const keys = await cache.keys()
+  for (let i = 0; i < keys.length - limit; i++) await cache.delete(keys[i])
+}
+
 /** Cache First: serve from cache, fetch & update if missing */
 async function cacheFirst(request, cacheName) {
   const cache  = await caches.open(cacheName)
@@ -117,10 +148,31 @@ async function cacheFirst(request, cacheName) {
 
   try {
     const response = await fetch(request)
-    if (response.ok) cache.put(request, response.clone())
+    if (response.ok) putAndTrim(cacheName, request, response.clone())
     return response
   } catch {
     return new Response('Offline', { status: 503 })
+  }
+}
+
+/**
+ * Supabase reads: always try the network; keep successful responses and serve
+ * the last one only when the network fails. The Accept header is part of the
+ * key because .single() and list queries share URLs but return different shapes.
+ */
+async function networkFirstData(request) {
+  const keyUrl = new URL(request.url)
+  keyUrl.searchParams.set('__accept', request.headers.get('accept') || '')
+  const key = new Request(keyUrl.toString())
+  try {
+    const response = await fetch(request)
+    if (response.status === 200) putAndTrim(DATA_CACHE, key, response.clone())
+    return response
+  } catch (err) {
+    const cache = await caches.open(DATA_CACHE)
+    const cached = await cache.match(key)
+    if (cached) return cached
+    throw err
   }
 }
 
@@ -129,7 +181,7 @@ async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName)
   try {
     const response = await fetch(request)
-    if (response.ok) cache.put(request, response.clone())
+    if (response.ok) putAndTrim(cacheName, request, response.clone())
     return response
   } catch {
     const cached = await cache.match(request)
@@ -142,7 +194,7 @@ async function networkFirstWithOfflineFallback(request) {
   const cache = await caches.open(PAGES_CACHE)
   try {
     const response = await fetch(request)
-    if (response.ok) cache.put(request, response.clone())
+    if (response.ok && !response.redirected) putAndTrim(PAGES_CACHE, request, response.clone())
     return response
   } catch {
     const cached = await cache.match(request)
@@ -150,52 +202,6 @@ async function networkFirstWithOfflineFallback(request) {
     const offline = await cache.match('/offline')
     return offline ?? new Response('<h1>Offline</h1>', { headers: { 'Content-Type': 'text/html' } })
   }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BACKGROUND SYNC — retry pending journal saves when back online
-// ─────────────────────────────────────────────────────────────────────────────
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-journal') {
-    event.waitUntil(flushPendingJournals())
-  }
-})
-
-async function flushPendingJournals() {
-  // Reads queued entries from IndexedDB and replays them.
-  // Entries are queued by the app when a save fails due to being offline.
-  const DB_NAME    = 'mastery-offline'
-  const STORE_NAME = 'pending-journals'
-
-  return new Promise((resolve) => {
-    const req = indexedDB.open(DB_NAME, 1)
-    req.onupgradeneeded = e => e.target.result.createObjectStore(STORE_NAME, { autoIncrement: true })
-    req.onsuccess = (e) => {
-      const db   = e.target.result
-      const tx   = db.transaction(STORE_NAME, 'readwrite')
-      const store = tx.objectStore(STORE_NAME)
-      const all  = store.getAll()
-
-      all.onsuccess = async () => {
-        const entries = all.result
-        for (const entry of entries) {
-          try {
-            await fetch('/api/journal-sync', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(entry),
-            })
-          } catch {
-            // Still offline — leave in queue
-            return resolve()
-          }
-        }
-        store.clear()
-        resolve()
-      }
-    }
-    req.onerror = () => resolve()
-  })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

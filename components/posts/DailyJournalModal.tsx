@@ -5,6 +5,27 @@ import { createClient } from '@/lib/supabase/client'
 import { X, BookOpen, Loader2, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { toLocalDateKey } from '@/lib/dates'
+import { clearDraft, loadDraft, saveDraft } from '@/lib/offline'
+
+type JournalDraft = {
+  morningTime: string
+  morningNotes: string
+  tasks: string[]
+  eveningConnections: string
+  eveningMeals: string
+  learned: { source: string; takeaway: string }[]
+  wins: [string, string, string]
+  carryForward: string[]
+}
+
+// True if any field in the (nested) draft holds non-blank text
+function hasText(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim() !== ''
+  if (Array.isArray(value)) return value.some(hasText)
+  if (value && typeof value === 'object') return Object.values(value).some(hasText)
+  return false
+}
 
 interface DailyJournalModalProps {
   onClose: () => void
@@ -130,6 +151,25 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
   const [wins, setWins] = useState<[string, string, string]>(['', '', ''])
   const [carryForward, setCarryForward] = useState<string[]>(['', ''])
 
+  // Today's entry is kept on the device until it's saved (closed by accident, or offline)
+  const draftKey = `journal:${toLocalDateKey(today)}`
+  useEffect(() => {
+    const draft = loadDraft<JournalDraft>(draftKey)
+    if (!draft) return
+    setMorningTime(draft.morningTime); setMorningNotes(draft.morningNotes)
+    setTasks(draft.tasks); setEveningConnections(draft.eveningConnections)
+    setEveningMeals(draft.eveningMeals); setLearned(draft.learned)
+    setWins(draft.wins); setCarryForward(draft.carryForward)
+    toast('Draft restored')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    const draft: JournalDraft = { morningTime, morningNotes, tasks, eveningConnections, eveningMeals, learned, wins, carryForward }
+    const hasContent = hasText(draft)
+    const timer = setTimeout(() => (hasContent ? saveDraft(draftKey, draft) : clearDraft(draftKey)), 500)
+    return () => clearTimeout(timer)
+  }, [morningTime, morningNotes, tasks, eveningConnections, eveningMeals, learned, wins, carryForward, draftKey])
+
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -204,6 +244,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
 
       if (pageErr) throw pageErr
 
+      clearDraft(draftKey)
       toast.success('Journal entry saved to Daily Journaling!')
       onClose()
     } catch (err: any) {
