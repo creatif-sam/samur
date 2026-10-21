@@ -17,32 +17,14 @@ import {
   Layers,
 } from 'lucide-react'
 import ReadingCard from './ReadingCard'
-
-type ReadingStatus = 'to_read' | 'reading' | 'done' | 'applied'
-type ReadingCategory =
-  | 'faith'
-  | 'self_development'
-  | 'skill'
-  | 'philosophy'
-  | 'psychology'
-  | 'leadership'
-  | 'productivity'
-  | 'miscellaneous'
-
-interface Reading {
-  id: string
-  title: string
-  author?: string
-  status: ReadingStatus
-  category: ReadingCategory
-  total_pages: number
-  pages_remaining: number
-}
+import type { Reading, ReadingCategory, ReadingStatus } from '@/lib/readapp/reading'
 
 interface BookShelfProps {
   category: ReadingCategory
   books: Reading[]
   onLogged: () => void
+  onEdit: (reading: Reading) => void
+  defaultOpen?: boolean
 }
 
 const categoryMeta: Record<
@@ -199,12 +181,14 @@ function BookMiniCard({
   spineColor,
   ringColor,
   onLogged,
+  onEdit,
 }: {
   book: Reading
   categoryColor: string
   spineColor: string
   ringColor: string
   onLogged: () => void
+  onEdit: (reading: Reading) => void
 }): JSX.Element {
   const [expanded, setExpanded] = useState(false)
 
@@ -267,15 +251,15 @@ function BookMiniCard({
       {/* Expanded: full ReadingCard */}
       {expanded && (
         <div className="border-t border-border px-3 pb-3 pt-2 animate-in fade-in slide-in-from-top-1 duration-200">
-          <ReadingCard reading={book} onLogged={onLogged} />
+          <ReadingCard key={book.status} reading={book} onLogged={onLogged} onEdit={onEdit} />
         </div>
       )}
     </div>
   )
 }
 
-export default function BookShelf({ category, books, onLogged }: BookShelfProps): JSX.Element {
-  const [open, setOpen] = useState(false)
+export default function BookShelf({ category, books, onLogged, onEdit, defaultOpen = false }: BookShelfProps): JSX.Element {
+  const [open, setOpen] = useState(defaultOpen)
 
   const meta = categoryMeta[category]
   const totalBooks = books.length
@@ -361,6 +345,7 @@ export default function BookShelf({ category, books, onLogged }: BookShelfProps)
               spineColor={meta.spineColor}
               ringColor={meta.ring}
               onLogged={onLogged}
+              onEdit={onEdit}
             />
           ))}
         </div>

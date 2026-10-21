@@ -12,8 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, BookPlus } from 'lucide-react'
+import { Loader2, BookPlus, Save } from 'lucide-react'
 import { ensureReadingLogsNotebook, ensureBookSection } from '@/lib/readapp/journalSync'
+import { renameBookSection, type Reading } from '@/lib/readapp/reading'
 
 type ReadingCategory =
   | 'faith'
@@ -27,18 +28,58 @@ type ReadingCategory =
 
 interface Props {
   onCreated: () => void
+  // When set, the form edits this book instead of adding a new one
+  reading?: Reading
 }
 
-export default function AddReading({ onCreated }: Props): JSX.Element {
-  const [title, setTitle] = useState('')
-  const [author, setAuthor] = useState('')
-  const [source, setSource] = useState('')
-  const [totalPages, setTotalPages] = useState('')
-  const [visibility, setVisibility] = useState<'private' | 'shared'>('private')
-  const [category, setCategory] = useState<ReadingCategory>('self_development')
+export default function AddReading({ onCreated, reading }: Props): JSX.Element {
+  const [title, setTitle] = useState(reading?.title ?? '')
+  const [author, setAuthor] = useState(reading?.author ?? '')
+  const [source, setSource] = useState(reading?.source ?? '')
+  const [totalPages, setTotalPages] = useState(reading ? String(reading.total_pages) : '')
+  const [visibility, setVisibility] = useState<'private' | 'shared'>(reading?.visibility ?? 'private')
+  const [category, setCategory] = useState<ReadingCategory>(reading?.category ?? 'self_development')
   const [loading, setLoading] = useState(false)
 
+  const pagesRead = reading ? reading.total_pages - reading.pages_remaining : 0
+
+  const saveEdit = async (book: Reading): Promise<void> => {
+    const pages = Number(totalPages)
+    if (!title.trim()) { toast.error('Please enter a book title'); return }
+    if (!pages || pages <= 0) { toast.error('Please enter a valid number of pages'); return }
+    if (pages < pagesRead) { toast.error(`You've already read ${pagesRead} pages; total can't be lower`); return }
+
+    setLoading(true)
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('readings')
+      .update({
+        title: title.trim(),
+        author: author.trim() || null,
+        source: source.trim() || null,
+        category,
+        visibility,
+        total_pages: pages,
+        pages_remaining: pages - pagesRead,
+      })
+      .eq('id', book.id)
+
+    if (error) {
+      toast.error('Failed to save changes')
+      setLoading(false)
+      return
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) await renameBookSection(supabase, user.id, book.title, title.trim())
+
+    toast.success('Book updated')
+    setLoading(false)
+    onCreated()
+  }
+
   const createReading = async (): Promise<void> => {
+    if (reading) return saveEdit(reading)
     if (!title.trim()) {
       toast.error('Please enter a book title')
       return
@@ -122,7 +163,8 @@ export default function AddReading({ onCreated }: Props): JSX.Element {
           />
           <Input
             type="number"
-            min="1"
+            inputMode="numeric"
+            min={Math.max(1, pagesRead)}
             placeholder="Total pages"
             value={totalPages}
             onChange={e => setTotalPages(e.target.value)}
@@ -193,6 +235,11 @@ export default function AddReading({ onCreated }: Props): JSX.Element {
       >
         {loading ? (
           <Loader2 className="h-5 w-5 animate-spin" />
+        ) : reading ? (
+          <>
+            <Save className="mr-2 h-5 w-5" />
+            Save Changes
+          </>
         ) : (
           <>
             <BookPlus className="mr-2 h-5 w-5" />

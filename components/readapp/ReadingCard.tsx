@@ -36,6 +36,7 @@ import {
   Layers,
   Trash2,
   MoreVertical,
+  Pencil,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -43,7 +44,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ensureReadingLogsNotebook, ensureBookSection, createReadingLogPage } from '@/lib/readapp/journalSync'
+import { logReadingPages, type Reading } from '@/lib/readapp/reading'
 
 type ReadingStatus =
   | 'to_read'
@@ -118,22 +119,16 @@ const categoryMeta: Record<
 }
 
 interface Props {
-  reading: {
-    id: string
-    title: string
-    author?: string
-    status: ReadingStatus
-    category: ReadingCategory
-    total_pages: number
-    pages_remaining: number
-  }
+  reading: Reading
   onLogged?: () => void
+  onEdit?: (reading: Reading) => void
 }
 
 
 export default function ReadingCard({
   reading,
   onLogged,
+  onEdit,
 }: Props): JSX.Element {
   const [status, setStatus] = useState<ReadingStatus>(reading.status)
   const [pages, setPages] = useState('')
@@ -158,6 +153,7 @@ export default function ReadingCard({
       toast.error('Failed to update status')
     } else {
       toast.success('Status updated!')
+      onLogged?.() // refresh counts and shelves
     }
   }
 
@@ -189,34 +185,14 @@ export default function ReadingCard({
   }
 
   setLoading(true)
-  const supabase = createClient()
-
-  const { data, error } = await supabase.rpc(
-    'log_reading_pages',
-    {
-      p_reading_id: reading.id,
-      p_pages_read: value,
-      p_note: note.trim() || null,
-    }
-  )
-
-  if (error !== null) {
-    console.error('RPC failed', error)
+  try {
+    const next = await logReadingPages(createClient(), { ...reading, status }, value, note.trim() || null)
+    if (next !== status) setStatus(next)
+  } catch (error) {
+    console.error('Logging pages failed', error)
     toast.error('Failed to log reading')
     setLoading(false)
     return
-  }
-
-  // Save log as a page in the Reading Logs journal
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const notebookId = await ensureReadingLogsNotebook(supabase, user.id)
-      const sectionId = await ensureBookSection(supabase, notebookId, reading.title)
-      await createReadingLogPage(supabase, sectionId, value, note.trim() || null)
-    }
-  } catch {
-    // Non-blocking — journal sync failure shouldn't stop the flow
   }
 
   toast.success(`Logged ${value} pages! 📚`)
@@ -263,6 +239,12 @@ export default function ReadingCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {onEdit && (
+                <DropdownMenuItem onClick={() => onEdit(reading)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={() => setShowDeleteDialog(true)}
                 className="text-red-600 focus:text-red-600"
@@ -285,6 +267,7 @@ export default function ReadingCard({
           <div className="flex items-center gap-2">
             <Input
               type="number"
+              inputMode="numeric"
               min="1"
               max={reading.pages_remaining}
               placeholder="Pages read today"
@@ -331,7 +314,7 @@ export default function ReadingCard({
         <DialogHeader>
           <DialogTitle>Delete this book?</DialogTitle>
           <DialogDescription>
-            This will permanently delete "{reading.title}" and all reading logs. This action cannot be undone.
+            This will permanently delete &ldquo;{reading.title}&rdquo; and all reading logs. This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="sm:justify-start gap-2">

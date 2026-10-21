@@ -4,20 +4,10 @@ import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import clsx from 'clsx'
 import { X, ChevronLeft, ChevronRight, Flame, BookOpen } from 'lucide-react'
-import { ReadingCategory, ReadingStatus } from '@/lib/types'
 import { Button } from '@/components/ui/button'
+import type { Reading } from '@/lib/readapp/reading'
 
 type DayState = 'before' | 'read' | 'missed' | 'future'
-
-export interface Reading {
-  id: string
-  title: string
-  author?: string
-  status: ReadingStatus
-  category: ReadingCategory
-  total_pages: number
-  pages_remaining: number
-}
 
 interface ReadingCalendarProps {
   readings: Reading[]
@@ -42,6 +32,7 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
   const [journeyStart, setJourneyStart] = useState<Date | null>(null)
   const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null)
   const [streak, setStreak] = useState(0)
+  const [readToday, setReadToday] = useState(false)
 
   const toISODate = (d: Date) => d.toLocaleDateString('en-CA')
 
@@ -96,8 +87,12 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
       .order('reading_date', { ascending: false })
 
     const logDateSet = new Set((recentLogs ?? []).map((l) => l.reading_date))
+    // Today still counts as "in progress": the streak runs through yesterday until you read
+    const hasReadToday = logDateSet.has(toISODate(today))
+    setReadToday(hasReadToday)
     let currentStreak = 0
     const streakCursor = new Date(today)
+    if (!hasReadToday) streakCursor.setDate(streakCursor.getDate() - 1)
     while (logDateSet.has(toISODate(streakCursor))) {
       currentStreak++
       streakCursor.setDate(streakCursor.getDate() - 1)
@@ -154,6 +149,9 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
                 {streak} Day Streak
               </span>
             </div>
+            {streak > 0 && !readToday && (
+              <p className="text-[11px] text-muted-foreground">Read today to keep it going</p>
+            )}
           </div>
 
           <div className="flex gap-1">
@@ -229,7 +227,7 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
                   </div>
                   {log.note && (
                     <p className="text-sm text-muted-foreground italic leading-relaxed">
-                      "{log.note}"
+                      &ldquo;{log.note}&rdquo;
                     </p>
                   )}
                 </div>
