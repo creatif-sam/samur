@@ -27,6 +27,22 @@ export interface PlannerTask {
   owner_id?: string
   source_day?: string // The day this recurring task was originally created
   recurring?: PlannerRecurrence
+  reminder?: number | null // Minutes before start to notify; null = no reminder, unset = default
+}
+
+export const DEFAULT_REMINDER_MINUTES = 5
+export const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: 'None' },
+  { value: 0, label: 'At start' },
+  { value: 5, label: '5 min before' },
+  { value: 10, label: '10 min before' },
+  { value: 15, label: '15 min before' },
+  { value: 30, label: '30 min before' },
+  { value: 60, label: '1 hour before' },
+]
+
+export function reminderMinutes(task: Pick<PlannerTask, 'reminder'>) {
+  return task.reminder === undefined ? DEFAULT_REMINDER_MINUTES : task.reminder
 }
 
 export interface PlannerDayRow {
@@ -237,4 +253,38 @@ export function expandDays({
     days.push({ day, tasks: tasks.map(t => ({ ...t, completed: done.has(t.id) })) })
   }
   return days
+}
+
+// Free gaps of at least `minLength` minutes inside [from, to)
+export function freeGaps(tasks: Pick<PlannerTask, 'start' | 'end'>[], from: number, to: number, minLength = 15) {
+  const spans = tasks.map(taskSpan).sort((a, b) => a.start - b.start)
+  const gaps: { start: number; end: number }[] = []
+  let cursor = from
+  for (const s of spans) {
+    if (s.start > cursor) gaps.push({ start: cursor, end: Math.min(s.start, to) })
+    cursor = Math.max(cursor, s.end)
+    if (cursor >= to) break
+  }
+  if (cursor < to) gaps.push({ start: cursor, end: to })
+  return gaps.filter(g => g.end - g.start >= minLength)
+}
+
+// Start of the first free slot of `duration` minutes at or after `from` (rounded
+// up to a quarter hour), or null if the day is full
+export function nextFreeSlot(tasks: Pick<PlannerTask, 'start' | 'end'>[], from: number, duration = 60, dayEnd = 23 * 60) {
+  const start = Math.ceil(from / 15) * 15
+  const gap = freeGaps(tasks, start, dayEnd, duration)[0]
+  return gap ? gap.start : null
+}
+
+export function formatMinutes(minutes: number) {
+  const h = Math.floor(minutes / 60) % 24
+  const m = minutes % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+export function formatDuration(minutes: number) {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return h > 0 ? `${h}h${m ? ` ${m}m` : ''}` : `${m}m`
 }

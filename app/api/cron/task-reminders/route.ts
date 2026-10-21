@@ -1,12 +1,15 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
-import { zonedNow } from '@/lib/dates';
+import { addDays, zonedNow } from '@/lib/dates';
 import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries';
-import { buildDayTasks, parseMinutes } from '@/lib/planner/tasks';
+import { buildDayTasks, parseMinutes, reminderMinutes, type PlannerTask } from '@/lib/planner/tasks';
 
-// The workflow calls this every ~5 minutes. The window is a bit wider than the
-// interval so a late call never skips a task; already-sent reminders are deduped.
+// The workflow calls this every ~5 minutes. A reminder fires on the first call
+// at or after its time (each task picks how long before start), within a window
+// a bit wider than the interval so a late call never skips one; already-sent
+// reminders are deduped.
 const WINDOW_MINUTES = 7
+const MAX_LEAD_MINUTES = 60
 
 export async function GET(request: Request) {
   try {
@@ -40,27 +43,30 @@ export async function GET(request: Request) {
       // Task times are in the user's local time (synced to their metadata by the app)
       const { dateKey: today, minutes: nowMinutes } = zonedNow(user.user_metadata?.timezone as string | undefined);
 
-      let dayRows, recurringRows;
+      // Near midnight, early tasks tomorrow can already be due for a reminder
+      const days = [{ day: today, offset: 0 }];
+      if (nowMinutes + MAX_LEAD_MINUTES >= 1440) days.push({ day: addDays(today, 1), offset: 1440 });
+
+      const candidates: { task: PlannerTask; day: string; minutesUntilTask: number }[] = [];
       try {
-        [dayRows, recurringRows] = await Promise.all([
-          fetchDayRows(serviceSupabase, [user.id], today),
-          fetchRecurringRows(serviceSupabase, [user.id], today),
-        ]);
+        const recurringRows = await fetchRecurringRows(serviceSupabase, [user.id], days[days.length - 1].day);
+        for (const { day, offset } of days) {
+          const dayRows = await fetchDayRows(serviceSupabase, [user.id], day);
+          const completed = new Set(dayRows[0]?.completed_task_ids ?? []);
+          for (const task of buildDayTasks({ dateKey: day, userId: user.id, dayRows, recurringRows })) {
+            if (completed.has(task.id)) continue;
+            candidates.push({ task, day, minutesUntilTask: parseMinutes(task.start) + offset - nowMinutes });
+          }
+        }
       } catch (err) {
         console.error('Task reminders: failed to load planner for', user.id, err);
         continue;
       }
 
-      const tasks = buildDayTasks({ dateKey: today, userId: user.id, dayRows, recurringRows });
-      if (tasks.length === 0) continue;
-
-      const completedTaskIds = dayRows[0]?.completed_task_ids ?? [];
-
-      for (const task of tasks) {
-        if (completedTaskIds.includes(task.id)) continue;
-
-        const minutesUntilTask = parseMinutes(task.start) - nowMinutes;
-        if (minutesUntilTask < 0 || minutesUntilTask > WINDOW_MINUTES) continue;
+      for (const { task, day, minutesUntilTask } of candidates) {
+        const lead = reminderMinutes(task);
+        if (lead === null) continue;
+        if (minutesUntilTask > lead || minutesUntilTask <= lead - WINDOW_MINUTES) continue;
 
         // Recurring tasks keep their id every day, so dedupe on a recent window
         const { data: existing } = await serviceSupabase
@@ -87,8 +93,10 @@ export async function GET(request: Request) {
           visionEmoji = visionEmojis.get(task.vision_id)!;
         }
 
-        const title = minutesUntilTask === 0
+        const title = minutesUntilTask <= 0
           ? `${visionEmoji} Starting now`
+          : minutesUntilTask >= 60
+          ? `${visionEmoji} Task in 1 hour`
           : `${visionEmoji} Task in ${minutesUntilTask} minute${minutesUntilTask === 1 ? '' : 's'}`;
 
         const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
@@ -103,7 +111,7 @@ export async function GET(request: Request) {
             title,
             body: `${task.text} starts at ${task.start}`,
             url: '/protected/planner',
-            data: { taskId: task.id, taskStart: task.start, day: today }
+            data: { taskId: task.id, taskStart: task.start, day }
           })
         });
 

@@ -5,8 +5,8 @@ import type { PlannerTask } from '../DailyPlanner'
 import { TaskBasics } from './TaskBasics'
 import { TaskRecurrence } from './TaskRecurrence'
 import { Modal } from './Modal'
-import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2, Eye, EyeOff, AlertTriangle } from 'lucide-react'
-import { endsNextDay, overlapping, taskDuration } from '@/lib/planner/tasks'
+import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2, Eye, EyeOff, AlertTriangle, Bell } from 'lucide-react'
+import { DEFAULT_REMINDER_MINUTES, REMINDER_OPTIONS, endsNextDay, overlapping, reminderMinutes, taskDuration } from '@/lib/planner/tasks'
 
 export type SaveScope = 'this' | 'all'
 
@@ -26,6 +26,9 @@ function sameRule(a: PlannerTask['recurring'] | null | undefined, b: PlannerTask
 
 export function TaskModal({
   hour,
+  startMinutes,
+  initialText,
+  initialVisionId,
   existingTask,
   userId,
   dayTasks = [],
@@ -35,6 +38,9 @@ export function TaskModal({
   onDelete,
 }: {
   hour: number
+  startMinutes?: number // Exact start for new tasks (e.g. a free gap); overrides `hour`
+  initialText?: string // Pre-filled title for new tasks (e.g. scheduling a to-do)
+  initialVisionId?: string | null
   existingTask?: PlannerTask | null
   userId: string | null
   dayTasks?: PlannerTask[]
@@ -49,6 +55,7 @@ export function TaskModal({
   const [visionId, setVisionId] = useState<string | null>(null)
   const [recurring, setRecurring] = useState<PlannerTask['recurring'] | null>(null)
   const [visibility, setVisibility] = useState<'private' | 'shared'>('private')
+  const [reminder, setReminder] = useState<number | null>(DEFAULT_REMINDER_MINUTES)
   const [confirm, setConfirm] = useState<'save' | 'delete' | null>(null)
 
   // Determine if user can edit this task
@@ -63,12 +70,16 @@ export function TaskModal({
       setVisionId(existingTask.vision_id ?? null)
       setRecurring(existingTask.recurring ?? null)
       setVisibility(existingTask.visibility || 'private')
+      setReminder(reminderMinutes(existingTask))
     } else {
-      setStartTime(formatTime(hour * 60))
-      setEndTime(formatTime((hour + 1) * 60))
+      const start = startMinutes ?? hour * 60
+      setStartTime(formatTime(start))
+      setEndTime(formatTime(start + 60))
       setVisibility('private')
+      if (initialText) setText(initialText)
+      if (initialVisionId) setVisionId(initialVisionId)
     }
-  }, [existingTask, hour])
+  }, [existingTask, hour, startMinutes, initialText, initialVisionId])
 
   const timesValid = !!startTime && !!endTime && startTime !== endTime
   const canSave = canEdit && text.trim().length > 0 && timesValid
@@ -88,6 +99,7 @@ export function TaskModal({
       visibility,
       owner_id: existingTask?.owner_id ?? userId ?? undefined,
       source_day: existingTask?.source_day,
+      reminder,
     }
   }
 
@@ -212,6 +224,30 @@ export function TaskModal({
                 </div>
               )}
             </div>
+
+            {canEdit && (
+              <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[20px] md:rounded-[24px] p-4 md:p-6 border border-slate-100 dark:border-slate-700">
+                <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <Bell size={12} /> Reminder
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {REMINDER_OPTIONS.map(opt => (
+                    <button
+                      key={String(opt.value)}
+                      type="button"
+                      onClick={() => setReminder(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        reminder === opt.value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <TaskBasics
               text={text}

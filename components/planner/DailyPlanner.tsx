@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon, ArrowRight } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon, ArrowRight, List, Clock3, LayoutTemplate } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import MonthCalendar from './MonthCalendar'
@@ -12,11 +12,17 @@ import TopCalendar from './TopCalendar'
 import DaySummary from './DailySummary'
 import FreeTimeExportButton from './FreeTimeExportButton'
 import MoodPicker, { moodThemes } from './MoodPicker'
+import { gradientFor } from './taskColors'
+import PlannerTimeline from './PlannerTimeline'
+import PlannerTodos, { type PlannerTodo } from './PlannerTodos'
+import PlannerTemplates, { type TemplateTask } from './PlannerTemplates'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
 import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries'
+import { dequeueDay, isNetworkError, queueDay, queuedDay, queuedDays, type QueuedDay } from '@/lib/planner/offline'
 import {
   buildDayTasks,
   endsNextDay,
+  nextFreeSlot,
   sortByStart,
   tasksToStore,
   type PlannerDayRow,
@@ -45,26 +51,7 @@ type StoredRow = {
   mood: string
 }
 
-const TASK_GRADIENTS = [
-  'from-violet-600 to-purple-700',
-  'from-blue-600 to-cyan-700',
-  'from-emerald-500 to-teal-600',
-  'from-amber-500 to-orange-600',
-  'from-rose-500 to-pink-600',
-  'from-indigo-600 to-blue-700',
-  'from-green-500 to-emerald-600',
-  'from-orange-500 to-amber-600',
-]
-const NO_VISION_GRADIENT = 'from-slate-500 to-slate-700'
 const TEXT_SAVE_DELAY = 700
-
-// Same vision → same colour, whatever the order of the day's tasks
-function gradientFor(task: PlannerTask) {
-  if (!task.vision_id) return NO_VISION_GRADIENT
-  let hash = 0
-  for (const ch of task.vision_id) hash = (hash * 31 + ch.charCodeAt(0)) | 0
-  return TASK_GRADIENTS[Math.abs(hash) % TASK_GRADIENTS.length]
-}
 
 function formatDateKey(key: string) {
   return parseDateKey(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -98,6 +85,11 @@ export default function DailyPlanner() {
   const [view, setView] = useState<'daily' | 'monthly'>('daily')
   const [taskDays, setTaskDays] = useState<Set<string>>(new Set())
   const [schedulingForDate, setSchedulingForDate] = useState<string | null>(null)
+  const [modalStart, setModalStart] = useState<number | null>(null)
+  const [schedulingTodo, setSchedulingTodo] = useState<PlannerTodo | null>(null)
+  const [todoRefresh, setTodoRefresh] = useState(0)
+  const [showTemplates, setShowTemplates] = useState(false)
+  const [layout, setLayout] = useState<'list' | 'timeline'>('list')
   const advanceDateRef = useRef<HTMLInputElement>(null)
 
   const dateKey = toLocalDateKey(selectedDate)
@@ -124,6 +116,18 @@ export default function DailyPlanner() {
     return run
   }
 
+  // Remember list/timeline choice on this device
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('planner-layout')
+      if (saved === 'list' || saved === 'timeline') setLayout(saved)
+    } catch { /* storage unavailable */ }
+  }, [])
+  function chooseLayout(next: 'list' | 'timeline') {
+    setLayout(next)
+    try { localStorage.setItem('planner-layout', next) } catch { /* storage unavailable */ }
+  }
+
   // ---------- loading ----------
 
   useEffect(() => { init() }, [])
@@ -134,6 +138,11 @@ export default function DailyPlanner() {
 
   // Flush a pending text save when switching day, leaving the page or backgrounding the app
   useEffect(() => () => flushPendingSave(), [dateKey])
+  useEffect(() => {
+    const onOnline = () => { enqueue(flushOutbox, "Couldn't sync offline changes.").then(() => loadDay()) }
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [userId, partnerId])
   useEffect(() => {
     const onHide = () => { if (document.visibilityState === 'hidden') flushPendingSave() }
     document.addEventListener('visibilitychange', onHide)
@@ -181,6 +190,7 @@ export default function DailyPlanner() {
 
     // Let queued writes land first so we never read a row mid-update
     await writeChain.current
+    await enqueue(flushOutbox, "Couldn't sync offline changes.")
 
     try {
       const ids = partnerId ? [userId, partnerId] : [userId]
@@ -202,6 +212,18 @@ export default function DailyPlanner() {
       setLoadedDateKey(key)
     } catch (err) {
       if (seq !== loadSeq.current) return
+      // Offline with unsynced changes for this day: show what's on the device
+      const queued = queuedDay(userId, key)
+      if (queued && isNetworkError(err)) {
+        setTasks(buildDayTasks({ dateKey: key, userId, dayRows: [queued], recurringRows: [queued] }))
+        setCompletedTaskIds(queued.completed_task_ids)
+        setPartnerCompletedIds([])
+        setMorning(queued.morning)
+        setReflection(queued.reflection)
+        setMood(queued.mood)
+        setLoadedDateKey(key)
+        return
+      }
       console.error('Failed to load planner day', err)
       setLoadError(true)
     }
@@ -242,19 +264,48 @@ export default function DailyPlanner() {
   function writeDay(s: DaySnapshot) {
     const uid = stateRef.current.userId
     if (!uid) return Promise.resolve(undefined)
+    const row: QueuedDay = {
+      day: s.dateKey,
+      user_id: uid,
+      tasks: tasksToStore(s.tasks, uid, s.dateKey),
+      completed_task_ids: s.completedTaskIds,
+      morning: s.morning,
+      reflection: s.reflection,
+      mood: s.mood,
+      visibility: 'private',
+    }
     return enqueue(async () => {
-      const { error } = await supabase.from('planner_days').upsert({
-        day: s.dateKey,
-        user_id: uid,
-        tasks: tasksToStore(s.tasks, uid, s.dateKey),
-        completed_task_ids: s.completedTaskIds,
-        morning: s.morning,
-        reflection: s.reflection,
-        mood: s.mood,
-        visibility: 'private',
-      }, { onConflict: 'user_id,day' })
+      let error: unknown = null
+      try {
+        ;({ error } = await supabase.from('planner_days').upsert(row, { onConflict: 'user_id,day' }))
+      } catch (err) {
+        error = err
+      }
+      if (error && isNetworkError(error)) {
+        // Keep it on this device and sync when the connection is back
+        queueDay(row)
+        toast("You're offline. Changes are saved on this device and will sync.", { id: 'planner-offline' })
+        return
+      }
       if (error) throw error
+      dequeueDay(uid, row.day) // a newer save supersedes anything queued for this day
     }, "Couldn't save your planner. Check your connection.")
+  }
+
+  // Writes any saves made while offline; returns true if everything synced
+  async function flushOutbox() {
+    const uid = stateRef.current.userId
+    if (!uid || typeof navigator !== 'undefined' && !navigator.onLine) return false
+    const rows = queuedDays(uid)
+    if (rows.length === 0) return true
+    let ok = true
+    for (const row of rows) {
+      const { error } = await supabase.from('planner_days').upsert(row, { onConflict: 'user_id,day' })
+      if (error) { ok = false; continue }
+      dequeueDay(uid, row.day)
+    }
+    if (ok) toast.success('Offline changes synced', { id: 'planner-offline' })
+    return ok
   }
 
   function snapshot(overrides: Partial<DaySnapshot> = {}): DaySnapshot | null {
@@ -370,11 +421,58 @@ export default function DailyPlanner() {
     setTaskModalHour(null)
     setEditingTask(null)
     setSchedulingForDate(null)
+    setModalStart(null)
+    setSchedulingTodo(null)
+  }
+
+  function openNewTask(startMinutes?: number) {
+    const start = startMinutes ?? new Date().getHours() * 60
+    setModalStart(startMinutes ?? null)
+    setTaskModalHour(Math.floor(start / 60))
+  }
+
+  // Opens the editor for a to-do at the next free hour (from now if today)
+  function scheduleTodo(todo: PlannerTodo) {
+    const now = new Date()
+    const from = dateKey === todayKey ? now.getHours() * 60 + now.getMinutes() : 9 * 60
+    const slot = nextFreeSlot(tasks, from) ?? Math.ceil(from / 15) * 15
+    setSchedulingTodo(todo)
+    openNewTask(Math.min(slot, 23 * 60))
+  }
+
+  async function completeScheduledTodo(todo: PlannerTodo | null) {
+    if (!todo) return
+    const { error } = await supabase.from('planner_todos').delete().eq('id', todo.id)
+    if (error) console.error('Failed to remove scheduled to-do', error)
+    setTodoRefresh(n => n + 1)
+  }
+
+  function applyTemplate(items: TemplateTask[], source: string) {
+    setShowTemplates(false)
+    if (!userId || items.length === 0) return
+    const created: PlannerTask[] = items.map(t => ({ ...t, id: crypto.randomUUID(), completed: false, owner_id: userId }))
+    const ids = new Set(created.map(t => t.id))
+    const updated = [...tasks, ...created]
+    setTasks(updated)
+    saveNow({ tasks: updated })
+    toast.success(`Added ${created.length} event${created.length !== 1 ? 's' : ''} from ${source}`, {
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          const s = stateRef.current
+          if (s.loadedDateKey !== s.dateKey) return
+          const restored = s.tasks.filter(t => !ids.has(t.id))
+          setTasks(restored)
+          saveNow({ tasks: restored })
+        },
+      },
+    })
   }
 
   async function handleSave(task: PlannerTask, scope: SaveScope) {
     const original = editingTask
     const targetDay = schedulingForDate
+    const todo = schedulingTodo
     closeModal()
     if (!userId) return
     task.owner_id = task.owner_id || userId
@@ -388,7 +486,10 @@ export default function DailyPlanner() {
           () => mutateRow(targetDay, row => ({ ...row, tasks: [...row.tasks, task] })).then(() => true),
           "Couldn't schedule the event.",
         )
-        if (ok) toast.success(`Event scheduled for ${formatDateKey(targetDay)}`)
+        if (ok) {
+          toast.success(`Event scheduled for ${formatDateKey(targetDay)}`)
+          completeScheduledTodo(todo)
+        }
         if (view === 'monthly') loadTaskDays(selectedDate.getFullYear(), selectedDate.getMonth())
         return
       }
@@ -396,6 +497,7 @@ export default function DailyPlanner() {
       const updated = [...tasks, task]
       setTasks(updated)
       saveNow({ tasks: updated })
+      completeScheduledTodo(todo)
       return
     }
 
@@ -601,11 +703,26 @@ export default function DailyPlanner() {
           <span className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-50 ${theme.text}`}>
             {isToday ? 'Today’s Schedule' : 'Schedule'}
           </span>
-          {!loading && tasks.length > 0 && (
-            <span className={`text-[10px] font-semibold opacity-40 ${theme.text}`}>
-              {tasks.length} event{tasks.length !== 1 ? 's' : ''}
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            {!loading && tasks.length > 0 && (
+              <span className={`text-[10px] font-semibold opacity-40 ${theme.text}`}>
+                {tasks.length} event{tasks.length !== 1 ? 's' : ''}
+              </span>
+            )}
+            <div className="flex rounded-xl bg-white/60 dark:bg-slate-800/60 p-0.5 border border-white/50 dark:border-slate-700/50">
+              {([['list', List, 'List'], ['timeline', Clock3, 'Timeline']] as const).map(([value, Icon, label]) => (
+                <button
+                  key={value}
+                  onClick={() => chooseLayout(value)}
+                  aria-label={`${label} view`}
+                  aria-pressed={layout === value}
+                  className={`p-1.5 rounded-lg transition-all ${layout === value ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3 relative mb-8">
@@ -621,6 +738,17 @@ export default function DailyPlanner() {
               <div className="h-20 rounded-3xl bg-slate-200/60 dark:bg-slate-800/60 animate-pulse" />
               <div className="h-20 rounded-3xl bg-slate-200/40 dark:bg-slate-800/40 animate-pulse" />
             </>
+          ) : layout === 'timeline' ? (
+            <PlannerTimeline
+              tasks={tasks}
+              completedTaskIds={completedTaskIds}
+              partnerCompletedIds={partnerCompletedIds}
+              userId={userId}
+              isToday={isToday}
+              onTaskClick={setEditingTask}
+              onToggleComplete={toggleComplete}
+              onAddAt={openNewTask}
+            />
           ) : sortedTasks.length === 0 ? (
             <div className="rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-6 text-center">
               <p className={`text-sm font-semibold opacity-60 ${theme.text}`}>Nothing planned yet</p>
@@ -714,9 +842,18 @@ export default function DailyPlanner() {
           </button>
         )}
 
+        <div className="mb-3">
+          <PlannerTodos
+            userId={userId}
+            visions={visionsMap}
+            refreshKey={todoRefresh}
+            onSchedule={scheduleTodo}
+          />
+        </div>
+
         <div className="flex flex-col gap-3">
           <button
-            onClick={() => setTaskModalHour(new Date().getHours())}
+            onClick={() => openNewTask()}
             disabled={loading}
             className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-3xl font-bold text-[15px] flex justify-between items-center active:scale-[0.98] transition-all shadow-sm disabled:opacity-60"
           >
@@ -745,6 +882,15 @@ export default function DailyPlanner() {
           >
             Schedule for another day
             <CalendarIcon className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={() => setShowTemplates(true)}
+            disabled={loading || !userId}
+            className="w-full border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 py-3 px-6 rounded-3xl font-semibold text-[14px] flex justify-between items-center active:scale-[0.98] transition-all disabled:opacity-60"
+          >
+            Copy a day or use a template
+            <LayoutTemplate className="w-4 h-4" />
           </button>
         </div>
 
@@ -782,6 +928,9 @@ export default function DailyPlanner() {
       {(taskModalHour !== null || editingTask) && (
         <TaskModal
           hour={editingTask ? parseInt(editingTask.start.split(':')[0]) : taskModalHour!}
+          startMinutes={editingTask ? undefined : modalStart ?? undefined}
+          initialText={schedulingTodo?.text}
+          initialVisionId={schedulingTodo?.vision_id}
           existingTask={editingTask}
           userId={userId}
           dayTasks={schedulingForDate && schedulingForDate !== dateKey ? [] : tasks}
@@ -789,6 +938,17 @@ export default function DailyPlanner() {
           onClose={closeModal}
           onSave={handleSave}
           onDelete={editingTask ? (scope) => handleDelete(editingTask, scope) : undefined}
+        />
+      )}
+
+      {showTemplates && userId && (
+        <PlannerTemplates
+          userId={userId}
+          dateKey={dateKey}
+          dayLabel={formatDateKey(dateKey)}
+          dayTasks={tasks}
+          onApply={applyTemplate}
+          onClose={() => setShowTemplates(false)}
         />
       )}
     </div>

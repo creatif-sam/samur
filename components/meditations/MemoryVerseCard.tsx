@@ -3,11 +3,19 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { Brain, Check, ChevronDown, Copy, Eye, EyeOff, Loader2, Pencil, Search, Users } from 'lucide-react'
+import { Brain, Check, ChevronDown, Copy, Eye, EyeOff, Loader2, Pencil, RotateCcw, Search, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { parseDateKey, toLocalDateKey } from '@/lib/dates'
-import { LOOKUP_TRANSLATIONS, lookUpVerse, lookupTranslation, type MemoryVerse } from '@/lib/meditations/memoryVerse'
+import {
+  LOOKUP_TRANSLATIONS,
+  REVIEW_STAGES,
+  isReviewDue,
+  lookUpVerse,
+  lookupTranslation,
+  reviewUpdate,
+  type MemoryVerse,
+} from '@/lib/meditations/memoryVerse'
 
 // full text → first letter of each word → blanks
 type PracticeLevel = 'full' | 'hints' | 'hidden'
@@ -55,6 +63,8 @@ export default function MemoryVerseCard() {
 
   const [level, setLevel] = useState<PracticeLevel>('full')
   const [showHistory, setShowHistory] = useState(false)
+  const [reviewQueue, setReviewQueue] = useState<MemoryVerse[]>([])
+  const [reviewLevel, setReviewLevel] = useState<PracticeLevel>('hidden')
 
   useEffect(() => { load() }, [])
 
@@ -64,7 +74,7 @@ export default function MemoryVerseCard() {
     const uid = auth.user.id
     setUserId(uid)
 
-    const [{ data: profile }, { data: own, error }] = await Promise.all([
+    const [{ data: profile }, { data: own, error }, { data: reviewRows }] = await Promise.all([
       supabase.from('profiles').select('partner_id').eq('id', uid).single(),
       supabase
         .from('memory_verses')
@@ -73,8 +83,18 @@ export default function MemoryVerseCard() {
         .lte('day', today)
         .order('day', { ascending: false })
         .limit(HISTORY_LIMIT + 1),
+      // Past verses still in their review schedule (errors harmlessly before the migration)
+      supabase
+        .from('memory_verses')
+        .select('*')
+        .eq('user_id', uid)
+        .lt('day', today)
+        .lt('review_stage', REVIEW_STAGES)
+        .order('day', { ascending: true })
+        .limit(50),
     ])
     if (error) console.error('Failed to load memory verses', error)
+    setReviewQueue(((reviewRows ?? []) as MemoryVerse[]).filter(v => isReviewDue(v, today)))
 
     const rows = (own ?? []) as MemoryVerse[]
     const todays = rows.find(v => v.day === today) ?? null
@@ -173,6 +193,27 @@ export default function MemoryVerseCard() {
       setHistory(h => h.map(revert))
     } else if (memorized) {
       toast.success('Hidden in your heart 🙏')
+    }
+  }
+
+  async function review(target: MemoryVerse, remembered: boolean) {
+    const update = reviewUpdate(target, remembered, today)
+    setReviewQueue(q => q.filter(v => v.id !== target.id))
+    setReviewLevel('hidden')
+    const { error } = await supabase
+      .from('memory_verses')
+      .update({ ...update, updated_at: new Date().toISOString() })
+      .eq('id', target.id)
+    if (error) {
+      toast.error("Couldn't save your review. Check your connection.")
+      setReviewQueue(q => [target, ...q])
+      return
+    }
+    if ('memorized' in update) {
+      setHistory(h => h.map(v => (v.id === target.id ? { ...v, ...update } : v)))
+      toast.success(`${target.reference} is memorized 🙏`)
+    } else if (!remembered) {
+      toast('It will come back tomorrow')
     }
   }
 
@@ -318,6 +359,35 @@ export default function MemoryVerseCard() {
           </div>
         </div>
       )}
+
+      {reviewQueue.length > 0 && (() => {
+        const due = reviewQueue[0]
+        return (
+          <div className="rounded-md border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-900/10 px-3 py-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                <RotateCcw className="h-3 w-3" /> Review{reviewQueue.length > 1 ? ` · ${reviewQueue.length} due` : ''}
+              </p>
+              <span className="text-[11px] text-muted-foreground">from {formatDay(due.day)}</span>
+            </div>
+            <p className="text-sm font-semibold">{due.reference}</p>
+            <button onClick={() => setReviewLevel(l => NEXT_LEVEL[l])} className="w-full text-left" title="Tap for hints">
+              <p className="text-sm italic leading-relaxed">
+                <PracticeText text={due.text} level={reviewLevel} />
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {reviewLevel === 'full' ? 'How did you do?' : 'Say it from memory. Tap for hints, then to check.'}
+              </p>
+            </button>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => review(due, false)} className="flex-1">Practice again</Button>
+              <Button size="sm" onClick={() => review(due, true)} className="flex-1 gap-1.5">
+                <Check className="h-4 w-4" /> I remembered
+              </Button>
+            </div>
+          </div>
+        )
+      })()}
 
       {partnerVerse && (
         <div className="rounded-md bg-muted/40 px-3 py-2">

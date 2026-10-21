@@ -13,6 +13,8 @@ import {
   CheckCircle2,
   TrendingUp,
   Calendar,
+  Flame,
+  Brain,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toLocalDateKey } from '@/lib/dates'
@@ -27,6 +29,10 @@ interface WeekData {
   booksPages: number
   moneyIn: number
   moneyOut: number
+  prayerMinutes: number
+  prayerDays: number
+  versesChosen: number
+  versesMemorized: number
   gratitude: { date: string; entry_1: string; entry_2: string; entry_3: string }[]
 }
 
@@ -69,7 +75,7 @@ export default function WeeklyReviewPage() {
   const supabase = createClient()
   const [data, setData] = useState<WeekData | null>(null)
   const [loading, setLoading] = useState(true)
-  const { startStr, endStr } = weekRange()
+  const { start: weekStart, end: weekEnd, startStr, endStr } = weekRange()
   const days = dayLabels()
 
   useEffect(() => { load() }, [])
@@ -82,18 +88,18 @@ export default function WeeklyReviewPage() {
     const today = toLocalDateKey(new Date())
     const lastDay = days[6] < today ? days[6] : today
 
-    const [goalsRes, meditationsRes, plannerRes, readingsRes, moneyRes, gratitudeRes, recurringRows] = await Promise.all([
+    const [goalsRes, meditationsRes, plannerRes, , moneyRes, gratitudeRes, recurringRows, prayerRes, versesRes] = await Promise.all([
       supabase.from('goals')
         .select('status, due_date, created_at')
         .or(`owner_id.eq.${user.id},partner_id.eq.${user.id}`)
-        .gte('created_at', `${startStr}T00:00:00`)
-        .lt('created_at', `${endStr}T00:00:00`),
+        .gte('created_at', weekStart.toISOString())
+        .lt('created_at', weekEnd.toISOString()),
 
       supabase.from('meditations')
         .select('id')
         .eq('author_id', user.id)
-        .gte('created_at', `${startStr}T00:00:00`)
-        .lt('created_at', `${endStr}T00:00:00`),
+        .gte('created_at', weekStart.toISOString())
+        .lt('created_at', weekEnd.toISOString()),
 
       supabase.from('planner_days')
         .select('day, user_id, tasks, completed_task_ids')
@@ -119,7 +125,26 @@ export default function WeeklyReviewPage() {
         .order('date', { ascending: true }),
 
       fetchRecurringRows(supabase, [user.id], lastDay).catch(() => [] as PlannerDayRow[]),
+
+      supabase.from('prayer_sessions')
+        .select('date, duration_seconds')
+        .eq('user_id', user.id)
+        .eq('completed', true)
+        .gte('date', startStr)
+        .lt('date', endStr),
+
+      supabase.from('memory_verses')
+        .select('reference, memorized')
+        .eq('user_id', user.id)
+        .gte('day', startStr)
+        .lt('day', endStr),
     ])
+
+    // Prayer and memory verses
+    const prayer = prayerRes.data ?? []
+    const prayerMinutes = Math.round(prayer.reduce((a, p) => a + (p.duration_seconds ?? 0), 0) / 60)
+    const prayerDays = new Set(prayer.map(p => p.date)).size
+    const verses = versesRes.data ?? []
 
     // Goals
     const goals = goalsRes.data ?? []
@@ -155,6 +180,10 @@ export default function WeeklyReviewPage() {
       booksPages: 0, // placeholder — pages read this week not easily tracked without a log table
       moneyIn,
       moneyOut,
+      prayerMinutes,
+      prayerDays,
+      versesChosen: new Set(verses.map(v => v.reference)).size,
+      versesMemorized: verses.filter(v => v.memorized).length,
       gratitude: gratitudeRes.data ?? [],
     })
     setLoading(false)
@@ -228,6 +257,20 @@ export default function WeeklyReviewPage() {
               value={`${data.moneyIn - data.moneyOut >= 0 ? '+' : ''}${(data.moneyIn - data.moneyOut).toFixed(0)}`}
               sub={`In ${data.moneyIn.toFixed(0)} · Out ${data.moneyOut.toFixed(0)}`}
               color="bg-gradient-to-br from-blue-500 to-cyan-600"
+            />
+            <StatCard
+              icon={<Flame className="w-4 h-4 text-white" />}
+              label="Prayer time"
+              value={data.prayerMinutes >= 60 ? `${Math.floor(data.prayerMinutes / 60)}h ${data.prayerMinutes % 60}m` : `${data.prayerMinutes}m`}
+              sub={`${data.prayerDays} of 7 days`}
+              color="bg-gradient-to-br from-amber-500 to-orange-600"
+            />
+            <StatCard
+              icon={<Brain className="w-4 h-4 text-white" />}
+              label="Memory verses"
+              value={data.versesChosen}
+              sub={`${data.versesMemorized} memorized`}
+              color="bg-gradient-to-br from-indigo-500 to-violet-600"
             />
           </div>
 

@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { addDays, zonedNow } from '@/lib/dates';
+import { addDays, zonedDayRange, zonedNow } from '@/lib/dates';
 import { fetchRecurringRows } from '@/lib/planner/queries';
 import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks';
 
@@ -32,9 +32,6 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: false, error: 'Failed to fetch users' });
     }
 
-    // 3. Build date range: last 7 days
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const appUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com';
     const fromEmail = process.env.FROM_EMAIL || 'SamUr <noreply@mastery.samuelgyasi.com>';
 
@@ -44,8 +41,11 @@ export async function GET(request: Request) {
       if (!user.email) continue;
 
       // Planner: tasks (recurring included) and reflections for the user's last 7 local days
-      const { dateKey: todayStr } = zonedNow(user.user_metadata?.timezone as string | undefined);
+      const timeZone = user.user_metadata?.timezone as string | undefined;
+      const { dateKey: todayStr } = zonedNow(timeZone);
       const weekAgoStr = addDays(todayStr, -6);
+      const weekFrom = zonedDayRange(timeZone, weekAgoStr).start;
+      const weekTo = zonedDayRange(timeZone, todayStr).end;
       const { data: plannerDays } = await serviceSupabase
         .from('planner_days')
         .select('day, user_id, tasks, reflection, completed_task_ids')
@@ -54,38 +54,56 @@ export async function GET(request: Request) {
         .lte('day', todayStr);
       const recurringRows = await fetchRecurringRows(serviceSupabase, [user.id], todayStr).catch(() => [] as PlannerDayRow[]);
 
-      const totalTasks = expandDays({
+      const weekTasks = expandDays({
         userId: user.id,
         rows: (plannerDays ?? []) as PlannerDayRow[],
         recurringRows,
         from: weekAgoStr,
         to: todayStr,
-      }).reduce((acc, d) => acc + d.tasks.length, 0);
+      }).flatMap(d => d.tasks);
+      const totalTasks = weekTasks.length;
+      const tasksDone = weekTasks.filter(t => t.completed).length;
       const daysWithReflections = plannerDays?.filter(
         d => typeof d.reflection === 'string' && d.reflection.trim().length > 0
       ).length ?? 0;
 
-      // Goals created this week
-      const { count: goalsCreated } = await serviceSupabase
+      // Goals created this week, and how many of those are done
+      const { data: weekGoals } = await serviceSupabase
         .from('goals')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', weekAgo.toISOString());
-
-      // Goals completed this week
-      const { count: goalsCompleted } = await serviceSupabase
-        .from('goals')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'completed')
-        .gte('updated_at', weekAgo.toISOString());
+        .select('status')
+        .eq('owner_id', user.id)
+        .gte('created_at', weekFrom)
+        .lt('created_at', weekTo);
+      const goalsCreated = weekGoals?.length ?? 0;
+      const goalsCompleted = weekGoals?.filter(g => g.status === 'done').length ?? 0;
 
       // Meditations this week
       const { count: meditationsCount } = await serviceSupabase
         .from('meditations')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', weekAgo.toISOString());
+        .eq('author_id', user.id)
+        .gte('created_at', weekFrom)
+        .lt('created_at', weekTo);
+
+      // Prayer time (completed sessions) and memory verses this week
+      const [{ data: prayer }, { data: verses }] = await Promise.all([
+        serviceSupabase
+          .from('prayer_sessions')
+          .select('duration_seconds')
+          .eq('user_id', user.id)
+          .eq('completed', true)
+          .gte('date', weekAgoStr)
+          .lte('date', todayStr),
+        serviceSupabase
+          .from('memory_verses')
+          .select('memorized')
+          .eq('user_id', user.id)
+          .gte('day', weekAgoStr)
+          .lte('day', todayStr),
+      ]);
+      const prayerMinutes = Math.round((prayer ?? []).reduce((a, p) => a + (p.duration_seconds ?? 0), 0) / 60);
+      const versesChosen = verses?.length ?? 0;
+      const versesMemorized = verses?.filter(v => v.memorized).length ?? 0;
 
       // Unread notifications
       const { count: unreadCount } = await serviceSupabase
@@ -101,9 +119,13 @@ export async function GET(request: Request) {
       const html = buildWeeklySummaryEmail({
         displayName,
         totalTasks,
+        tasksDone,
         daysWithReflections,
-        goalsCreated: goalsCreated ?? 0,
-        goalsCompleted: goalsCompleted ?? 0,
+        goalsCreated,
+        goalsCompleted,
+        prayerMinutes,
+        versesChosen,
+        versesMemorized,
         meditationsCount: meditationsCount ?? 0,
         unreadCount: unreadCount ?? 0,
         appUrl,
@@ -135,7 +157,11 @@ export async function GET(request: Request) {
 interface SummaryData {
   displayName: string;
   totalTasks: number;
+  tasksDone: number;
   daysWithReflections: number;
+  prayerMinutes: number;
+  versesChosen: number;
+  versesMemorized: number;
   goalsCreated: number;
   goalsCompleted: number;
   meditationsCount: number;
@@ -197,8 +223,8 @@ function buildWeeklySummaryEmail(d: SummaryData): string {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td width="48%" style="background:#f0fdf4;border-radius:12px;padding:20px;text-align:center;vertical-align:top;">
-                    <div style="font-size:36px;font-weight:800;color:#16a34a;">${d.totalTasks}</div>
-                    <div style="font-size:13px;color:#4b5563;margin-top:4px;">Planner Tasks</div>
+                    <div style="font-size:36px;font-weight:800;color:#16a34a;">${d.tasksDone}/${d.totalTasks}</div>
+                    <div style="font-size:13px;color:#4b5563;margin-top:4px;">Planner Tasks Done${d.totalTasks > 0 ? ` (${Math.round((d.tasksDone / d.totalTasks) * 100)}%)` : ''}</div>
                   </td>
                   <td width="4%"></td>
                   <td width="48%" style="background:#eff6ff;border-radius:12px;padding:20px;text-align:center;vertical-align:top;">
@@ -216,6 +242,18 @@ function buildWeeklySummaryEmail(d: SummaryData): string {
                   <td width="48%" style="background:#fff7ed;border-radius:12px;padding:20px;text-align:center;vertical-align:top;">
                     <div style="font-size:36px;font-weight:800;color:#ea580c;">${d.goalsCompleted}</div>
                     <div style="font-size:13px;color:#4b5563;margin-top:4px;">Goals Completed</div>
+                  </td>
+                </tr>
+                <tr><td colspan="3" style="height:12px;"></td></tr>
+                <tr>
+                  <td width="48%" style="background:#fffbeb;border-radius:12px;padding:20px;text-align:center;vertical-align:top;">
+                    <div style="font-size:36px;font-weight:800;color:#d97706;">${d.prayerMinutes >= 60 ? `${Math.floor(d.prayerMinutes / 60)}h ${d.prayerMinutes % 60}m` : `${d.prayerMinutes}m`}</div>
+                    <div style="font-size:13px;color:#4b5563;margin-top:4px;">Prayer Time</div>
+                  </td>
+                  <td width="4%"></td>
+                  <td width="48%" style="background:#eef2ff;border-radius:12px;padding:20px;text-align:center;vertical-align:top;">
+                    <div style="font-size:36px;font-weight:800;color:#4f46e5;">${d.versesChosen}</div>
+                    <div style="font-size:13px;color:#4b5563;margin-top:4px;">Memory Verses (${d.versesMemorized} memorized)</div>
                   </td>
                 </tr>
                 <tr><td colspan="3" style="height:12px;"></td></tr>

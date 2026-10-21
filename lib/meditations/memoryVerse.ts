@@ -1,4 +1,5 @@
 import { TRANSLATIONS } from '@/components/bible/bibleConstants'
+import { addDays } from '@/lib/dates'
 
 export type MemoryVerse = {
   id: string
@@ -9,6 +10,26 @@ export type MemoryVerse = {
   translation: string | null
   visibility: 'private' | 'shared'
   memorized: boolean
+  review_stage?: number
+  next_review?: string | null
+}
+
+// Spaced review: first review the day after choosing, then 3, 7, 14 and 30 days
+// after each successful one. Passing the last review marks the verse memorized.
+const REVIEW_GAPS = [3, 7, 14, 30]
+export const REVIEW_STAGES = REVIEW_GAPS.length + 1
+
+export function isReviewDue(verse: MemoryVerse, today: string) {
+  if (verse.day >= today) return false
+  if ((verse.review_stage ?? 0) >= REVIEW_STAGES) return false
+  return (verse.next_review ?? addDays(verse.day, 1)) <= today
+}
+
+export function reviewUpdate(verse: MemoryVerse, remembered: boolean, today: string) {
+  if (!remembered) return { review_stage: 0, next_review: addDays(today, 1) }
+  const stage = (verse.review_stage ?? 0) + 1
+  if (stage >= REVIEW_STAGES) return { review_stage: stage, next_review: null, memorized: true }
+  return { review_stage: stage, next_review: addDays(today, REVIEW_GAPS[stage - 1]) }
 }
 
 // bible-api.com has no French texts (LSG/NEF return 404); those verses can be typed in
