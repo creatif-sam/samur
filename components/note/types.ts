@@ -2,7 +2,11 @@ export type Page = {
   id: string
   section_id: string
   title: string
-  content: string | null
+  // Not loaded in lists (only previews); fetched when the note is opened
+  content?: string | null
+  preview?: string | null
+  pinned?: boolean
+  shared?: boolean
   created_at: string
   updated_at: string | null
 }

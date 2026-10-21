@@ -9,6 +9,7 @@ import PartnerPrayerBoard from './PartnerPrayerBoard'
 import { ThoughtEditor } from '@/components/note/ThoughtEditor'
 import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight } from 'lucide-react'
 import { toLocalDateKey } from '@/lib/dates'
+import { ensureSystemNotebook, findSystemNotebook } from '@/lib/notes/data'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -445,11 +446,12 @@ export default function PrayerTab(): JSX.Element {
 
   async function loadDiary(uid: string) {
     const supabase = createClient()
+    const diaryId = await findSystemNotebook(supabase, uid, 'prayer_diary')
+    if (!diaryId) return
     const { data: nb } = await supabase
       .from('notebooks')
       .select('id, sections(id, title, pages(id, title, content, created_at))')
-      .eq('user_id', uid)
-      .eq('title', 'Prayer Diary')
+      .eq('id', diaryId)
       .maybeSingle()
     if (!nb) return
     setDiaryNotebookId(nb.id)
@@ -466,12 +468,13 @@ export default function PrayerTab(): JSX.Element {
     if (diaryNotebookId) return diaryNotebookId
     if (!userId) return null
     const supabase = createClient()
-    const { data: existing } = await supabase.from('notebooks').select('id').eq('user_id', userId).eq('title', 'Prayer Diary').maybeSingle()
-    if (existing) { setDiaryNotebookId(existing.id); return existing.id }
-    const { data: created } = await supabase.from('notebooks').insert({ user_id: userId, title: 'Prayer Diary' }).select('id').single()
-    if (!created) return null
-    setDiaryNotebookId(created.id)
-    return created.id
+    try {
+      const id = await ensureSystemNotebook(supabase, userId, 'prayer_diary')
+      setDiaryNotebookId(id)
+      return id
+    } catch {
+      return null
+    }
   }
 
   async function createDiarySection(sectionTitle: string): Promise<DiarySection | null> {

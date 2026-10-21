@@ -9,12 +9,18 @@ import TaskItem from '@tiptap/extension-task-item'
 import Highlight from '@tiptap/extension-highlight'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import Image from '@tiptap/extension-image'
 import {
   ChevronLeft, Trash2, Calendar, Clock,
   Bold, Italic, List, ListOrdered, Plus,
   CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2, FileDown,
-  Highlighter, X, Copy, Undo2, Redo2, Heading2, Quote
+  Highlighter, X, Copy, Undo2, Redo2, Heading2, Quote,
+  MoreVertical, Pin, PinOff, Users, FolderInput, ListTodo, ImagePlus, Loader2,
 } from 'lucide-react'
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { uploadNoteImage } from '@/lib/notes/images'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
@@ -48,7 +54,11 @@ const STATUS_LABEL: Record<SaveStatus, string> = {
 type NoteDraft = { title: string; content: string }
 
 type ThoughtEditorProps = {
-  page: Pick<Page, 'id' | 'title' | 'content' | 'created_at'>
+  page: Pick<Page, 'id' | 'title' | 'content' | 'created_at' | 'pinned' | 'shared'>
+  /** Show "Share with partner" (the user has a partner) */
+  canShare?: boolean
+  /** Close the editor and pick another section for this note */
+  onMove?: () => void
   /** Called after the page is saved; `isEmpty` is true when the page has no title and no content. */
   onBack: (opts: { isEmpty: boolean }) => void
   onSaved: (patch: PagePatch) => void
@@ -56,13 +66,17 @@ type ThoughtEditorProps = {
   onDeletePage?: () => void
 }
 
-export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEditorProps) {
+export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = false, onMove }: ThoughtEditorProps) {
   const [title, setTitle] = useState(page.title)
   const [status, setStatus] = useState<SaveStatus>('saved')
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [shareText, setShareText] = useState('')
+  const [pinned, setPinned] = useState(!!page.pinned)
+  const [shared, setShared] = useState(!!page.shared)
+  const [uploading, setUploading] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const [supabase] = useState(createClient)
   const editorAreaRef = useRef<HTMLDivElement>(null)
 
@@ -143,6 +157,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
         },
       }),
       Placeholder.configure({ placeholder: 'Start writing…' }),
+      Image.configure({ HTMLAttributes: { class: 'rounded-xl max-w-full h-auto my-3' } }),
     ],
     content: page.content || '',
     immediatelyRender: false,
@@ -227,6 +242,65 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
     onDeletePage?.()
   }
 
+  async function togglePin() {
+    const next = !pinned
+    setPinned(next)
+    const { error } = await supabase.from('pages').update({ is_pinned: next }).eq('id', page.id)
+    if (error) { setPinned(!next); toast.error("Couldn't update the pin"); return }
+    onSavedRef.current({ id: page.id, pinned: next })
+    toast.success(next ? 'Pinned to the top' : 'Unpinned')
+  }
+
+  async function toggleShare() {
+    const next = !shared
+    setShared(next)
+    const { error } = await supabase.from('pages').update({ shared: next }).eq('id', page.id)
+    if (error) { setShared(!next); toast.error("Couldn't change sharing"); return }
+    onSavedRef.current({ id: page.id, shared: next })
+    toast.success(next ? 'Your partner can now read this note' : 'This note is private again')
+  }
+
+  async function handleImageFile(file: File | undefined) {
+    if (!file || !editor) return
+    setUploading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Sign in to add photos')
+      const url = await uploadNoteImage(supabase, user.id, file)
+      editor.chain().focus().setImage({ src: url, alt: file.name }).createParagraphNear().run()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't add the photo")
+    } finally {
+      setUploading(false)
+      if (imageInputRef.current) imageInputRef.current.value = ''
+    }
+  }
+
+  // Unchecked checklist items become planner to-dos (skipping ones already there)
+  async function sendChecklistToTodos() {
+    if (!editor) return
+    const items: string[] = []
+    editor.state.doc.descendants(node => {
+      if (node.type.name === 'taskItem' && !node.attrs.checked) {
+        const text = node.textContent.trim()
+        if (text) items.push(text)
+        return false
+      }
+      return true
+    })
+    if (items.length === 0) { toast('No unchecked checklist items in this note'); return }
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: existing, error: readError } = await supabase.from('planner_todos').select('text').eq('user_id', user.id)
+    if (readError) { toast.error("Couldn't reach your to-do list"); return }
+    const have = new Set((existing ?? []).map((t: { text: string }) => t.text.trim().toLowerCase()))
+    const fresh = [...new Set(items)].filter(t => !have.has(t.toLowerCase()))
+    if (fresh.length === 0) { toast('Those items are already in your to-do list'); return }
+    const { error } = await supabase.from('planner_todos').insert(fresh.map(text => ({ user_id: user.id, text })))
+    if (error) { toast.error("Couldn't add the to-dos"); return }
+    toast.success(`Added ${fresh.length} to-do${fresh.length > 1 ? 's' : ''} to your planner`)
+  }
+
   function htmlToPlainText(html: string): string {
     const div = document.createElement('div')
     div.innerHTML = html
@@ -255,37 +329,55 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
           <span className={cn('text-[9px] font-bold uppercase tracking-widest', status === 'error' ? 'text-red-200' : status === 'offline' ? 'text-amber-200' : 'opacity-60')}>
             {STATUS_LABEL[status]}
           </span>
-          {onDeletePage && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 w-8 p-0 text-white/60 hover:text-red-300 hover:bg-white/10"
-              onClick={() => setShowDeleteConfirm(true)}
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0 text-white hover:bg-white/10"
-            aria-label="Export PDF"
-            onClick={() => exportPdf({
-              title: latestRef.current.title || 'Untitled',
-              subtitle: new Date(page.created_at).toLocaleDateString(undefined, { dateStyle: 'long' }),
-              html: editor?.getHTML() ?? latestRef.current.content,
-            })}
-          >
-            <FileDown className="w-4 h-4" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0 text-white hover:bg-white/10"
-            onClick={shareAsText}
-          >
-            <Share2 className="w-4 h-4" />
-          </Button>
+          {pinned && <Pin className="w-3.5 h-3.5 text-white/70" aria-label="Pinned" />}
+          {shared && <Users className="w-3.5 h-3.5 text-white/70" aria-label="Shared with partner" />}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-white/10" aria-label="Note options">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 rounded-2xl">
+              <DropdownMenuItem onClick={togglePin} className="gap-2">
+                {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />} {pinned ? 'Unpin' : 'Pin to top'}
+              </DropdownMenuItem>
+              {canShare && (
+                <DropdownMenuItem onClick={toggleShare} className="gap-2">
+                  <Users className="w-4 h-4" /> {shared ? 'Stop sharing with partner' : 'Share with partner'}
+                </DropdownMenuItem>
+              )}
+              {onMove && (
+                <DropdownMenuItem onClick={async () => { await flushSave(); onMove() }} className="gap-2">
+                  <FolderInput className="w-4 h-4" /> Move to…
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={sendChecklistToTodos} className="gap-2">
+                <ListTodo className="w-4 h-4" /> Checklist → planner to-dos
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => exportPdf({
+                  title: latestRef.current.title || 'Untitled',
+                  subtitle: new Date(page.created_at).toLocaleDateString(undefined, { dateStyle: 'long' }),
+                  html: editor?.getHTML() ?? latestRef.current.content,
+                })}
+                className="gap-2"
+              >
+                <FileDown className="w-4 h-4" /> Export PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={shareAsText} className="gap-2">
+                <Share2 className="w-4 h-4" /> Share as text
+              </DropdownMenuItem>
+              {onDeletePage && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-red-600 focus:text-red-600">
+                    <Trash2 className="w-4 h-4" /> Delete note
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" onClick={handleBack} className="h-8 px-4 bg-white text-[#7719aa] font-bold uppercase text-[10px] rounded-full shadow-sm active:scale-95">
             Done
           </Button>
@@ -352,6 +444,19 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
       {/* KEYBOARD TOOLBAR — sits right above the virtual keyboard, scrolls sideways on narrow screens */}
       <div className="flex items-center overflow-x-auto bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0 [scrollbar-width:none]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <DictationButton className="shrink-0 w-11 h-11" onText={text => editor.chain().focus().insertContent(`${text} `).run()} />
+        <ToolbarBtn
+          label="Add photo"
+          onClick={() => imageInputRef.current?.click()}
+          disabled={uploading}
+          icon={uploading ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}
+        />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => handleImageFile(e.target.files?.[0])}
+        />
         <ToolbarBtn label="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} icon={<Undo2 size={20} />} />
         <ToolbarBtn label="Redo" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} icon={<Redo2 size={20} />} />
         <ToolbarBtn label="New line" onClick={() => editor.chain().focus().insertContent('<p></p>').run()} icon={<Plus size={20} />} />

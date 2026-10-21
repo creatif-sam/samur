@@ -14,6 +14,7 @@ import {
   searchBook, searchWholeBible, searchesOtherTranslation, type SearchHit,
 } from '@/lib/bible/source'
 import { toLocalDateKey } from '@/lib/dates'
+import { ensureSystemNotebook } from '@/lib/notes/data'
 
 // Where you were, so the Bible reopens on the same chapter, version and text size
 const STATE_KEY = 'bible_state'
@@ -382,18 +383,7 @@ export function useBibleReader() {
     try {
       const bookName = displayBook(selectedBook, translation)
       const pageTitle = noteRef || `${bookName} ${selectedChapter}:${v.verse}`
-      const { data: nbs } = await supabase.from('notebooks').select('id, title')
-        .eq('user_id', userId).ilike('title', 'Bible Notes')
-      let notebookId: string
-      if (nbs && nbs.length > 0) {
-        notebookId = nbs[0].id
-      } else {
-        const { data, error } = await supabase.from('notebooks')
-          .insert({ user_id: userId, title: 'Bible Notes', emoji: '📖', color: '#7719aa' })
-          .select('id').single()
-        if (error) throw error
-        notebookId = data.id
-      }
+      const notebookId = await ensureSystemNotebook(supabase, userId, 'bible_notes')
       const { data: sects } = await supabase.from('sections').select('id')
         .eq('notebook_id', notebookId).ilike('title', bookName)
       let sectionId: string

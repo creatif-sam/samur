@@ -1,30 +1,9 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import { ensureSystemNotebook } from '@/lib/notes/data'
 
-const NOTEBOOK_TITLE = 'Reading Logs'
-const NOTEBOOK_EMOJI = '📚'
-const NOTEBOOK_COLOR = '#7719AA'
-
-export async function ensureReadingLogsNotebook(
-  supabase: SupabaseClient,
-  userId: string
-): Promise<string> {
-  const { data: existing } = await supabase
-    .from('notebooks')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('title', NOTEBOOK_TITLE)
-    .maybeSingle()
-
-  if (existing) return existing.id
-
-  const { data, error } = await supabase
-    .from('notebooks')
-    .insert({ user_id: userId, title: NOTEBOOK_TITLE, emoji: NOTEBOOK_EMOJI, color: NOTEBOOK_COLOR })
-    .select('id')
-    .single()
-
-  if (error || !data) throw new Error('Failed to create Reading Logs notebook')
-  return data.id
+// Found by its fixed key, so renaming the notebook doesn't create a new one
+export function ensureReadingLogsNotebook(supabase: SupabaseClient, userId: string): Promise<string> {
+  return ensureSystemNotebook(supabase, userId, 'reading_logs')
 }
 
 export async function ensureBookSection(

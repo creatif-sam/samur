@@ -4,6 +4,7 @@ import { JSX, useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Play, Pause, Square, Flame, X, Check } from 'lucide-react'
 import { toast } from 'sonner'
+import { ensureSystemNotebook } from '@/lib/notes/data'
 
 const PRESETS = [1, 2, 3, 5, 10, 15, 20, 30]
 
@@ -246,21 +247,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
 
     // 2. Save to Notes: "Prayer Inspirations" notebook
     try {
-      let { data: nb } = await supabase
-        .from('notebooks')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('title', 'Prayer Inspirations')
-        .maybeSingle()
-
-      if (!nb) {
-        const { data: created } = await supabase
-          .from('notebooks')
-          .insert({ user_id: userId, title: 'Prayer Inspirations', emoji: '🙏', color: '#7c3aed' })
-          .select('id')
-          .single()
-        nb = created
-      }
+      const nb = { id: await ensureSystemNotebook(supabase, userId, 'prayer_inspirations') }
 
       if (nb) {
         const dateLabel = new Date().toLocaleDateString(undefined, {

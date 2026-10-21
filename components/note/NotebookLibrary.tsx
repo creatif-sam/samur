@@ -1,4 +1,6 @@
-import { Search, Book, Grid, List, X, Pin, PinOff, Pencil, Trash2 } from 'lucide-react'
+import { Search, Book, Grid, List, X, Pin, PinOff, Pencil, Trash2, Users, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+import { searchPages } from '@/lib/notes/data'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { RecentPagesGrid } from './RecentPagesGrid'
@@ -17,9 +19,17 @@ type NotebookLibraryProps = {
   onSelectPage: (page: Page, section: Section, notebook: Notebook) => void
   onQuickAdd: () => void
   onLongPressPage: (page: Page, section: Section, notebook: Notebook) => void
+  // Notes your partner shared with you (read-only)
+  sharedWithMe?: Page[]
+  partnerName?: string | null
+  onOpenShared?: (page: Page) => void
 }
 
-export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onTogglePin, onSelectPage, onQuickAdd, onLongPressPage }: NotebookLibraryProps) {
+function noteCount(nb: Notebook) {
+  return (nb.sections ?? []).reduce((sum, s) => sum + (s.pages?.length ?? 0), 0)
+}
+
+export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onTogglePin, onSelectPage, onQuickAdd, onLongPressPage, sharedWithMe = [], partnerName, onOpenShared }: NotebookLibraryProps) {
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
@@ -102,52 +112,55 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
     onTogglePin(actionNotebook)
     setActionNotebook(null)
   }
-  
-  // Full-text search across all pages
+
+  // Full-text search runs on the server, so notes don't all have to be downloaded
+  const [searchHits, setSearchHits] = useState<Page[]>([])
+  const [searching, setSearching] = useState(false)
+
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q) { setSearchHits([]); return }
+    setSearching(true)
+    const timer = setTimeout(async () => {
+      try {
+        setSearchHits(await searchPages(createClient(), q))
+      } catch {
+        setSearchHits([])
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  // Where each section lives, to label results and open them
+  const sectionIndex = useMemo(() => {
+    const map = new Map<string, { section: Section; notebook: Notebook }>()
+    notebooks.forEach(notebook => notebook.sections?.forEach(section => map.set(section.id, { section, notebook })))
+    return map
+  }, [notebooks])
+
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return []
-
-    const query = searchQuery.toLowerCase()
-    const results: Array<{
-      page: Page
-      section: Section
-      notebook: Notebook
-      matchedText: string
-    }> = []
-
-    notebooks.forEach(notebook => {
-      notebook.sections?.forEach(section => {
-        section.pages?.forEach(page => {
-          const titleMatch = page.title?.toLowerCase().includes(query)
-          const content = page.content ?? ''
-          const plainContent = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
-          const contentMatch = plainContent.toLowerCase().includes(query)
-
-          if (titleMatch || contentMatch) {
-            let matchedText = ''
-            if (titleMatch) {
-              matchedText = page.title || 'Untitled'
-            } else {
-              const index = plainContent.toLowerCase().indexOf(query)
-              const start = Math.max(0, index - 40)
-              const end = Math.min(plainContent.length, index + 80)
-              matchedText = '...' + plainContent.substring(start, end) + '...'
-            }
-
-            results.push({ page, section, notebook, matchedText })
-          }
-        })
-      })
+    return searchHits.map(page => {
+      const owner = sectionIndex.get(page.section_id)
+      const preview = (page.preview ?? '').trim()
+      return { page, owner, matchedText: preview || 'Empty note' }
     })
+  }, [searchHits, sectionIndex])
 
-    return results.slice(0, 15)
-  }, [searchQuery, notebooks])
-  
+  const pinnedNotes = useMemo(() => {
+    const out: { page: Page; section: Section; notebook: Notebook }[] = []
+    notebooks.forEach(notebook => notebook.sections?.forEach(section => section.pages?.forEach(page => {
+      if (page.pinned) out.push({ page, section, notebook })
+    })))
+    return out
+  }, [notebooks])
+
   return (
     <>
       <header className="px-6 pt-12 pb-6 sticky top-0 bg-white/90 dark:bg-[#0f172a]/90 backdrop-blur-xl z-20 border-b border-slate-50 dark:border-slate-800">
         <h2 className="text-3xl font-semibold tracking-tight text-[#7719aa] dark:text-[#a78bfa] uppercase mb-4 text-center">Library</h2>
-        
+
         {/* Global Search Input */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -167,7 +180,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
             </button>
           )}
         </div>
-        
+
         {/* View Toggle */}
         {!searchQuery && (
           <>
@@ -205,37 +218,37 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
         {searchQuery ? (
           // Search Results View
           <div className="px-4 py-4">
-            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4">
-              {searchResults.length} result{searchResults.length !== 1 ? 's' : ''} found
+            <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+              {searching ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching…</> : `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''} found`}
             </p>
-            
-            {searchResults.length === 0 ? (
+
+            {!searching && searchResults.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-600">
                 <Search className="w-12 h-12 mb-3 opacity-30" />
                 <p className="text-sm font-medium">No matching notes</p>
               </div>
             ) : (
               <div className="space-y-2">
-                {searchResults.map(({ page, section, notebook, matchedText }, index) => (
+                {searchResults.map(({ page, owner, matchedText }, index) => (
                   <button
                     key={`${page.id}-${index}`}
-                    onClick={() => onSelectPage(page, section, notebook)}
+                    onClick={() => (owner ? onSelectPage(page, owner.section, owner.notebook) : onOpenShared?.(page))}
                     className="w-full bg-white dark:bg-slate-900 rounded-xl p-3 border border-slate-200 dark:border-slate-800 hover:border-violet-300 dark:hover:border-violet-800 transition-all text-left"
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <div 
-                        className="w-2 h-2 rounded-full" 
-                        style={{ backgroundColor: notebook.color || '#7719aa' }}
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: owner?.notebook.color || '#94a3b8' }}
                       />
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-                        {notebook.title} / {section.title}
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                        {owner ? `${owner.notebook.title} / ${owner.section.title}` : <><Users className="w-3 h-3" /> Shared by {partnerName || 'partner'}</>}
                       </span>
                     </div>
-                    
+
                     <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">
                       {page.title || 'Untitled'}
                     </h4>
-                    
+
                     <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
                       {matchedText}
                     </p>
@@ -245,11 +258,51 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
             )}
           </div>
         ) : viewMode === 'grid' ? (
-          <RecentPagesGrid 
-            notebooks={notebooks} 
+          <>
+          {pinnedNotes.length > 0 && (
+            <div className="px-4 pt-4">
+              <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
+                <Pin className="w-3 h-3" /> Pinned notes
+              </p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {pinnedNotes.map(({ page, section, notebook }) => (
+                  <button
+                    key={page.id}
+                    onClick={() => onSelectPage(page, section, notebook)}
+                    className="shrink-0 w-40 text-left rounded-2xl border border-violet-200 dark:border-violet-900/50 bg-violet-50/60 dark:bg-violet-950/20 p-3"
+                  >
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{page.title || 'Untitled'}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{page.preview?.trim() || notebook.title}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {sharedWithMe.length > 0 && (
+            <div className="px-4 pt-4">
+              <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
+                <Users className="w-3 h-3" /> Shared with you{partnerName ? ` by ${partnerName}` : ''}
+              </p>
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                {sharedWithMe.map(page => (
+                  <button
+                    key={page.id}
+                    onClick={() => onOpenShared?.(page)}
+                    className="shrink-0 w-40 text-left rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/60 dark:bg-rose-950/20 p-3"
+                  >
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{page.title || 'Untitled'}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{page.preview?.trim() || 'Open to read'}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <RecentPagesGrid
+            notebooks={notebooks}
             onSelectPage={onSelectPage}
             onLongPress={onLongPressPage}
           />
+          </>
         ) : (
           <>
             <div className="px-4 pt-2 pb-1">
@@ -283,7 +336,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                       <Pin className="w-3.5 h-3.5 text-violet-500 shrink-0" />
                     )}
                   </h3>
-                  <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-widest">{nb.sections?.length || 0} SECTIONS</p>
+                  <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-widest">{nb.sections?.length || 0} sections · {noteCount(nb)} notes</p>
                 </div>
               </div>
             )})}

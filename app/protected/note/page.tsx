@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ThoughtBook } from '@/components/note/ThoughtBook'
 import type { Notebook, PagePatch } from '@/components/note/types'
+import { loadNotebooks } from '@/lib/notes/data'
 
 export default function NotePage() {
   const [notebooks, setNotebooks] = useState<Notebook[]>([])
@@ -18,12 +19,12 @@ export default function NotePage() {
       return
     }
     setUserId(user.id)
-    const { data } = await supabase
-      .from('notebooks')
-      .select(`*, sections (*, pages (*))`)
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-    setNotebooks((data as Notebook[]) ?? [])
+    try {
+      // Titles and previews only; a note's full text loads when it's opened
+      setNotebooks(await loadNotebooks(supabase, user.id))
+    } catch (err) {
+      console.error('Failed to load notes', err)
+    }
     setLoading(false)
   }, [])
 

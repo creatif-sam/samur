@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import { FileText, Calendar, Book } from 'lucide-react'
+import { FileText, Calendar, Book, Pin } from 'lucide-react'
 import { pageSortTime, type Notebook, type Page, type Section } from './types'
 
 const LONG_PRESS_MS = 500
@@ -111,15 +111,16 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
                 <FileText className="w-4 h-4 text-slate-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
-                  {page.title || 'Untitled'}
+                <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate flex items-center gap-1">
+                  {page.pinned && <Pin className="w-3 h-3 text-[#7719aa] shrink-0" />}
+                  <span className="truncate">{page.title || 'Untitled'}</span>
                 </h4>
               </div>
             </div>
 
             {/* Preview text */}
             <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-3 leading-relaxed mb-3">
-              {getPreviewText(page.content)}
+              {page.preview?.trim() || getPreviewText(page.content ?? null)}
             </p>
 
             {/* Metadata */}

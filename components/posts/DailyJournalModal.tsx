@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { toLocalDateKey } from '@/lib/dates'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/offline'
+import { ensureSystemNotebook } from '@/lib/notes/data'
 
 type JournalDraft = {
   morningTime: string
@@ -186,25 +187,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
       const monthTitle = getMonthSectionTitle(today)
       const pageTitle = getPageTitle(today)
 
-      const { data: notebooks } = await supabase
-        .from('notebooks')
-        .select('id')
-        .eq('user_id', user.id)
-        .ilike('title', 'Daily Journaling')
-        .limit(1)
-
-      let notebookId: string
-      if (notebooks && notebooks.length > 0) {
-        notebookId = notebooks[0].id
-      } else {
-        const { data: newNb, error: nbErr } = await supabase
-          .from('notebooks')
-          .insert({ user_id: user.id, title: 'Daily Journaling', emoji: '📔', color: '#7719aa' })
-          .select('id')
-          .single()
-        if (nbErr) throw nbErr
-        notebookId = newNb.id
-      }
+      const notebookId = await ensureSystemNotebook(supabase, user.id, 'daily_journal')
 
       const { data: sections } = await supabase
         .from('sections')

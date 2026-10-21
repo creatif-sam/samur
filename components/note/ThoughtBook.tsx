@@ -12,7 +12,9 @@ import { AddNotebookDialog } from './AddNotebookDialog'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Trash2, FolderInput, ChevronRight, X } from 'lucide-react'
+import { AlertTriangle, Trash2, FolderInput, ChevronRight, X, Pin, PinOff } from 'lucide-react'
+import { SharedNoteViewer } from './SharedNoteViewer'
+import { PAGE_LIST_COLUMNS, fetchPage } from '@/lib/notes/data'
 import { MAX_PINNED_NOTEBOOKS, type Notebook, type Page, type PagePatch, type Section } from './types'
 
 const ACTIVE_NOTEBOOK_KEY = 'active_notebook_id'
@@ -63,6 +65,71 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
 
   const [supabase] = useState(createClient)
   const legacyPinsMigrated = useRef(false)
+
+  // Partner and the notes they've shared with you (read-only)
+  const [partnerName, setPartnerName] = useState<string | null>(null)
+  const [sharedWithMe, setSharedWithMe] = useState<Page[]>([])
+  const [viewingShared, setViewingShared] = useState<Page | null>(null)
+  const [opening, setOpening] = useState(false)
+
+  useEffect(() => {
+    if (!userId) return
+    ;(async () => {
+      const { data: me } = await supabase.from('profiles').select('partner_id').eq('id', userId).maybeSingle()
+      if (!me?.partner_id) return
+      const [{ data: partner }, { data: shared, error }] = await Promise.all([
+        supabase.from('profiles').select('name').eq('id', me.partner_id).maybeSingle(),
+        supabase
+          .from('pages')
+          .select(PAGE_LIST_COLUMNS)
+          .eq('shared', true)
+          .order('updated_at', { ascending: false, nullsFirst: false })
+          .limit(50),
+      ])
+      setPartnerName(partner?.name || 'Your partner')
+      if (error) return
+      // RLS returns my shared notes too; keep only the partner's
+      const mySections = new Set(notebooks.flatMap(nb => (nb.sections ?? []).map(sec => sec.id)))
+      setSharedWithMe(((shared ?? []) as unknown as Page[]).filter(pg => !mySections.has(pg.section_id)))
+    })()
+  }, [userId, notebooks.length])
+
+  // Lists only carry previews; load the full note before editing
+  const openPage = async (page: Page, source: 'recent' | 'normal') => {
+    setNavigationSource(source)
+    if (page.content !== undefined) { setEditingPage(page); return }
+    setOpening(true)
+    try {
+      const full = await fetchPage(supabase, page.id)
+      if (!full) { toast.error('That note no longer exists'); await onRefresh(); return }
+      setEditingPage({ ...page, ...full })
+    } catch {
+      toast.error("Couldn't open the note. Check your connection.")
+    } finally {
+      setOpening(false)
+    }
+  }
+
+  const togglePagePin = async (page: Page) => {
+    const next = !page.pinned
+    onPagePatched({ id: page.id, pinned: next })
+    const { error } = await supabase.from('pages').update({ is_pinned: next }).eq('id', page.id)
+    if (error) { onPagePatched({ id: page.id, pinned: !next }); toast.error("Couldn't update the pin"); return }
+    toast.success(next ? 'Pinned to the top' : 'Unpinned')
+  }
+
+  // Open the "move to notebook" sheet for any note
+  const startMove = (page: Page) => {
+    for (const nb of visibleNotebooks) {
+      const section = nb.sections.find(sec => sec.id === page.section_id)
+      if (section) {
+        setRecentPageAction({ page, section, notebook: nb })
+        setMoveTargetNotebook(null)
+        setMoveStep('pick-notebook')
+        return
+      }
+    }
+  }
 
   // Restore where the user was after a reload
   useEffect(() => {
@@ -334,8 +401,10 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       key={editingPage.id}
       page={editingPage}
       onBack={handleEditorBack}
-      onSaved={onPagePatched}
+      onSaved={patch => { onPagePatched(patch); setEditingPage(prev => (prev && prev.id === patch.id ? { ...prev, ...patch } : prev)) }}
       onDeletePage={handleEditorDeletePage}
+      canShare={!!partnerName}
+      onMove={() => { const pageToMove = editingPage; setEditingPage(null); startMove(pageToMove) }}
     />
   }
 
@@ -362,9 +431,11 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
             // Navigate directly to the page editor from recent view
             handleSelectNotebook(notebook)
             handleSelectSection(section)
-            setEditingPage(page)
-            setNavigationSource('recent') // Track that this was opened from recent view
+            void openPage(page, 'recent')
           }}
+          sharedWithMe={sharedWithMe}
+          partnerName={partnerName}
+          onOpenShared={setViewingShared}
           onLongPressPage={(page, section, notebook) => {
             setRecentPageAction({ page, section, notebook })
             setMoveStep(null)
@@ -381,9 +452,21 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       ) : (
         <PageList
           section={activeSection}
-          onSelect={(page) => { setNavigationSource('normal'); setEditingPage(page) }}
+          onSelect={(page) => void openPage(page, 'normal')}
           onDeletePage={(page) => deleteWithUndo('pages', page.id, 'Note')}
+          onTogglePin={togglePagePin}
+          onMovePage={startMove}
         />
+      )}
+
+      {opening && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-white/40 dark:bg-black/30">
+          <div className="animate-spin rounded-full h-7 w-7 border-b-2 border-violet-600" />
+        </div>
+      )}
+
+      {viewingShared && (
+        <SharedNoteViewer page={viewingShared} partnerName={partnerName ?? 'Your partner'} onClose={() => setViewingShared(null)} />
       )}
 
       {/* ── Recent page long-press action sheet ── */}
@@ -394,6 +477,15 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center truncate px-4">
               {recentPageAction.page.title || 'Untitled'}
             </p>
+            <button
+              onClick={() => { const pg = recentPageAction.page; setRecentPageAction(null); void togglePagePin(pg) }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
+                {recentPageAction.page.pinned ? <PinOff className="w-4 h-4 text-violet-600 dark:text-violet-400" /> : <Pin className="w-4 h-4 text-violet-600 dark:text-violet-400" />}
+              </div>
+              <span className="font-semibold text-sm text-slate-800 dark:text-white flex-1">{recentPageAction.page.pinned ? 'Unpin' : 'Pin to top'}</span>
+            </button>
             <button
               onClick={() => setMoveStep('pick-notebook')}
               className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-slate-50 dark:bg-zinc-900 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors text-left"
