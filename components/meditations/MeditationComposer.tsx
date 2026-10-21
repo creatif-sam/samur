@@ -9,7 +9,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { Bold, Italic, ListOrdered, BookOpen, X, Loader2 } from 'lucide-react'
+import { Bold, Italic, ListOrdered, BookOpen, X, Loader2, Brain, Search } from 'lucide-react'
+import { toLocalDateKey } from '@/lib/dates'
+import { LOOKUP_TRANSLATIONS, lookUpVerse, lookupTranslation, type MemoryVerse } from '@/lib/meditations/memoryVerse'
 
 // Tiptap Imports
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -26,15 +28,24 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
   const [saving, setSaving] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
+  // Memory verse for the meditation's day (shared with the Memory Verse card)
+  const verseDay = toLocalDateKey(meditation?.created_at ? new Date(meditation.created_at) : new Date())
+  const [storedVerse, setStoredVerse] = useState<MemoryVerse | null>(null)
+  const [verseRef, setVerseRef] = useState('')
+  const [verseText, setVerseText] = useState('')
+  const [verseTranslation, setVerseTranslation] = useState('kjv')
+  const [lookingUp, setLookingUp] = useState(false)
+
   function isDirty() {
     const lessonContent = editor?.getHTML() || ''
+    const verseChanged = verseRef !== (storedVerse?.reference ?? '') || verseText !== (storedVerse?.text ?? '')
     if (meditation) {
       return title !== meditation.title || scripture !== meditation.scripture ||
         application !== meditation.application || prayer !== meditation.prayer ||
-        lessonContent !== (meditation.lesson || '')
+        lessonContent !== (meditation.lesson || '') || verseChanged
     }
     return !!(title || scripture || application || prayer ||
-      (lessonContent && lessonContent !== '<p></p>'))
+      (lessonContent && lessonContent !== '<p></p>')) || verseChanged
   }
 
   function handleClose() {
@@ -71,6 +82,74 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     }
   }, [meditation, editor])
 
+  useEffect(() => {
+    async function loadVerse() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('memory_verses')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('day', verseDay)
+        .maybeSingle()
+      if (!data) return
+      setStoredVerse(data as MemoryVerse)
+      setVerseRef(data.reference)
+      setVerseText(data.text)
+      setVerseTranslation(lookupTranslation(data.translation))
+    }
+    loadVerse()
+  }, [verseDay])
+
+  async function lookUpMemoryVerse(reference = verseRef) {
+    if (!reference.trim()) return
+    setLookingUp(true)
+    try {
+      const found = await lookUpVerse(reference, verseTranslation)
+      setVerseRef(found.reference)
+      setVerseText(found.text)
+    } catch {
+      toast.error("Couldn't find that verse. Check the reference, e.g. John 3:16, or type the text yourself.")
+    } finally {
+      setLookingUp(false)
+    }
+  }
+
+  // Saves the day's memory verse; returns false if it couldn't be saved
+  async function saveMemoryVerse(userId: string) {
+    const reference = verseRef.trim()
+    const text = verseText.trim()
+    if (!reference && !text) return true
+    if (!reference || !text) {
+      toast.error('Add both the reference and the text of your memory verse')
+      return false
+    }
+    if (storedVerse && storedVerse.reference === reference && storedVerse.text === text) return true
+
+    const { data, error } = await supabase
+      .from('memory_verses')
+      .upsert({
+        user_id: userId,
+        day: verseDay,
+        reference,
+        text,
+        translation: verseTranslation,
+        visibility: storedVerse?.visibility ?? 'shared',
+        // A different verse starts fresh; correcting the text keeps progress
+        memorized: storedVerse?.reference === reference ? storedVerse.memorized : false,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,day' })
+      .select()
+      .single()
+    if (error) {
+      console.error('Failed to save memory verse', error)
+      toast.error("Meditation saved, but the memory verse couldn't be saved.")
+      return false
+    }
+    setStoredVerse(data as MemoryVerse)
+    return true
+  }
+
   const setBibleLink = () => {
     const previousUrl = editor?.getAttributes('link').href
     const url = window.prompt('Enter Bible Reference:', previousUrl)
@@ -88,7 +167,8 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     if (!lessonContent.trim() || lessonContent === '<p></p>') return toast.error("Revelation/Lesson is required 💡")
     if (!application.trim()) return toast.error("Application is required 🚶")
     if (!prayer.trim()) return toast.error("Prayer is required 🙏")
-    
+    if (!!verseRef.trim() !== !!verseText.trim()) return toast.error("Add both the reference and the text of your memory verse 🧠")
+
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
     const period = new Date().getHours() < 12 ? 'morning' : 'evening'
@@ -99,7 +179,9 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         ? await supabase.from('meditations').update(payload).eq('id', meditation.id).select().single()
         : await supabase.from('meditations').insert(payload).select().single()
       if (error) throw error
-      
+
+      if (user?.id) await saveMemoryVerse(user.id)
+
       toast.success("Journal synced! 🤍")
 
       // Notify partner if meditation is shared
@@ -178,6 +260,57 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
             <div className="space-y-2">
               <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Scripture</label>
               <Input placeholder="e.g. Matthew 6:33" value={scripture} onChange={(e) => setScripture(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 h-12 text-slate-900 dark:text-white w-full" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <Brain size={12} className="text-[#7c3aed]" /> Memory Verse <span className="normal-case tracking-normal font-medium">(optional)</span>
+              </label>
+              {scripture.trim() && verseRef.trim() !== scripture.trim() && (
+                <button
+                  type="button"
+                  onClick={() => { setVerseRef(scripture); lookUpMemoryVerse(scripture) }}
+                  className="text-[11px] font-semibold text-[#7c3aed] dark:text-violet-300 hover:underline"
+                >
+                  Use my scripture
+                </button>
+              )}
+            </div>
+            <div className="rounded-[24px] border-2 border-violet-50 dark:border-slate-800 bg-violet-50/30 dark:bg-slate-900/50 p-3 space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Verse to remember today, e.g. Psalm 119:11"
+                  value={verseRef}
+                  onChange={(e) => setVerseRef(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); lookUpMemoryVerse() } }}
+                  className="rounded-2xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 h-11 text-slate-900 dark:text-white flex-1 min-w-0"
+                />
+                <select
+                  value={verseTranslation}
+                  onChange={(e) => setVerseTranslation(e.target.value)}
+                  aria-label="Translation"
+                  className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold px-2 text-slate-700 dark:text-slate-200"
+                >
+                  {LOOKUP_TRANSLATIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => lookUpMemoryVerse()}
+                  disabled={lookingUp || !verseRef.trim()}
+                  title="Look up verse"
+                  className="shrink-0 w-11 h-11 rounded-2xl bg-[#7c3aed] text-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all"
+                >
+                  {lookingUp ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                </button>
+              </div>
+              <Textarea
+                placeholder="Verse text (look it up or type it)"
+                value={verseText}
+                onChange={(e) => setVerseText(e.target.value)}
+                className="rounded-2xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white min-h-[70px] w-full italic"
+              />
             </div>
           </div>
 

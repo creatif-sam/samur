@@ -29,6 +29,7 @@ export default function MeditationsPage() {
   const [visibilityFilter, setVisibilityFilter] =
     useState<'all' | 'private' | 'shared'>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [verseVersion, setVerseVersion] = useState(0)
   const router = useRouter()
 
   useEffect(() => {
@@ -289,7 +290,7 @@ ${m.prayer}
       </header>
 
       {/* Memory verse */}
-      <MemoryVerseCard />
+      <MemoryVerseCard key={verseVersion} />
 
       {/* Streak */}
       {userId && accountCreatedAt && (
@@ -347,6 +348,7 @@ ${m.prayer}
           onCreated={() => {
             setEditing(null)
             loadMeditations()
+            setVerseVersion(v => v + 1)
           }}
         />
       )}

@@ -6,26 +6,13 @@ import { toast } from 'sonner'
 import { Brain, Check, ChevronDown, Copy, Eye, EyeOff, Loader2, Pencil, Search, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { TRANSLATIONS } from '@/components/bible/bibleConstants'
 import { parseDateKey, toLocalDateKey } from '@/lib/dates'
-
-type MemoryVerse = {
-  id: string
-  user_id: string
-  day: string
-  reference: string
-  text: string
-  translation: string | null
-  visibility: 'private' | 'shared'
-  memorized: boolean
-}
+import { LOOKUP_TRANSLATIONS, lookUpVerse, lookupTranslation, type MemoryVerse } from '@/lib/meditations/memoryVerse'
 
 // full text → first letter of each word → blanks
 type PracticeLevel = 'full' | 'hints' | 'hidden'
 const NEXT_LEVEL: Record<PracticeLevel, PracticeLevel> = { full: 'hints', hints: 'hidden', hidden: 'full' }
 const HISTORY_LIMIT = 30
-// bible-api.com has no French texts (LSG/NEF return 404); those verses can be typed in
-const LOOKUP_TRANSLATIONS = TRANSLATIONS.filter(t => t.id !== 'lsg' && t.id !== 'nef')
 
 function formatDay(key: string) {
   return parseDateKey(key).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
@@ -110,8 +97,7 @@ export default function MemoryVerseCard() {
   function startEditing(from?: Pick<MemoryVerse, 'reference' | 'text' | 'translation' | 'visibility'>) {
     setReference(from?.reference ?? '')
     setText(from?.text ?? '')
-    const t = from?.translation || translation
-    setTranslation(LOOKUP_TRANSLATIONS.some(x => x.id === t) ? t : 'kjv')
+    setTranslation(lookupTranslation(from?.translation || translation))
     setShared((from?.visibility ?? 'shared') === 'shared')
     setEditing(true)
   }
@@ -121,12 +107,9 @@ export default function MemoryVerseCard() {
     if (!ref) return
     setLookingUp(true)
     try {
-      const res = await fetch(`https://bible-api.com/${encodeURIComponent(ref)}?translation=${translation}`)
-      if (!res.ok) throw new Error(String(res.status))
-      const data = await res.json()
-      if (!data?.text) throw new Error('empty')
-      setText(String(data.text).replace(/\s+/g, ' ').trim())
-      if (data.reference) setReference(data.reference)
+      const found = await lookUpVerse(ref, translation)
+      setText(found.text)
+      setReference(found.reference)
     } catch {
       toast.error("Couldn't find that verse. Check the reference, e.g. John 3:16, or type the text yourself.")
     } finally {
