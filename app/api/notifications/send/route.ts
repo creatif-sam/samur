@@ -1,4 +1,5 @@
-﻿import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { NextResponse } from 'next/server'
 import webpush from 'web-push'
 
@@ -26,8 +27,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (typeof targetUserId !== 'string' || !targetUserId) {
+      return NextResponse.json({ error: 'Missing targetUserId' }, { status: 400 })
+    }
+
+    // 2b. Only yourself, your partner, or someone you have a pending partner invite with
+    // Authorized from here on: use the service client so partner rows aren't hidden by RLS
+    const service = createServiceClient()
+    if (targetUserId !== sender.id) {
+      const [{ data: senderProfile }, { data: invites }] = await Promise.all([
+        service.from('profiles').select('partner_id').eq('id', sender.id).maybeSingle(),
+        service
+          .from('partner_requests')
+          .select('id')
+          .eq('status', 'pending')
+          .or(`and(from_user_id.eq.${sender.id},to_user_id.eq.${targetUserId}),and(from_user_id.eq.${targetUserId},to_user_id.eq.${sender.id})`)
+          .limit(1),
+      ])
+      const isPartner = senderProfile?.partner_id === targetUserId
+      const hasInvite = (invites?.length ?? 0) > 0
+      if (!isPartner && !hasInvite) {
+        return NextResponse.json({ error: 'You can only notify your partner' }, { status: 403 })
+      }
+    }
+
     // 3. Get ALL subscriptions for the target user (may have multiple devices)
-    const { data: subscriptions, error: dbError } = await supabase
+    const { data: subscriptions, error: dbError } = await service
       .from('push_subscriptions')
       .select('*')
       .eq('user_id', targetUserId)
@@ -78,7 +103,7 @@ export async function POST(request: Request) {
           
           // If subscription is invalid (410 Gone or 404 Not Found), delete it
           if (pushErr.statusCode === 404 || pushErr.statusCode === 410) {
-            await supabase
+            await service
               .from('push_subscriptions')
               .delete()
               .eq('id', subData.id)
@@ -102,7 +127,7 @@ export async function POST(request: Request) {
     }
 
     // 6. LOG IN DB (For in-app dropdown)
-    await supabase.from('notifications').insert({
+    await service.from('notifications').insert({
       user_id: targetUserId,
       type: 'message',
       title: title || 'New Notification',

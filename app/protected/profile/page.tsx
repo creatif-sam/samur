@@ -67,7 +67,7 @@ export default function ProfilePage() {
 
   const toggle = (key: string) => setExpanded(e => e === key ? null : key)
 
-  /* â”€â”€ data fetching â”€â”€ */
+  /* ── data fetching ── */
   const fetchProfile = async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -164,7 +164,7 @@ export default function ProfilePage() {
     toast.success('Currency updated')
   }
 
-  /* â”€â”€ mutations â”€â”€ */
+  /* ── mutations ── */
   const updateProfile = async () => {
     if (!profile) return
     const supabase = createClient()
@@ -201,7 +201,7 @@ export default function ProfilePage() {
       setInviteTargetId('')
       toast.success('Invite sent!')
       fetch('/api/notifications/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetUserId: inviteTargetId, title: 'New Partner Invite ðŸ¤', body: `${profile.name || 'Someone'} invited you to be their accountability partner.`, url: '/protected/profile' })
+        body: JSON.stringify({ targetUserId: inviteTargetId, title: 'New Partner Invite 🤝', body: `${profile.name || 'Someone'} invited you to be their accountability partner.`, url: '/protected/profile' })
       }).catch(() => {})
     } else toast.error('Could not send invite')
     setSendingInvite(false)
@@ -217,9 +217,9 @@ export default function ProfilePage() {
     await supabase.from('profiles').update({ partner_id: user.id }).eq('id', incomingRequest.from_user_id)
     setProfile({ ...profile, partner_id: incomingRequest.from_user_id })
     setIncomingRequest(null)
-    toast.success('Partner connected! ðŸŽ‰')
+    toast.success('Partner connected! 🎉')
     fetch('/api/notifications/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ targetUserId: incomingRequest.from_user_id, title: 'Invite Accepted! ðŸŽ‰', body: `${profile.name || 'Your invitee'} accepted your partner invite.`, url: '/protected/profile' })
+      body: JSON.stringify({ targetUserId: incomingRequest.from_user_id, title: 'Invite Accepted! 🎉', body: `${profile.name || 'Your invitee'} accepted your partner invite.`, url: '/protected/profile' })
     }).catch(() => {})
   }
 
@@ -267,7 +267,7 @@ export default function ProfilePage() {
   const partnerName = availablePartners.find(p => p.id === profile?.partner_id)?.name
   const completionPct = goalStats.total === 0 ? 0 : Math.round((goalStats.completed / goalStats.total) * 100)
 
-  /* â”€â”€ partner section content â”€â”€ */
+  /* ── partner section content ── */
   const PartnerContent = () => (
     <div className="px-5 pb-4 pt-1 space-y-3">
       {profile?.partner_id ? (
@@ -307,7 +307,7 @@ export default function ProfilePage() {
             <Clock className="w-3.5 h-3.5" />
             <div>
               <p className="text-xs font-semibold">Invite sent to {outgoingRequest.to_name}</p>
-              <p className="text-[10px] opacity-70">Waiting for acceptanceâ€¦</p>
+              <p className="text-[10px] opacity-70">Waiting for acceptance…</p>
             </div>
           </div>
           <Button size="sm" variant="ghost" className="text-xs" onClick={cancelOutgoingInvite}>Cancel</Button>
@@ -315,11 +315,11 @@ export default function ProfilePage() {
       ) : (
         <div className="space-y-2">
           <Select value={inviteTargetId} onValueChange={setInviteTargetId}>
-            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Choose a personâ€¦" /></SelectTrigger>
+            <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Choose a person…" /></SelectTrigger>
             <SelectContent>{availablePartners.map(p => <SelectItem key={p.id} value={p.id}>{p.name || 'Unnamed'}</SelectItem>)}</SelectContent>
           </Select>
           <Button size="sm" className="w-full gap-1 bg-violet-600 hover:bg-violet-700 h-9 text-sm" onClick={sendPartnerInvite} disabled={!inviteTargetId || sendingInvite}>
-            <UserPlus className="w-3.5 h-3.5" /> {sendingInvite ? 'Sendingâ€¦' : 'Send Invite'}
+            <UserPlus className="w-3.5 h-3.5" /> {sendingInvite ? 'Sending…' : 'Send Invite'}
           </Button>
         </div>
       )}
@@ -360,7 +360,7 @@ export default function ProfilePage() {
 
       <div className="max-w-lg mx-auto px-4">
 
-        {/* â”€â”€ AVATAR + NAME â”€â”€ */}
+        {/* ── AVATAR + NAME ── */}
         <div className="flex flex-col items-center -mt-16 mb-6">
           <div className="relative">
             <Avatar className="w-28 h-28 border-4 border-background shadow-xl">
@@ -497,7 +497,7 @@ export default function ProfilePage() {
             </div>
           )}
         </div>
-        {/* â”€â”€ SETTINGS GROUP 1 â”€â”€ */}
+        {/* ── SETTINGS GROUP 1 ── */}
         <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
           {/* Partner */}
           <SettingsRow
@@ -515,7 +515,7 @@ export default function ProfilePage() {
           <SettingsRow
             icon={<Globe className="w-4 h-4" />}
             label="Language"
-            sublabel={language === 'en' ? 'English' : 'FranÃ§ais'}
+            sublabel={language === 'en' ? 'English' : 'Français'}
             expanded={expanded === 'language'}
             onTap={() => toggle('language')}
           />
@@ -556,7 +556,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* â”€â”€ SETTINGS GROUP 2 â”€â”€ */}
+        {/* ── SETTINGS GROUP 2 ── */}
         <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
           {/* Business Card */}
           <SettingsRow
@@ -587,7 +587,7 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* â”€â”€ SETTINGS GROUP 3 â€” Danger â”€â”€ */}
+        {/* ── SETTINGS GROUP 3 — Danger ── */}
         <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4 border border-destructive/20">
           <SettingsRow
             icon={<Shield className="w-4 h-4 text-orange-500" />}
@@ -604,7 +604,7 @@ export default function ProfilePage() {
           />
         </div>
 
-        {/* All users list â€” dev/admin */}
+        {/* All users list — dev/admin */}
         <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
           <SettingsRow
             icon={<Users className="w-4 h-4" />}
