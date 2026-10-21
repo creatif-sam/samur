@@ -33,12 +33,14 @@ import {
   CheckCircle2,
   Circle,
   Ban,
+  CalendarPlus,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import confetti from 'canvas-confetti'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { NewGoalForm } from './NewGoalForm'
+import ScheduleGoalDialog from './ScheduleGoalDialog'
 import { dueDate, isOverdue as goalIsOverdue, sortGoals, statusForProgress } from '@/lib/goals'
 
 const PROGRESS_STEPS = [0, 25, 50, 75, 100]
@@ -285,6 +287,7 @@ function GoalCard({
   const [milestonesLoaded, setMilestonesLoaded] = useState(false)
   const [newMilestone, setNewMilestone] = useState('')
   const [addingMilestone, setAddingMilestone] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const due = dueDate(goal)
@@ -475,6 +478,16 @@ function GoalCard({
               </SelectContent>
             </Select>
 
+            {goal.status !== 'done' && (
+              <button
+                onClick={() => setScheduling(true)}
+                aria-label="Schedule time in planner"
+                className="p-1.5 hover:bg-secondary rounded-full transition-colors"
+              >
+                <CalendarPlus className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
+
             {canManage && <DropdownMenu>
               <DropdownMenuTrigger className="p-1.5 hover:bg-secondary rounded-full outline-none transition-colors">
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
@@ -490,6 +503,8 @@ function GoalCard({
             </DropdownMenu>}
           </div>
       </div>
+
+      <ScheduleGoalDialog goal={goal} open={scheduling} onOpenChange={setScheduling} />
 
       {/* Milestones panel */}
       {showMilestones && (

@@ -12,7 +12,7 @@ import Placeholder from '@tiptap/extension-placeholder'
 import {
   ChevronLeft, Trash2, Calendar, Clock,
   Bold, Italic, List, ListOrdered, Plus,
-  CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2,
+  CheckSquare, Underline as UnderlineIcon, Strikethrough, Share2, FileDown,
   Highlighter, X, Copy, Undo2, Redo2, Heading2, Quote
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { PLACEHOLDER_TITLES, type Page, type PagePatch } from './types'
 import { clearDraft, isOffline, loadDraft, saveDraft } from '@/lib/offline'
+import { exportPdf } from '@/lib/exportPdf'
+import DictationButton from '@/components/DictationButton'
 
 const HIGHLIGHT_COLORS = [
   { label: 'Yellow',  value: '#fef08a' },
@@ -267,6 +269,19 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
             size="sm"
             variant="ghost"
             className="h-8 w-8 p-0 text-white hover:bg-white/10"
+            aria-label="Export PDF"
+            onClick={() => exportPdf({
+              title: latestRef.current.title || 'Untitled',
+              subtitle: new Date(page.created_at).toLocaleDateString(undefined, { dateStyle: 'long' }),
+              html: editor?.getHTML() ?? latestRef.current.content,
+            })}
+          >
+            <FileDown className="w-4 h-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 text-white hover:bg-white/10"
             onClick={shareAsText}
           >
             <Share2 className="w-4 h-4" />
@@ -336,6 +351,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage }: ThoughtEd
 
       {/* KEYBOARD TOOLBAR — sits right above the virtual keyboard, scrolls sideways on narrow screens */}
       <div className="flex items-center overflow-x-auto bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0 [scrollbar-width:none]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <DictationButton className="shrink-0 w-11 h-11" onText={text => editor.chain().focus().insertContent(`${text} `).run()} />
         <ToolbarBtn label="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} icon={<Undo2 size={20} />} />
         <ToolbarBtn label="Redo" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} icon={<Redo2 size={20} />} />
         <ToolbarBtn label="New line" onClick={() => editor.chain().focus().insertContent('<p></p>').run()} icon={<Plus size={20} />} />

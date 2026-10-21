@@ -10,6 +10,7 @@ import {
 import { BibleReadView } from './BibleReadView'
 import { BibleCompareView } from './BibleCompareView'
 import { BibleNoteModal } from './BibleNoteModal'
+import { BiblePlansView } from './BiblePlansView'
 
 export default function BibleReader() {
   const r = useBibleReader()
@@ -63,6 +64,15 @@ export default function BibleReader() {
           translation={r.translation}
           openPassage={r.openPassage}
           setAsMemoryVerse={r.setAsMemoryVerse}
+        />
+      )}
+
+      {r.view === 'plans' && (
+        <BiblePlansView
+          userId={r.userId}
+          translation={r.translation}
+          openPassage={r.openPassage}
+          markChaptersRead={r.markChaptersRead}
         />
       )}
 

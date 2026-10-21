@@ -29,6 +29,12 @@ jobs:
     if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Habit streak nudge (7pm in each user's time zone)
+        run: |
+          curl -fsS -X GET ${{ env.APP_URL }}/api/cron/habit-nudge \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            || echo "::warning::habit-nudge call failed"
+
       - name: Task Reminders (every 5 min for the hour)
         run: |
           ITERATIONS=12

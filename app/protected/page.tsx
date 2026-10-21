@@ -14,6 +14,7 @@ import HomeActivityFeed from '@/components/home/HomeActivityFeed'
 import GratitudeCard from '@/components/home/GratitudeCard'
 import YearThemeCard from '@/components/home/YearThemeCard'
 import UpcomingGoalsCountdown from '@/components/home/UpcomingGoalsCountdown'
+import TodayPanel from '@/components/home/TodayPanel'
 import { toLocalDateKey } from '@/lib/dates'
 import { fetchRecurringRows } from '@/lib/planner/queries'
 import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks'
@@ -93,6 +94,8 @@ export default function HomePage() {
           </h1>
           <p className="text-xs text-muted-foreground mt-1">Stay intentional. Stay consistent.</p>
         </div>
+
+        <TodayPanel userId={userId} goals={goals} />
 
         <HomeStreakHero streak={meditationStreak} />
         <YearThemeCard />

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { PostComment, PostReaction } from '@/lib/types'
 import { toast } from 'sonner'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/offline'
+import DictationButton, { appendDictation } from '@/components/DictationButton'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Plus, Loader2, HandHeart, BookOpen, NotebookPen, Pencil, Users, Lock, Send, BookMarked } from 'lucide-react'
@@ -272,6 +273,7 @@ function PostsTab() {
             >
               Cancel
             </button>
+            <DictationButton className="w-9 h-9 ml-auto mr-2" onText={text => setContent(c => appendDictation(c, text))} />
             <Button
               size="sm"
               onClick={createPost}

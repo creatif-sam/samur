@@ -2,7 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import {
-  ChevronLeft, ChevronDown, Search, BookMarked, History, Type, X,
+  ChevronLeft, ChevronDown, Search, BookMarked, History, Type, X, CalendarCheck,
 } from 'lucide-react'
 import { TRANSLATIONS, displayBook } from './bibleConstants'
 import type { BibleView } from './useBibleReader'
@@ -43,7 +43,7 @@ export function BibleTopBar({
         onClick={() => {
           if (view === 'read') setView('chapters')
           else if (view === 'chapters') setView('books')
-          else if (view === 'saved' || view === 'search' || view === 'versions') setView('books')
+          else if (view === 'saved' || view === 'search' || view === 'versions' || view === 'plans') setView('books')
           else if (view === 'compare') setView('read')
           else router.back()
         }}
@@ -68,6 +68,7 @@ export function BibleTopBar({
         {view === 'versions' && <p className="text-base font-bold">Versions</p>}
         {view === 'compare' && <p className="text-base font-bold">Compare Versions</p>}
         {view === 'saved' && <p className="text-base font-black uppercase tracking-tight">Saved Verses</p>}
+        {view === 'plans' && <p className="text-base font-black uppercase tracking-tight">Reading Plans</p>}
         {view === 'search' && (
           <input
             autoFocus
@@ -101,6 +102,13 @@ export function BibleTopBar({
               }`}
             >
               AZ
+            </button>
+            <button
+              onClick={() => setView('plans')}
+              aria-label="Reading plans"
+              className="p-1.5 rounded-xl hover:bg-muted transition"
+            >
+              <CalendarCheck className="w-5 h-5 text-muted-foreground" />
             </button>
             <button
               onClick={() => setShowRecent(v => !v)}

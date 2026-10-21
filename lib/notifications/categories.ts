@@ -24,7 +24,7 @@ export interface NotificationCategory {
 
 export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   { key: 'task_reminders', group: 'Planning', label: 'Task reminders', description: 'Before each planner event, as set on the event', types: ['task_reminder'] },
-  { key: 'planner_reminders', group: 'Planning', label: 'Daily planner', description: 'Morning plan and evening reflection nudges', types: ['planner_reminder'] },
+  { key: 'planner_reminders', group: 'Planning', label: 'Daily planner & streaks', description: 'Morning plan, evening reflection and streak reminders', types: ['planner_reminder', 'habit_nudge'] },
   { key: 'goal_deadlines', group: 'Planning', label: 'Goal deadlines', description: 'A week, 3 days and a day before goals and visions are due', types: ['goal_deadline'] },
   { key: 'goal_progress', group: 'Partner', label: 'Goal updates', description: 'New and completed goals, yours and shared ones', types: ['goal_progress', 'goal_created'] },
   { key: 'messages', group: 'Partner', label: 'Partner invites & messages', description: 'Partner requests and direct messages', types: ['message', 'partner_invite'] },
@@ -74,6 +74,8 @@ export function notificationUrl(n: { type?: string | null; data?: { url?: string
     case 'task_reminder':
     case 'planner_reminder':
       return '/protected/planner'
+    case 'habit_nudge':
+      return '/protected'
     case 'goal_deadline':
     case 'goal_progress':
     case 'goal_created':
@@ -107,6 +109,7 @@ export function notificationIcon(type: string | null | undefined) {
     case 'mention': return '📣'
     case 'task_reminder': return '⏰'
     case 'planner_reminder': return '📅'
+    case 'habit_nudge': return '🔥'
     case 'goal_deadline': return '🎯'
     case 'goal_progress':
     case 'goal_created': return '🏆'

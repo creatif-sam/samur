@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { Bold, Italic, ListOrdered, BookOpen, X, Loader2, Brain, Search } from 'lucide-react'
 import { toLocalDateKey } from '@/lib/dates'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/offline'
+import DictationButton, { appendDictation } from '@/components/DictationButton'
 
 type MeditationDraft = {
   title: string
@@ -317,13 +318,17 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
                   <RichButton icon={<ListOrdered size={18}/>} onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} />
                   <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-700 mx-2" />
                   <RichButton icon={<BookOpen size={18}/>} onClick={setBibleLink} active={editor.isActive('link')} />
+                  <DictationButton className="ml-auto w-9 h-9" onText={text => editor.chain().focus().insertContent(`${text} `).run()} />
                 </div>
                 <EditorContent editor={editor} />
              </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Application</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Application</label>
+              <DictationButton className="w-8 h-8" onText={text => setApplication(a => appendDictation(a, text))} />
+            </div>
             <Textarea placeholder="Walk this out..." value={application} onChange={(e) => setApplication(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
           </div>
 
@@ -379,7 +384,10 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Prayer</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Prayer</label>
+              <DictationButton className="w-8 h-8" onText={text => setPrayer(p => appendDictation(p, text))} />
+            </div>
             <Textarea placeholder="Seal in prayer..." value={prayer} onChange={(e) => setPrayer(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
           </div>
         </div>

@@ -30,7 +30,7 @@ function loadStoredState(): StoredState | null {
   }
 }
 
-export type BibleView = 'books' | 'chapters' | 'read' | 'saved' | 'search' | 'versions' | 'compare'
+export type BibleView = 'books' | 'chapters' | 'read' | 'saved' | 'search' | 'versions' | 'compare' | 'plans'
 
 export function useBibleReader() {
   const supabase = useMemo(() => createClient(), [])
@@ -112,6 +112,16 @@ export function useBibleReader() {
       setFontSize(state.fontSize ?? 'md')
       setLastRead({ book: state.book, chapter: state.chapter })
       setView('read')
+    }
+    const params = new URLSearchParams(window.location.search)
+    const linkBook = params.get('book')
+    if (linkBook && BOOKS.includes(linkBook)) {
+      const ch = Number(params.get('chapter')) || 1
+      setSelectedBook(linkBook)
+      setSelectedChapter(Math.min(Math.max(1, ch), CHAPTER_COUNTS[linkBook] ?? 1))
+      setView('read')
+    } else if (params.get('view') === 'plans') {
+      setView('plans')
     }
     setRestored(true)
   }, [])
@@ -461,6 +471,19 @@ export function useBibleReader() {
     if (error) console.error('Bible progress not saved', error)
   }
 
+  // Mark several chapters read at once (e.g. a reading plan day)
+  async function markChaptersRead(chapters: { book: string; chapter: number }[]) {
+    if (chapters.length === 0) return
+    setReadChapters(prev => { const s = new Set(prev); chapters.forEach(c => s.add(`${c.book}-${c.chapter}`)); return s })
+    if (!userId) return
+    const now = new Date().toISOString()
+    const { error } = await supabase.from('bible_progress').upsert(
+      chapters.map(c => ({ user_id: userId, book: c.book, chapter: c.chapter, read_at: now })),
+      { onConflict: 'user_id,book,chapter' },
+    )
+    if (error) console.error('Bible progress not saved', error)
+  }
+
   const chapterIsRead = readChapters.has(`${selectedBook}-${selectedChapter}`)
   const bookProgress = (book: string) => {
     const total = CHAPTER_COUNTS[book] ?? 1
@@ -554,7 +577,7 @@ export function useBibleReader() {
     searchesOtherTranslation: searchesOtherTranslation(translation),
     lastRead, openPassage,
     chapterIsRead, setChapterRead, bookProgress, readChapters,
-    setAsMemoryVerse,
+    setAsMemoryVerse, markChaptersRead,
     handleTouchStart, handleTouchEnd,
     formatRef,
     copySelectedVerses, shareSelectedVerses, saveSelectedVerses,

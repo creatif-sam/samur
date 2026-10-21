@@ -18,6 +18,7 @@ import {
   Globe
 } from 'lucide-react'
 import { toast } from 'sonner' // Assuming you use Sonner for notifications
+import { exportPdf, textToHtml } from '@/lib/exportPdf'
 
 interface Meditation {
   id: string
@@ -79,9 +80,9 @@ export default function MeditationViewPage() {
     // If text contains HTML tags, render them safely
     if (/<[a-z][\s\S]*>/i.test(html)) {
       return (
-        <div 
-          className="prose dark:prose-invert max-w-none text-foreground/90 font-serif" 
-          dangerouslySetInnerHTML={{ __html: html }} 
+        <div
+          className="prose dark:prose-invert max-w-none text-foreground/90 font-serif"
+          dangerouslySetInnerHTML={{ __html: html }}
         />
       )
     }
@@ -92,7 +93,7 @@ export default function MeditationViewPage() {
   // --- SHARE LOGIC 1: Native Web Share (WhatsApp, Instagram, etc.) ---
   async function handleNativeShare() {
     if (!meditation) return
-    
+
     const shareData = {
       title: meditation.title,
       text: `Meditation: ${meditation.title}\n\nScripture: ${meditation.scripture}`,
@@ -170,20 +171,29 @@ export default function MeditationViewPage() {
               <span className="hidden sm:inline">Share</span>
             </Button>
 
-            <Button 
-              size="sm" 
-              variant="ghost" 
-              className="rounded-full" 
-              onClick={postToInternalFeed} 
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full"
+              onClick={postToInternalFeed}
               disabled={sharingToFeed}
             >
               {sharingToFeed ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4 sm:mr-1" />}
               <span className="hidden sm:inline">Feed</span>
             </Button>
 
-            <Button size="sm" variant="ghost" className="rounded-full" onClick={() => window.print()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="rounded-full"
+              onClick={() => exportPdf({
+                title: meditation.title,
+                subtitle: `${meditation.scripture} · ${formattedDate} · ${periodLabel}`,
+                html: `<h2>Scripture</h2>${textToHtml(meditation.scripture)}<h2>Revelation</h2>${meditation.lesson || ''}<h2>Application</h2>${textToHtml(meditation.application || '')}<h2>Prayer</h2>${textToHtml(meditation.prayer || '')}`,
+              })}
+            >
               <ImageIcon className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Print</span>
+              <span className="hidden sm:inline">PDF</span>
             </Button>
           </div>
         </div>
@@ -191,12 +201,12 @@ export default function MeditationViewPage() {
 
       {/* Meditation Content - "Book Page" Aesthetic */}
       <main className="max-w-3xl mx-auto px-4 py-8 sm:py-12 print:p-0">
-        <article 
+        <article
           ref={pageRef}
           className="bg-card dark:bg-zinc-950 border border-border shadow-2xl dark:shadow-none rounded-[32px] px-8 py-12 sm:px-16 sm:py-20 transition-all"
         >
           <div className="space-y-12 font-serif text-[18px] leading-relaxed">
-            
+
             {/* Title & Date */}
             <div className="text-center space-y-4">
               <h1 className="text-4xl font-black tracking-tighter text-violet-600 dark:text-violet-400 font-sans uppercase italic">
