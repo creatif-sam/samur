@@ -37,8 +37,8 @@ export default function BudgetEditModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center">
-      <div className="bg-background w-[92%] max-w-md rounded-2xl p-4 space-y-4 mb-24 relative">
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-end sm:items-center justify-center p-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}>
+      <div className="bg-background w-full max-w-md rounded-2xl p-4 space-y-4 relative max-h-[90dvh] overflow-y-auto">
         {/* CLOSE */}
         <button
           onClick={onClose}

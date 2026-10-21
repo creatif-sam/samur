@@ -288,7 +288,7 @@ export function VisionListView({
 
       {/* --- VISION DETAIL OVERLAY --- */}
       <Dialog open={!!selectedVision} onOpenChange={(open) => !open && setSelectedVision(null)}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90dvh] overflow-y-auto rounded-3xl p-0 border-none shadow-2xl">
           {selectedVision && (
             <div className="flex flex-col">
               {/* Header Hero Section */}

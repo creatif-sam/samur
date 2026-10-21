@@ -100,7 +100,7 @@ export default function StreakCalendarModal({
             }}
             className="relative bg-background w-full max-w-lg rounded-t-3xl pt-2 px-6 shadow-2xl touch-none flex flex-col"
             style={{ 
-              maxHeight: '85vh',
+              maxHeight: '85dvh',
               /* extra bottom padding for navbar clearance */
               paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))'
             }}

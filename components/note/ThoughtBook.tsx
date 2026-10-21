@@ -423,7 +423,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       {/* ── Move: pick notebook ── */}
       {recentPageAction && moveStep === 'pick-notebook' && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setMoveStep(null); setRecentPageAction(null) }}>
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-2 animate-in slide-in-from-bottom duration-300 max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-2 animate-in slide-in-from-bottom duration-300 max-h-[70dvh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-1 shrink-0" />
             <div className="flex items-center gap-2 px-1 shrink-0">
               <button onClick={() => setMoveStep(null)} className="p-1 rounded-full hover:bg-muted transition">
@@ -451,7 +451,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       {/* ── Move: pick section ── */}
       {recentPageAction && moveStep === 'pick-section' && moveTargetNotebook && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 backdrop-blur-sm" onClick={() => { setMoveStep(null); setRecentPageAction(null) }}>
-          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-2 animate-in slide-in-from-bottom duration-300 max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-2 animate-in slide-in-from-bottom duration-300 max-h-[70dvh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-1 shrink-0" />
             <div className="flex items-center gap-2 px-1 shrink-0">
               <button onClick={() => setMoveStep('pick-notebook')} className="p-1 rounded-full hover:bg-muted transition">

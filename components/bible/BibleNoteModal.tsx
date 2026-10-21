@@ -22,9 +22,9 @@ export function BibleNoteModal({
   savingNote, selectedBook, selectedChapter, translation, onClose, onSave,
 }: Props) {
   return (
-    // pb-24 gives 96px bottom clearance so the modal sits above the fixed bottom nav bar
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm pt-4 px-4 pb-24 sm:p-4">
-      <div className="w-full max-w-lg bg-background rounded-3xl border border-border shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200 max-h-[80dvh] overflow-y-auto">
+    // z-[60] sits above the fixed bottom nav bar
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-4" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}>
+      <div className="w-full max-w-lg bg-background rounded-3xl border border-border shadow-xl p-5 space-y-4 animate-in slide-in-from-bottom-4 duration-200 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-violet-500 mb-0.5">

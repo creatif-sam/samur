@@ -215,7 +215,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-background"
+      className="fixed inset-0 z-[60] flex flex-col bg-background"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       {/* Header */}
@@ -253,7 +253,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
       {/* Scrollable body */}
       <div
         className="flex-1 overflow-y-auto overscroll-contain"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 5rem)' }}
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 2rem)' }}
       >
         <div className="w-full max-w-lg mx-auto px-4 divide-y divide-border">
 

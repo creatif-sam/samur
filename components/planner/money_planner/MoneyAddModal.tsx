@@ -98,8 +98,8 @@ export default function MoneyAddModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end">
-      <div className="bg-background rounded-t-2xl p-4 w-full max-w-lg mx-auto space-y-4 relative mb-24 max-h-[85vh] overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-end">
+      <div style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }} className="bg-background rounded-t-2xl p-4 w-full max-w-lg mx-auto space-y-4 relative max-h-[90dvh] overflow-y-auto overscroll-contain">
         {/* CLOSE */}
         <button
           onClick={onClose}

@@ -154,7 +154,7 @@ export function TaskModal({
         </div>
 
         {/* Content Grid */}
-        <div className="p-5 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 max-h-[60vh] overflow-y-auto">
+        <div className="p-5 md:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-10 max-h-[60dvh] overflow-y-auto">
 
           {/* LEFT COLUMN: Time & Vision */}
           <div className="space-y-6 md:space-y-8">
@@ -271,7 +271,7 @@ export function TaskModal({
         </div>
 
         {/* FOOTER ACTIONS */}
-        <div className="px-5 md:px-8 py-4 md:py-6 bg-slate-50 dark:bg-slate-800/20 flex flex-row gap-3 justify-between items-center">
+        <div className="px-5 md:px-8 py-4 md:py-6 bg-slate-50 dark:bg-slate-800/20 flex flex-row flex-wrap gap-3 justify-between items-center">
           {!canEdit ? (
             <>
               <div className="flex-1 text-sm text-slate-500 dark:text-slate-400 italic">
@@ -286,7 +286,7 @@ export function TaskModal({
               <p className="text-xs md:text-sm font-semibold text-slate-600 dark:text-slate-300 min-w-0">
                 {confirm === 'delete' ? 'Delete which events?' : 'Apply changes to?'}
               </p>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 ml-auto">
                 <button onClick={() => setConfirm(null)} className="px-3 py-2 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
                   Back
                 </button>

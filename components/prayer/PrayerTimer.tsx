@@ -473,7 +473,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
       {/* Inspiration capture bottom sheet */}
       {showInspire && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-card dark:bg-zinc-950 rounded-t-[36px] border-t border-border p-6 pb-10 space-y-4 animate-in slide-in-from-bottom duration-300">
+          <div className="w-full max-w-lg bg-card dark:bg-zinc-950 rounded-t-[36px] border-t border-border p-6 pb-10 space-y-4 animate-in slide-in-from-bottom duration-300 max-h-[90dvh] overflow-y-auto">
             <div className="w-10 h-1 bg-muted rounded-full mx-auto" />
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">

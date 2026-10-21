@@ -233,7 +233,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }} // This is the "Glide" logic
-        className="w-full max-w-full h-[94vh] md:h-auto md:max-h-[85vh] md:max-w-3xl border-none shadow-2xl md:rounded-[32px] rounded-t-[40px] bg-white dark:bg-[#0f172a] flex flex-col overflow-hidden"
+        className="w-full max-w-full h-[94dvh] md:h-auto md:max-h-[85dvh] md:max-w-3xl border-none shadow-2xl md:rounded-[32px] rounded-t-[40px] bg-white dark:bg-[#0f172a] flex flex-col overflow-hidden"
       >
         
         {/* Header */}
@@ -250,7 +250,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-4 md:space-y-8 pb-28 md:pb-32">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-10 space-y-4 md:space-y-8 pb-8 md:pb-10">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             <div className="space-y-2">
@@ -261,6 +261,25 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
               <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Scripture</label>
               <Input placeholder="e.g. Matthew 6:33" value={scripture} onChange={(e) => setScripture(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 h-12 text-slate-900 dark:text-white w-full" />
             </div>
+          </div>
+
+          <div className="space-y-2">
+             <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Revelation</label>
+             <div className="border-2 border-violet-50 dark:border-slate-800 rounded-[28px] overflow-hidden bg-white dark:bg-slate-900 w-full">
+                <div className="flex items-center gap-1 p-3 border-b border-violet-50 dark:border-slate-800 bg-violet-50/20 dark:bg-slate-800/50 sticky top-0 z-10">
+                  <RichButton icon={<Bold size={18}/>} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} />
+                  <RichButton icon={<Italic size={18}/>} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} />
+                  <RichButton icon={<ListOrdered size={18}/>} onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} />
+                  <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-700 mx-2" />
+                  <RichButton icon={<BookOpen size={18}/>} onClick={setBibleLink} active={editor.isActive('link')} />
+                </div>
+                <EditorContent editor={editor} />
+             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Application</label>
+            <Textarea placeholder="Walk this out..." value={application} onChange={(e) => setApplication(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
           </div>
 
           <div className="space-y-2">
@@ -315,33 +334,13 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
           </div>
 
           <div className="space-y-2">
-             <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Revelation</label>
-             <div className="border-2 border-violet-50 dark:border-slate-800 rounded-[28px] overflow-hidden bg-white dark:bg-slate-900 w-full">
-                <div className="flex items-center gap-1 p-3 border-b border-violet-50 dark:border-slate-800 bg-violet-50/20 dark:bg-slate-800/50 sticky top-0 z-10">
-                  <RichButton icon={<Bold size={18}/>} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} />
-                  <RichButton icon={<Italic size={18}/>} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} />
-                  <RichButton icon={<ListOrdered size={18}/>} onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} />
-                  <div className="w-[1px] h-5 bg-slate-200 dark:bg-slate-700 mx-2" />
-                  <RichButton icon={<BookOpen size={18}/>} onClick={setBibleLink} active={editor.isActive('link')} />
-                </div>
-                <EditorContent editor={editor} />
-             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Application</label>
-              <Textarea placeholder="Walk this out..." value={application} onChange={(e) => setApplication(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Prayer</label>
-              <Textarea placeholder="Seal in prayer..." value={prayer} onChange={(e) => setPrayer(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
-            </div>
+            <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Prayer</label>
+            <Textarea placeholder="Seal in prayer..." value={prayer} onChange={(e) => setPrayer(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md p-4 md:p-8 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 md:gap-4 shrink-0 w-full">
+        <div style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }} className="bg-white/95 dark:bg-[#0f172a]/95 backdrop-blur-md p-4 md:p-8 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 md:gap-4 shrink-0 w-full">
           <Select value={visibility} onValueChange={(v: any) => setVisibility(v)}>
             <SelectTrigger className="w-full sm:w-[130px] rounded-xl border-slate-200 dark:border-slate-700 font-semibold text-xs h-12 bg-white dark:bg-slate-900 text-slate-900 dark:text-white">
               <SelectValue />
