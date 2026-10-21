@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { ClientProviders } from "@/components/ClientProviders";
 import { PushInitializer } from "@/components/push/PushInitializer";
+import AppFreshness from "@/components/AppFreshness";
 import { Toaster } from "sonner";
 import { Suspense } from "react"; // Added for safety
 import "./globals.css";
@@ -73,7 +74,8 @@ export default function RootLayout({
           <ClientProviders>
             {/* 3. Wrap in Suspense to prevent Push registration from blocking hydration */}
             <Suspense fallback={null}>
-              <PushInitializer /> 
+              <PushInitializer />
+              <AppFreshness /> 
             </Suspense>
             {children}
           </ClientProviders>
