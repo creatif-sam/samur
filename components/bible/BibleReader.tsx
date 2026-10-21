@@ -143,7 +143,8 @@ export default function BibleReader() {
           prevChapter={r.prevChapter}
           nextChapter={r.nextChapter}
           chapterIsRead={r.chapterIsRead}
-          setChapterRead={r.setChapterRead}
+          chapterReadToday={r.chapterReadToday}
+          toggleChapterReadToday={r.toggleChapterReadToday}
         />
       )}
 

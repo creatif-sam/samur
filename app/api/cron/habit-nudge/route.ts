@@ -46,7 +46,7 @@ export async function GET(request: Request) {
         service.from('prayer_sessions').select('date').eq('user_id', user.id).eq('completed', true).gte('date', since),
         service.from('meditations').select('created_at').eq('author_id', user.id).gte('created_at', sinceIso),
         service.from('reading_logs').select('reading_date').eq('user_id', user.id).gte('reading_date', since),
-        service.from('bible_progress').select('read_at').eq('user_id', user.id).gte('read_at', sinceIso),
+        service.from('bible_reading_log').select('day').eq('user_id', user.id).gte('day', since),
         service.from('memory_verses').select('day').eq('user_id', user.id).gte('day', since),
       ])
 
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         prayer: new Set((prayer.data ?? []).map((r: { date: string }) => r.date)),
         meditation: new Set((meditations.data ?? []).map((r: { created_at: string }) => localKey(r.created_at))),
         reading: new Set((reading.data ?? []).map((r: { reading_date: string }) => r.reading_date)),
-        bible: new Set((bible.data ?? []).map((r: { read_at: string }) => localKey(r.read_at))),
+        bible: new Set((bible.data ?? []).map((r: { day: string }) => r.day)),
         verse: new Set((verses.data ?? []).map((r: { day: string }) => r.day)),
       }
 

@@ -85,6 +85,9 @@ export function useBibleReader() {
   const [restored, setRestored] = useState(false)
   const [lastRead, setLastRead] = useState<{ book: string; chapter: number } | null>(null)
   const [readChapters, setReadChapters] = useState<Set<string>>(new Set())
+  // Local day each chapter was first marked read, and chapters read today (re-reads count)
+  const [firstReadDay, setFirstReadDay] = useState<Map<string, string>>(new Map())
+  const [readToday, setReadToday] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (view === 'read') {
@@ -138,9 +141,15 @@ export function useBibleReader() {
   // Reading progress (chapters read), synced to the account when the table exists
   useEffect(() => {
     if (!userId) return
-    supabase.from('bible_progress').select('book, chapter').eq('user_id', userId).then(({ data, error }) => {
+    supabase.from('bible_progress').select('book, chapter, read_at').eq('user_id', userId).then(({ data, error }) => {
       if (error) return
-      setReadChapters(new Set((data ?? []).map((r: { book: string; chapter: number }) => `${r.book}-${r.chapter}`)))
+      const rows = (data ?? []) as { book: string; chapter: number; read_at: string }[]
+      setReadChapters(new Set(rows.map(r => `${r.book}-${r.chapter}`)))
+      setFirstReadDay(new Map(rows.map(r => [`${r.book}-${r.chapter}`, toLocalDateKey(new Date(r.read_at))])))
+    })
+    supabase.from('bible_reading_log').select('book, chapter').eq('user_id', userId).eq('day', toLocalDateKey(new Date())).then(({ data, error }) => {
+      if (error) return
+      setReadToday(new Set((data ?? []).map((r: { book: string; chapter: number }) => `${r.book}-${r.chapter}`)))
     })
   }, [userId])
 
@@ -461,30 +470,63 @@ export function useBibleReader() {
     setView('read')
   }
 
-  async function setChapterRead(book: string, chapter: number, read: boolean) {
-    const key = `${book}-${chapter}`
-    setReadChapters(prev => { const s = new Set(prev); if (read) s.add(key); else s.delete(key); return s })
-    if (!userId) return
-    const { error } = read
-      ? await supabase.from('bible_progress').upsert({ user_id: userId, book, chapter, read_at: new Date().toISOString() }, { onConflict: 'user_id,book,chapter' })
-      : await supabase.from('bible_progress').delete().eq('user_id', userId).eq('book', book).eq('chapter', chapter)
-    if (error) console.error('Bible progress not saved', error)
-  }
-
-  // Mark several chapters read at once (e.g. a reading plan day)
+  // Record chapters as read today. Re-reading counts for today's Bible habit;
+  // book progress only needs the first read.
   async function markChaptersRead(chapters: { book: string; chapter: number }[]) {
     if (chapters.length === 0) return
-    setReadChapters(prev => { const s = new Set(prev); chapters.forEach(c => s.add(`${c.book}-${c.chapter}`)); return s })
+    const today = toLocalDateKey(new Date())
+    const keys = chapters.map(c => `${c.book}-${c.chapter}`)
+    const firstReads = chapters.filter(c => !readChapters.has(`${c.book}-${c.chapter}`))
+    setReadToday(prev => { const s = new Set(prev); keys.forEach(k => s.add(k)); return s })
+    setReadChapters(prev => { const s = new Set(prev); keys.forEach(k => s.add(k)); return s })
+    setFirstReadDay(prev => {
+      const m = new Map(prev)
+      firstReads.forEach(c => m.set(`${c.book}-${c.chapter}`, today))
+      return m
+    })
     if (!userId) return
     const now = new Date().toISOString()
-    const { error } = await supabase.from('bible_progress').upsert(
-      chapters.map(c => ({ user_id: userId, book: c.book, chapter: c.chapter, read_at: now })),
-      { onConflict: 'user_id,book,chapter' },
-    )
-    if (error) console.error('Bible progress not saved', error)
+    const [log, progress] = await Promise.all([
+      supabase.from('bible_reading_log').upsert(
+        chapters.map(c => ({ user_id: userId, day: today, book: c.book, chapter: c.chapter })),
+        { onConflict: 'user_id,day,book,chapter' },
+      ),
+      firstReads.length
+        ? supabase.from('bible_progress').upsert(
+            firstReads.map(c => ({ user_id: userId, book: c.book, chapter: c.chapter, read_at: now })),
+            { onConflict: 'user_id,book,chapter' },
+          )
+        : Promise.resolve({ error: null }),
+    ])
+    if (log.error) console.error('Bible reading log not saved', log.error)
+    if (progress.error) console.error('Bible progress not saved', progress.error)
+  }
+
+  // Undo today's read; if today was also the first read, the chapter goes back to unread
+  async function unmarkChapterToday(book: string, chapter: number) {
+    const key = `${book}-${chapter}`
+    const today = toLocalDateKey(new Date())
+    const firstReadToday = firstReadDay.get(key) === today
+    setReadToday(prev => { const s = new Set(prev); s.delete(key); return s })
+    if (firstReadToday) {
+      setReadChapters(prev => { const s = new Set(prev); s.delete(key); return s })
+      setFirstReadDay(prev => { const m = new Map(prev); m.delete(key); return m })
+    }
+    if (!userId) return
+    await supabase.from('bible_reading_log').delete()
+      .eq('user_id', userId).eq('day', today).eq('book', book).eq('chapter', chapter)
+    if (firstReadToday) {
+      await supabase.from('bible_progress').delete().eq('user_id', userId).eq('book', book).eq('chapter', chapter)
+    }
+  }
+
+  function toggleChapterReadToday(book: string, chapter: number) {
+    if (readToday.has(`${book}-${chapter}`)) void unmarkChapterToday(book, chapter)
+    else void markChaptersRead([{ book, chapter }])
   }
 
   const chapterIsRead = readChapters.has(`${selectedBook}-${selectedChapter}`)
+  const chapterReadToday = readToday.has(`${selectedBook}-${selectedChapter}`)
   const bookProgress = (book: string) => {
     const total = CHAPTER_COUNTS[book] ?? 1
     let read = 0
@@ -519,7 +561,8 @@ export function useBibleReader() {
   }
 
   function nextChapter() {
-    if (view === 'read' && verses.length > 0 && !chapterIsRead) void setChapterRead(selectedBook, selectedChapter, true)
+    // Finishing a chapter counts as reading it today, even if it was read before
+    if (view === 'read' && verses.length > 0 && !chapterReadToday) void markChaptersRead([{ book: selectedBook, chapter: selectedChapter }])
     const max = CHAPTER_COUNTS[selectedBook] ?? 1
     if (selectedChapter < max) { setSelectedChapter(c => c + 1) }
     else {
@@ -576,7 +619,7 @@ export function useBibleReader() {
     searching, searchScope, setSearchScope, searchMode, searchError, wholeBibleReady,
     searchesOtherTranslation: searchesOtherTranslation(translation),
     lastRead, openPassage,
-    chapterIsRead, setChapterRead, bookProgress, readChapters,
+    chapterIsRead, chapterReadToday, toggleChapterReadToday, bookProgress, readChapters,
     setAsMemoryVerse, markChaptersRead,
     handleTouchStart, handleTouchEnd,
     formatRef,

@@ -45,7 +45,7 @@ export default function TodayPanel({ userId, goals }: { userId: string | null; g
         supabase.from('prayer_sessions').select('date').eq('user_id', userId).eq('completed', true).gte('date', since),
         supabase.from('meditations').select('created_at').eq('author_id', userId).gte('created_at', sinceIso),
         supabase.from('reading_logs').select('reading_date').eq('user_id', userId).gte('reading_date', since),
-        supabase.from('bible_progress').select('read_at').eq('user_id', userId).gte('read_at', sinceIso),
+        supabase.from('bible_reading_log').select('day').eq('user_id', userId).gte('day', since),
         supabase.from('memory_verses').select('*').eq('user_id', userId).order('day', { ascending: false }).limit(60),
         supabase.from('bible_plans').select('*').eq('user_id', userId),
       ])
@@ -67,7 +67,7 @@ export default function TodayPanel({ userId, goals }: { userId: string | null; g
         prayer: new Set((prayer.data ?? []).map((r: { date: string }) => r.date)),
         meditation: new Set((meditations.data ?? []).map((r: { created_at: string }) => keyOf(r.created_at))),
         reading: new Set((readingLogs.data ?? []).map((r: { reading_date: string }) => r.reading_date)),
-        bible: new Set((bible.data ?? []).map((r: { read_at: string }) => keyOf(r.read_at))),
+        bible: new Set((bible.data ?? []).map((r: { day: string }) => r.day)),
         verse: new Set(verseRows.map(v => v.day)),
       })
 

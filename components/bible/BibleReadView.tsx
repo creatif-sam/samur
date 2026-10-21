@@ -42,7 +42,8 @@ interface Props {
   prevChapter: () => void
   nextChapter: () => void
   chapterIsRead: boolean
-  setChapterRead: (book: string, chapter: number, read: boolean) => void
+  chapterReadToday: boolean
+  toggleChapterReadToday: (book: string, chapter: number) => void
 }
 
 export function BibleReadView({
@@ -54,7 +55,7 @@ export function BibleReadView({
   copySelectedVerses, shareSelectedVerses, saveSelectedVerses,
   highlightSelectedVerses, openNoteForSelection, openCompare,
   showChapterSheet, setShowChapterSheet, setSelectedChapter, prevChapter, nextChapter,
-  chapterIsRead, setChapterRead,
+  chapterIsRead, chapterReadToday, toggleChapterReadToday,
 }: Props) {
   return (
     <>
@@ -207,14 +208,15 @@ export function BibleReadView({
       {!loading && !error && verses.length > 0 && (
         <div className="px-4 pb-6 flex justify-center">
           <button
-            onClick={() => setChapterRead(selectedBook, selectedChapter, !chapterIsRead)}
+            onClick={() => toggleChapterReadToday(selectedBook, selectedChapter)}
             className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition active:scale-95 ${
-              chapterIsRead
+              chapterReadToday
                 ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
                 : 'bg-muted text-muted-foreground'
             }`}
           >
-            <Check className="w-4 h-4" /> {chapterIsRead ? 'Chapter read' : 'Mark chapter as read'}
+            <Check className="w-4 h-4" />
+            {chapterReadToday ? 'Read today' : chapterIsRead ? 'Read it today' : 'Mark chapter as read'}
           </button>
         </div>
       )}
