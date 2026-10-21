@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import { Goal } from '@/lib/types'
 import { Button } from '@/components/ui/button'
+import { parseDateKey } from '@/lib/dates'
 
 type Scope = 'day' | 'week' | 'month' | 'quarter' | 'year'
 
@@ -35,7 +36,7 @@ export function GoalsDonutChart({
   const scopedGoals = useMemo(() => {
     return goals.filter((g) => {
       if (!g.due_date) return false
-      const d = new Date(g.due_date)
+      const d = parseDateKey(g.due_date)
       d.setHours(0, 0, 0, 0)
 
       if (scope === 'day') {
@@ -72,10 +73,10 @@ export function GoalsDonutChart({
   const pieData = useMemo(() => {
     const map: Record<string, number> = {}
 
+    // Goals without a category count as "General"
     scopedGoals.forEach((g) => {
-      if (!g.category_id) return
-      map[g.category_id] =
-        (map[g.category_id] ?? 0) + 1
+      const key = g.category_id ?? 'general'
+      map[key] = (map[key] ?? 0) + 1
     })
 
     return Object.entries(map).map(
@@ -84,10 +85,10 @@ export function GoalsDonutChart({
           (c) => c.id === categoryId
         )
         return {
-          name: cat?.name ?? 'Uncategorized',
+          name: cat?.name ?? 'General',
           value,
-          color: cat?.color ?? '#7c3aed',
-          emoji: cat?.emoji ?? '📌',
+          color: cat?.color ?? '#94a3b8',
+          emoji: cat?.emoji ?? '🎯',
         }
       }
     )

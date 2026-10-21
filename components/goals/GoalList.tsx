@@ -8,12 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select'
 import {
   DropdownMenu,
@@ -22,10 +22,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { createClient } from '@/lib/supabase/client'
-import { 
-  Calendar, 
-  MoreVertical, 
-  Pencil, 
+import {
+  Calendar,
+  MoreVertical,
+  Pencil,
   Trash2,
   ChevronDown,
   ChevronUp,
@@ -37,7 +37,11 @@ import {
 import { Button } from '@/components/ui/button'
 import confetti from 'canvas-confetti'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 import { NewGoalForm } from './NewGoalForm'
+import { dueDate, isOverdue as goalIsOverdue, sortGoals, statusForProgress } from '@/lib/goals'
+
+const PROGRESS_STEPS = [0, 25, 50, 75, 100]
 
 type EnhancedGoal = Goal & {
   visions?: { title: string; color: string; emoji: string } | null
@@ -48,29 +52,32 @@ interface GoalListProps {
   goals: EnhancedGoal[]
   visions: any[]
   categories: any[]
+  currentUserId: string | null
   onUpdated: (goal: Goal) => void
   onDeleted: (id: string) => void
 }
 
-export function GoalList({ 
-  goals, 
-  visions, 
-  categories, 
-  onUpdated, 
-  onDeleted 
+export function GoalList({
+  goals,
+  visions,
+  categories,
+  currentUserId,
+  onUpdated,
+  onDeleted
 }: GoalListProps) {
   const [editingGoal, setEditingGoal] = useState<EnhancedGoal | null>(null)
   const [goalToDelete, setGoalToDelete] = useState<EnhancedGoal | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  
+
   const supabase = createClient()
 
   const groupedGoals = useMemo(() => {
-    const groups: Record<string, { vision: any; items: EnhancedGoal[]; avgProgress: number }> = {}
+    const groups: Record<string, { key: string; vision: any; items: EnhancedGoal[]; avgProgress: number }> = {}
     goals.forEach((goal) => {
       const vId = goal.vision_id || 'unlinked'
       if (!groups[vId]) {
         groups[vId] = {
+          key: vId,
           vision: goal.visions || { title: 'General Strategy', color: '#94a3b8', emoji: '🎯' },
           items: [],
           avgProgress: 0
@@ -82,6 +89,7 @@ export function GoalList({
     Object.keys(groups).forEach(key => {
       const total = groups[key].items.reduce((acc, curr) => acc + (curr.progress || 0), 0)
       groups[key].avgProgress = Math.round(total / groups[key].items.length)
+      groups[key].items = sortGoals(groups[key].items)
     })
 
     return Object.values(groups)
@@ -101,10 +109,12 @@ export function GoalList({
     setIsDeleting(true)
     try {
       const { error } = await supabase.from('goals').delete().eq('id', goalToDelete.id)
-      if (!error) {
-        onDeleted(goalToDelete.id)
-        setGoalToDelete(null)
+      if (error) {
+        toast.error("Couldn't delete the goal")
+        return
       }
+      onDeleted(goalToDelete.id)
+      setGoalToDelete(null)
     } finally {
       setIsDeleting(false)
     }
@@ -120,8 +130,8 @@ export function GoalList({
 
   return (
     <div className="space-y-6 pb-24">
-      {groupedGoals.map(({ vision, items, avgProgress }) => (
-        <div key={vision.title} className="space-y-3">
+      {groupedGoals.map(({ key, vision, items, avgProgress }) => (
+        <div key={key} className="space-y-3">
           {/* Section header — home page card style */}
           <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-4 space-y-3">
             <div className="flex items-center gap-3">
@@ -154,10 +164,11 @@ export function GoalList({
               <GoalCard
                 key={goal.id}
                 goal={goal}
+                canManage={!goal.owner_id || goal.owner_id === currentUserId}
                 onUpdated={(updatedGoal) => {
                   onUpdated(updatedGoal)
                   if (updatedGoal.status === 'done') {
-                    const group = groupedGoals.find(g => g.vision.title === vision.title)
+                    const group = groupedGoals.find(g => g.key === key)
                     if (group && group.items.every(i => i.id === updatedGoal.id ? true : i.status === 'done')) {
                       triggerCelebration(vision.color)
                     }
@@ -179,12 +190,12 @@ export function GoalList({
               Edit Goal
             </DialogTitle>
           </DialogHeader>
-          
+
           {editingGoal && (
-            <NewGoalForm 
+            <NewGoalForm
               key={editingGoal.id}
-              initialData={editingGoal} 
-              visions={visions} 
+              initialData={editingGoal}
+              visions={visions}
               categories={categories}
               onCreated={(updated) => {
                 onUpdated(updated)
@@ -216,7 +227,7 @@ export function GoalList({
       <div className="w-14 h-14 bg-destructive/10 rounded-full flex items-center justify-center">
         <Trash2 className="w-7 h-7 text-destructive" />
       </div>
-      
+
       <DialogHeader>
         <DialogTitle className="text-xl font-black uppercase italic tracking-tight">
           Confirm Delete
@@ -228,16 +239,16 @@ export function GoalList({
       </p>
 
       <div className="flex w-full gap-3 pt-2">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           className="flex-1 rounded-2xl font-bold uppercase text-[10px] tracking-widest border-muted hover:bg-secondary"
           onClick={() => setGoalToDelete(null)}
           disabled={isDeleting}
         >
           Cancel
         </Button>
-        <Button 
-          variant="destructive" 
+        <Button
+          variant="destructive"
           className={cn(
             "flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all",
             !isDeleting && "animate-danger-pulse shadow-lg shadow-destructive/20"
@@ -255,13 +266,15 @@ export function GoalList({
   )
 }
 
-function GoalCard({ 
-  goal, 
-  onUpdated, 
+function GoalCard({
+  goal,
+  canManage,
+  onUpdated,
   onEditInitiated,
-  onDeleteInitiated 
-}: { 
-  goal: EnhancedGoal, 
+  onDeleteInitiated
+}: {
+  goal: EnhancedGoal,
+  canManage: boolean,
   onUpdated: (goal: Goal) => void, 
   onEditInitiated: () => void,
   onDeleteInitiated: () => void
@@ -274,11 +287,9 @@ function GoalCard({
   const [addingMilestone, setAddingMilestone] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const formattedDate = goal.due_date 
-    ? new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-    : null
-
-  const isOverdue = !!(goal.due_date && goal.status !== 'done' && new Date(goal.due_date) < new Date())
+  const due = dueDate(goal)
+  const formattedDate = due ? due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+  const isOverdue = goalIsOverdue(goal)
 
   const toggleMilestones = async () => {
     if (!milestonesLoaded) {
@@ -328,79 +339,63 @@ function GoalCard({
   const syncProgressFromMilestones = async (list: typeof milestones) => {
     if (!list.length) return
     const pct = Math.round((list.filter(m => m.is_done).length / list.length) * 100)
-    const newStatus: Goal['status'] = pct === 100 ? 'done' : pct > 0 ? 'doing' : 'to_do'
-    const { data } = await supabase
-      .from('goals')
-      .update({ progress: pct, status: newStatus })
-      .eq('id', goal.id)
-      .select('*, visions(*), goal_categories(*)')
-      .single()
-    if (data) onUpdated(data)
+    await saveProgress(pct, statusForProgress(pct, goal.status))
   }
 
-  async function updateStatus(newStatus: Goal['status']) {
-    const prog = newStatus === 'done' ? 100 : newStatus === 'doing' ? 50 : 0
-    const { data } = await supabase
+  async function saveProgress(progress: number, status: Goal['status']) {
+    const { data, error } = await supabase
       .from('goals')
-      .update({ status: newStatus, progress: prog })
+      .update({ progress, status })
       .eq('id', goal.id)
       .select('*, visions(*), goal_categories(*)')
       .single()
-
-    if (data) {
-      onUpdated(data)
-      
-      // Send notification for goal completion
-      if (newStatus === 'done') {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          // Notify partner if shared
-          if (goal.visibility === 'shared' && goal.partner_id) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', user.id)
-              .single()
-
-            fetch('/api/notifications/send', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                targetUserId: goal.partner_id,
-                type: 'goal_progress',
-                title: 'Partner Goal Progress',
-                body: `${profile?.full_name || 'Your partner'} completed: ${goal.title}! 🎯`,
-                url: '/protected/goals'
-              })
-            }).catch(err => console.error('Failed to send partner notification:', err))
-          }
-        }
-      }
-      
-      // Notify on progress update if doing
-      if (newStatus === 'doing') {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user && goal.visibility === 'shared' && goal.partner_id) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', user.id)
-            .single()
-
-          fetch('/api/notifications/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              targetUserId: goal.partner_id,
-              type: 'goal_progress',
-              title: 'Partner Goal Progress',
-              body: `${profile?.full_name || 'Your partner'} is working on: ${goal.title}`,
-              url: '/protected/goals'
-            })
-          }).catch(err => console.error('Failed to send partner notification:', err))
-        }
-      }
+    if (error || !data) {
+      toast.error("Couldn't update the goal")
+      return
     }
+    onUpdated(data)
+    if (status !== goal.status) notifyPartner(status)
+  }
+
+  // Manual progress for goals without milestones
+  const setManualProgress = (progress: number) => saveProgress(progress, statusForProgress(progress, goal.status))
+
+  // Changing the status keeps real progress: milestones decide it when there are any
+  async function updateStatus(newStatus: Goal['status']) {
+    let progress = goal.progress ?? 0
+    if (newStatus === 'done') {
+      progress = 100
+    } else {
+      const { data: ms } = await supabase.from('goal_milestones').select('is_done').eq('goal_id', goal.id)
+      if (ms && ms.length > 0) progress = Math.round((ms.filter(m => m.is_done).length / ms.length) * 100)
+      else if (newStatus === 'to_do') progress = 0
+      if (progress >= 100) progress = ms && ms.length > 0 ? progress : 75 // reopening a finished goal
+    }
+    await saveProgress(progress, newStatus)
+  }
+
+  // Tell the other person on a shared goal when it starts or finishes
+  async function notifyPartner(newStatus: Goal['status']) {
+    if (newStatus !== 'done' && newStatus !== 'doing') return
+    if (goal.visibility !== 'shared' || !goal.partner_id) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const target = user.id === goal.owner_id ? goal.partner_id : goal.owner_id
+    if (!target || target === user.id) return
+
+    const { data: profile } = await supabase.from('profiles').select('name').eq('id', user.id).maybeSingle()
+    const who = profile?.name || 'Your partner'
+    fetch('/api/notifications/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        targetUserId: target,
+        type: 'goal_progress',
+        title: 'Partner Goal Progress',
+        body: newStatus === 'done' ? `${who} completed: ${goal.title}! 🎯` : `${who} is working on: ${goal.title}`,
+        url: '/protected/goals',
+      }),
+    }).catch(err => console.error('Failed to send partner notification:', err))
   }
 
   const doneCount = milestones.filter(m => m.is_done).length
@@ -415,7 +410,7 @@ function GoalCard({
         <div className="flex flex-col min-w-0 flex-1 gap-1.5">
           <div className="flex flex-wrap items-center gap-2">
               {goal.goal_categories && (
-                <span 
+                <span
                   className="text-[8px] font-black px-2 py-0.5 rounded-md text-white uppercase"
                   style={{ backgroundColor: goal.goal_categories.color }}
                 >
@@ -440,6 +435,15 @@ function GoalCard({
               {goal.title}
             </span>
 
+            {(goal.progress ?? 0) > 0 && goal.status !== 'done' && (
+              <div className="flex items-center gap-2">
+                <div className="h-1 flex-1 max-w-[140px] rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-violet-500" style={{ width: `${goal.progress}%` }} />
+                </div>
+                <span className="text-[9px] font-bold text-muted-foreground">{goal.progress}%</span>
+              </div>
+            )}
+
             {/* Milestones toggle */}
             <button
               onClick={toggleMilestones}
@@ -448,7 +452,7 @@ function GoalCard({
               {showMilestones ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
               {milestonesLoaded && milestones.length > 0
                 ? `${doneCount}/${milestones.length} milestones`
-                : 'Milestones'}
+                : 'Milestones & progress'}
             </button>
           </div>
 
@@ -471,7 +475,7 @@ function GoalCard({
               </SelectContent>
             </Select>
 
-            <DropdownMenu>
+            {canManage && <DropdownMenu>
               <DropdownMenuTrigger className="p-1.5 hover:bg-secondary rounded-full outline-none transition-colors">
                 <MoreVertical className="w-4 h-4 text-muted-foreground" />
               </DropdownMenuTrigger>
@@ -483,15 +487,32 @@ function GoalCard({
                   <Trash2 className="w-3.5 h-3.5" /> Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
+            </DropdownMenu>}
           </div>
       </div>
 
       {/* Milestones panel */}
       {showMilestones && (
         <div className="border-t border-border/40 px-4 py-3 space-y-2 bg-muted/30">
-          {milestones.length === 0 && !addingMilestone && (
-            <p className="text-[11px] text-muted-foreground text-center py-1">No milestones yet</p>
+          {milestones.length === 0 && (
+            <div className="space-y-1.5 pb-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Progress</p>
+              <div className="flex gap-1">
+                {PROGRESS_STEPS.map(step => (
+                  <button
+                    key={step}
+                    onClick={() => setManualProgress(step)}
+                    className={cn(
+                      'flex-1 rounded-lg py-1.5 text-[11px] font-bold transition-all',
+                      (goal.progress ?? 0) === step ? 'bg-violet-600 text-white' : 'bg-background border border-border/60 text-muted-foreground'
+                    )}
+                  >
+                    {step}%
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground">Or break it into milestones below and progress follows them.</p>
+            </div>
           )}
 
           {milestones.map(m => (
@@ -509,7 +530,8 @@ function GoalCard({
               </span>
               <button
                 onClick={() => deleteMilestone(m.id)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-destructive"
+                aria-label="Delete milestone"
+                className="opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-destructive"
               >
                 <Trash2 className="w-3 h-3" />
               </button>

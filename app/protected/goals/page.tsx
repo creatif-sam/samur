@@ -31,6 +31,8 @@ import { GoalsYearlyLineChart } from '@/components/goals/charts/GoalsYearlyLineC
 import { VisionCreator } from '@/components/goals/VisionCreator'
 import { VisionListView } from '@/components/goals/VisionListView'
 import { cn } from '@/lib/utils'
+import { dueDate, inPeriod, isOverdue } from '@/lib/goals'
+import { parseDateKey } from '@/lib/dates'
 
 type GoalView = 'weekly' | 'monthly' | 'quarterly' | 'yearly'
 
@@ -54,10 +56,12 @@ export default function GoalsPage() {
   const [showNew, setShowNew] = useState(false)
   const [view, setView] = useState<GoalView>('monthly')
   const [selectedVisionId, setSelectedVisionId] = useState<string>('all')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const loadAll = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return setLoading(false)
+    setCurrentUserId(user.id)
 
     const [gRes, cRes, vRes] = await Promise.all([
       supabase
@@ -90,69 +94,33 @@ export default function GoalsPage() {
     [categories]
   )
 
+  // Archived visions stay out of pickers and the focus filter
+  const activeVisions = useMemo(() => visions.filter(v => !v.is_archived), [visions])
+
+  // The focus vision applies to the whole page: stats, charts and lists
+  const focusGoals = useMemo(
+    () => (selectedVisionId === 'all' ? goals : goals.filter(g => g.vision_id === selectedVisionId)),
+    [goals, selectedVisionId],
+  )
+
   const filteredGoals = useMemo(() => {
-    const now = new Date()
-    let base = goals
-
-    if (selectedVisionId !== 'all') {
-      base = base.filter(g => g.vision_id === selectedVisionId)
-    }
-
-    return base.filter(g => {
+    return focusGoals.filter(g => {
       // Goals with no due date are always shown regardless of period
-      if (!g.due_date) return true
-      const d = new Date(g.due_date)
-
-      switch (view) {
-        case 'weekly': {
-          const start = new Date(now)
-          start.setDate(now.getDate() - now.getDay())
-          const end = new Date(start)
-          end.setDate(start.getDate() + 7)
-          return d >= start && d < end
-        }
-        case 'monthly':
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-        case 'quarterly':
-          return (
-            Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) &&
-            d.getFullYear() === now.getFullYear()
-          )
-        case 'yearly':
-          return d.getFullYear() === now.getFullYear()
-        default:
-          return true
-      }
+      const d = dueDate(g)
+      if (!d) return true
+      // Unfinished overdue goals stay visible until they're done
+      if (isOverdue(g)) return true
+      return inPeriod(d, view)
     })
-  }, [goals, view, selectedVisionId])
+  }, [focusGoals, view])
 
   const filteredVisions = useMemo(() => {
-    const now = new Date()
-    return visions.filter(v => {
+    return activeVisions.filter(v => {
+      if (selectedVisionId !== 'all' && v.id !== selectedVisionId) return false
       if (!v.target_date) return false
-      const d = new Date(v.target_date)
-      switch (view) {
-        case 'weekly': {
-          const start = new Date(now)
-          start.setDate(now.getDate() - now.getDay())
-          const end = new Date(start)
-          end.setDate(start.getDate() + 7)
-          return d >= start && d < end
-        }
-        case 'monthly':
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
-        case 'quarterly':
-          return (
-            Math.floor(d.getMonth() / 3) === Math.floor(now.getMonth() / 3) &&
-            d.getFullYear() === now.getFullYear()
-          )
-        case 'yearly':
-          return d.getFullYear() === now.getFullYear()
-        default:
-          return true
-      }
+      return inPeriod(parseDateKey(v.target_date), view)
     })
-  }, [visions, view])
+  }, [activeVisions, view, selectedVisionId])
 
   if (loading) {
     return (
@@ -188,7 +156,7 @@ export default function GoalsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Display All Visions</SelectItem>
-            {visions.map(v => (
+            {activeVisions.map(v => (
               <SelectItem key={v.id} value={v.id}>
                 {v.emoji} {v.title}
               </SelectItem>
@@ -218,12 +186,12 @@ export default function GoalsPage() {
           {/* ── Stat Cards ── */}
           <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
             {[
-              { label: 'Total Goals',  value: goals.length,                                          unit: 'goals',   icon: Target,       gradient: 'from-violet-600 to-purple-700',  shadow: 'shadow-violet-500/30' },
+              { label: 'Total Goals',  value: focusGoals.length,                                          unit: 'goals',   icon: Target,       gradient: 'from-violet-600 to-purple-700',  shadow: 'shadow-violet-500/30' },
               { label: 'Visions',      value: visions.length,                                        unit: 'visions', icon: Eye,           gradient: 'from-indigo-500 to-blue-600',    shadow: 'shadow-indigo-500/30' },
-              { label: 'Done',         value: goals.filter(g => g.status === 'done').length,          unit: 'done',    icon: CheckCircle2,  gradient: 'from-emerald-600 to-teal-700',   shadow: 'shadow-emerald-500/30' },
-              { label: 'In Progress',  value: goals.filter(g => g.status === 'doing').length,         unit: 'running', icon: TrendingUp,    gradient: 'from-blue-600 to-cyan-700',      shadow: 'shadow-blue-500/30' },
-              { label: 'Blocked',      value: goals.filter(g => g.status === 'blocked').length,       unit: 'blocked', icon: Ban,           gradient: 'from-orange-500 to-red-600',     shadow: 'shadow-orange-500/30' },
-              { label: 'Not Started',  value: goals.filter(g => g.status === 'to_do').length,         unit: 'pending', icon: Circle,        gradient: 'from-slate-500 to-gray-600',     shadow: 'shadow-slate-500/30' },
+              { label: 'Done',         value: focusGoals.filter(g => g.status === 'done').length,          unit: 'done',    icon: CheckCircle2,  gradient: 'from-emerald-600 to-teal-700',   shadow: 'shadow-emerald-500/30' },
+              { label: 'In Progress',  value: focusGoals.filter(g => g.status === 'doing').length,         unit: 'running', icon: TrendingUp,    gradient: 'from-blue-600 to-cyan-700',      shadow: 'shadow-blue-500/30' },
+              { label: 'Blocked',      value: focusGoals.filter(g => g.status === 'blocked').length,       unit: 'blocked', icon: Ban,           gradient: 'from-orange-500 to-red-600',     shadow: 'shadow-orange-500/30' },
+              { label: 'Not Started',  value: focusGoals.filter(g => g.status === 'to_do').length,         unit: 'pending', icon: Circle,        gradient: 'from-slate-500 to-gray-600',     shadow: 'shadow-slate-500/30' },
             ].map(({ label, value, unit, icon: Icon, gradient, shadow }) => (
               <div key={label} className={`flex-shrink-0 w-32 rounded-3xl bg-gradient-to-br p-4 shadow-lg ${gradient} ${shadow}`}>
                 <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center mb-3">
@@ -247,7 +215,7 @@ export default function GoalsPage() {
                   <h3 className="text-sm font-black">Velocity Timeline</h3>
                 </div>
               </div>
-              <GoalsYearlyLineChart goals={filteredGoals} />
+              <GoalsYearlyLineChart goals={focusGoals} />
             </div>
 
             <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5 space-y-4">
@@ -260,12 +228,12 @@ export default function GoalsPage() {
                   <h3 className="text-sm font-black">Sector Breakdown</h3>
                 </div>
               </div>
-              <GoalsDonutChart goals={goals} categories={uiCategories} />
+              <GoalsDonutChart goals={focusGoals} categories={uiCategories} />
             </div>
           </div>
 
           <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5">
-            <VisionBoard goals={goals} />
+            <VisionBoard goals={focusGoals} />
           </div>
         </TabsContent>
 
@@ -341,6 +309,7 @@ export default function GoalsPage() {
               goals={filteredGoals}
               visions={visions}
               categories={uiCategories}
+              currentUserId={currentUserId}
               onUpdated={goal =>
                 setGoals(g => g.map(x => (x.id === goal.id ? goal : x)))
               }
@@ -375,6 +344,7 @@ export default function GoalsPage() {
             goals={goals}
             visions={visions}
             categories={uiCategories}
+            currentUserId={currentUserId}
             onRefresh={loadAll}
           />
         </TabsContent>

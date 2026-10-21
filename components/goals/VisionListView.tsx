@@ -17,18 +17,21 @@ import { VisionCreator } from './VisionCreator'
 import { Vision } from '@/app/protected/goals/page'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { parseDateKey, toLocalDateKey } from '@/lib/dates'
 
 export function VisionListView({
-  goals, visions, categories, onRefresh,
+  goals, visions, categories, currentUserId, onRefresh,
 }: {
-  goals: Goal[], visions: Vision[], categories: GoalCategory[], onRefresh: () => void
+  goals: Goal[], visions: Vision[], categories: GoalCategory[], currentUserId: string | null, onRefresh: () => void
 }) {
   const supabase = createClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'active' | 'archived' | 'all'>('active')
   const [editingVision, setEditingVision] = useState<Vision | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-  
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
+  const linkedGoalCount = deletingId ? goals.filter(g => g.vision_id === deletingId).length : 0
+
   // Added missing state for the Detail Overlay
   const [selectedVision, setSelectedVision] = useState<any | null>(null)
   const [isAddingGoalInternal, setIsAddingGoalInternal] = useState(false)
@@ -68,7 +71,7 @@ export function VisionListView({
         const totalGoals = visionGoals.length
         const completedGoals = visionGoals.filter(g => g.status === 'done').length
         const avgProgress = totalGoals > 0 ? Math.round(visionGoals.reduce((acc, curr) => acc + (curr.progress || 0), 0) / totalGoals) : 0
-        const isOverdue = vision.target_date && new Date(vision.target_date) < new Date() && avgProgress < 100
+        const isOverdue = !!vision.target_date && vision.target_date.slice(0, 10) < toLocalDateKey(new Date()) && avgProgress < 100
         // Ensure goals are passed into the mapped object for the Detail View
         return { ...vision, totalGoals, completedGoals, avgProgress, isOverdue, goals: visionGoals }
       })
@@ -82,8 +85,11 @@ export function VisionListView({
 
   async function handleDelete() {
     if (!deletingId) return
+    const { error: unlinkError } = await supabase.from('goals').update({ vision_id: null }).eq('vision_id', deletingId)
+    if (unlinkError) { toast.error("Couldn't delete the vision"); return }
     const { error } = await supabase.from('visions').delete().eq('id', deletingId)
-    if (!error) { onRefresh(); setDeletingId(null); toast.success("Deleted"); }
+    if (error) { toast.error("Couldn't delete the vision"); return }
+    onRefresh(); setDeletingId(null); toast.success("Deleted")
   }
 
   return (
@@ -150,7 +156,7 @@ export function VisionListView({
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     {v.target_date
-                      ? new Date(v.target_date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                      ? parseDateKey(v.target_date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
                       : 'Open-ended'}
                   </p>
                   <h4 className="text-base font-black text-foreground leading-tight truncate">{v.title}</h4>
@@ -269,20 +275,48 @@ export function VisionListView({
       </Dialog>
 
       {/* MODALS */}
-      <VisionCreator 
-        initialData={editingVision} 
-        open={!!editingVision} 
-        onOpenChange={(open) => !open && setEditingVision(null)} 
-        onCreated={() => { onRefresh(); setEditingVision(null); }} 
+      <VisionCreator
+        initialData={editingVision}
+        open={!!editingVision}
+        onOpenChange={(open) => !open && setEditingVision(null)}
+        onCreated={() => { onRefresh(); setEditingVision(null); }}
       />
 
       <Dialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <DialogContent className="w-[90vw] max-w-[350px] rounded-2xl">
-          <DialogHeader><DialogTitle className="text-lg font-black uppercase italic">Delete Permanently?</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black uppercase italic">Delete Permanently?</DialogTitle>
+            <DialogDescription>
+              {linkedGoalCount > 0
+                ? `${linkedGoalCount} goal${linkedGoalCount !== 1 ? 's are' : ' is'} linked to this vision. ${linkedGoalCount !== 1 ? 'They' : 'It'} will be kept as standalone goals.`
+                : 'This vision has no goals.'}
+              {' '}Archiving keeps it out of the way without deleting it.
+            </DialogDescription>
+          </DialogHeader>
           <div className="flex gap-3 pt-4">
             <Button variant="outline" className="flex-1 font-bold h-12" onClick={() => setDeletingId(null)}>CANCEL</Button>
             <Button variant="destructive" className="flex-1 font-bold h-12" onClick={handleDelete}>DELETE</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit a goal from the vision detail view */}
+      <Dialog open={!!editingGoal} onOpenChange={(open) => !open && setEditingGoal(null)}>
+        <DialogContent className="w-[95vw] max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-black uppercase italic">Edit Goal</DialogTitle>
+            <DialogDescription className="sr-only">Update this goal</DialogDescription>
+          </DialogHeader>
+          {editingGoal && (
+            <NewGoalForm
+              key={editingGoal.id}
+              initialData={editingGoal}
+              categories={categories}
+              visions={visions}
+              onCancel={() => setEditingGoal(null)}
+              onCreated={() => { onRefresh(); setEditingGoal(null); setSelectedVision(null) }}
+            />
+          )}
         </DialogContent>
       </Dialog>
 
@@ -298,7 +332,7 @@ export function VisionListView({
   <div className="flex items-center gap-2 mb-2 opacity-80 text-[10px] font-bold uppercase tracking-widest">
     <Calendar className="w-3 h-3" /> Established: {new Date(selectedVision.created_at).toLocaleDateString()}
   </div>
-  
+
   <DialogTitle className="text-4xl font-black uppercase italic leading-none tracking-tighter mb-6 text-white">
     {selectedVision.title}
   </DialogTitle>
@@ -316,7 +350,7 @@ export function VisionListView({
                   <div>
                     <p className="text-[9px] font-black uppercase opacity-70">Target Date</p>
                     <p className="text-2xl font-black italic">
-                      {selectedVision.target_date ? new Date(selectedVision.target_date).toLocaleDateString() : 'OPEN'}
+                      {selectedVision.target_date ? parseDateKey(selectedVision.target_date).toLocaleDateString() : 'OPEN'}
                     </p>
                   </div>
                 </div>
@@ -335,7 +369,7 @@ export function VisionListView({
                     <h3 className="text-xs font-black uppercase italic flex items-center gap-2">
                       <Target className="w-4 h-4 text-primary" /> Strategy Nodes
                     </h3>
-                    
+
                     {/* Internal Add Goal Trigger */}
                     <Dialog open={isAddingGoalInternal} onOpenChange={setIsAddingGoalInternal}>
                       <DialogTrigger asChild>
@@ -347,12 +381,12 @@ export function VisionListView({
                         <DialogHeader>
                           <DialogTitle className="uppercase font-black italic">Add Goal to {selectedVision.title}</DialogTitle>
                         </DialogHeader>
-                        <NewGoalForm 
-                          categories={categories} 
-                          visions={visions} 
-                          initialVisionId={selectedVision.id} 
-                          onCancel={() => setIsAddingGoalInternal(false)} 
-                          onCreated={() => { onRefresh(); setIsAddingGoalInternal(false); setSelectedVision(null); }} 
+                        <NewGoalForm
+                          categories={categories}
+                          visions={visions}
+                          initialVisionId={selectedVision.id}
+                          onCancel={() => setIsAddingGoalInternal(false)}
+                          onCreated={() => { onRefresh(); setIsAddingGoalInternal(false); setSelectedVision(null); }}
                         />
                       </DialogContent>
                     </Dialog>
@@ -361,16 +395,25 @@ export function VisionListView({
                   <div className="space-y-2">
                     {selectedVision.goals?.length > 0 ? (
                       selectedVision.goals.map((goal: any) => (
-                        <div key={goal.id} className="flex items-center justify-between p-4 rounded-xl border bg-card hover:bg-secondary/10 transition-colors">
+                        <button
+                          key={goal.id}
+                          onClick={() => {
+                            if (goal.owner_id && goal.owner_id !== currentUserId) {
+                              toast('This goal is shared by your partner; only they can edit it')
+                              return
+                            }
+                            setEditingGoal(goal)
+                          }}
+                          className="w-full text-left flex items-center justify-between p-4 rounded-xl border bg-card hover:bg-secondary/10 transition-colors">
                           <div className="flex items-center gap-3">
                             <div className={cn(
-                              "w-2 h-2 rounded-full", 
+                              "w-2 h-2 rounded-full",
                               goal.status === 'done' ? 'bg-green-500' : 'bg-orange-500'
                             )} />
                             <span className="text-xs font-bold uppercase italic">{goal.title}</span>
                           </div>
                           <span className="text-[10px] font-black opacity-40">{goal.progress}%</span>
-                        </div>
+                        </button>
                       ))
                     ) : (
                       <div className="text-center py-10 border border-dashed rounded-2xl opacity-40 text-[10px] font-bold uppercase italic">

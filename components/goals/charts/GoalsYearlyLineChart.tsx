@@ -13,6 +13,7 @@ import {
 } from 'recharts'
 import { Goal } from '@/lib/types'
 import { Button } from '@/components/ui/button'
+import { parseDateKey } from '@/lib/dates'
 
 type Scope = 'week' | 'month' | 'quarter' | 'year'
 
@@ -29,7 +30,7 @@ export function GoalsLineChart({
   const { chartData, scopedGoals } = useMemo(() => {
     const scoped = goals.filter((g) => {
       if (!g.due_date) return false
-      const d = new Date(g.due_date)
+      const d = parseDateKey(g.due_date)
       d.setHours(0, 0, 0, 0)
 
       if (scope === 'week') {
@@ -66,7 +67,7 @@ export function GoalsLineChart({
         day.setDate(now.getDate() - now.getDay() + i)
 
         const dayGoals = scoped.filter((g) => {
-          const d = new Date(g.due_date!)
+          const d = parseDateKey(g.due_date!)
           d.setHours(0, 0, 0, 0)
           return d.getTime() === day.getTime()
         })
@@ -89,7 +90,7 @@ export function GoalsLineChart({
       data = Array.from({ length: daysInMonth }).map((_, i) => {
         const day = i + 1
         const dayGoals = scoped.filter(
-          (g) => new Date(g.due_date!).getDate() === day
+          (g) => parseDateKey(g.due_date!).getDate() === day
         )
 
         return {
@@ -104,7 +105,7 @@ export function GoalsLineChart({
       data = [0, 1, 2].map((i) => {
         const month = Math.floor(now.getMonth() / 3) * 3 + i
         const monthGoals = scoped.filter(
-          (g) => new Date(g.due_date!).getMonth() === month
+          (g) => parseDateKey(g.due_date!).getMonth() === month
         )
 
         return {
@@ -120,7 +121,7 @@ export function GoalsLineChart({
     if (scope === 'year') {
       data = Array.from({ length: 12 }).map((_, month) => {
         const monthGoals = scoped.filter(
-          (g) => new Date(g.due_date!).getMonth() === month
+          (g) => parseDateKey(g.due_date!).getMonth() === month
         )
 
         return {

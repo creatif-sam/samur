@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -34,6 +34,7 @@ export interface GoalCategory {
 export interface Vision {
   id: string
   title: string
+  is_archived?: boolean
 }
 
 export function NewGoalForm({
@@ -75,7 +76,19 @@ export function NewGoalForm({
   const [selectedEmoji, setSelectedEmoji] = useState(CATEGORY_EMOJIS[0])
   const [localCategories, setLocalCategories] = useState<GoalCategory[]>(categories)
 
-  const valid = Boolean(title.trim()) && Boolean(dueDate) && Boolean(categoryId)
+  const valid = Boolean(title.trim()) && Boolean(dueDate)
+
+  // Only the owner may change who a goal is shared with; a partner editing a
+  // shared goal must not rewrite partner_id (that would unshare it from them)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+  }, [])
+  const isEditing = Boolean(initialData?.id)
+  const isOwner = !isEditing || !initialData?.owner_id || initialData.owner_id === currentUserId
+
+  // Archived visions are hidden, except the one this goal is already linked to
+  const visionOptions = visions.filter(v => !v.is_archived || v.id === visionId)
 
 
 
@@ -107,7 +120,7 @@ export function NewGoalForm({
     if (!auth.user) return
 
     let partnerId: string | null = null
-    if (isShared) {
+    if (isShared && isOwner) {
       const { data: profile } = await supabase
         .from('profiles')
         .select('partner_id')
@@ -121,14 +134,16 @@ export function NewGoalForm({
       description: description.trim(),
       deliverable: deliverable.trim() || null,
       due_date: dueDate,
-      category_id: categoryId,
+      category_id: categoryId || null,
       vision_id: visionId === 'none' ? null : visionId,
-      goal_type: isShared ? 'combined' : 'single',
-      visibility: isShared ? 'shared' : 'private',
-      partner_id: partnerId,
+      ...(isOwner
+        ? {
+            goal_type: isShared ? 'combined' : 'single',
+            visibility: isShared ? 'shared' : 'private',
+            partner_id: partnerId,
+          }
+        : {}),
     }
-
-    const isEditing = Boolean(initialData?.id)
 
     if (isEditing) {
       const { data, error } = await supabase
@@ -168,18 +183,6 @@ export function NewGoalForm({
             }),
           }).catch(console.error)
         }
-
-        fetch('/api/notifications/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            targetUserId: auth.user.id,
-            type: 'goal_created',
-            title: 'Goal Created! 🎯',
-            body: `Keep focused on: ${title.trim()}`,
-            url: '/protected/goals',
-          }),
-        }).catch(console.error)
       }
 
       setTitle('')
@@ -224,7 +227,7 @@ export function NewGoalForm({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">No Vision (Standalone)</SelectItem>
-            {visions.map(v => (
+            {visionOptions.map(v => (
               <SelectItem key={v.id} value={v.id}>✨ {v.title}</SelectItem>
             ))}
           </SelectContent>
@@ -234,13 +237,14 @@ export function NewGoalForm({
       {/* Category */}
       <div className="space-y-1.5">
         <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Category <span className="text-rose-500">*</span>
+          Category <span className="normal-case tracking-normal font-medium">(optional)</span>
         </Label>
-        <Select value={categoryId} onValueChange={setCategoryId}>
+        <Select value={categoryId || 'none'} onValueChange={v => setCategoryId(v === 'none' ? '' : v)}>
           <SelectTrigger>
-            <SelectValue placeholder="Select category" />
+            <SelectValue placeholder="General" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="none">🎯 General</SelectItem>
             {localCategories.map(c => (
               <SelectItem key={c.id} value={c.id}>{c.emoji ?? '📁'} {c.name}</SelectItem>
             ))}
@@ -322,14 +326,20 @@ export function NewGoalForm({
         />
       </div>
 
-      {/* Shared toggle */}
-      <div className="flex items-center justify-between rounded-2xl bg-muted/50 px-4 py-3">
-        <div>
-          <p className="text-sm font-semibold">Shared with partner</p>
-          <p className="text-[11px] text-muted-foreground">Partner can see and contribute</p>
+      {/* Shared toggle (owner only) */}
+      {isOwner ? (
+        <div className="flex items-center justify-between rounded-2xl bg-muted/50 px-4 py-3">
+          <div>
+            <p className="text-sm font-semibold">Shared with partner</p>
+            <p className="text-[11px] text-muted-foreground">Partner can see and contribute</p>
+          </div>
+          <Switch checked={isShared} onCheckedChange={setIsShared} />
         </div>
-        <Switch checked={isShared} onCheckedChange={setIsShared} />
-      </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground rounded-2xl bg-muted/50 px-4 py-3">
+          Shared goal from your partner. Only they can change who it&apos;s shared with.
+        </p>
+      )}
 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-1">

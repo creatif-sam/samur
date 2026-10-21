@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Goal } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import { parseDateKey } from '@/lib/dates'
 
 // 1. Define the joined type so the build passes
 type EnhancedGoal = Goal & {
@@ -22,7 +23,7 @@ export function VisionBoard({ goals }: { goals: EnhancedGoal[] }) {
 
     goals.forEach((g) => {
       if (!g.due_date) return
-      const d = new Date(g.due_date)
+      const d = parseDateKey(g.due_date)
       d.setHours(0, 0, 0, 0)
 
       let inScope = false
