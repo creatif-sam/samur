@@ -51,7 +51,7 @@ export default function HomeActivityFeed({
           iconBg="bg-orange-100 dark:bg-orange-950/40"
           label="Meditation Streak"
           value={`${meditationStreak} day${meditationStreak !== 1 ? 's' : ''}`}
-          href="/protected/meditations"
+          href="/protected/posts?tab=meditations"
         />
         <ActivityRow
           icon={<Target className="w-5 h-5 text-violet-500" />}

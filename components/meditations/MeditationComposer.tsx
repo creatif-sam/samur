@@ -246,7 +246,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
               type: 'meditation',
               title: 'Partner Meditation',
               body: `${profile.full_name || 'Your partner'} completed their meditation! 🙏`,
-              url: '/protected/meditations'
+              url: '/protected/posts?tab=meditations'
             })
           }).catch(err => console.error('Failed to send partner notification:', err))
         }

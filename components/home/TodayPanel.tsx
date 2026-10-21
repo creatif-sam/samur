@@ -223,7 +223,7 @@ export default function TodayPanel({ userId, goals }: { userId: string | null; g
               </Link>
             )}
             {(reviewsDue > 0 || !hasVerseToday) && (
-              <Link href="/protected/meditations" className="flex items-center gap-3 rounded-2xl bg-muted/50 px-3 py-2.5">
+              <Link href="/protected/posts?tab=meditations" className="flex items-center gap-3 rounded-2xl bg-muted/50 px-3 py-2.5">
                 <Brain className="w-4 h-4 text-violet-600 shrink-0" />
                 <span className="text-sm font-semibold flex-1">
                   {!hasVerseToday ? "Choose today's memory verse" : ''}

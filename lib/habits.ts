@@ -6,9 +6,9 @@ export type HabitKey = 'prayer' | 'meditation' | 'reading' | 'bible' | 'verse'
 
 export const HABITS: { key: HabitKey; label: string; emoji: string; href: string }[] = [
   { key: 'prayer', label: 'Prayer', emoji: '🙏', href: '/protected/posts?tab=prayer' },
-  { key: 'meditation', label: 'Meditation', emoji: '📖', href: '/protected/meditations' },
+  { key: 'meditation', label: 'Meditation', emoji: '📖', href: '/protected/posts?tab=meditations' },
   { key: 'bible', label: 'Bible', emoji: '✝️', href: '/protected/bible' },
-  { key: 'verse', label: 'Memory verse', emoji: '🧠', href: '/protected/meditations' },
+  { key: 'verse', label: 'Memory verse', emoji: '🧠', href: '/protected/posts?tab=meditations' },
   { key: 'reading', label: 'Reading', emoji: '📚', href: '/protected/readapp' },
 ]
 

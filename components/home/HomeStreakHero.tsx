@@ -10,7 +10,7 @@ interface Props {
 export default function HomeStreakHero({ streak }: Props) {
   return (
     <div className="px-4 mt-4">
-      <Link href="/protected/meditations">
+      <Link href="/protected/posts?tab=meditations">
         <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-900 shadow-xl shadow-violet-900/30">
           <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5" />
           <div className="absolute right-14 -top-8 w-28 h-28 rounded-full bg-white/5" />

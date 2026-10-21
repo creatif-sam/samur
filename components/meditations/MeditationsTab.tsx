@@ -10,6 +10,7 @@ import MeditationComposer from '@/components/meditations/MeditationComposer'
 import { Pencil, Copy, LayoutGrid, List, BookOpen, ChevronRight } from 'lucide-react'
 import MeditationStreakBoard from '@/components/meditations/MeditationStreakBoard'
 import PartnerMeditationBoard from '@/components/meditations/PartnerMeditationBoard'
+import MemoryVerseCard from '@/components/meditations/MemoryVerseCard'
 import type { MeditationDB } from '@/lib/types'
 
 type ViewMode = 'list' | 'grid'
@@ -23,6 +24,7 @@ export default function MeditationsTab() {
   const [search, setSearch] = useState('')
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'private' | 'shared'>('all')
   const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [verseVersion, setVerseVersion] = useState(0)
 
   useEffect(() => { loadMeditations() }, [])
 
@@ -141,6 +143,9 @@ export default function MeditationsTab() {
         </div>
       </header>
 
+      {/* Memory verse (refreshes after a meditation sets one) */}
+      <MemoryVerseCard key={verseVersion} />
+
       {/* Bible banner */}
       <button
         onClick={() => router.push('/protected/bible')}
@@ -199,7 +204,7 @@ export default function MeditationsTab() {
         <MeditationComposer
           meditation={editing.id ? editing : undefined}
           onClose={() => setEditing(null)}
-          onCreated={() => { setEditing(null); loadMeditations() }}
+          onCreated={() => { setEditing(null); loadMeditations(); setVerseVersion(v => v + 1) }}
         />
       )}
 

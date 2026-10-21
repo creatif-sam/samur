@@ -154,7 +154,7 @@ export default function MeditationViewPage() {
             variant="ghost"
             size="sm"
             className="rounded-full text-muted-foreground hover:text-foreground"
-            onClick={() => router.push('/protected/meditations')}
+            onClick={() => router.push('/protected/posts?tab=meditations')}
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back

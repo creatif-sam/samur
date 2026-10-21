@@ -71,7 +71,8 @@ export function BottomNav(): JSX.Element {
     >
       <div className="flex justify-around items-center h-16 px-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive = pathname === item.href ||
+            (item.key === 'posts' && pathname.startsWith('/protected/meditations'))
 
           return (
             <Link

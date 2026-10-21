@@ -334,6 +334,11 @@ function FeedPageContent() {
     TABS.some(t => t.id === requestedTab) ? (requestedTab as Tab) : 'meditations'
   )
 
+  // Follow ?tab= when a link changes it while the Feed is already open
+  useEffect(() => {
+    if (TABS.some(t => t.id === requestedTab)) setActiveTab(requestedTab as Tab)
+  }, [requestedTab])
+
   return (
     <div className="w-full max-w-2xl mx-auto px-4 md:px-6 py-6">
 

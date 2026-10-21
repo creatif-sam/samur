@@ -84,7 +84,7 @@ export function notificationUrl(n: { type?: string | null; data?: { url?: string
     case 'work_log_reminder':
       return '/protected/readapp'
     case 'meditation':
-      return '/protected/meditations'
+      return '/protected/posts?tab=meditations'
     case 'partner_prayer':
     case 'partner_prayer_nudge':
       return '/protected/posts?tab=prayer'
