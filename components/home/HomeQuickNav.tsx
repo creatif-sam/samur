@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
-import { Target, Calendar, BookOpen, NotebookPen, BarChart2, Moon, ClipboardList, LucideIcon } from 'lucide-react'
+import { BookOpen, BarChart2, ClipboardList, HandHeart, LucideIcon } from 'lucide-react'
 
 interface QuickLink {
   label: string
@@ -11,14 +11,12 @@ interface QuickLink {
   color: string
 }
 
+// Only places not already in the bottom nav
 const quickLinks: QuickLink[] = [
-  { label: 'Analytics', href: '/protected/analytics',      icon: BarChart2,   color: 'bg-rose-500'   },
-  { label: 'Goals',     href: '/protected/goals',          icon: Target,      color: 'bg-violet-500' },
-  { label: 'Library',  href: '/protected/readapp',         icon: BookOpen,    color: 'bg-emerald-500'},
-  { label: 'Meditate', href: '/protected/posts?tab=meditations',     icon: Moon,        color: 'bg-indigo-500' },
-  { label: 'Notes',    href: '/protected/note',            icon: NotebookPen, color: 'bg-amber-500'  },
-  { label: 'Planner',  href: '/protected/planner',         icon: Calendar,    color: 'bg-blue-500'   },
-  { label: 'Review',   href: '/protected/planner/review',  icon: ClipboardList, color: 'bg-teal-500' },
+  { label: 'Analytics', href: '/protected/analytics',        icon: BarChart2,     color: 'bg-rose-500'   },
+  { label: 'Review',    href: '/protected/planner/review',   icon: ClipboardList, color: 'bg-teal-500'   },
+  { label: 'Bible',     href: '/protected/bible',            icon: BookOpen,      color: 'bg-violet-500' },
+  { label: 'Prayer',    href: '/protected/posts?tab=prayer', icon: HandHeart,     color: 'bg-amber-500'  },
 ]
 
 export default function HomeQuickNav() {

@@ -3,30 +3,20 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
-import { computeDashboardStats } from '@/components/home/DashboardStats'
-import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
 import DailyVerseCard from '@/components/meditations/DailyVerse'
-import HomeStreakHero from '@/components/home/HomeStreakHero'
-import HomeWeekCalendar from '@/components/home/HomeWeekCalendar'
 import HomeQuickNav from '@/components/home/HomeQuickNav'
-import HomeHighlightCards from '@/components/home/HomeHighlightCards'
-import HomeActivityFeed from '@/components/home/HomeActivityFeed'
 import GratitudeCard from '@/components/home/GratitudeCard'
 import YearThemeCard from '@/components/home/YearThemeCard'
 import UpcomingGoalsCountdown from '@/components/home/UpcomingGoalsCountdown'
 import TodayPanel from '@/components/home/TodayPanel'
-import { toLocalDateKey } from '@/lib/dates'
-import { fetchRecurringRows } from '@/lib/planner/queries'
-import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks'
+import CurrentBookCard, { type CurrentBook } from '@/components/home/CurrentBookCard'
 
 export default function HomePage() {
   const supabase = createClient()
-  const [userName, setUserName]         = useState<string | null>(null)
-  const [userId, setUserId]             = useState<string | null>(null)
-  const [goals, setGoals]               = useState<Goal[]>([])
-  const [meditations, setMeditations]   = useState<{ created_at: string; period?: string; author_id: string }[]>([])
-  const [currentBook, setCurrentBook]   = useState<any | null>(null)
-  const [todayPlanner, setTodayPlanner] = useState<any | null>(null)
+  const [userName, setUserName]       = useState<string | null>(null)
+  const [userId, setUserId]           = useState<string | null>(null)
+  const [goals, setGoals]             = useState<Goal[]>([])
+  const [currentBook, setCurrentBook] = useState<CurrentBook | null>(null)
 
   const today = new Date()
 
@@ -35,43 +25,19 @@ export default function HomePage() {
   async function loadHomeData() {
     const { data: auth } = await supabase.auth.getUser()
     if (!auth.user) return
-    const uid      = auth.user.id
+    const uid = auth.user.id
     setUserId(uid)
-    const todayStr = toLocalDateKey(today)
 
-    const [profileRes, goalsRes, meditationsRes, bookRes, plannerRes] = await Promise.all([
+    const [profileRes, goalsRes, bookRes] = await Promise.all([
       supabase.from('profiles').select('name, avatar_url').eq('id', uid).single(),
       supabase.from('goals').select('*').or(`owner_id.eq.${uid},partner_id.eq.${uid}`),
-      supabase.from('meditations').select('created_at, period, author_id').eq('author_id', uid).order('created_at', { ascending: false }),
       supabase.from('readings').select('id, title, author, total_pages, pages_remaining').eq('user_id', uid).eq('status', 'reading').limit(1).maybeSingle(),
-      supabase.from('planner_days').select('day, user_id, morning, tasks, mood, completed_task_ids').eq('user_id', uid).eq('day', todayStr).maybeSingle(),
     ])
-    const recurringRows = await fetchRecurringRows(supabase, [uid], todayStr).catch(() => [] as PlannerDayRow[])
 
     setUserName(profileRes.data?.name ?? null)
     setGoals(goalsRes.data ?? [])
-    setMeditations(meditationsRes.data ?? [])
     setCurrentBook(bookRes.data ?? null)
-    // Today's tasks including recurring ones, with completion from completed_task_ids
-    const [todayTasks] = expandDays({
-      userId: uid,
-      rows: plannerRes.data ? [plannerRes.data as PlannerDayRow] : [],
-      recurringRows,
-      from: todayStr,
-      to: todayStr,
-    })
-    setTodayPlanner({ ...(plannerRes.data ?? {}), tasks: todayTasks.tasks })
   }
-
-  const meditationStreak = (() => {
-    if (!meditations.length || !userId) return 0
-    const byUser = reduceMeditations(meditations)
-    return calculateStreak(byUser[userId] ?? {})
-  })()
-  const stats            = computeDashboardStats(goals)
-  const activeGoals      = goals.filter(g => g.status !== 'done')
-  const topGoal          = activeGoals[0] ?? null
-  const completedGoals   = goals.filter(g => g.status === 'done').length
 
   const greeting = () => {
     const h = today.getHours()
@@ -96,23 +62,10 @@ export default function HomePage() {
         </div>
 
         <TodayPanel userId={userId} goals={goals} />
-
-        <HomeStreakHero streak={meditationStreak} />
         <YearThemeCard />
         <GratitudeCard />
-        <HomeWeekCalendar />
         <HomeQuickNav />
-        <HomeHighlightCards
-          todayPlanner={todayPlanner}
-          topGoal={topGoal}
-          currentBook={currentBook}
-        />
-        <HomeActivityFeed
-          meditationStreak={meditationStreak}
-          activeGoalsCount={activeGoals.length}
-          completedGoalsCount={completedGoals}
-          dueTodayCount={stats.todayDue}
-        />
+        <CurrentBookCard book={currentBook} />
 
         {/* Daily Verse */}
         <div className="px-4 mt-5">
@@ -126,5 +79,3 @@ export default function HomePage() {
     </div>
   )
 }
-
-
