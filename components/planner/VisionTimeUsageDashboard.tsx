@@ -37,11 +37,14 @@ export default function VisionProgressDashboard({ allTasks, visionsMap }: Dashbo
       data[title].sessions += 1
     })
 
-    return Object.entries(data).map(([name, d]) => ({
-      name,
-      hours: parseFloat(d.hours.toFixed(1)),
-      sessions: d.sessions
-    }))
+    // Most time first; ties go to the vision with more sessions, then by name
+    return Object.entries(data)
+      .map(([name, d]) => ({
+        name,
+        hours: parseFloat(d.hours.toFixed(1)),
+        sessions: d.sessions
+      }))
+      .sort((a, b) => b.hours - a.hours || b.sessions - a.sessions || a.name.localeCompare(b.name))
   }, [allTasks, period, visionsMap])
 
   return (
