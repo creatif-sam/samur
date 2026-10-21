@@ -4,9 +4,12 @@ import { useState } from 'react'
 import { Modal } from './tasks/Modal'
 import type { PlannerTask } from './DailyPlanner'
 import { taskSpan } from '@/lib/planner/tasks'
+import { toLocalDateKey } from '@/lib/dates'
 
 const HOURS_START = 5
 const HOURS_END = 23
+const ROUND_TO = 15 // Today's free time starts at the next quarter hour
+const MIN_BLOCK = 15 // Skip gaps too short to offer
 
 interface FreeBlock {
   start: number
@@ -33,7 +36,17 @@ export default function FreeTimeExportButton({
   function calculateFreeTime() {
     const busy = tasks.map(taskSpan).sort((a, b) => a.start - b.start)
 
+    // Today: only from now on. Past days have nothing left to offer.
+    const now = new Date()
+    const dayKey = toLocalDateKey(date)
+    const todayKey = toLocalDateKey(now)
     let cursor = HOURS_START * 60
+    if (dayKey === todayKey) {
+      const nowMinutes = now.getHours() * 60 + now.getMinutes()
+      cursor = Math.max(cursor, Math.ceil(nowMinutes / ROUND_TO) * ROUND_TO)
+    } else if (dayKey < todayKey) {
+      cursor = HOURS_END * 60
+    }
     const end = HOURS_END * 60
     const free: FreeBlock[] = []
 
@@ -49,20 +62,28 @@ export default function FreeTimeExportButton({
       free.push({ start: cursor, end })
     }
 
-    setFreeBlocks(free)
+    setFreeBlocks(free.filter(f => f.end - f.start >= MIN_BLOCK))
   }
+
+  const isToday = toLocalDateKey(date) === toLocalDateKey(new Date())
+  const title = isToday
+    ? 'My Free Time Today'
+    : `My Free Time on ${date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`
 
   const message =
     freeBlocks &&
-    `💜 *My Free Time Today* (${date.toDateString()})\n\n` +
-      `⏰ Here are the times I am available:\n\n` +
-      freeBlocks
-        .map(
-          (f) =>
-            `• ${formatMinutes(f.start)} – ${formatMinutes(f.end)}`
-        )
-        .join('\n') +
-      `\n\n👉 Please pick a time that works best for you.`
+    (freeBlocks.length === 0
+      ? `💜 *${title}*\n\n` +
+        `I'm fully booked${isToday ? ' for the rest of the day' : ''}. Let's find another time 🙏`
+      : `💜 *${title}* (${date.toDateString()})\n\n` +
+        `⏰ Here are the times I am available${isToday ? ' for the rest of the day' : ''}:\n\n` +
+        freeBlocks
+          .map(
+            (f) =>
+              `• ${formatMinutes(f.start)} – ${formatMinutes(f.end)}`
+          )
+          .join('\n') +
+        `\n\n👉 Please pick a time that works best for you.`)
 
   async function handleNativeShare() {
     if (!message) return
