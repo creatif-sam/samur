@@ -44,6 +44,7 @@ export interface Vision {
   emoji: string | null
   target_date: string | null
   is_archived: boolean
+  created_at?: string
 }
 
 export default function GoalsPage() {

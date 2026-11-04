@@ -16,6 +16,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Eye, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { toLocalDateKey } from '@/lib/dates'
 import { Vision } from '@/app/protected/goals/page'
 
 const COLORS = [
@@ -29,9 +31,11 @@ interface VisionCreatorProps {
   initialData?: Vision | null
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  // Edit-only instances don't show their own "Cast New Vision" button
+  hideTrigger?: boolean
 }
 
-export function VisionCreator({ onCreated, initialData, open, onOpenChange }: VisionCreatorProps) {
+export function VisionCreator({ onCreated, initialData, open, onOpenChange, hideTrigger }: VisionCreatorProps) {
   const supabase = createClient()
 
   const [internalOpen, setInternalOpen] = useState(false)
@@ -77,7 +81,10 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
       ? await supabase.from('visions').update(payload).eq('id', initialData.id)
       : await supabase.from('visions').insert(payload)
 
-    if (!error) {
+    if (error) {
+      toast.error("Couldn't save the vision. Check your connection and try again.")
+    } else {
+      toast.success(initialData ? 'Vision updated' : 'Vision cast 🔭')
       setIsOpen(false)
       if (!initialData) {
         setNewVision({ title: '', description: '', color: COLORS[0], emoji: EMOJIS[0], target_date: '' })
@@ -91,7 +98,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      {!isEditing && (
+      {!isEditing && !hideTrigger && (
         <DialogTrigger asChild>
           <Button
             variant="default"
@@ -151,6 +158,33 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange }: Vi
               onChange={e => setNewVision({ ...newVision, target_date: e.target.value })}
               className="bg-muted/50 border-0 focus-visible:ring-primary font-bold h-11"
             />
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {(() => {
+                const now = new Date()
+                const y = now.getFullYear()
+                const inMonths = (m: number) => toLocalDateKey(new Date(y, now.getMonth() + m, now.getDate()))
+                return [
+                  { label: `End of ${y}`, value: `${y}-12-31` },
+                  { label: '6 months', value: inMonths(6) },
+                  { label: `End of ${y + 1}`, value: `${y + 1}-12-31` },
+                  { label: '3 years', value: inMonths(36) },
+                  { label: 'No date', value: '' },
+                ]
+              })().map(p => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => setNewVision({ ...newVision, target_date: p.value })}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-[11px] font-bold transition',
+                    newVision.target_date === p.value ? 'text-white' : 'bg-muted text-muted-foreground'
+                  )}
+                  style={newVision.target_date === p.value ? { backgroundColor: newVision.color } : undefined}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Description */}

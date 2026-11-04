@@ -155,7 +155,9 @@ export function Topbar() {
               </div>
             )}
           </Link>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Mastery</h1>
+          <Link href="/protected" aria-label="Go to home" className="rounded-lg active:opacity-70 transition-opacity">
+            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Mastery</h1>
+          </Link>
         </div>
 
         <div className="flex items-center gap-1">

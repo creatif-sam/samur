@@ -4,10 +4,11 @@ import { useMemo, useState, useRef } from 'react'
 import { Goal } from '@/lib/types'
 
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 import {
   Target, Archive,
   RotateCcw, Plus, Pencil, Trash2, Search,
-  Calendar,
+  Calendar, ChevronRight, Clock, Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,6 +19,7 @@ import { Vision } from '@/app/protected/goals/page'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseDateKey, toLocalDateKey } from '@/lib/dates'
+import { PACE_LABEL, PACE_STYLE, daysLeftLabel, visionPace, visionProgress, yearElapsed } from '@/lib/visions'
 
 export function VisionListView({
   goals, visions, categories, currentUserId, onRefresh,
@@ -27,6 +29,9 @@ export function VisionListView({
   const supabase = createClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'active' | 'archived' | 'all'>('active')
+  // Which target year to show: this year by default thinking, but everything is one tap away
+  const [yearFilter, setYearFilter] = useState<'all' | 'this' | 'later' | 'open'>('all')
+  const year = yearElapsed()
   const [editingVision, setEditingVision] = useState<Vision | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
@@ -64,19 +69,47 @@ export function VisionListView({
       .filter(v => {
         const matchesSearch = v.title.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesFilter = filterStatus === 'all' ? true : filterStatus === 'archived' ? v.is_archived : !v.is_archived
-        return matchesSearch && matchesFilter
+        const targetYear = v.target_date ? Number(v.target_date.slice(0, 4)) : null
+        const matchesYear = yearFilter === 'all' ? true
+          : yearFilter === 'open' ? targetYear === null
+          : yearFilter === 'this' ? targetYear !== null && targetYear <= year.year
+          : targetYear !== null && targetYear > year.year
+        return matchesSearch && matchesFilter && matchesYear
       })
       .map(vision => {
         const visionGoals = goals.filter(g => g.vision_id === vision.id)
         const totalGoals = visionGoals.length
         const completedGoals = visionGoals.filter(g => g.status === 'done').length
-        const avgProgress = totalGoals > 0 ? Math.round(visionGoals.reduce((acc, curr) => acc + (curr.progress || 0), 0) / totalGoals) : 0
-        const isOverdue = !!vision.target_date && vision.target_date.slice(0, 10) < toLocalDateKey(new Date()) && avgProgress < 100
-        // Ensure goals are passed into the mapped object for the Detail View
-        return { ...vision, totalGoals, completedGoals, avgProgress, isOverdue, goals: visionGoals }
+        const avgProgress = visionProgress(visionGoals)
+        const { pace, expected, daysLeft } = visionPace(avgProgress, vision.created_at, vision.target_date)
+        const isOverdue = pace === 'overdue'
+        // Goals in a useful order for the detail view: unfinished first, then by due date
+        const orderedGoals = [...visionGoals].sort((a, b) =>
+          Number(a.status === 'done') - Number(b.status === 'done') ||
+          (a.due_date ?? '9999').localeCompare(b.due_date ?? '9999'))
+        return { ...vision, totalGoals, completedGoals, avgProgress, isOverdue, pace, expected, daysLeft, goals: orderedGoals }
       })
-      .sort((a, b) => a.title.localeCompare(b.title))
-  }, [goals, visions, searchQuery, filterStatus])
+      // Soonest target first, open-ended last
+      .sort((a, b) =>
+        (a.target_date ?? '9999').localeCompare(b.target_date ?? '9999') || a.title.localeCompare(b.title))
+  }, [goals, visions, searchQuery, filterStatus, yearFilter, year.year])
+
+  // This year at a glance (active visions due this year or earlier)
+  const yearSummary = useMemo(() => {
+    const due = visions
+      .filter(v => !v.is_archived && v.target_date && Number(v.target_date.slice(0, 4)) <= year.year)
+      .map(v => {
+        const progress = visionProgress(goals.filter(g => g.vision_id === v.id))
+        return { progress, pace: visionPace(progress, v.created_at, v.target_date).pace }
+      })
+    if (due.length === 0) return null
+    return {
+      count: due.length,
+      progress: Math.round(due.reduce((s, d) => s + d.progress, 0) / due.length),
+      achieved: due.filter(d => d.pace === 'achieved').length,
+      behind: due.filter(d => d.pace === 'behind' || d.pace === 'overdue').length,
+    }
+  }, [visions, goals, year.year])
 
   async function toggleArchive(id: string, currentStatus: boolean) {
     const { error } = await supabase.from('visions').update({ is_archived: !currentStatus }).eq('id', id)
@@ -92,8 +125,77 @@ export function VisionListView({
     onRefresh(); setDeletingId(null); toast.success("Deleted")
   }
 
+  const yearChips = [
+    { value: 'all' as const, label: 'All' },
+    { value: 'this' as const, label: String(year.year) },
+    { value: 'later' as const, label: `${year.year + 1}+` },
+    { value: 'open' as const, label: 'Open-ended' },
+  ]
+
   return (
     <div className="space-y-6">
+      {/* THIS YEAR */}
+      <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-700 p-5 text-white shadow-lg shadow-indigo-500/20">
+        <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" aria-hidden />
+        <div className="relative flex items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5" /> Vision {year.year}
+            </p>
+            <p className="mt-1 text-xl font-black leading-tight">
+              {yearSummary
+                ? yearSummary.achieved === yearSummary.count
+                  ? 'Every vision for this year achieved'
+                  : yearSummary.progress >= year.pct - 10
+                  ? 'You\'re keeping pace with the year'
+                  : 'Time to press in'
+                : 'Cast your vision for this year'}
+            </p>
+            <p className="mt-1 text-xs text-white/75">
+              {yearSummary
+                ? `${yearSummary.count} vision${yearSummary.count !== 1 ? 's' : ''} due by Dec 31 · ${yearSummary.achieved} achieved${yearSummary.behind ? ` · ${yearSummary.behind} need attention` : ''}`
+                : 'Give a vision a target date this year to track it here.'}
+            </p>
+          </div>
+          {yearSummary && (
+            <div className="relative h-16 w-16 shrink-0">
+              <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
+                <circle cx="32" cy="32" r="27" fill="none" strokeWidth="6" className="stroke-white/20" />
+                <circle cx="32" cy="32" r="27" fill="none" strokeWidth="6" strokeLinecap="round" className="stroke-white"
+                  strokeDasharray={`${(yearSummary.progress / 100) * 2 * Math.PI * 27} ${2 * Math.PI * 27}`} />
+              </svg>
+              <span className="absolute inset-0 grid place-items-center text-sm font-black">{yearSummary.progress}%</span>
+            </div>
+          )}
+        </div>
+        {/* The year itself, so progress can be compared with time */}
+        <div className="relative mt-4">
+          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1.5">
+            <span>{year.year} elapsed · {year.pct}%</span>
+            <span>{year.daysLeft} days left</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
+            <div className="h-full rounded-full bg-white/80" style={{ width: `${year.pct}%` }} />
+          </div>
+        </div>
+      </section>
+
+      {/* YEAR CHIPS */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-4 px-4">
+        {yearChips.map(c => (
+          <button
+            key={c.value}
+            onClick={() => setYearFilter(c.value)}
+            className={cn(
+              'shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold transition',
+              yearFilter === c.value ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
       {/* SEARCH & FILTER BAR */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-grow">
@@ -156,10 +258,20 @@ export function VisionListView({
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                     {v.target_date
-                      ? parseDateKey(v.target_date).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
+                      ? parseDateKey(v.target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
                       : 'Open-ended'}
                   </p>
                   <h4 className="text-base font-black text-foreground leading-tight truncate">{v.title}</h4>
+                  {!v.is_archived && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', PACE_STYLE[v.pace])}>{PACE_LABEL[v.pace]}</span>
+                      {daysLeftLabel(v.daysLeft) && v.pace !== 'achieved' && (
+                        <span className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                          <Clock className="h-3 w-3" /> {daysLeftLabel(v.daysLeft)}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
               </div>
@@ -175,12 +287,22 @@ export function VisionListView({
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Progress</p>
                   <p className="text-xs font-black" style={{ color: v.is_archived ? '#94a3b8' : v.color }}>{v.avgProgress}%</p>
                 </div>
-                <div className="relative h-2 w-full bg-secondary dark:bg-zinc-800 rounded-full overflow-hidden">
+                <div className="relative h-2 w-full bg-secondary dark:bg-zinc-800 rounded-full">
                   <div
                     className="h-full transition-all duration-500 ease-out rounded-full"
                     style={{ width: `${v.avgProgress}%`, backgroundColor: v.is_archived ? '#94a3b8' : v.color }}
                   />
+                  {v.expected !== null && v.pace !== 'achieved' && v.pace !== 'overdue' && !v.is_archived && (
+                    <span
+                      className="absolute -top-1 h-4 w-0.5 rounded-full bg-foreground/60"
+                      style={{ left: `calc(${v.expected}% - 1px)` }}
+                      title={`Where you'd be on an even pace: ${v.expected}%`}
+                    />
+                  )}
                 </div>
+                {v.expected !== null && v.pace !== 'achieved' && v.pace !== 'overdue' && !v.is_archived && (
+                  <p className="text-[10px] text-muted-foreground">Marker: {v.expected}% expected by today</p>
+                )}
               </div>
 
               {/* Stats + Add Goal */}
@@ -276,6 +398,7 @@ export function VisionListView({
 
       {/* MODALS */}
       <VisionCreator
+        hideTrigger
         initialData={editingVision}
         open={!!editingVision}
         onOpenChange={(open) => !open && setEditingVision(null)}
@@ -354,6 +477,17 @@ export function VisionListView({
                     </p>
                   </div>
                 </div>
+                <div className="mt-5 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{PACE_LABEL[selectedVision.pace as keyof typeof PACE_LABEL]}</span>
+                  {daysLeftLabel(selectedVision.daysLeft) && (
+                    <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> {daysLeftLabel(selectedVision.daysLeft)}
+                    </span>
+                  )}
+                  {selectedVision.expected !== null && selectedVision.pace !== 'achieved' && selectedVision.pace !== 'overdue' && (
+                    <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{selectedVision.expected}% expected by today</span>
+                  )}
+                </div>
               </div>
 
               {/* Content Section */}
@@ -395,25 +529,38 @@ export function VisionListView({
                   <div className="space-y-2">
                     {selectedVision.goals?.length > 0 ? (
                       selectedVision.goals.map((goal: any) => (
-                        <button
-                          key={goal.id}
-                          onClick={() => {
-                            if (goal.owner_id && goal.owner_id !== currentUserId) {
-                              toast('This goal is shared by your partner; only they can edit it')
-                              return
-                            }
-                            setEditingGoal(goal)
-                          }}
-                          className="w-full text-left flex items-center justify-between p-4 rounded-xl border bg-card hover:bg-secondary/10 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              goal.status === 'done' ? 'bg-green-500' : 'bg-orange-500'
-                            )} />
-                            <span className="text-xs font-bold uppercase italic">{goal.title}</span>
-                          </div>
-                          <span className="text-[10px] font-black opacity-40">{goal.progress}%</span>
-                        </button>
+                        <div key={goal.id} className="flex items-center gap-2 rounded-xl border bg-card p-3">
+                          <button
+                            onClick={() => {
+                              if (goal.owner_id && goal.owner_id !== currentUserId) {
+                                toast('This goal is shared by your partner; only they can edit it')
+                                return
+                              }
+                              setEditingGoal(goal)
+                            }}
+                            className="flex-1 min-w-0 text-left"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={cn(
+                                'h-2 w-2 rounded-full shrink-0',
+                                goal.status === 'done' ? 'bg-emerald-500' : goal.due_date && goal.due_date.slice(0, 10) < toLocalDateKey(new Date()) ? 'bg-rose-500' : goal.status === 'doing' ? 'bg-violet-500' : 'bg-muted-foreground/40'
+                              )} />
+                              <span className={cn('text-sm font-bold truncate', goal.status === 'done' && 'line-through text-muted-foreground')}>{goal.title}</span>
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${goal.status === 'done' ? 100 : goal.progress ?? 0}%`, backgroundColor: selectedVision.color }} />
+                              </div>
+                              <span className="text-[10px] font-black tabular-nums text-muted-foreground w-8 text-right">{goal.status === 'done' ? 100 : goal.progress ?? 0}%</span>
+                            </div>
+                            {goal.due_date && (
+                              <p className="mt-1 text-[10px] text-muted-foreground">Due {parseDateKey(goal.due_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</p>
+                            )}
+                          </button>
+                          <Link href={`/protected/goals/${goal.id}`} aria-label={`Open ${goal.title}`} className="p-2 rounded-lg text-muted-foreground hover:bg-muted">
+                            <ChevronRight className="h-4 w-4" />
+                          </Link>
+                        </div>
                       ))
                     ) : (
                       <div className="text-center py-10 border border-dashed rounded-2xl opacity-40 text-[10px] font-bold uppercase italic">
