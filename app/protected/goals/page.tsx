@@ -3,31 +3,21 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
-import { Button } from '@/components/ui/button'
-import { VisionBoard } from '@/components/goals/VisionBoard'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Plus,
   Target,
-  Users,
-  BarChart3,
   LayoutDashboard,
   Sparkles,
   Flag,
   Rocket,
-  Archive,
-  CheckCircle2,
-  TrendingUp,
   Eye,
-  Circle,
-  Ban,
 } from 'lucide-react'
 import { NewGoalForm, GoalCategory } from '@/components/goals/NewGoalForm'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { GoalList } from '@/components/goals/GoalList'
-import { GoalsDonutChart } from '@/components/goals/charts/GoalsDonutChart'
-import { GoalsYearlyLineChart } from '@/components/goals/charts/GoalsYearlyLineChart'
+import { GoalsOverview } from '@/components/goals/GoalsOverview'
 import { VisionCreator } from '@/components/goals/VisionCreator'
 import { VisionListView } from '@/components/goals/VisionListView'
 import { cn } from '@/lib/utils'
@@ -56,6 +46,7 @@ export default function GoalsPage() {
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [view, setView] = useState<GoalView>('monthly')
+  const [tab, setTab] = useState('overview')
   const [selectedVisionId, setSelectedVisionId] = useState<string>('all')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
@@ -166,7 +157,7 @@ export default function GoalsPage() {
         </Select>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs value={tab} onValueChange={setTab} className="space-y-6">
         <TabsList className="grid grid-cols-3 h-14">
           <TabsTrigger value="overview" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <LayoutDashboard className="w-4 h-4" />
@@ -184,58 +175,12 @@ export default function GoalsPage() {
 
         <TabsContent value="overview" className="space-y-6">
 
-          {/* ── Stat Cards ── */}
-          <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-            {[
-              { label: 'Total Goals',  value: focusGoals.length,                                          unit: 'goals',   icon: Target,       gradient: 'from-violet-600 to-purple-700',  shadow: 'shadow-violet-500/30' },
-              { label: 'Visions',      value: visions.length,                                        unit: 'visions', icon: Eye,           gradient: 'from-indigo-500 to-blue-600',    shadow: 'shadow-indigo-500/30' },
-              { label: 'Done',         value: focusGoals.filter(g => g.status === 'done').length,          unit: 'done',    icon: CheckCircle2,  gradient: 'from-emerald-600 to-teal-700',   shadow: 'shadow-emerald-500/30' },
-              { label: 'In Progress',  value: focusGoals.filter(g => g.status === 'doing').length,         unit: 'running', icon: TrendingUp,    gradient: 'from-blue-600 to-cyan-700',      shadow: 'shadow-blue-500/30' },
-              { label: 'Blocked',      value: focusGoals.filter(g => g.status === 'blocked').length,       unit: 'blocked', icon: Ban,           gradient: 'from-orange-500 to-red-600',     shadow: 'shadow-orange-500/30' },
-              { label: 'Not Started',  value: focusGoals.filter(g => g.status === 'to_do').length,         unit: 'pending', icon: Circle,        gradient: 'from-slate-500 to-gray-600',     shadow: 'shadow-slate-500/30' },
-            ].map(({ label, value, unit, icon: Icon, gradient, shadow }) => (
-              <div key={label} className={`flex-shrink-0 w-32 rounded-3xl bg-gradient-to-br p-4 shadow-lg ${gradient} ${shadow}`}>
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center mb-3">
-                  <Icon className="w-4 h-4 text-white" />
-                </div>
-                <p className="text-3xl font-black text-white leading-none">{value}</p>
-                <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">{unit}</p>
-                <p className="text-xs font-semibold text-white/80 mt-2 leading-tight">{label}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-violet-50 dark:bg-violet-950/30 flex items-center justify-center flex-shrink-0">
-                  <BarChart3 className="w-5 h-5 text-violet-600 dark:text-violet-400" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Analytics</p>
-                  <h3 className="text-sm font-black">Velocity Timeline</h3>
-                </div>
-              </div>
-              <GoalsYearlyLineChart goals={focusGoals} />
-            </div>
-
-            <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center flex-shrink-0">
-                  <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Distribution</p>
-                  <h3 className="text-sm font-black">Sector Breakdown</h3>
-                </div>
-              </div>
-              <GoalsDonutChart goals={focusGoals} categories={uiCategories} />
-            </div>
-          </div>
-
-          <div className="rounded-[24px] bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-5">
-            <VisionBoard goals={focusGoals} />
-          </div>
+          <GoalsOverview
+            goals={focusGoals}
+            visions={selectedVisionId === 'all' ? visions : visions.filter(v => v.id === selectedVisionId)}
+            categories={uiCategories}
+            onOpenVisions={() => setTab('visions')}
+          />
         </TabsContent>
 
         <TabsContent value="goals" className="space-y-6">

@@ -8,7 +8,7 @@ import Link from 'next/link'
 import {
   Target, Archive,
   RotateCcw, Plus, Pencil, Trash2, Search,
-  Calendar, ChevronRight, Clock, Sparkles,
+  Calendar, ChevronRight, Clock, Sparkles, MoreHorizontal,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -19,7 +19,20 @@ import { Vision } from '@/app/protected/goals/page'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { parseDateKey, toLocalDateKey } from '@/lib/dates'
-import { PACE_LABEL, PACE_STYLE, daysLeftLabel, visionPace, visionProgress, yearElapsed } from '@/lib/visions'
+import { PACE_LABEL, PACE_STYLE, daysLeftLabel, solidFor, visionGradient, visionPace, visionProgress, yearElapsed } from '@/lib/visions'
+import type { VisionPace } from '@/lib/visions'
+
+// A vision with its goals and pace worked out, as shown on the cards
+type VisionRow = Vision & {
+  totalGoals: number
+  completedGoals: number
+  avgProgress: number
+  isOverdue: boolean
+  pace: VisionPace
+  expected: number | null
+  daysLeft: number | null
+  goals: Goal[]
+}
 
 export function VisionListView({
   goals, visions, categories, currentUserId, onRefresh,
@@ -38,9 +51,9 @@ export function VisionListView({
   const linkedGoalCount = deletingId ? goals.filter(g => g.vision_id === deletingId).length : 0
 
   // Added missing state for the Detail Overlay
-  const [selectedVision, setSelectedVision] = useState<any | null>(null)
+  const [selectedVision, setSelectedVision] = useState<VisionRow | null>(null)
   const [isAddingGoalInternal, setIsAddingGoalInternal] = useState(false)
-  const [contextMenuVision, setContextMenuVision] = useState<any | null>(null)
+  const [contextMenuVision, setContextMenuVision] = useState<VisionRow | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const longPressTriggered = useRef(false)
 
@@ -64,7 +77,7 @@ export function VisionListView({
     }
   }
 
-  const processedVisions = useMemo(() => {
+  const processedVisions = useMemo((): VisionRow[] => {
     return visions
       .filter(v => {
         const matchesSearch = v.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -111,6 +124,20 @@ export function VisionListView({
     }
   }, [visions, goals, year.year])
 
+  // Twelve months of this year: done, under way, or ahead, with visions due in each
+  const monthStrip = useMemo(() => {
+    const now = new Date()
+    const thisMonth = now.getMonth()
+    const daysInMonth = new Date(now.getFullYear(), thisMonth + 1, 0).getDate()
+    return Array.from({ length: 12 }, (_, i) => ({
+      index: i,
+      label: new Date(year.year, i, 1).toLocaleDateString(undefined, { month: 'narrow' }),
+      state: i < thisMonth ? 'past' : i === thisMonth ? 'current' : 'future',
+      fill: Math.round((now.getDate() / daysInMonth) * 100),
+      due: visions.filter(v => !v.is_archived && v.target_date?.startsWith(`${year.year}-${String(i + 1).padStart(2, '0')}`)).length,
+    }))
+  }, [visions, year.year])
+
   async function toggleArchive(id: string, currentStatus: boolean) {
     const { error } = await supabase.from('visions').update({ is_archived: !currentStatus }).eq('id', id)
     if (!error) { onRefresh(); toast.success(currentStatus ? "Restored" : "Archived"); }
@@ -125,11 +152,13 @@ export function VisionListView({
     onRefresh(); setDeletingId(null); toast.success("Deleted")
   }
 
+  const chipPool = visions.filter(v => filterStatus === 'all' ? true : filterStatus === 'archived' ? v.is_archived : !v.is_archived)
+  const targetYearOf = (v: Vision) => (v.target_date ? Number(v.target_date.slice(0, 4)) : null)
   const yearChips = [
-    { value: 'all' as const, label: 'All' },
-    { value: 'this' as const, label: String(year.year) },
-    { value: 'later' as const, label: `${year.year + 1}+` },
-    { value: 'open' as const, label: 'Open-ended' },
+    { value: 'all' as const, label: 'All', count: chipPool.length },
+    { value: 'this' as const, label: String(year.year), count: chipPool.filter(v => { const y = targetYearOf(v); return y !== null && y <= year.year }).length },
+    { value: 'later' as const, label: `${year.year + 1}+`, count: chipPool.filter(v => { const y = targetYearOf(v); return y !== null && y > year.year }).length },
+    { value: 'open' as const, label: 'Open-ended', count: chipPool.filter(v => targetYearOf(v) === null).length },
   ]
 
   return (
@@ -153,7 +182,7 @@ export function VisionListView({
             </p>
             <p className="mt-1 text-xs text-white/75">
               {yearSummary
-                ? `${yearSummary.count} vision${yearSummary.count !== 1 ? 's' : ''} due by Dec 31 · ${yearSummary.achieved} achieved${yearSummary.behind ? ` · ${yearSummary.behind} need attention` : ''}`
+                ? `${yearSummary.count} vision${yearSummary.count !== 1 ? 's' : ''} due by Dec 31${yearSummary.behind ? ` · ${yearSummary.behind} need${yearSummary.behind === 1 ? 's' : ''} attention` : ''}`
                 : 'Give a vision a target date this year to track it here.'}
             </p>
           </div>
@@ -164,19 +193,52 @@ export function VisionListView({
                 <circle cx="32" cy="32" r="27" fill="none" strokeWidth="6" strokeLinecap="round" className="stroke-white"
                   strokeDasharray={`${(yearSummary.progress / 100) * 2 * Math.PI * 27} ${2 * Math.PI * 27}`} />
               </svg>
-              <span className="absolute inset-0 grid place-items-center text-sm font-black">{yearSummary.progress}%</span>
+              <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+                <span className="text-sm font-black">{yearSummary.progress}%</span>
+                <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wider text-white/70">done</span>
+              </span>
             </div>
           )}
         </div>
-        {/* The year itself, so progress can be compared with time */}
-        <div className="relative mt-4">
-          <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-white/70 mb-1.5">
-            <span>{year.year} elapsed · {year.pct}%</span>
-            <span>{year.daysLeft} days left</span>
+        {/* The year itself, month by month, so progress can be compared with time */}
+        <div className="relative mt-5">
+          <div className="grid grid-cols-12 gap-1">
+            {monthStrip.map(m => (
+              <div key={m.index} className="flex flex-col items-center gap-1">
+                <div
+                  className={cn(
+                    'h-2 w-full rounded-full',
+                    m.state === 'past' ? 'bg-white/85' : m.state === 'current' ? 'bg-white/30' : 'bg-white/15',
+                  )}
+                >
+                  {m.state === 'current' && (
+                    <div className="h-full rounded-full bg-white" style={{ width: `${m.fill}%` }} />
+                  )}
+                </div>
+                <span className={cn('text-[9px] font-bold', m.state === 'current' ? 'text-white' : 'text-white/55')}>{m.label}</span>
+                <span className={cn('h-1 w-1 rounded-full', m.due > 0 ? 'bg-amber-300' : 'bg-transparent')} title={m.due ? `${m.due} vision${m.due === 1 ? '' : 's'} due` : undefined} />
+              </div>
+            ))}
           </div>
-          <div className="h-1.5 rounded-full bg-white/20 overflow-hidden">
-            <div className="h-full rounded-full bg-white/80" style={{ width: `${year.pct}%` }} />
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="rounded-2xl bg-white/10 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">Year gone</p>
+              <p className="text-base font-black leading-tight">{year.pct}%</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">Achieved</p>
+              <p className="text-base font-black leading-tight">{yearSummary ? `${yearSummary.achieved}/${yearSummary.count}` : '—'}</p>
+            </div>
+            <div className="rounded-2xl bg-white/10 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">Days left</p>
+              <p className="text-base font-black leading-tight">{year.daysLeft}</p>
+            </div>
           </div>
+          {monthStrip.some(m => m.due > 0) && (
+            <p className="mt-2 flex items-center gap-1.5 text-[10px] text-white/65">
+              <span className="h-1 w-1 rounded-full bg-amber-300" /> a vision is due that month
+            </p>
+          )}
         </div>
       </section>
 
@@ -192,6 +254,7 @@ export function VisionListView({
             )}
           >
             {c.label}
+            <span className="ml-1.5 tabular-nums opacity-60">{c.count}</span>
           </button>
         ))}
       </div>
@@ -224,6 +287,13 @@ export function VisionListView({
           ))}
         </div>
       </div>
+
+      {processedVisions.some(v => v.expected !== null && v.pace !== 'achieved' && v.pace !== 'overdue' && !v.is_archived) && (
+        <p className="-mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="inline-block h-3 w-0.5 shrink-0 rounded-full bg-foreground/60" />
+          The line on each bar marks where an even pace would put you today.
+        </p>
+      )}
 
       {/* GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -273,7 +343,15 @@ export function VisionListView({
                     </div>
                   )}
                 </div>
-
+                <button
+                  type="button"
+                  aria-label={`Actions for ${v.title}`}
+                  onPointerDown={e => e.stopPropagation()}
+                  onClick={e => { e.stopPropagation(); setContextMenuVision(v) }}
+                  className="-mr-2 -mt-1 h-8 w-8 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
               </div>
 
               {/* Description */}
@@ -285,7 +363,7 @@ export function VisionListView({
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Progress</p>
-                  <p className="text-xs font-black" style={{ color: v.is_archived ? '#94a3b8' : v.color }}>{v.avgProgress}%</p>
+                  <p className="text-xs font-black tabular-nums text-foreground">{v.avgProgress}%</p>
                 </div>
                 <div className="relative h-2 w-full bg-secondary dark:bg-zinc-800 rounded-full">
                   <div
@@ -300,9 +378,6 @@ export function VisionListView({
                     />
                   )}
                 </div>
-                {v.expected !== null && v.pace !== 'achieved' && v.pace !== 'overdue' && !v.is_archived && (
-                  <p className="text-[10px] text-muted-foreground">Marker: {v.expected}% expected by today</p>
-                )}
               </div>
 
               {/* Stats + Add Goal */}
@@ -314,7 +389,7 @@ export function VisionListView({
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Done</p>
-                    <p className="text-xl font-black" style={{ color: v.is_archived ? '#94a3b8' : v.color }}>{v.completedGoals}</p>
+                    <p className="text-xl font-black text-foreground">{v.completedGoals}</p>
                   </div>
                 </div>
                 {!v.is_archived && (
@@ -323,7 +398,7 @@ export function VisionListView({
                       <DialogTrigger asChild>
                         <button
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition active:scale-95"
-                          style={{ backgroundColor: v.color }}
+                          style={{ backgroundColor: solidFor(v.color) }}
                         >
                           <Plus className="w-3.5 h-3.5" /> Add Goal
                         </button>
@@ -449,14 +524,16 @@ export function VisionListView({
           {selectedVision && (
             <div className="flex flex-col">
               {/* Header Hero Section */}
-              <div className="p-8 text-white relative" style={{ backgroundColor: selectedVision.color }}>
-                <div className="absolute top-6 right-6 text-7xl opacity-20">{selectedVision.emoji}</div>
+              <div className="p-6 pt-8 text-white relative overflow-hidden" style={{ background: visionGradient(selectedVision.color) }}>
+                <div className="pointer-events-none absolute -right-3 top-4 text-8xl opacity-20 select-none" aria-hidden>{selectedVision.emoji}</div>
                 <DialogHeader className="text-left">
-  <div className="flex items-center gap-2 mb-2 opacity-80 text-[10px] font-bold uppercase tracking-widest">
-    <Calendar className="w-3 h-3" /> Established: {new Date(selectedVision.created_at).toLocaleDateString()}
-  </div>
+  {selectedVision.created_at && (
+    <div className="flex items-center gap-1.5 mb-2 text-white/75 text-[10px] font-bold uppercase tracking-widest">
+      <Calendar className="w-3 h-3" /> Cast {new Date(selectedVision.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+    </div>
+  )}
 
-  <DialogTitle className="text-4xl font-black uppercase italic leading-none tracking-tighter mb-6 text-white">
+  <DialogTitle className="text-3xl font-black leading-tight tracking-tight mb-5 pr-16 text-white">
     {selectedVision.title}
   </DialogTitle>
 
@@ -467,15 +544,23 @@ export function VisionListView({
 </DialogHeader>
                 <div className="flex gap-8">
                   <div>
-                    <p className="text-[9px] font-black uppercase opacity-70">Realization</p>
-                    <p className="text-2xl font-black italic">{selectedVision.avgProgress}%</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">Progress</p>
+                    <p className="text-2xl font-black">{selectedVision.avgProgress}%</p>
                   </div>
                   <div>
-                    <p className="text-[9px] font-black uppercase opacity-70">Target Date</p>
-                    <p className="text-2xl font-black italic">
-                      {selectedVision.target_date ? parseDateKey(selectedVision.target_date).toLocaleDateString() : 'OPEN'}
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">Target</p>
+                    <p className="text-2xl font-black">
+                      {selectedVision.target_date
+                        ? parseDateKey(selectedVision.target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                        : 'Open'}
                     </p>
                   </div>
+                </div>
+                <div className="relative mt-4 h-2 rounded-full bg-white/20">
+                  <div className="h-full rounded-full bg-white transition-all duration-700" style={{ width: `${selectedVision.avgProgress}%` }} />
+                  {selectedVision.expected !== null && selectedVision.pace !== 'achieved' && selectedVision.pace !== 'overdue' && (
+                    <span className="absolute -top-1 h-4 w-0.5 rounded-full bg-white/70" style={{ left: `calc(${selectedVision.expected}% - 1px)` }} />
+                  )}
                 </div>
                 <div className="mt-5 flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{PACE_LABEL[selectedVision.pace as keyof typeof PACE_LABEL]}</span>
@@ -491,29 +576,34 @@ export function VisionListView({
               </div>
 
               {/* Content Section */}
-              <div className="p-8 space-y-8 bg-background">
+              <div className="p-6 space-y-6 bg-background">
                 {selectedVision.description && (
-                  <div className="p-4 bg-muted/30 rounded-xl border-l-4 border-primary/20 italic text-sm text-muted-foreground">
-                    "{selectedVision.description}"
+                  <div className="p-4 bg-muted/40 rounded-2xl border-l-4 text-sm text-muted-foreground leading-relaxed" style={{ borderColor: selectedVision.color }}>
+                    {selectedVision.description}
                   </div>
                 )}
 
                 <div className="space-y-4">
-                  <div className="flex justify-between items-end border-b-2 border-dashed pb-2">
-                    <h3 className="text-xs font-black uppercase italic flex items-center gap-2">
-                      <Target className="w-4 h-4 text-primary" /> Strategy Nodes
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-sm font-black flex items-center gap-2">
+                      <Target className="w-4 h-4 text-muted-foreground" /> Goals
+                      <span className="text-xs font-bold text-muted-foreground">{selectedVision.completedGoals}/{selectedVision.totalGoals} done</span>
                     </h3>
 
                     {/* Internal Add Goal Trigger */}
                     <Dialog open={isAddingGoalInternal} onOpenChange={setIsAddingGoalInternal}>
                       <DialogTrigger asChild>
-                        <Button size="sm" className="h-8 font-black uppercase italic text-[10px] gap-1">
-                          <Plus className="w-3 h-3" /> New Goal
-                        </Button>
+                        <button
+                          className="flex items-center gap-1 h-8 px-3 rounded-xl text-xs font-bold text-white active:scale-95 transition"
+                          style={{ backgroundColor: solidFor(selectedVision.color) }}
+                        >
+                          <Plus className="w-3.5 h-3.5" /> New Goal
+                        </button>
                       </DialogTrigger>
                       <DialogContent className="max-w-xl">
                         <DialogHeader>
-                          <DialogTitle className="uppercase font-black italic">Add Goal to {selectedVision.title}</DialogTitle>
+                          <DialogTitle className="font-black">Add Goal to {selectedVision.title}</DialogTitle>
+                          <DialogDescription className="sr-only">Add a goal to this vision</DialogDescription>
                         </DialogHeader>
                         <NewGoalForm
                           categories={categories}
@@ -528,8 +618,8 @@ export function VisionListView({
 
                   <div className="space-y-2">
                     {selectedVision.goals?.length > 0 ? (
-                      selectedVision.goals.map((goal: any) => (
-                        <div key={goal.id} className="flex items-center gap-2 rounded-xl border bg-card p-3">
+                      selectedVision.goals.map((goal) => (
+                        <div key={goal.id} className="flex items-center gap-2 rounded-2xl border border-border/60 bg-card p-3">
                           <button
                             onClick={() => {
                               if (goal.owner_id && goal.owner_id !== currentUserId) {
@@ -563,8 +653,8 @@ export function VisionListView({
                         </div>
                       ))
                     ) : (
-                      <div className="text-center py-10 border border-dashed rounded-2xl opacity-40 text-[10px] font-bold uppercase italic">
-                        No active goals in this vision.
+                      <div className="text-center py-10 border border-dashed rounded-2xl text-sm text-muted-foreground">
+                        No goals in this vision yet. Add the first step.
                       </div>
                     )}
                   </div>

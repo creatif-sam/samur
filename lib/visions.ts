@@ -62,6 +62,39 @@ export function daysLeftLabel(daysLeft: number | null) {
   return `${months} month${months === 1 ? '' : 's'} left`
 }
 
+// Vision colours are user-picked hex values; these keep text on them readable
+function parseHex(hex: string) {
+  const h = hex.replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h.padEnd(6, '0').slice(0, 6)
+  const n = parseInt(full, 16)
+  return Number.isNaN(n) ? [124, 58, 237] : [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+
+// Mix a colour toward black (amount 0–1) so white text sits on it comfortably
+export function deepen(hex: string, amount = 0.35) {
+  const [r, g, b] = parseHex(hex).map(c => Math.round(c * (1 - amount)))
+  return `rgb(${r}, ${g}, ${b})`
+}
+
+// A darkened colour with enough contrast for white text (WCAG AA for bold text)
+export function solidFor(hex: string) {
+  const lum = (rgb: number[]) => {
+    const [r, g, b] = rgb.map(v => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4 })
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+  }
+  const base = parseHex(hex)
+  for (let amt = 0; amt <= 0.7; amt += 0.05) {
+    const rgb = base.map(c => Math.round(c * (1 - amt)))
+    if (1.05 / (lum(rgb) + 0.05) >= 3.6) return `rgb(${rgb.join(', ')})`
+  }
+  return deepen(hex, 0.7)
+}
+
+// Gradient for a vision's hero header
+export function visionGradient(hex: string) {
+  return `linear-gradient(135deg, ${solidFor(hex)} 0%, ${deepen(hex, 0.6)} 100%)`
+}
+
 // How far through the calendar year today is (0–100)
 export function yearElapsed(now = new Date()) {
   const y = now.getFullYear()
