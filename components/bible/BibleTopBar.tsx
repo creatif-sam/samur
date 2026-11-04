@@ -2,10 +2,11 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import {
-  ChevronLeft, ChevronDown, Search, BookMarked, History, Type, X, CalendarCheck,
+  ChevronLeft, ChevronDown, Search, BookMarked, Type, X,
 } from 'lucide-react'
-import { TRANSLATIONS, displayBook } from './bibleConstants'
+import { TRANSLATIONS, displayBook, isFrench } from './bibleConstants'
 import type { BibleView } from './useBibleReader'
+import type { SearchHit } from '@/lib/bible/source'
 
 interface Props {
   view: BibleView
@@ -16,13 +17,9 @@ interface Props {
   selectedVerses: Set<number>
   setSelectedVerses: (s: Set<number>) => void
   setShowHighlightPanel: (v: boolean) => void
-  bookSort: 'canonical' | 'alpha'
-  setBookSort: Dispatch<SetStateAction<'canonical' | 'alpha'>>
-  showRecent: boolean
-  setShowRecent: Dispatch<SetStateAction<boolean>>
   searchQuery: string
   setSearchQuery: (q: string) => void
-  setSearchResults: (r: any[]) => void
+  setSearchResults: (r: SearchHit[]) => void
   fontSize: 'sm' | 'md' | 'lg'
   fontSizeNext: { readonly sm: 'md'; readonly md: 'lg'; readonly lg: 'sm' }
   setFontSize: Dispatch<SetStateAction<'sm' | 'md' | 'lg'>>
@@ -32,13 +29,12 @@ interface Props {
 export function BibleTopBar({
   view, setView, selectedBook, selectedChapter, translation,
   selectedVerses, setSelectedVerses, setShowHighlightPanel,
-  bookSort, setBookSort, showRecent, setShowRecent,
   searchQuery, setSearchQuery, setSearchResults,
   fontSize, fontSizeNext, setFontSize,
   router,
 }: Props) {
   return (
-    <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3 flex items-center gap-3">
+    <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border/60 px-3 h-14 flex items-center gap-2">
       <button
         onClick={() => {
           if (view === 'read') setView('chapters')
@@ -47,13 +43,21 @@ export function BibleTopBar({
           else if (view === 'compare') setView('read')
           else router.back()
         }}
-        className="p-1.5 rounded-xl hover:bg-muted transition shrink-0"
+        aria-label="Back"
+        className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition shrink-0"
       >
         <ChevronLeft className="w-5 h-5" />
       </button>
 
       <div className="flex-1 min-w-0">
-        {view === 'books' && <h1 className="text-lg font-bold">Books</h1>}
+        {view === 'books' && (
+          <div className="leading-tight">
+            <h1 className="text-lg font-black tracking-tight">{isFrench(translation) ? 'Sainte Bible' : 'Holy Bible'}</h1>
+            <p className="text-[11px] font-semibold text-muted-foreground truncate">
+              {TRANSLATIONS.find(t => t.id === translation)?.name ?? 'King James Version'}
+            </p>
+          </div>
+        )}
         {view === 'chapters' && (
           <p className="text-base font-black uppercase tracking-tight truncate">
             {displayBook(selectedBook, translation)}
@@ -89,34 +93,6 @@ export function BibleTopBar({
             <X className="w-3.5 h-3.5" />
             Clear
           </button>
-        )}
-
-        {view === 'books' && (
-          <>
-            <button
-              onClick={() => setBookSort(s => s === 'canonical' ? 'alpha' : 'canonical')}
-              className={`flex items-center px-2.5 py-1.5 rounded-xl text-xs font-black tracking-wide transition ${
-                bookSort === 'alpha'
-                  ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400'
-                  : 'hover:bg-muted text-muted-foreground'
-              }`}
-            >
-              AZ
-            </button>
-            <button
-              onClick={() => setView('plans')}
-              aria-label="Reading plans"
-              className="p-1.5 rounded-xl hover:bg-muted transition"
-            >
-              <CalendarCheck className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => setShowRecent(v => !v)}
-              className={`p-1.5 rounded-xl transition ${showRecent ? 'bg-violet-100 dark:bg-violet-900/40' : 'hover:bg-muted'}`}
-            >
-              <History className={`w-5 h-5 ${showRecent ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`} />
-            </button>
-          </>
         )}
 
         {view !== 'books' && view !== 'search' && view !== 'compare' && (

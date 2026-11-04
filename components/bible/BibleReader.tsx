@@ -28,10 +28,6 @@ export default function BibleReader() {
         selectedVerses={r.selectedVerses}
         setSelectedVerses={r.setSelectedVerses}
         setShowHighlightPanel={r.setShowHighlightPanel}
-        bookSort={r.bookSort}
-        setBookSort={r.setBookSort}
-        showRecent={r.showRecent}
-        setShowRecent={r.setShowRecent}
         searchQuery={r.searchQuery}
         setSearchQuery={r.setSearchQuery}
         setSearchResults={r.setSearchResults}
@@ -95,7 +91,11 @@ export default function BibleReader() {
           bookSearch={r.bookSearch}
           setBookSearch={r.setBookSearch}
           showRecent={r.showRecent}
+          setShowRecent={r.setShowRecent}
           bookSort={r.bookSort}
+          setBookSort={r.setBookSort}
+          savedCount={r.savedVerses.length}
+          setView={r.setView}
           displayedBooks={r.displayedBooks}
           openBook={r.openBook}
           translation={r.translation}

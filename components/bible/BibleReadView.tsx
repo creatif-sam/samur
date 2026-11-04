@@ -1,13 +1,13 @@
 'use client'
 
-import type { RefObject, MutableRefObject } from 'react'
+import type { RefObject } from 'react'
 import {
   Check,
   Loader2, ChevronLeft, ChevronRight, ChevronDown,
   Copy, Share2, Bookmark, Highlighter, PenLine, BookCopy, X, StickyNote,
 } from 'lucide-react'
 import {
-  HIGHLIGHT_COLORS, displayBook, chapterArray, highlightBg,
+  HIGHLIGHT_COLORS, TRANSLATIONS, displayBook, chapterArray, highlightBg, isFrench,
   type Verse, type VerseHighlight,
 } from './bibleConstants'
 import type { VerseNoteLink } from '@/lib/bible/notes'
@@ -77,6 +77,21 @@ export function BibleReadView({
         )}
         {error && <div className="text-center py-10 text-destructive text-sm">{error}</div>}
 
+        {/* Chapter heading */}
+        {!loading && !error && verses.length > 0 && (
+          <div className="pt-3 pb-6 text-center select-none">
+            <p className="text-[11px] font-black uppercase tracking-[0.22em] text-violet-500">
+              {displayBook(selectedBook, translation)}
+            </p>
+            <p className="mt-1 font-serif text-6xl font-bold leading-none tracking-tight">{selectedChapter}</p>
+            <div className="mx-auto mt-4 flex items-center justify-center gap-2 text-[11px] font-semibold text-muted-foreground">
+              <span className="h-px w-8 bg-border" />
+              {TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'} · {verses.length} {isFrench(translation) ? 'versets' : 'verses'}
+              <span className="h-px w-8 bg-border" />
+            </div>
+          </div>
+        )}
+
         {!loading && !error && verses.map(v => {
           const key = `${selectedBook}-${selectedChapter}-${v.verse}`
           const highlight = highlights.get(key)
@@ -115,7 +130,7 @@ export function BibleReadView({
                     </button>
                   )}
                 </div>
-                <p className={`flex-1 ${fontSizeClass} leading-[1.75] text-foreground`}>{v.text}</p>
+                <p className={`flex-1 font-serif ${fontSizeClass} leading-[1.8] text-foreground`}>{v.text}</p>
               </div>
             </div>
           )
@@ -237,8 +252,8 @@ export function BibleReadView({
       )}
 
       {/* ── Chapter nav bar ── */}
-      <div className="fixed bottom-16 left-0 right-0 z-[56] bg-background/95 backdrop-blur border-t border-border flex items-center h-14 px-1">
-        <button onClick={prevChapter} className="p-3 rounded-xl hover:bg-muted active:bg-muted transition" aria-label="Previous chapter">
+      <div className="fixed bottom-[68px] left-3 right-3 z-[56] mx-auto max-w-md rounded-2xl bg-background/90 backdrop-blur-xl border border-border shadow-lg shadow-black/5 flex items-center h-[50px] px-1">
+        <button onClick={prevChapter} className="h-10 w-10 grid place-items-center rounded-xl hover:bg-muted active:scale-90 transition" aria-label="Previous chapter">
           <ChevronLeft className="w-5 h-5" />
         </button>
         <button
@@ -248,7 +263,7 @@ export function BibleReadView({
           <span className="text-sm font-bold">{displayBook(selectedBook, translation)} {selectedChapter}</span>
           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showChapterSheet ? 'rotate-180' : ''}`} />
         </button>
-        <button onClick={nextChapter} className="p-3 rounded-xl hover:bg-muted active:bg-muted transition" aria-label="Next chapter">
+        <button onClick={nextChapter} className="h-10 w-10 grid place-items-center rounded-xl hover:bg-muted active:scale-90 transition" aria-label="Next chapter">
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>

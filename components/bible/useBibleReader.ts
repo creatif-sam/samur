@@ -114,6 +114,12 @@ export function useBibleReader() {
     }
   }, [selectedBook, selectedChapter])
 
+  // Each screen starts at its top (opening a book from far down the list
+  // used to land halfway down the chapter grid or the reader)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [view])
+
   useEffect(() => { if (view !== 'read') setShowChapterSheet(false) }, [view])
 
   useEffect(() => {
