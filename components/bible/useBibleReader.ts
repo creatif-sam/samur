@@ -14,7 +14,8 @@ import {
   searchBook, searchWholeBible, searchesOtherTranslation, type SearchHit,
 } from '@/lib/bible/source'
 import { toLocalDateKey } from '@/lib/dates'
-import { ensureSystemNotebook } from '@/lib/notes/data'
+import { ensureSystemNotebook, fetchPage, findSystemNotebook } from '@/lib/notes/data'
+import { appendToNoteHtml, newVerseNoteHtml, noteToText, parseNoteVerses, textToHtml, type VerseNoteLink } from '@/lib/bible/notes'
 
 // Where you were, so the Bible reopens on the same chapter, version and text size
 const STATE_KEY = 'bible_state'
@@ -64,6 +65,11 @@ export function useBibleReader() {
   const [noteVerse, setNoteVerse] = useState<Verse | null>(null)
   const [noteContent, setNoteContent] = useState('')
   const [savingNote, setSavingNote] = useState(false)
+  // Verses of the open chapter that already have a Bible note
+  const [verseNotes, setVerseNotes] = useState<Map<number, VerseNoteLink>>(new Map())
+  // The note being added to (null = a new note); text is null while loading
+  const [noteExisting, setNoteExisting] = useState<(VerseNoteLink & { text: string | null }) | null>(null)
+  const verseNotesKey = useRef('')
   const [compareVerseNums, setCompareVerseNums] = useState<number[]>([])
   const [compareTranslations, setCompareTranslations] = useState<string[]>([])
   const [compareData, setCompareData] = useState<Map<string, Verse[]>>(new Map())
@@ -161,6 +167,7 @@ export function useBibleReader() {
   }, [view, selectedBook, selectedChapter, translation, userId, restored])
 
   useEffect(() => { if (userId) loadSavedVerses() }, [userId])
+  useEffect(() => { if (userId) loadVerseNotes() }, [userId, selectedBook, selectedChapter])
 
   // A reference ("John 3:16") shows those verses; anything else is a word search
   // in the current book, or the whole Bible once you ask for it
@@ -363,26 +370,109 @@ export function useBibleReader() {
     setSelectedVerses(new Set())
   }
 
+  async function loadVerseNotes() {
+    if (!userId) return
+    const book = selectedBook, chapter = selectedChapter
+    const key = `${book}-${chapter}`
+    verseNotesKey.current = key
+    setVerseNotes(new Map())
+    try {
+      const notebookId = await findSystemNotebook(supabase, userId, 'bible_notes')
+      if (!notebookId) return
+      const names = [...new Set([book, FRENCH_BOOK_NAMES[book]].filter(Boolean).map(n => n.toLowerCase()))]
+      const { data: sects } = await supabase.from('sections').select('id, title').eq('notebook_id', notebookId)
+      const ids = (sects ?? [])
+        .filter((sec: { title: string | null }) => names.includes((sec.title ?? '').trim().toLowerCase()))
+        .map((sec: { id: string }) => sec.id)
+      if (ids.length === 0) return
+      const { data: pages } = await supabase.from('pages').select('id, title, updated_at')
+        .in('section_id', ids).order('updated_at', { ascending: true, nullsFirst: true })
+      const map = new Map<number, VerseNoteLink>()
+      for (const pg of (pages ?? []) as { id: string; title: string | null }[]) {
+        const title = pg.title ?? ''
+        // The most recently edited note wins when several cover a verse
+        for (const v of parseNoteVerses(title, names, chapter)) map.set(v, { pageId: pg.id, title })
+      }
+      if (verseNotesKey.current === key) setVerseNotes(map)
+    } catch { /* offline: no indicators */ }
+  }
+
+  function startExistingNote(link: VerseNoteLink) {
+    setNoteExisting({ ...link, text: null })
+    fetchPage(supabase, link.pageId)
+      .then(pg => setNoteExisting(prev => (prev?.pageId === link.pageId ? { ...prev, text: pg ? noteToText(pg.content) : '' } : prev)))
+      .catch(() => setNoteExisting(prev => (prev?.pageId === link.pageId ? { ...prev, text: "Couldn't load this note. Check your connection." } : prev)))
+  }
+
+  // Tapping a verse's note icon
+  function openExistingNote(verseNum: number) {
+    const link = verseNotes.get(verseNum)
+    const v = verses.find(x => x.verse === verseNum)
+    if (!link || !v) return
+    setSelectedVerses(new Set())
+    setShowHighlightPanel(false)
+    setNoteVerse(v); setNoteIsMulti(false); setNoteRef(''); setNoteContent('')
+    startExistingNote(link)
+  }
+
+  function closeNote() {
+    setNoteVerse(null); setNoteContent(''); setNoteRef(''); setNoteIsMulti(false); setNoteExisting(null)
+  }
+
   function openNoteForSelection() {
     const sortedNums = [...selectedVerses].sort((a, b) => a - b)
     const vObjs = sortedNums.map(n => verses.find(v => v.verse === n)).filter(Boolean) as Verse[]
     if (vObjs.length === 0) return
     const isMulti = vObjs.length > 1
     const refLabel = `${displayBook(selectedBook, translation)} ${formatRef(sortedNums)}`
+    // A verse that already has a note: add to that note instead of starting another
+    const existing = sortedNums.map(n => verseNotes.get(n)).find(Boolean)
     setNoteVerse(vObjs[0])
     setNoteIsMulti(isMulti)
     setNoteRef(isMulti ? refLabel : '')
-    if (isMulti) setNoteContent(vObjs.map(v => `[${selectedChapter}:${v.verse}] ${v.text.trim()}`).join('\n\n'))
+    if (existing) {
+      setNoteContent('')
+      startExistingNote(existing)
+    } else {
+      setNoteExisting(null)
+      setNoteContent(isMulti ? vObjs.map(v => `[${selectedChapter}:${v.verse}] ${v.text.trim()}`).join('\n\n') : '')
+    }
     setSelectedVerses(new Set())
     setShowHighlightPanel(false)
   }
 
   async function addVerseNote(v: Verse, extraContent: string) {
     if (!userId) return
+    const bookName = displayBook(selectedBook, translation)
+    const ref = noteRef || `${bookName} ${selectedChapter}:${v.verse}`
+
+    if (noteExisting) {
+      const text = extraContent.trim()
+      if (!text) { toast.error('Write something to add to your note'); return }
+      setSavingNote(true)
+      try {
+        const pg = await fetchPage(supabase, noteExisting.pageId)
+        if (!pg) throw new Error('Note not found')
+        const sameRef = ref.toLowerCase() === noteExisting.title.trim().toLowerCase()
+        const heading = new Date().toLocaleDateString(undefined, { dateStyle: 'medium' }) + (sameRef ? '' : ` · ${ref}`)
+        // Verses beyond the note's own get quoted with the new entry
+        const quote = sameRef ? undefined : (noteIsMulti
+          ? [...selectedVersesForRef(ref)].join('\n\n')
+          : v.text.trim())
+        const content = appendToNoteHtml(pg.content, heading, text, quote)
+        const { error } = await supabase.from('pages')
+          .update({ content, updated_at: new Date().toISOString() }).eq('id', pg.id)
+        if (error) throw error
+        toast.success('Added to your note 📖')
+        closeNote()
+        loadVerseNotes()
+      } catch { toast.error('Could not add to the note') }
+      finally { setSavingNote(false) }
+      return
+    }
+
     setSavingNote(true)
     try {
-      const bookName = displayBook(selectedBook, translation)
-      const pageTitle = noteRef || `${bookName} ${selectedChapter}:${v.verse}`
       const notebookId = await ensureSystemNotebook(supabase, userId, 'bible_notes')
       const { data: sects } = await supabase.from('sections').select('id')
         .eq('notebook_id', notebookId).ilike('title', bookName)
@@ -396,15 +486,25 @@ export function useBibleReader() {
         sectionId = data.id
       }
       const content = noteIsMulti
-        ? (extraContent.trim() || v.text.trim())
-        : (extraContent.trim() ? `${v.text.trim()}\n\n${extraContent.trim()}` : v.text.trim())
+        ? textToHtml(extraContent.trim() || v.text.trim())
+        : newVerseNoteHtml(v.text, extraContent)
       const { error } = await supabase.from('pages')
-        .insert({ section_id: sectionId, title: pageTitle, content })
+        .insert({ section_id: sectionId, title: ref, content })
       if (error) throw error
       toast.success('Note saved to Bible Notes 📖')
-      setNoteVerse(null); setNoteContent(''); setNoteRef(''); setNoteIsMulti(false)
+      closeNote()
+      loadVerseNotes()
     } catch { toast.error('Could not save note') }
     finally { setSavingNote(false) }
+  }
+
+  // "[3:16] text" lines for the verses a multi-verse reference covers
+  function selectedVersesForRef(ref: string) {
+    const nums = parseNoteVerses(ref, [displayBook(selectedBook, translation).toLowerCase()], selectedChapter)
+    return nums
+      .map(n => verses.find(x => x.verse === n))
+      .filter(Boolean)
+      .map(x => `[${selectedChapter}:${x!.verse}] ${x!.text.trim()}`)
   }
 
   async function fetchCompareTranslation(tid: string, verseNums: number[]) {
@@ -597,6 +697,7 @@ export function useBibleReader() {
     noteVerse, setNoteVerse,
     noteContent, setNoteContent,
     savingNote,
+    verseNotes, noteExisting, openExistingNote, closeNote,
     compareVerseNums, compareTranslations,
     compareData, compareLoadingSet,
     showAddTranslation, setShowAddTranslation,

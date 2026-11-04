@@ -145,6 +145,8 @@ export default function BibleReader() {
           chapterIsRead={r.chapterIsRead}
           chapterReadToday={r.chapterReadToday}
           toggleChapterReadToday={r.toggleChapterReadToday}
+          verseNotes={r.verseNotes}
+          openExistingNote={r.openExistingNote}
         />
       )}
 
@@ -174,10 +176,11 @@ export default function BibleReader() {
           noteRef={r.noteRef}
           noteIsMulti={r.noteIsMulti}
           savingNote={r.savingNote}
+          existing={r.noteExisting}
           selectedBook={r.selectedBook}
           selectedChapter={r.selectedChapter}
           translation={r.translation}
-          onClose={() => { r.setNoteVerse(null); r.setNoteContent('') }}
+          onClose={r.closeNote}
           onSave={() => r.addVerseNote(r.noteVerse!, r.noteContent)}
         />
       )}

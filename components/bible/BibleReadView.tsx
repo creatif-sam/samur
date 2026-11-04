@@ -4,12 +4,13 @@ import type { RefObject, MutableRefObject } from 'react'
 import {
   Check,
   Loader2, ChevronLeft, ChevronRight, ChevronDown,
-  Copy, Share2, Bookmark, Highlighter, PenLine, BookCopy, X,
+  Copy, Share2, Bookmark, Highlighter, PenLine, BookCopy, X, StickyNote,
 } from 'lucide-react'
 import {
   HIGHLIGHT_COLORS, displayBook, chapterArray, highlightBg,
   type Verse, type VerseHighlight,
 } from './bibleConstants'
+import type { VerseNoteLink } from '@/lib/bible/notes'
 
 interface Props {
   readScrollRef: RefObject<HTMLDivElement | null>
@@ -44,6 +45,8 @@ interface Props {
   chapterIsRead: boolean
   chapterReadToday: boolean
   toggleChapterReadToday: (book: string, chapter: number) => void
+  verseNotes: Map<number, VerseNoteLink>
+  openExistingNote: (verse: number) => void
 }
 
 export function BibleReadView({
@@ -56,6 +59,7 @@ export function BibleReadView({
   highlightSelectedVerses, openNoteForSelection, openCompare,
   showChapterSheet, setShowChapterSheet, setSelectedChapter, prevChapter, nextChapter,
   chapterIsRead, chapterReadToday, toggleChapterReadToday,
+  verseNotes, openExistingNote,
 }: Props) {
   return (
     <>
@@ -95,11 +99,22 @@ export function BibleReadView({
                   setShowHighlightPanel(false)
                 }}
               >
-                <span className={`text-[11px] font-black w-6 shrink-0 pt-0.5 text-right tabular-nums ${
-                  isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-violet-400 dark:text-violet-500'
-                }`}>
-                  {isSelected ? '✓' : v.verse}
-                </span>
+                <div className="w-6 shrink-0 flex flex-col items-end gap-1">
+                  <span className={`text-[11px] font-black pt-0.5 text-right tabular-nums ${
+                    isSelected ? 'text-violet-600 dark:text-violet-400' : 'text-violet-400 dark:text-violet-500'
+                  }`}>
+                    {isSelected ? '✓' : v.verse}
+                  </span>
+                  {verseNotes.has(v.verse) && (
+                    <button
+                      onClick={e => { e.stopPropagation(); openExistingNote(v.verse) }}
+                      aria-label={`Open your note on verse ${v.verse}`}
+                      className="-mr-1 p-1 rounded-lg text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                    >
+                      <StickyNote className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
                 <p className={`flex-1 ${fontSizeClass} leading-[1.75] text-foreground`}>{v.text}</p>
               </div>
             </div>

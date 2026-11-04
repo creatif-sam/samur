@@ -25,7 +25,22 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
   const [streak, setStreak] = useState(0)
   const [selectedDay, setSelectedDay] = useState<SessionDay | null>(null)
 
+  const [monthSeconds, setMonthSeconds] = useState(0)
+
   const toISO = (d: Date) => d.toLocaleDateString('en-CA')
+
+  // 42m · 1h 5m
+  const formatMinutes = (mins: number) => {
+    const m = Math.round(mins)
+    if (m < 60) return `${m}m`
+    return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`
+  }
+
+  // Days of this month that count toward the average: since you started, up to today
+  const countedDays = days.filter(d => d.state === 'prayed' || d.state === 'missed').length
+  const prayedDays = days.filter(d => d.state === 'prayed').length
+  const avgPerDay = countedDays > 0 ? monthSeconds / 60 / countedDays : 0
+  const avgPerPrayedDay = prayedDays > 0 ? monthSeconds / 60 / prayedDays : 0
 
   useEffect(() => {
     void loadCalendar()
@@ -64,6 +79,7 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
     // Group by date — count and total minutes per day
     const countMap = new Map<string, number>()
     const minutesMap = new Map<string, number>()
+    setMonthSeconds((sessions ?? []).reduce((sum, s) => sum + (s.duration_seconds ?? 0), 0))
     sessions?.forEach(s => {
       countMap.set(s.date, (countMap.get(s.date) ?? 0) + 1)
       minutesMap.set(s.date, (minutesMap.get(s.date) ?? 0) + Math.round((s.duration_seconds ?? 0) / 60))
@@ -153,6 +169,31 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
             >
               <ChevronRight size={18} />
             </Button>
+          </div>
+        </div>
+
+        {/* This month's prayer time */}
+        <div className="grid grid-cols-3 gap-2 mb-5">
+          <div className="rounded-2xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-900/40 px-3 py-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">Avg / day</p>
+            <p className="text-lg font-black text-foreground leading-tight mt-0.5">{formatMinutes(avgPerDay)}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
+              {countedDays > 0 ? `over ${countedDays} day${countedDays !== 1 ? 's' : ''}` : 'no days yet'}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-muted/50 px-3 py-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total</p>
+            <p className="text-lg font-black text-foreground leading-tight mt-0.5">{formatMinutes(monthSeconds / 60)}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">this month</p>
+          </div>
+          <div className="rounded-2xl bg-muted/50 px-3 py-2.5">
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Days prayed</p>
+            <p className="text-lg font-black text-foreground leading-tight mt-0.5">
+              {prayedDays}<span className="text-xs text-muted-foreground font-bold">/{countedDays}</span>
+            </p>
+            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
+              {prayedDays > 0 ? `${formatMinutes(avgPerPrayedDay)} when prayed` : '—'}
+            </p>
           </div>
         </div>
 

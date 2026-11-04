@@ -71,6 +71,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
   const [sharedWithMe, setSharedWithMe] = useState<Page[]>([])
   const [viewingShared, setViewingShared] = useState<Page | null>(null)
   const [opening, setOpening] = useState(false)
+  const deepLinkHandled = useRef(false)
 
   useEffect(() => {
     if (!userId) return
@@ -93,6 +94,22 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       setSharedWithMe(((shared ?? []) as unknown as Page[]).filter(pg => !mySections.has(pg.section_id)))
     })()
   }, [userId, notebooks.length])
+
+  // /protected/note?page=<id> opens that note (e.g. from the Bible reader)
+  useEffect(() => {
+    if (deepLinkHandled.current || notebooks.length === 0) return
+    const pageId = new URLSearchParams(window.location.search).get('page')
+    if (!pageId) return
+    deepLinkHandled.current = true
+    window.history.replaceState(null, '', window.location.pathname)
+    const notebook = notebooks.find(nb => (nb.sections ?? []).some(sec => (sec.pages ?? []).some(pg => pg.id === pageId)))
+    const section = notebook?.sections?.find(sec => (sec.pages ?? []).some(pg => pg.id === pageId))
+    const page = section?.pages?.find(pg => pg.id === pageId)
+    if (!notebook || !section || !page) { toast.error('That note no longer exists'); return }
+    setActiveNotebookId(notebook.id)
+    setActiveSectionId(section.id)
+    openPage(page, 'normal')
+  }, [notebooks])
 
   // Lists only carry previews; load the full note before editing
   const openPage = async (page: Page, source: 'recent' | 'normal') => {
