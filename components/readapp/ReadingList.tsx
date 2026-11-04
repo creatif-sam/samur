@@ -7,6 +7,7 @@ import AddReading from './AddReading'
 import ReadingCalendar from './ReadingCalendar'
 import BookShelf from './BookShelf'
 import CurrentlyReading from './CurrentlyReading'
+import { loadLibraryCache, saveLibraryCache } from '@/lib/readapp/drafts'
 import { READING_COLUMNS, STATUS_OPTIONS, type Reading, type ReadingCategory, type ReadingStatus } from '@/lib/readapp/reading'
 
 import {
@@ -42,8 +43,14 @@ export default function ReadingList(): JSX.Element {
     return () => setMounted(false)
   }, [])
 
+  // Show the last known library straight away, then refresh it
   useEffect(() => {
-    void loadReadings()
+    ;(async () => {
+      const { data: { session } } = await createClient().auth.getSession()
+      const cached = session ? loadLibraryCache<Reading>(session.user.id) : null
+      if (cached) { setReadings(cached); setLoading(false) }
+      void loadReadings()
+    })()
   }, [])
 
   useEffect(() => {
@@ -66,10 +73,12 @@ export default function ReadingList(): JSX.Element {
       .order('created_at', { ascending: false })
 
     if (error) {
+      // Offline or a hiccup: keep whatever is already on screen
       console.error(error); setLoading(false); return
     }
 
     setReadings((data ?? []) as Reading[])
+    saveLibraryCache(user.id, data ?? [])
     setLoading(false)
   }
 

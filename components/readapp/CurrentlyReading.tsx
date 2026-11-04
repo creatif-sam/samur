@@ -3,9 +3,10 @@
 import { JSX, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
-import { BookMarked, Check, Loader2, Pencil, Target } from 'lucide-react'
+import { BookMarked, Loader2, Pencil, Play, Target } from 'lucide-react'
 import { addDays, toLocalDateKey } from '@/lib/dates'
-import { logReadingPages, type Reading } from '@/lib/readapp/reading'
+import { type Reading } from '@/lib/readapp/reading'
+import ReadingLogForm from './ReadingLogForm'
 
 interface Props {
   readings: Reading[]
@@ -13,61 +14,19 @@ interface Props {
 }
 
 function QuickLog({ book, onLogged }: { book: Reading; onLogged: () => void }): JSX.Element {
-  const [pages, setPages] = useState('')
-  const [saving, setSaving] = useState(false)
   const read = book.total_pages - book.pages_remaining
   const pct = book.total_pages > 0 ? Math.round((read / book.total_pages) * 100) : 0
-
-  async function log() {
-    const value = Number(pages)
-    if (!value || value <= 0) return
-    if (value > book.pages_remaining) {
-      toast.error(`Only ${book.pages_remaining} pages left`)
-      return
-    }
-    setSaving(true)
-    try {
-      const next = await logReadingPages(createClient(), book, value, null)
-      setPages('')
-      toast.success(next === 'done' ? `Finished ${book.title}! 🎉` : `Logged ${value} pages 📚`)
-      onLogged()
-    } catch (err) {
-      console.error('Quick log failed', err)
-      toast.error('Failed to log reading')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   return (
     <div className="rounded-2xl border border-border bg-card p-3 space-y-2">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-sm font-black truncate">{book.title}</p>
-        <span className="text-[10px] font-bold text-muted-foreground shrink-0">{book.pages_remaining} left</span>
+        <span className="text-[10px] font-bold text-muted-foreground shrink-0">p. {read}/{book.total_pages} · {book.pages_remaining} left</span>
       </div>
       <div className="h-1.5 rounded-full bg-muted overflow-hidden">
         <div className="h-full bg-orange-500 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
-      <form onSubmit={(e) => { e.preventDefault(); log() }} className="flex gap-2">
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={book.pages_remaining}
-          value={pages}
-          onChange={(e) => setPages(e.target.value)}
-          placeholder="Pages read today"
-          className="flex-1 min-w-0 rounded-xl bg-muted/60 px-3 py-2 text-[15px] outline-none focus:ring-2 focus:ring-violet-500"
-        />
-        <button
-          type="submit"
-          disabled={saving || !pages}
-          className="shrink-0 rounded-xl bg-violet-600 text-white px-4 text-sm font-bold disabled:opacity-40 active:scale-95 flex items-center gap-1"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-          Log
-        </button>
-      </form>
+      <ReadingLogForm book={book} onLogged={onLogged} />
     </div>
   )
 }
@@ -81,7 +40,18 @@ export default function CurrentlyReading({ readings, onLogged }: Props): JSX.Ele
   const [goalInput, setGoalInput] = useState('')
 
   const current = readings.filter(r => r.status === 'reading' && r.pages_remaining > 0)
-  const queued = readings.filter(r => r.status === 'to_read').length
+  const queuedBooks = readings.filter(r => r.status === 'to_read' && r.pages_remaining > 0)
+  const [starting, setStarting] = useState<string | null>(null)
+
+  // One tap to move a "To read" book into Currently Reading
+  async function startBook(book: Reading) {
+    setStarting(book.id)
+    const { error } = await supabase.from('readings').update({ status: 'reading' }).eq('id', book.id)
+    setStarting(null)
+    if (error) { toast.error("Couldn't start that book"); return }
+    toast.success(`Started ${book.title} 📖`)
+    onLogged()
+  }
 
   // Reload today's and this week's pages whenever the books change (after a log)
   useEffect(() => {
@@ -181,13 +151,32 @@ export default function CurrentlyReading({ readings, onLogged }: Props): JSX.Ele
       </div>
       {current.length === 0 ? (
         <p className="text-xs text-muted-foreground px-1">
-          {queued > 0
-            ? `Nothing in progress. Log pages on one of your ${queued} "To read" books to start it.`
-            : 'Add a book with the + button to start reading.'}
+          {queuedBooks.length > 0 ? 'Nothing in progress. Pick a book below to start.' : 'Add a book with the + button to start reading.'}
         </p>
       ) : (
         <div className="space-y-2">
           {current.map(book => <QuickLog key={book.id} book={book} onLogged={onLogged} />)}
+        </div>
+      )}
+
+      {queuedBooks.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-1">
+            {current.length === 0 ? 'Start reading' : 'Up next'}
+          </p>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+            {queuedBooks.slice(0, 8).map(book => (
+              <button
+                key={book.id}
+                onClick={() => startBook(book)}
+                disabled={starting !== null}
+                className="shrink-0 max-w-[200px] flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-bold active:scale-95 disabled:opacity-50"
+              >
+                {starting === book.id ? <Loader2 className="w-3 h-3 animate-spin shrink-0" /> : <Play className="w-3 h-3 text-orange-500 fill-orange-500 shrink-0" />}
+                <span className="truncate">{book.title}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </section>

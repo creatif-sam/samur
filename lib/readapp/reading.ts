@@ -42,6 +42,16 @@ export function statusAfterLog(status: ReadingStatus, pagesRemaining: number): R
   return status === 'to_read' ? 'reading' : status
 }
 
+// A log must say what was read, so pages can't be counted without reading
+export const MIN_READING_NOTE_CHARS = 20
+
+export function readingNoteProblem(note: string | null | undefined): string | null {
+  const text = (note ?? '').trim()
+  if (!text) return 'Write a short note on what you read'
+  if (text.length < MIN_READING_NOTE_CHARS) return `Say a bit more about what you read (at least ${MIN_READING_NOTE_CHARS} characters)`
+  return null
+}
+
 // Logs pages for today (via the log_reading_pages RPC), keeps the status in step
 // and mirrors the log into the Reading Logs notebook. Returns the new status.
 export async function logReadingPages(
@@ -50,10 +60,12 @@ export async function logReadingPages(
   pages: number,
   note: string | null,
 ): Promise<ReadingStatus> {
+  const problem = readingNoteProblem(note)
+  if (problem) throw new Error(problem)
   const { error } = await supabase.rpc('log_reading_pages', {
     p_reading_id: reading.id,
     p_pages_read: pages,
-    p_note: note,
+    p_note: note!.trim(),
   })
   if (error) throw error
 

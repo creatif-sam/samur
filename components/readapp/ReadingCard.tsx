@@ -4,7 +4,6 @@ import { JSX, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -44,7 +43,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { logReadingPages, type Reading } from '@/lib/readapp/reading'
+import { type Reading } from '@/lib/readapp/reading'
+import ReadingLogForm from './ReadingLogForm'
 
 type ReadingStatus =
   | 'to_read'
@@ -131,9 +131,6 @@ export default function ReadingCard({
   onEdit,
 }: Props): JSX.Element {
   const [status, setStatus] = useState<ReadingStatus>(reading.status)
-  const [pages, setPages] = useState('')
-  const [note, setNote] = useState('')
-  const [loading, setLoading] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
   const pagesRead =
@@ -172,36 +169,6 @@ export default function ReadingCard({
     }
     setShowDeleteDialog(false)
   }
-
-  const logToday = async () => {
-  const value = Number(pages)
-  if (!value || value <= 0) {
-    toast.error('Please enter a valid number of pages')
-    return
-  }
-  if (value > reading.pages_remaining) {
-    toast.error(`Only ${reading.pages_remaining} pages remaining`)
-    return
-  }
-
-  setLoading(true)
-  try {
-    const next = await logReadingPages(createClient(), { ...reading, status }, value, note.trim() || null)
-    if (next !== status) setStatus(next)
-  } catch (error) {
-    console.error('Logging pages failed', error)
-    toast.error('Failed to log reading')
-    setLoading(false)
-    return
-  }
-
-  toast.success(`Logged ${value} pages! 📚`)
-  setPages('')
-  setNote('')
-  setLoading(false)
-  onLogged?.()
-}
-
 
   return (
     <>
@@ -263,32 +230,10 @@ export default function ReadingCard({
       </div>
 
       {reading.pages_remaining > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Input
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max={reading.pages_remaining}
-              placeholder="Pages read today"
-              value={pages}
-              onChange={e => setPages(e.target.value)}
-            />
-            <Button
-              size="sm"
-              disabled={loading || !pages}
-              onClick={logToday}
-            >
-              Log
-            </Button>
-          </div>
-
-          <Input
-            placeholder="One phrase or thought"
-            value={note}
-            onChange={e => setNote(e.target.value)}
-          />
-        </div>
+        <ReadingLogForm
+          book={{ ...reading, status }}
+          onLogged={next => { if (next !== status) setStatus(next); onLogged?.() }}
+        />
       )}
 
       <Select

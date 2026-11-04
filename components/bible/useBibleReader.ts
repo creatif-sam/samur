@@ -19,6 +19,7 @@ import { appendToNoteHtml, newVerseNoteHtml, noteToText, parseNoteVerses, textTo
 
 // Where you were, so the Bible reopens on the same chapter, version and text size
 const STATE_KEY = 'bible_state'
+const COMPARE_KEY = 'bible_compare_translations'
 type StoredState = { book: string; chapter: number; translation: string; fontSize: 'sm' | 'md' | 'lg' }
 
 function loadStoredState(): StoredState | null {
@@ -518,26 +519,44 @@ export function useBibleReader() {
     finally { setCompareLoadingSet(prev => { const s = new Set(prev); s.delete(tid); return s }) }
   }
 
+  // The versions picked for comparing are remembered for next time
+  function readCompareChoice(): string[] {
+    try {
+      const saved = JSON.parse(localStorage.getItem(COMPARE_KEY) ?? '[]')
+      return Array.isArray(saved) ? saved.filter((t: unknown) => TRANSLATIONS.some(x => x.id === t)) : []
+    } catch { return [] }
+  }
+
+  function saveCompareChoice(list: string[]) {
+    try { localStorage.setItem(COMPARE_KEY, JSON.stringify(list)) } catch { /* storage unavailable */ }
+  }
+
   function openCompare() {
     const nums = [...selectedVerses].sort((a, b) => a - b)
+    // The version you're reading first, then the ones you compared with last time
+    const list = [translation, ...readCompareChoice().filter(t => t !== translation)]
     setCompareVerseNums(nums)
-    setCompareTranslations([translation])
+    setCompareTranslations(list)
     setCompareData(new Map())
     setSelectedVerses(new Set())
     setShowHighlightPanel(false)
-    fetchCompareTranslation(translation, nums)
+    list.forEach(tid => fetchCompareTranslation(tid, nums))
     setView('compare')
   }
 
   function addCompareTranslation(tid: string) {
     if (compareTranslations.includes(tid)) return
-    setCompareTranslations(prev => [...prev, tid])
+    const next = [...compareTranslations, tid]
+    setCompareTranslations(next)
+    saveCompareChoice(next)
     fetchCompareTranslation(tid, compareVerseNums)
     setShowAddTranslation(false)
   }
 
   function removeCompareTranslation(tid: string) {
-    setCompareTranslations(prev => prev.filter(t => t !== tid))
+    const next = compareTranslations.filter(t => t !== tid)
+    setCompareTranslations(next)
+    saveCompareChoice(next)
     setCompareData(prev => { const m = new Map(prev); m.delete(tid); return m })
   }
 
