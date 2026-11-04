@@ -12,9 +12,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   LogOut, Camera, Save, Users, Trash2, AlertTriangle, UserPlus, Check,
   X, Clock, Link2Off, ChevronRight, Globe, DollarSign, Bell, CreditCard,
-  Shield, Pencil, Target, BookOpen, Eye, Crown, CalendarDays,
+  Shield, Pencil, Target, BookOpen, Eye,
 } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -25,6 +24,8 @@ import PushNotificationManager from '@/components/PushNotificationManager'
 import { useRouter } from 'next/navigation'
 import { currencies } from '@/lib/currencies'
 import { cn } from '@/lib/utils'
+import { ProfileThemeCard } from '@/components/profile/ProfileThemeCard'
+import { EMPTY_THEMES, loadThemes, saveThemes, type Themes } from '@/lib/themes'
 
 type PartnerPerson = { id: string; name: string; avatar_url: string | null }
 type PartnerState = {
@@ -50,10 +51,7 @@ export default function ProfilePage() {
   const [deleteType, setDeleteType] = useState<'account' | 'data' | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState('USD')
-  const [yearTheme, setYearTheme] = useState('')
-  const [yearScripture, setYearScripture] = useState('')
-  const [monthTheme, setMonthTheme] = useState('')
-  const [monthScripture, setMonthScripture] = useState('')
+  const [themes, setThemes] = useState<Themes>(EMPTY_THEMES)
   const [savingTheme, setSavingTheme] = useState(false)
 
   const router = useRouter()
@@ -135,32 +133,35 @@ export default function ProfilePage() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-    const { data } = await supabase
-      .from('user_preferences')
-      .select('currency, year_theme, year_scripture, month_theme, month_scripture')
-      .eq('user_id', user.id)
-      .single()
-    if (data?.currency)       setSelectedCurrency(data.currency)
-    if (data?.year_theme)     setYearTheme(data.year_theme)
-    if (data?.year_scripture) setYearScripture(data.year_scripture)
-    if (data?.month_theme)    setMonthTheme(data.month_theme)
-    if (data?.month_scripture) setMonthScripture(data.month_scripture)
+    const { themes: loaded, row } = await loadThemes(supabase, user.id, 'currency')
+    if (typeof row?.currency === 'string') setSelectedCurrency(row.currency)
+    setThemes(loaded)
   }
 
-  const saveThemes = async () => {
+  const handleSaveThemes = async (next: Themes) => {
     setSavingTheme(true)
+    const clean: Themes = {
+      ...next,
+      yearTheme: next.yearTheme.trim(),
+      yearScripture: next.yearScripture.trim(),
+      monthTheme: next.monthTheme.trim(),
+      monthScripture: next.monthScripture.trim(),
+    }
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSavingTheme(false); return }
-    await supabase.from('user_preferences').upsert({
-      user_id: user.id,
-      year_theme: yearTheme,
-      year_scripture: yearScripture,
-      month_theme: monthTheme,
-      month_scripture: monthScripture,
-    })
+    if (!user) { setSavingTheme(false); toast.error('Please sign in again'); return false }
+    const result = await saveThemes(supabase, user.id, clean)
     setSavingTheme(false)
-    toast.success('Themes saved!')
+    if (result === 'error') { toast.error("Couldn't save your themes. Try again."); return false }
+    if (result === 'partial') {
+      // Words saved; the year and start date need the year_theme_start migration
+      setThemes({ ...clean, themeYear: themes.themeYear, themeStart: themes.themeStart })
+      toast.warning('Themes saved, but the start date needs a database update first')
+      return true
+    }
+    setThemes(clean)
+    toast.success('Themes saved')
+    return true
   }
 
   const saveCurrency = async (code: string) => {
@@ -314,23 +315,6 @@ export default function ProfilePage() {
         <button onClick={handleLogout} className="absolute top-5 right-5 w-9 h-9 rounded-full bg-white/15 backdrop-blur-sm flex items-center justify-center">
           <LogOut className="w-4 h-4 text-white" />
         </button>
-        {/* Year theme overlay — shown in upper portion, above avatar overlap */}
-        {yearTheme && (
-          <div className="absolute inset-x-0 top-10 bottom-16 flex flex-col items-center justify-center px-14 text-center pointer-events-none">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <Crown className="w-3 h-3 text-amber-300/80" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-white/50">
-                Theme · {new Date().getFullYear()}
-              </span>
-            </div>
-            <p className="text-white/90 text-sm font-black uppercase tracking-widest leading-tight drop-shadow-sm line-clamp-2">
-              {yearTheme}
-            </p>
-            {yearScripture && (
-              <p className="text-white/55 text-[10px] italic mt-1 line-clamp-1">{yearScripture}</p>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="max-w-lg mx-auto px-4">
@@ -373,6 +357,9 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* ── THEMES ── */}
+        <ProfileThemeCard themes={themes} saving={savingTheme} onSave={handleSaveThemes} />
+
         {/* ── STATS ── */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           <StatCard2
@@ -399,78 +386,6 @@ export default function ProfilePage() {
             label="Visions"
             value={visionCount}
           />
-        </div>
-        {/* ── THEMES GROUP ── */}
-        <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
-          <SettingsRow
-            icon={<Crown className="w-4 h-4 text-amber-500" />}
-            label="Theme of the Year"
-            sublabel={yearTheme || 'Tap to set your year theme'}
-            expanded={expanded === 'yearTheme'}
-            onTap={() => toggle('yearTheme')}
-          />
-          {expanded === 'yearTheme' && (
-            <div className="px-5 pb-4 pt-1 space-y-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Theme</p>
-                <input
-                  value={yearTheme}
-                  onChange={e => setYearTheme(e.target.value)}
-                  placeholder="e.g. Year of Excellence"
-                  className="w-full h-9 px-3 rounded-xl border border-border bg-muted/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500"
-                />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Scripture</p>
-                <Textarea
-                  value={yearScripture}
-                  onChange={e => setYearScripture(e.target.value)}
-                  placeholder="e.g. Isaiah 43:19 — Behold, I am doing a new thing…"
-                  className="text-sm resize-none rounded-xl"
-                  rows={2}
-                />
-              </div>
-              <Button size="sm" className="w-full bg-violet-600 hover:bg-violet-700 gap-1.5 h-9" onClick={saveThemes} disabled={savingTheme}>
-                <Save className="w-3.5 h-3.5" /> {savingTheme ? 'Saving…' : 'Save Year Theme'}
-              </Button>
-            </div>
-          )}
-
-          <div className="h-px bg-border/50 mx-5" />
-
-          <SettingsRow
-            icon={<CalendarDays className="w-4 h-4 text-violet-500" />}
-            label="Theme of the Month"
-            sublabel={monthTheme || 'Tap to set your month theme'}
-            expanded={expanded === 'monthTheme'}
-            onTap={() => toggle('monthTheme')}
-          />
-          {expanded === 'monthTheme' && (
-            <div className="px-5 pb-4 pt-1 space-y-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Theme</p>
-                <input
-                  value={monthTheme}
-                  onChange={e => setMonthTheme(e.target.value)}
-                  placeholder="e.g. Month of Deep Prayer"
-                  className="w-full h-9 px-3 rounded-xl border border-border bg-muted/50 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500"
-                />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">Scripture</p>
-                <Textarea
-                  value={monthScripture}
-                  onChange={e => setMonthScripture(e.target.value)}
-                  placeholder="e.g. Phil 4:13 — I can do all things through Christ…"
-                  className="text-sm resize-none rounded-xl"
-                  rows={2}
-                />
-              </div>
-              <Button size="sm" className="w-full bg-violet-600 hover:bg-violet-700 gap-1.5 h-9" onClick={saveThemes} disabled={savingTheme}>
-                <Save className="w-3.5 h-3.5" /> {savingTheme ? 'Saving…' : 'Save Month Theme'}
-              </Button>
-            </div>
-          )}
         </div>
         {/* ── SETTINGS GROUP 1 ── */}
         <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
