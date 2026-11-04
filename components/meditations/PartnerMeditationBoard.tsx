@@ -48,10 +48,10 @@ export default function PartnerMeditationBoard() {
   if (!data || !data.partner) return null
 
   return (
-    <div className="rounded-lg border bg-card p-4 space-y-3">
+    <div className="rounded-3xl border border-border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <Users className="w-4 h-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium text-muted-foreground">Partnership Streaks</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Partnership Streaks</h3>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <PersonCard data={data.me} isMe />
@@ -66,7 +66,7 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
   const streak = data.streak
 
   return (
-    <div className="rounded-xl border bg-background/50 p-3 space-y-2.5">
+    <div className="rounded-2xl bg-muted/40 p-3 space-y-2.5">
       <div className="flex items-center gap-2">
         <Avatar name={data.name} avatar={data.avatar} />
         <div className="flex flex-col min-w-0 flex-1">

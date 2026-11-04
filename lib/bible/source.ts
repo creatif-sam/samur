@@ -135,42 +135,79 @@ export type SearchHit = { book: string; chapter: number; verse: number; text: st
 
 type GetBibleBook = { chapters: { chapter: number; verses: { verse: number; text: string }[] }[] }
 type GetBibleWhole = { books: ({ nr: number } & GetBibleBook)[] }
+type IndexedVerse = SearchHit & { norm: string }
 
-function matchVerses(book: string, data: GetBibleBook, words: string[], limit: number, hits: SearchHit[]) {
+// Case-, accent- and apostrophe-insensitive: "eternel" finds "l'Éternel"
+export function normalizeForSearch(s: string) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[‘’`]/g, "'")
+}
+
+export const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+// Each word must start a word in the verse: "love" finds love, loved, loveth
+// (not glove or beloved). All words must appear, in any order.
+function matcher(query: string) {
+  const words = normalizeForSearch(query).split(/[^\p{L}\p{N}']+/u).map(w => w.replace(/^'+|'+$/g, '')).filter(Boolean)
+  const patterns = words.map(w => new RegExp(`(^|[^\\p{L}\\p{N}])${escapeRegExp(w)}`, 'u'))
+  return (norm: string) => patterns.length > 0 && patterns.every(p => p.test(norm))
+}
+
+function indexBook(book: string, data: GetBibleBook): IndexedVerse[] {
+  const out: IndexedVerse[] = []
   for (const ch of data.chapters) {
     for (const v of ch.verses) {
-      const text = v.text.toLowerCase()
-      if (words.every(w => text.includes(w))) {
-        hits.push({ book, chapter: ch.chapter, verse: v.verse, text: cleanText(v.text) })
-        if (hits.length >= limit) return
-      }
+      const text = cleanText(v.text)
+      out.push({ book, chapter: ch.chapter, verse: v.verse, text, norm: normalizeForSearch(text) })
     }
   }
+  return out
 }
 
-export async function searchBook(book: string, query: string, translation: string, limit = 200) {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  const data = await cachedJson(`https://api.getbible.net/v2/${searchSourceId(translation)}/${bookNumber(book)}.json`) as GetBibleBook
-  const hits: SearchHit[] = []
-  matchVerses(book, data, words, limit, hits)
-  return hits
-}
+// Parsed text is kept in memory so only the first search pays for loading it
+const wholeIndex = new Map<string, Promise<IndexedVerse[]>>()
+const bookIndex = new Map<string, Promise<IndexedVerse[]>>()
 
-// Downloads the whole translation once (~9 MB), then searches it from the device
-export async function searchWholeBible(query: string, translation: string, limit = 300) {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  const data = await cachedJson(`https://api.getbible.net/v2/${searchSourceId(translation)}.json`) as GetBibleWhole
-  const hits: SearchHit[] = []
-  for (const b of data.books) {
-    const book = BOOKS[b.nr - 1]
-    if (!book) continue
-    matchVerses(book, b, words, limit, hits)
-    if (hits.length >= limit) break
+function loadWholeIndex(sourceId: string) {
+  let p = wholeIndex.get(sourceId)
+  if (!p) {
+    p = (cachedJson(`https://api.getbible.net/v2/${sourceId}.json`) as Promise<GetBibleWhole>).then(data =>
+      data.books.flatMap(b => (BOOKS[b.nr - 1] ? indexBook(BOOKS[b.nr - 1], b) : [])))
+    wholeIndex.set(sourceId, p)
+    p.catch(() => wholeIndex.delete(sourceId))
   }
-  return hits
+  return p
+}
+
+function loadBookIndex(sourceId: string, book: string) {
+  const whole = wholeIndex.get(sourceId)
+  if (whole) return whole.then(all => all.filter(v => v.book === book))
+  const key = `${sourceId}/${book}`
+  let p = bookIndex.get(key)
+  if (!p) {
+    p = (cachedJson(`https://api.getbible.net/v2/${sourceId}/${bookNumber(book)}.json`) as Promise<GetBibleBook>).then(data => indexBook(book, data))
+    bookIndex.set(key, p)
+    p.catch(() => bookIndex.delete(key))
+  }
+  return p
+}
+
+const strip = ({ book, chapter, verse, text }: IndexedVerse): SearchHit => ({ book, chapter, verse, text })
+
+// Every matching verse in one book, in order
+export async function searchBook(book: string, query: string, translation: string) {
+  const test = matcher(query)
+  return (await loadBookIndex(searchSourceId(translation), book)).filter(v => test(v.norm)).map(strip)
+}
+
+// Downloads the whole translation once (~9 MB), then searches it from the device.
+// Returns every match in Bible order, so the New Testament isn't cut off.
+export async function searchWholeBible(query: string, translation: string) {
+  const test = matcher(query)
+  return (await loadWholeIndex(searchSourceId(translation))).filter(v => test(v.norm)).map(strip)
 }
 
 export async function hasWholeBibleCached(translation: string) {
+  if (wholeIndex.has(searchSourceId(translation))) return true
   try {
     const cache = await caches.open(CACHE)
     return !!(await cache.match(`https://api.getbible.net/v2/${searchSourceId(translation)}.json`))

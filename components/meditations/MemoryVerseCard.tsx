@@ -226,11 +226,11 @@ export default function MemoryVerseCard() {
   const memorizedCount = history.filter(v => v.memorized).length + (verse?.memorized ? 1 : 0)
 
   if (loading) {
-    return <div className="rounded-lg border bg-background p-4 h-32 animate-pulse" />
+    return <div className="rounded-3xl border border-border bg-card p-4 h-32 animate-pulse" />
   }
 
   return (
-    <div className="rounded-lg border bg-background p-4 w-full space-y-4">
+    <div className="rounded-3xl border border-border bg-card p-4 w-full space-y-4">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
           <Brain className="h-3.5 w-3.5 text-violet-500" />

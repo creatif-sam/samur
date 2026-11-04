@@ -1,9 +1,9 @@
 'use client'
 
-import type { Dispatch, SetStateAction } from 'react'
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { ChevronRight, Check, Globe, Search, BookMarked, X, Loader2, BookOpen, Brain, CheckCircle2 } from 'lucide-react'
-import type { SearchHit } from '@/lib/bible/source'
-import { TRANSLATIONS, displayBook, chapterArray, type SavedVerse, isFrench } from './bibleConstants'
+import { escapeRegExp, normalizeForSearch, type SearchHit } from '@/lib/bible/source'
+import { BOOKS, TRANSLATIONS, displayBook, chapterArray, type SavedVerse, isFrench } from './bibleConstants'
 import type { BibleView } from './useBibleReader'
 
 // ── Search View ───────────────────────────────────────────────────────────
@@ -13,6 +13,7 @@ interface SearchProps {
   searchResults: SearchHit[]
   searchMode: 'reference' | 'words' | null
   searchError: string | null
+  searchNotice: string | null
   searchScope: 'book' | 'bible'
   setSearchScope: (s: 'book' | 'bible') => void
   wholeBibleReady: boolean
@@ -22,20 +23,64 @@ interface SearchProps {
   openPassage: (book: string, chapter: number) => void
 }
 
+// Marks the start of each word that matched, ignoring case and accents
+// ("eternel" highlights "Éternel"), the same way the search matches
 function highlightWords(text: string, query: string) {
-  const words = query.toLowerCase().split(/\s+/).filter(w => w.length > 1)
+  const words = normalizeForSearch(query).split(/[^\p{L}\p{N}']+/u).map(w => w.replace(/^'+|'+$/g, '')).filter(Boolean)
   if (words.length === 0) return text
-  const re = new RegExp(`(${words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi')
-  return text.split(re).map((part, i) =>
-    i % 2 === 1 ? <mark key={i} className="bg-amber-200/80 dark:bg-amber-500/30 rounded px-0.5">{part}</mark> : part,
-  )
+  // Normalized copy of the text, remembering where each character came from
+  let norm = ''
+  const origin: number[] = []
+  for (let i = 0; i < text.length; i++) {
+    const n = normalizeForSearch(text[i])
+    for (let k = 0; k < n.length; k++) { norm += n[k]; origin.push(i) }
+  }
+  const marks: [number, number][] = []
+  for (const w of words) {
+    const re = new RegExp(`(^|[^\\p{L}\\p{N}])(${escapeRegExp(w)})`, 'gu')
+    for (const m of norm.matchAll(re)) {
+      const start = (m.index ?? 0) + m[1].length
+      const end = start + m[2].length
+      marks.push([origin[start], (origin[end - 1] ?? text.length - 1) + 1])
+    }
+  }
+  if (marks.length === 0) return text
+  marks.sort((x, y) => x[0] - y[0])
+  const parts: ReactNode[] = []
+  let pos = 0
+  for (const [from, to] of marks) {
+    if (from < pos) continue
+    if (from > pos) parts.push(text.slice(pos, from))
+    parts.push(<mark key={from} className="bg-amber-200/80 dark:bg-amber-500/30 rounded px-0.5">{text.slice(from, to)}</mark>)
+    pos = to
+  }
+  parts.push(text.slice(pos))
+  return parts
 }
 
+const PAGE_SIZE = 100
+const isOldTestament = (book: string) => BOOKS.indexOf(book) < 39
+
 export function BibleSearchView({
-  searching, searchQuery, searchResults, searchMode, searchError, searchScope, setSearchScope,
+  searching, searchQuery, searchResults, searchMode, searchError, searchNotice, searchScope, setSearchScope,
   wholeBibleReady, searchesOtherTranslation, selectedBook, translation, openPassage,
 }: SearchProps) {
   const isWords = searchMode === 'words'
+  const [testament, setTestament] = useState<'all' | 'ot' | 'nt'>('all')
+  const [visible, setVisible] = useState(PAGE_SIZE)
+
+  // A new search starts from the top
+  useEffect(() => { setVisible(PAGE_SIZE); setTestament('all') }, [searchResults])
+
+  const counts = useMemo(() => {
+    const ot = searchResults.filter(v => isOldTestament(v.book)).length
+    return { ot, nt: searchResults.length - ot }
+  }, [searchResults])
+  const filtered = useMemo(() => (
+    testament === 'all' ? searchResults
+      : searchResults.filter(v => isOldTestament(v.book) === (testament === 'ot'))
+  ), [searchResults, testament])
+  const showTestaments = isWords && searchScope === 'bible' && counts.ot > 0 && counts.nt > 0
   return (
     <div className="px-4 pt-4 space-y-2">
       {!searchQuery.trim() && (
@@ -68,9 +113,15 @@ export function BibleSearchView({
       )}
 
       {searching && (
-        <div className="flex justify-center py-10">
+        <div className="flex flex-col items-center gap-2 py-10">
           <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+          {isWords && searchScope === 'bible' && !wholeBibleReady && (
+            <p className="text-xs text-muted-foreground">Getting the Bible text ready for search (first time only)…</p>
+          )}
         </div>
+      )}
+      {!searching && searchNotice && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-xl px-3 py-2">{searchNotice}</p>
       )}
       {!searching && searchError && (
         <p className="text-center text-destructive py-10 text-sm">{searchError}</p>
@@ -81,9 +132,28 @@ export function BibleSearchView({
         </p>
       )}
       {!searching && isWords && searchResults.length > 0 && (
-        <p className="text-[11px] text-muted-foreground px-1">{searchResults.length}{searchResults.length >= 200 ? '+' : ''} verse{searchResults.length !== 1 ? 's' : ''}</p>
+        <div className="flex items-center justify-between gap-2 px-1">
+          <p className="text-[11px] text-muted-foreground shrink-0">
+            {filtered.length.toLocaleString()} verse{filtered.length !== 1 ? 's' : ''}
+          </p>
+          {showTestaments && (
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+              {([['all', 'All'], ['ot', `Old · ${counts.ot}`], ['nt', `New · ${counts.nt}`]] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => { setTestament(value); setVisible(PAGE_SIZE) }}
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold transition ${
+                    testament === value ? 'bg-violet-600 text-white' : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
-      {!searching && searchResults.map((v, i) => (
+      {!searching && filtered.slice(0, visible).map((v, i) => (
         <button
           key={`${v.book}-${v.chapter}-${v.verse}-${i}`}
           onClick={() => openPassage(v.book, v.chapter)}
@@ -95,6 +165,14 @@ export function BibleSearchView({
           <p className="text-sm text-foreground leading-relaxed">{isWords ? highlightWords(v.text, searchQuery) : v.text}</p>
         </button>
       ))}
+      {!searching && filtered.length > visible && (
+        <button
+          onClick={() => setVisible(n => n + PAGE_SIZE)}
+          className="w-full py-3 rounded-2xl border border-border text-sm font-bold text-violet-600 dark:text-violet-400 active:bg-muted/60"
+        >
+          Show more ({(filtered.length - visible).toLocaleString()} left)
+        </button>
+      )}
     </div>
   )
 }

@@ -126,6 +126,11 @@ export default function ReadingList(): JSX.Element {
   return (
     <div className="bg-background text-foreground pb-24 transition-colors duration-300">
       <main className="space-y-6 max-w-md mx-auto">
+        {/* Calendar first, like the other tabs */}
+        <section className="rounded-3xl bg-card dark:bg-zinc-900/50 backdrop-blur-sm shadow-sm border border-border">
+          <ReadingCalendar readings={readings} />
+        </section>
+
         {/* Status Stats (tap to filter the library) */}
         <section className="flex gap-3 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
           <Stat icon={<BookOpen className="w-4 h-4" />} label="To Read" value={statusStats.toRead} color="text-blue-600 dark:text-blue-400" bg="bg-blue-50 dark:bg-blue-950/30" active={statusFilter === 'to_read'} onClick={() => setStatusFilter(f => f === 'to_read' ? 'all' : 'to_read')} />
@@ -136,11 +141,6 @@ export default function ReadingList(): JSX.Element {
 
         {/* Today's goal and quick logging */}
         <CurrentlyReading readings={readings} onLogged={loadReadings} />
-
-        {/* Calendar Card */}
-        <section className="rounded-3xl bg-card dark:bg-zinc-900/50 backdrop-blur-sm shadow-sm border border-border">
-          <ReadingCalendar readings={readings} />
-        </section>
 
         {/* Library Shelves Section */}
         <div className="space-y-4">

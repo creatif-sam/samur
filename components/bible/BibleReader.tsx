@@ -48,6 +48,7 @@ export default function BibleReader() {
           searchResults={r.searchResults}
           searchMode={r.searchMode}
           searchError={r.searchError}
+          searchNotice={r.searchNotice}
           searchScope={r.searchScope}
           setSearchScope={r.setSearchScope}
           wholeBibleReady={r.wholeBibleReady}

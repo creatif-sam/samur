@@ -20,6 +20,7 @@ import { appendToNoteHtml, newVerseNoteHtml, noteToText, parseNoteVerses, textTo
 // Where you were, so the Bible reopens on the same chapter, version and text size
 const STATE_KEY = 'bible_state'
 const COMPARE_KEY = 'bible_compare_translations'
+const SEARCH_SCOPE_KEY = 'bible_search_scope'
 type StoredState = { book: string; chapter: number; translation: string; fontSize: 'sm' | 'md' | 'lg' }
 
 function loadStoredState(): StoredState | null {
@@ -83,7 +84,16 @@ export function useBibleReader() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchHit[]>([])
   const [searching, setSearching] = useState(false)
-  const [searchScope, setSearchScope] = useState<'book' | 'bible'>('book')
+  // Word search covers the whole Bible unless you narrow it (remembered)
+  const [searchScope, setSearchScopeState] = useState<'book' | 'bible'>('bible')
+  const [searchNotice, setSearchNotice] = useState<string | null>(null)
+  function setSearchScope(scope: 'book' | 'bible') {
+    setSearchScopeState(scope)
+    try { localStorage.setItem(SEARCH_SCOPE_KEY, scope) } catch { /* storage unavailable */ }
+  }
+  useEffect(() => {
+    try { if (localStorage.getItem(SEARCH_SCOPE_KEY) === 'book') setSearchScopeState('book') } catch { /* storage unavailable */ }
+  }, [])
   const [searchMode, setSearchMode] = useState<'reference' | 'words' | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [wholeBibleReady, setWholeBibleReady] = useState(false)
@@ -180,6 +190,7 @@ export function useBibleReader() {
       const seq = ++searchSeq.current
       setSearching(true)
       setSearchError(null)
+      setSearchNotice(null)
       try {
         const ref = parseReference(q, FRENCH_BOOK_NAMES)
         let hits: SearchHit[]
@@ -193,11 +204,22 @@ export function useBibleReader() {
         } else {
           if (q.length < 3) { if (seq === searchSeq.current) { setSearchResults([]); setSearchMode('words') }; return }
           setSearchMode('words')
-          hits = searchScope === 'bible'
-            ? await searchWholeBible(q, translation)
-            : await searchBook(selectedBook, q, translation)
+          if (searchScope === 'bible') {
+            try {
+              hits = await searchWholeBible(q, translation)
+            } catch {
+              // Couldn't download the full text (offline, weak signal): search this book instead
+              hits = await searchBook(selectedBook, q, translation)
+              if (seq === searchSeq.current) setSearchNotice(`Couldn't load the whole Bible, so these results are from ${displayBook(selectedBook, translation)} only.`)
+            }
+          } else {
+            hits = await searchBook(selectedBook, q, translation)
+          }
         }
-        if (seq === searchSeq.current) setSearchResults(hits)
+        if (seq === searchSeq.current) {
+          setSearchResults(hits)
+          if (searchScope === 'bible') hasWholeBibleCached(translation).then(setWholeBibleReady)
+        }
       } catch (err) {
         if (seq !== searchSeq.current) return
         setSearchResults([])
@@ -726,7 +748,7 @@ export function useBibleReader() {
     displayedBooks,
     searchQuery, setSearchQuery,
     searchResults, setSearchResults,
-    searching, searchScope, setSearchScope, searchMode, searchError, wholeBibleReady,
+    searching, searchScope, setSearchScope, searchMode, searchError, searchNotice, wholeBibleReady,
     searchesOtherTranslation: searchesOtherTranslation(translation),
     lastRead, openPassage,
     chapterIsRead, chapterReadToday, toggleChapterReadToday, bookProgress, readChapters,
