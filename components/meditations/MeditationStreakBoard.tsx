@@ -53,6 +53,7 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
   const { current, best } = useMemo(() => computeStreaks(byDay), [byDay])
 
   const today = toLocalDateKey(new Date())
+  const joinedKey = toLocalDateKey(new Date(accountCreatedAt))
   const week = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6))
   const activeEntries = activeDay ? byDay[activeDay] ?? [] : []
 
@@ -88,6 +89,7 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
           const morning = entries.some(m => m.period === 'morning')
           const evening = entries.some(m => m.period === 'evening')
           const isToday = key === today
+          const missed = entries.length === 0 && !isToday && key >= joinedKey
           const date = new Date(key + 'T12:00:00')
           return (
             <button
@@ -109,9 +111,10 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
                 {/* Inner disc keeps the date readable over the morning/evening halves */}
                 <span className={`relative grid place-items-center rounded-full text-xs font-black ${
                   entries.length ? 'h-7 w-7 bg-card text-foreground shadow-sm' : 'text-muted-foreground'
-                }`}>
+                } ${missed ? '-mt-2.5' : ''}`}>
                   {date.getDate()}
                 </span>
+                {missed && <span className="absolute bottom-0 text-[10px] leading-none" aria-hidden>😈</span>}
               </span>
             </button>
           )
@@ -137,6 +140,7 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
       <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-violet-500" /> Morning</span>
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" /> Evening</span>
+        <span className="flex items-center gap-1.5"><span className="text-xs leading-none">😈</span> Missed</span>
       </div>
 
       <StreakCalendarModal
