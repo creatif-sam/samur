@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Post, PostReaction, PostComment, Profile } from '@/lib/types';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -21,6 +20,12 @@ import { PostHeader } from './PostHeader';
 import { PostActions } from './PostActions';
 import { CommentSection } from './CommentSection';
 import { FormattedContent } from './FormattedContent';
+import { kindInfo, parsePost } from '@/lib/posts';
+import { cn } from '@/lib/utils';
+
+// Posts longer than this start folded, with a Read more toggle
+const FOLD_CHARS = 420;
+const FOLD_LINES = 8;
 
 export type PostWithProfile = Post & { profiles: Profile };
 
@@ -32,6 +37,9 @@ interface PostCardProps {
   initialComments: PostComment[];
   onUpdate: (id: string, content: string) => Promise<boolean>;
   onDelete: (id: string) => Promise<boolean>;
+  isNew?: boolean;
+  highlight?: string;
+  partnerName?: string;
 }
 
 // Nest a flat comment list by parent_comment_id (replies to replies included)
@@ -51,7 +59,7 @@ function descendantIds(flat: PostComment[], id: string): string[] {
   return children.flatMap(c => [c.id, ...descendantIds(flat, c.id)]);
 }
 
-export default function PostCard({ post, currentUserId, initialReactions, initialComments, onUpdate, onDelete }: PostCardProps) {
+export default function PostCard({ post, currentUserId, initialReactions, initialComments, onUpdate, onDelete, isNew, highlight = '', partnerName }: PostCardProps) {
   const [reactions, setReactions] = useState<PostReaction[]>(initialReactions);
   const [comments, setComments] = useState<PostComment[]>(initialComments);
   const [showComments, setShowComments] = useState(false);
@@ -66,6 +74,26 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
 
   const userReaction = reactions.find(r => r.user_id === currentUserId) ?? null;
   const tree = useMemo(() => buildTree(comments), [comments]);
+  const isMine = post.author_id === currentUserId;
+  const { kind, body } = parsePost(post.content);
+  const kindMeta = kindInfo(kind);
+  const isLong = body.length > FOLD_CHARS || body.split('\n').length > FOLD_LINES;
+  const [expanded, setExpanded] = useState(false);
+  // On a prayer request, a "like" means "I prayed for this"
+  const isPrayer = kind === 'prayer';
+  // On your own posts, show that your partner liked (or prayed for) it
+  const likedBy = isMine && reactions.some(r => r.user_id !== currentUserId)
+    ? `${partnerName || 'Your partner'} ${isPrayer ? 'prayed for this' : 'liked this'}`
+    : null;
+
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(body);
+      toast.success('Copied');
+    } catch {
+      toast.error("Couldn't copy");
+    }
+  };
 
   // --- COMMENTS ---
   const postComment = async (content: string, parentId?: string) => {
@@ -152,8 +180,8 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
             body: JSON.stringify({
               targetUserId: post.author_id,
               type: 'like',
-              title: 'New Like ❤️',
-              body: `${userName} liked your post`,
+              title: isPrayer ? 'Prayed for you 🙏' : 'New Like ❤️',
+              body: isPrayer ? `${userName} prayed for your request` : `${userName} liked your post`,
               url: '/protected/posts?tab=posts'
             })
           }).catch(err => console.error('Failed to send notification:', err));
@@ -182,17 +210,24 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   };
 
   return (
-    <Card className="mb-4 overflow-hidden border-muted-foreground/10 shadow-sm">
+    <article
+      className={cn(
+        'overflow-hidden rounded-3xl border bg-card shadow-sm transition-shadow',
+        isNew ? 'border-violet-300 ring-2 ring-violet-500/20 dark:border-violet-500/40' : 'border-border/60',
+      )}
+    >
       <PostHeader
         post={post}
         currentUserId={currentUserId}
+        isNew={isNew}
         onEdit={() => { setEditText(post.content); setEditing(true); }}
         onDelete={() => setConfirmDelete(true)}
+        onCopy={copyText}
       />
 
-      <CardContent className="pt-0">
+      <div className="px-4 pb-3">
         {editing ? (
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2">
             <Textarea
               autoFocus
               value={editText}
@@ -208,16 +243,36 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
             </div>
           </div>
         ) : (
-          <p className="text-sm mb-4 whitespace-pre-wrap px-1">
-            <FormattedContent content={post.content} />
-          </p>
+          <>
+            {kindMeta && (
+              <span className={cn('mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold', kindMeta.pill)}>
+                {kindMeta.emoji} {kindMeta.label}
+              </span>
+            )}
+            <p
+              className={cn(
+                'whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground/90',
+                isLong && !expanded && !highlight && 'line-clamp-[8]',
+              )}
+            >
+              <FormattedContent content={body} highlight={highlight} />
+            </p>
+            {isLong && !highlight && (
+              <button onClick={() => setExpanded(e => !e)} className="mt-1 text-xs font-bold text-violet-600 dark:text-violet-400">
+                {expanded ? 'Show less' : 'Read more'}
+              </button>
+            )}
+          </>
         )}
-      </CardContent>
+      </div>
 
       <PostActions
         userReaction={userReaction}
         likeCount={reactions.length}
         commentCount={comments.length}
+        likedBy={likedBy}
+        prayer={isPrayer}
+        showComments={showComments}
         onReaction={handleReaction}
         onToggleComments={() => setShowComments(!showComments)}
         loading={loading}
@@ -251,6 +306,6 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </article>
   );
 }
