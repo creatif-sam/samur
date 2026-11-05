@@ -3,8 +3,11 @@
 import { JSX, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import clsx from 'clsx'
-import { ChevronLeft, ChevronRight, Flame, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Flame, LineChart, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import PrayerMonthGraph, { type GraphMode } from './PrayerMonthGraph'
+
+const VIEW_KEY = 'prayer-month-view'
 
 interface SessionDay {
   date: Date
@@ -26,6 +29,20 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
   const [selectedDay, setSelectedDay] = useState<SessionDay | null>(null)
 
   const [monthSeconds, setMonthSeconds] = useState(0)
+  // Calendar or graph, remembered on this device
+  const [view, setView] = useState<'calendar' | GraphMode>('calendar')
+  const [graphMode, setGraphMode] = useState<GraphMode>('daily')
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY)
+      if (saved === 'daily' || saved === 'total') { setView(saved); setGraphMode(saved) }
+    } catch {}
+  }, [])
+  const chooseView = (next: 'calendar' | GraphMode) => {
+    setView(next)
+    if (next !== 'calendar') setGraphMode(next)
+    try { localStorage.setItem(VIEW_KEY, next) } catch {}
+  }
 
   const toISO = (d: Date) => d.toLocaleDateString('en-CA')
 
@@ -197,6 +214,39 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
           </div>
         </div>
 
+        {/* Calendar / graph switch */}
+        <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-muted/50 p-1">
+          {([
+            { key: 'calendar', label: 'Calendar', Icon: CalendarDays },
+            { key: 'graph', label: 'Graph', Icon: LineChart },
+          ] as const).map(({ key, label, Icon }) => {
+            const active = key === 'calendar' ? view === 'calendar' : view !== 'calendar'
+            return (
+              <button
+                key={key}
+                onClick={() => chooseView(key === 'calendar' ? 'calendar' : graphMode)}
+                aria-pressed={active}
+                className={clsx(
+                  'flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition',
+                  active ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Icon className="h-3.5 w-3.5" /> {label}
+              </button>
+            )
+          })}
+        </div>
+
+        {view !== 'calendar' ? (
+          <PrayerMonthGraph
+            days={days}
+            month={viewDate.getMonth()}
+            mode={graphMode}
+            onModeChange={chooseView}
+            formatMinutes={formatMinutes}
+          />
+        ) : (
+        <>
         {/* Day labels */}
         <div className="grid grid-cols-7 mb-2">
           {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
@@ -274,6 +324,8 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sessions</span>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* Day detail modal */}
