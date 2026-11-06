@@ -44,6 +44,9 @@ SQL migrations go in `supabase/migrations/`. Run each one in the Supabase SQL ed
 
 `.github/workflows/cron-jobs.yml` calls the routes under `app/api/cron/` on a schedule, sending `Authorization: Bearer $CRON_SECRET`. Set `CRON_SECRET` as a repository secret.
 
+The **weekly summary email** goes out Sundays at 08:00 UTC (`app/api/cron/weekly-summary`, template in `lib/weekly-summary/`). It covers the seven days ending yesterday and compares them with the week before. The route returns a non-200 status if any send fails, so a broken email setup turns the GitHub Action red. Anyone can switch it off, or send themselves a preview, under Profile → Notifications.
+Email needs `RESEND_API_KEY`, `FROM_EMAIL` and a sending domain verified in Resend.
+
 ## Project layout
 
 ```

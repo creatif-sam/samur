@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Bell, BellOff, AlertCircle, Loader2, ShieldCheck, Moon } from 'lucide-react'
+import { Bell, BellOff, AlertCircle, Loader2, ShieldCheck, Moon, Mail } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   DEFAULT_PREFERENCES,
@@ -188,6 +188,22 @@ export default function PushNotificationManager() {
 
   const quietEnabled = !!(preferences.quiet_start && preferences.quiet_end)
 
+  // Emails this week's summary to the signed-in user, which also proves email delivery works
+  const [sendingSummary, setSendingSummary] = useState(false)
+  const sendSummaryPreview = async () => {
+    setSendingSummary(true)
+    try {
+      const res = await fetch('/api/weekly-summary/preview', { method: 'POST' })
+      const body = await res.json().catch(() => ({}))
+      if (res.ok) toast.success(`Sent to ${body.to}. Check your inbox (and spam).`)
+      else toast.error(body.error || "Couldn't send the summary")
+    } catch {
+      toast.error("Couldn't send. Check your connection.")
+    } finally {
+      setSendingSummary(false)
+    }
+  }
+
   const sendTestNotification = async () => {
     setActionLoading(true)
     try {
@@ -305,6 +321,16 @@ export default function PushNotificationManager() {
               ))}
             </div>
           ))}
+
+          {preferences.weekly_summary && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/30 p-3">
+              <p className="text-[11px] leading-snug text-muted-foreground">See what the Sunday email looks like, sent to your own address now.</p>
+              <Button onClick={sendSummaryPreview} disabled={sendingSummary} variant="outline" size="sm" className="shrink-0 rounded-xl font-bold">
+                {sendingSummary ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1.5 h-3.5 w-3.5" />}
+                Send me this week
+              </Button>
+            </div>
+          )}
 
           {/* Quiet hours */}
           <div className="space-y-2">
