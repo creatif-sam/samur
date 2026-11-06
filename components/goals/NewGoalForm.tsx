@@ -15,7 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus } from 'lucide-react'
+import { ChevronDown, Plus } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { toLocalDateKey } from '@/lib/dates'
+import { goalDatePresets, isFarAway, newGoalOwnership } from '@/lib/goalGuide'
 
 const CATEGORY_EMOJIS = ['🎯', '📚', '💪', '🙏', '💼', '❤️', '🧠', '🏡', '💰', '⏰']
 
@@ -36,6 +39,9 @@ export interface Vision {
   title: string
   is_archived?: boolean
 }
+
+const labelCls = 'text-xs font-bold uppercase tracking-wide text-muted-foreground'
+const hintCls = 'text-[11px] text-muted-foreground'
 
 export function NewGoalForm({
   onCancel,
@@ -71,12 +77,16 @@ export function NewGoalForm({
       ? initialData.goal_type === 'combined' || initialData.visibility === 'shared'
       : false
   )
+  // Create only: the first small step goes to the planner to-dos, where it can be scheduled
+  const [firstStep, setFirstStep] = useState('')
+  const [showMore, setShowMore] = useState(Boolean(initialData?.category_id))
   const [showCategoryInput, setShowCategoryInput] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [selectedEmoji, setSelectedEmoji] = useState(CATEGORY_EMOJIS[0])
   const [localCategories, setLocalCategories] = useState<GoalCategory[]>(categories)
 
   const valid = Boolean(title.trim()) && Boolean(dueDate)
+  const today = toLocalDateKey(new Date())
 
   // Only the owner may change who a goal is shared with; a partner editing a
   // shared goal must not rewrite partner_id (that would unshare it from them)
@@ -129,13 +139,16 @@ export function NewGoalForm({
       partnerId = profile?.partner_id ?? null
     }
 
-    const goalPayload = {
+    const goalBase = {
       title: title.trim(),
       description: description.trim(),
       deliverable: deliverable.trim() || null,
       due_date: dueDate,
       category_id: categoryId || null,
       vision_id: visionId === 'none' ? null : visionId,
+    }
+    const goalPayload = {
+      ...goalBase,
       ...(isOwner
         ? {
             goal_type: isShared ? 'combined' : 'single',
@@ -158,11 +171,22 @@ export function NewGoalForm({
     } else {
       const { data, error } = await supabase
         .from('goals')
-        .insert({ ...goalPayload, owner_id: auth.user.id })
+        .insert({ ...goalBase, ...newGoalOwnership({ ownerId: auth.user.id, shared: isShared, partnerId }) })
         .select('*, visions(*), goal_categories(*)')
         .single()
       if (error) { toast.error('Failed to create goal'); return }
-      toast.success('Goal created! 🎯')
+
+      // The first step becomes a planner to-do (a milestone would count as 100% the moment it is ticked)
+      const step = firstStep.trim()
+      if (step) {
+        const { error: stepError } = await supabase
+          .from('planner_todos')
+          .insert({ user_id: auth.user.id, text: step, ...(visionId !== 'none' ? { vision_id: visionId } : {}) })
+        if (stepError) toast.warning("Goal created, but the first step couldn't be added to your to-dos.")
+        else toast.success('Goal created! Your first step is in your planner to-dos 🎯')
+      } else {
+        toast.success('Goal created! 🎯')
+      }
 
       if (data) {
         if (isShared && partnerId) {
@@ -190,37 +214,104 @@ export function NewGoalForm({
       setDeliverable('')
       setDueDate('')
       setCategoryId('')
+      setFirstStep('')
       onCreated(data)
     }
   }
 
   return (
     <div className="space-y-4">
-      {/* SMART hint — only on new goal */}
+      {/* What a goal is, in one breath: new goals only */}
       {!initialData?.id && (
-        <p className="text-[11px] font-medium text-muted-foreground bg-muted/60 rounded-xl px-3 py-2 leading-relaxed">
-          💡 <span className="font-bold text-foreground">SMART:</span>{' '}
-          Specific · Measurable · Achievable · Relevant · Time-bound
-        </p>
+        <div className="rounded-2xl bg-violet-50 px-3.5 py-3 text-[12px] leading-relaxed dark:bg-violet-500/10">
+          <p className="font-bold text-violet-900 dark:text-violet-200">A goal is one result you will finish by a date.</p>
+          <p className="text-violet-800/80 dark:text-violet-300/80">Make it something you can count or check, and start with one small first step.</p>
+        </div>
       )}
 
       {/* Title */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Title <span className="text-rose-500">*</span>
+        <Label className={labelCls}>
+          What do you want to achieve? <span className="text-rose-500">*</span>
         </Label>
         <Input
-          placeholder="e.g. Read 12 books this year"
+          placeholder="e.g. Read 12 books by December"
           value={title}
           onChange={e => setTitle(e.target.value)}
+        />
+        <p className={hintCls}>Say what you will do, and be specific.</p>
+      </div>
+
+      {/* Measurable outcome */}
+      <div className="space-y-1.5">
+        <Label className={labelCls}>How will you know it&apos;s done?</Label>
+        <Input
+          placeholder="e.g. 12 books finished"
+          value={deliverable}
+          onChange={e => setDeliverable(e.target.value)}
+        />
+        <p className={hintCls}>A number, a date or a result you can check.</p>
+      </div>
+
+      {/* Due date */}
+      <div className="space-y-1.5">
+        <Label className={labelCls}>
+          Due date <span className="text-rose-500">*</span>
+        </Label>
+        <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
+          {goalDatePresets(today).map(p => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => setDueDate(p.value)}
+              className={cn(
+                'rounded-full px-3 py-1 text-[11px] font-bold transition active:scale-95',
+                dueDate === p.value ? 'bg-violet-600 text-white' : 'bg-muted text-muted-foreground',
+              )}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {isFarAway(dueDate, today) && (
+          <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+            That is over a year away. Goals tend to work best with a date in the next few months. Consider a nearer date, or make this a vision.
+          </p>
+        )}
+      </div>
+
+      {/* First step: new goals only */}
+      {!isEditing && (
+        <div className="space-y-1.5">
+          <Label className={labelCls}>
+            What is the first step? <span className="font-medium normal-case tracking-normal">(optional)</span>
+          </Label>
+          <Input
+            placeholder="e.g. Read the first 20 pages"
+            value={firstStep}
+            onChange={e => setFirstStep(e.target.value)}
+          />
+          <p className={hintCls}>Small enough to do this week. It goes to your planner to-dos, where you can schedule it.</p>
+        </div>
+      )}
+
+      {/* Why */}
+      <div className="space-y-1.5">
+        <Label className={labelCls}>
+          Why does it matter to you? <span className="font-medium normal-case tracking-normal">(optional)</span>
+        </Label>
+        <Textarea
+          placeholder="What will change when you finish?"
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          rows={2}
         />
       </div>
 
       {/* Vision */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Linked Vision
-        </Label>
+        <Label className={labelCls}>Linked vision</Label>
         <Select value={visionId} onValueChange={setVisionId}>
           <SelectTrigger>
             <SelectValue placeholder="No vision (standalone)" />
@@ -232,98 +323,7 @@ export function NewGoalForm({
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Category */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Category <span className="normal-case tracking-normal font-medium">(optional)</span>
-        </Label>
-        <Select value={categoryId || 'none'} onValueChange={v => setCategoryId(v === 'none' ? '' : v)}>
-          <SelectTrigger>
-            <SelectValue placeholder="General" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">🎯 General</SelectItem>
-            {localCategories.map(c => (
-              <SelectItem key={c.id} value={c.id}>{c.emoji ?? '📁'} {c.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {!showCategoryInput ? (
-          <button
-            type="button"
-            onClick={() => setShowCategoryInput(true)}
-            className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700 mt-1"
-          >
-            <Plus className="w-3 h-3" /> Add new category
-          </button>
-        ) : (
-          <div className="space-y-2 pt-1">
-            <Input
-              placeholder="Category name"
-              value={newCategoryName}
-              onChange={e => setNewCategoryName(e.target.value)}
-            />
-            <div className="flex gap-1.5 flex-wrap">
-              {CATEGORY_EMOJIS.map(e => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => setSelectedEmoji(e)}
-                  className={`p-1.5 border rounded-lg text-sm transition ${
-                    selectedEmoji === e
-                      ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/30'
-                      : 'border-muted'
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={createCategory}>Create</Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowCategoryInput(false)}>Cancel</Button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Due Date */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Due Date <span className="text-rose-500">*</span>
-        </Label>
-        <Input
-          type="date"
-          value={dueDate}
-          onChange={e => setDueDate(e.target.value)}
-        />
-      </div>
-
-      {/* Description */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Description
-        </Label>
-        <Textarea
-          placeholder="What does success look like?"
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          rows={2}
-        />
-      </div>
-
-      {/* Measurable Outcome */}
-      <div className="space-y-1.5">
-        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          Measurable Outcome
-        </Label>
-        <Input
-          placeholder="e.g. 12 books read, tracked in library"
-          value={deliverable}
-          onChange={e => setDeliverable(e.target.value)}
-        />
+        {visionOptions.length > 0 && <p className={hintCls}>A linked goal moves its vision forward.</p>}
       </div>
 
       {/* Shared toggle (owner only) */}
@@ -340,6 +340,73 @@ export function NewGoalForm({
           Shared goal from your partner. Only they can change who it&apos;s shared with.
         </p>
       )}
+
+      {/* More options: category */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowMore(v => !v)}
+          aria-expanded={showMore}
+          className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+        >
+          More options <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMore && 'rotate-180')} />
+        </button>
+        {showMore && (
+          <div className="mt-3 space-y-1.5">
+            <Label className={labelCls}>
+              Category <span className="font-medium normal-case tracking-normal">(optional)</span>
+            </Label>
+            <Select value={categoryId || 'none'} onValueChange={v => setCategoryId(v === 'none' ? '' : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="General" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">🎯 General</SelectItem>
+                {localCategories.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.emoji ?? '📁'} {c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!showCategoryInput ? (
+              <button
+                type="button"
+                onClick={() => setShowCategoryInput(true)}
+                className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700"
+              >
+                <Plus className="h-3 w-3" /> Add new category
+              </button>
+            ) : (
+              <div className="space-y-2 pt-1">
+                <Input
+                  placeholder="Category name"
+                  value={newCategoryName}
+                  onChange={e => setNewCategoryName(e.target.value)}
+                />
+                <div className="flex flex-wrap gap-1.5">
+                  {CATEGORY_EMOJIS.map(e => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={() => setSelectedEmoji(e)}
+                      className={`rounded-lg border p-1.5 text-sm transition ${
+                        selectedEmoji === e
+                          ? 'border-violet-500 bg-violet-50 dark:bg-violet-950/30'
+                          : 'border-muted'
+                      }`}
+                    >
+                      {e}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={createCategory}>Create</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowCategoryInput(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-1">

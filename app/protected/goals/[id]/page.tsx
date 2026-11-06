@@ -173,13 +173,13 @@ export default function GoalDetailPage() {
           <div className="rounded-2xl bg-card border border-border p-4 space-y-3">
             {goal.description && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">What success looks like</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">About this goal</p>
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{goal.description}</p>
               </div>
             )}
             {goal.deliverable && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Measurable outcome</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">How you will know it is done</p>
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{goal.deliverable}</p>
               </div>
             )}

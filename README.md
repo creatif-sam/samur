@@ -63,6 +63,24 @@ Each screen and tab has a code folder with the same name, so you can find it fro
 
 Logic that belongs to one tab lives in `lib/` under the same name (`lib/read/`, `lib/create.ts`, `lib/prayerTarget.ts`). Every explanation behind an ⓘ is in `lib/help.ts`.
 
+## How goals and visions are modelled
+
+A **vision** is the bigger picture; a **goal** is one result you finish by a date, and goals feed the vision's progress. The New Goal and New Vision forms follow what goal-setting research supports, and add nothing that is not needed: only a title (and a due date for goals) is required.
+
+| Principle | Evidence | In the forms |
+| --- | --- | --- |
+| Specific, measurable goals with a date beat "do your best" | Locke and Latham (2002) | "What do you want to achieve?", "How will you know it's done?", a required due date with quick dates |
+| Near, small steps motivate more than a distant target | Bandura and Schunk (1981), a study of children | An optional first step (it goes to the planner to-dos, where it can be scheduled), and a gentle note when a date is over a year away (a rule of thumb, not a finding) |
+| A reason that is truly yours sustains effort | Sheldon and Elliot (1999) | "Why does it matter to you?" |
+| Deciding when to start helps, though less than first reported | Gollwitzer and Sheeran (2006); smaller after bias correction in a 2024 synthesis | The first step can be scheduled; it stays optional |
+| Tracking progress helps | Harkin and others (2016), mostly health studies | Progress and milestones, the Goals overview, the weekly review |
+| A vision needs a path, or it stays a wish | Boyatzis and Akrivou (2006); Oyserman; Oettingen | "Describe it as if it is already true", an optional first goal, and a "No goals yet" note on the card |
+| Do not over-prescribe goals | Ordonez and others (2009) | Everything beyond the title and date is optional, and there are no limits |
+
+SMART (Specific, Measurable, Achievable, Relevant, Time-bound) is a practitioner checklist, not an experiment; the forms use the parts the evidence supports. A goal's first step is saved as a planner to-do, not a milestone, because progress from milestones is done divided by total, so a single milestone would mark the goal finished when ticked.
+
+Sources: [Locke and Latham 2002](https://doi.org/10.1037/0003-066X.57.9.705) · [Sheldon and Elliot 1999](https://pubmed.ncbi.nlm.nih.gov/10101878/) · [Gollwitzer and Sheeran 2006](https://stafforini.com/works/gollwitzer-2006-implementation-intentions-and/) · [2024 update, as summarised](https://goalsandprogress.com/implementation-intentions-research/) · [Harkin and others 2016](https://eprints.whiterose.ac.uk/id/eprint/91437/) · [Boyatzis and Akrivou 2006](https://emerald.com/insight/content/doi/10.1108/02621710610678454/full/html) · [Ordonez and others 2009](https://www.hks.harvard.edu/publications/goals-gone-wild-systematic-side-effects-overprescribing-goal-setting). Bandura and Schunk (1981, Journal of Personality and Social Psychology 41), Oyserman and Oettingen were read through abstracts and summaries only.
+
 ## Project layout
 
 ```

@@ -14,10 +14,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Eye, Loader2 } from 'lucide-react'
+import { ChevronDown, Eye, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
-import { toLocalDateKey } from '@/lib/dates'
+import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
+import { FIRST_GOAL_HORIZONS, firstGoalDue, newGoalOwnership } from '@/lib/goalGuide'
 import { Vision } from '@/app/protected/goals/page'
 
 const COLORS = [
@@ -40,6 +41,10 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
 
   const [internalOpen, setInternalOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
+  // Create only: one first goal gives the vision a path, so it is not just a wish
+  const [firstGoal, setFirstGoal] = useState('')
+  const [horizon, setHorizon] = useState<number>(90)
+  const [showLook, setShowLook] = useState(false)
   const [newVision, setNewVision] = useState({
     title: '',
     description: '',
@@ -77,17 +82,46 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
       owner_id: user?.id,
     }
 
-    const { error } = initialData
-      ? await supabase.from('visions').update(payload).eq('id', initialData.id)
-      : await supabase.from('visions').insert(payload)
+    let error: { message: string } | null
+    let createdId: string | null = null
+    if (initialData) {
+      error = (await supabase.from('visions').update(payload).eq('id', initialData.id)).error
+    } else {
+      const res = await supabase.from('visions').insert(payload).select('id').single()
+      error = res.error
+      createdId = (res.data as { id: string } | null)?.id ?? null
+    }
 
     if (error) {
       toast.error("Couldn't save the vision. Check your connection and try again.")
     } else {
-      toast.success(initialData ? 'Vision updated' : 'Vision cast 🔭')
+      // The first goal, with the due date the user saw on the chip
+      const goalTitle = firstGoal.trim()
+      let goalNote: 'none' | 'ok' | 'failed' = 'none'
+      if (!initialData && goalTitle && user?.id) {
+        if (!createdId) {
+          goalNote = 'failed'
+        } else {
+          const { error: goalError } = await supabase.from('goals').insert({
+            title: goalTitle,
+            description: '',
+            deliverable: null,
+            due_date: firstGoalDue(horizon, toLocalDateKey(new Date()), newVision.target_date),
+            category_id: null,
+            vision_id: createdId,
+            ...newGoalOwnership({ ownerId: user.id }),
+          })
+          goalNote = goalError ? 'failed' : 'ok'
+        }
+      }
+      if (goalNote === 'failed') toast.warning("Vision saved, but the first goal couldn't be added. Add it from the vision card.")
+      else toast.success(initialData ? 'Vision updated' : goalNote === 'ok' ? 'Vision cast, with its first goal 🔭' : 'Vision cast 🔭')
       setIsOpen(false)
       if (!initialData) {
         setNewVision({ title: '', description: '', color: COLORS[0], emoji: EMOJIS[0], target_date: '' })
+        setFirstGoal('')
+        setHorizon(90)
+        setShowLook(false)
       }
       onCreated()
     }
@@ -134,10 +168,18 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
 
         {/* Form body */}
         <div className="px-6 py-5 space-y-5 max-h-[65svh] overflow-y-auto">
+          {/* What a vision is: new visions only */}
+          {!isEditing && (
+            <div className="rounded-2xl bg-muted/60 px-3.5 py-3 text-[12px] leading-relaxed">
+              <p className="font-bold text-foreground">A vision is the bigger picture your goals serve.</p>
+              <p className="text-muted-foreground">Describe it as if it is already true, then give it a first goal so it has a path.</p>
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Vision Title <span className="text-rose-500">*</span>
+              Name your vision <span className="text-rose-500">*</span>
             </Label>
             <Input
               placeholder="e.g. Financial Freedom"
@@ -150,7 +192,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           {/* Target Date */}
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Target Date
+              Target date <span className="font-medium normal-case tracking-normal">(optional)</span>
             </Label>
             <Input
               type="date"
@@ -190,18 +232,75 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           {/* Description */}
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Description
+              Describe it as if it is already true
             </Label>
             <Textarea
-              placeholder="Describe what this vision means to you and what it looks like achieved..."
+              placeholder="I am… My days look like… This matters to me because…"
               value={newVision.description}
               onChange={e => setNewVision({ ...newVision, description: e.target.value })}
-              className="bg-muted/50 border-0 focus-visible:ring-primary resize-none min-h-[80px] text-sm"
+              className="bg-muted/50 border-0 focus-visible:ring-primary resize-none min-h-[104px] text-sm"
             />
+            <p className="text-[11px] text-muted-foreground">Who are you becoming, what has changed, and why does it matter?</p>
           </div>
 
+          {/* First goal: new visions only */}
+          {!isEditing && (
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                First goal toward it <span className="font-medium normal-case tracking-normal">(optional)</span>
+              </Label>
+              <Input
+                placeholder="e.g. Save one month of expenses"
+                value={firstGoal}
+                onChange={e => setFirstGoal(e.target.value)}
+                className="bg-muted/50 border-0 focus-visible:ring-primary h-11"
+              />
+              {firstGoal.trim() ? (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex flex-wrap gap-1.5">
+                    {FIRST_GOAL_HORIZONS.map(d => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setHorizon(d)}
+                        className={cn(
+                          'rounded-full px-3 py-1 text-[11px] font-bold transition',
+                          horizon === d ? 'text-white' : 'bg-muted text-muted-foreground',
+                        )}
+                        style={horizon === d ? { backgroundColor: newVision.color } : undefined}
+                      >
+                        {d} days
+                      </button>
+                    ))}
+                  </div>
+                  {(() => {
+                    const today = toLocalDateKey(new Date())
+                    const due = firstGoalDue(horizon, today, newVision.target_date)
+                    return (
+                      <p className="text-[11px] font-semibold text-muted-foreground">
+                        Due {parseDateKey(due).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {due !== addDays(today, horizon) ? ', the date your vision is due' : ''}
+                      </p>
+                    )
+                  })()}
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">A vision with no goals stays a wish. One small goal gives it a path.</p>
+              )}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowLook(v => !v)}
+            aria-expanded={showLook}
+            className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+          >
+            Customize color and icon <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showLook && 'rotate-180')} />
+          </button>
+
           {/* Color */}
-          <div className="space-y-2.5">
+          {showLook && <div className="space-y-2.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Identity Color
             </Label>
@@ -221,10 +320,10 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
                 />
               ))}
             </div>
-          </div>
+          </div>}
 
           {/* Icon */}
-          <div className="space-y-2.5">
+          {showLook && <div className="space-y-2.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
               Icon
             </Label>
@@ -246,7 +345,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Footer CTA */}
