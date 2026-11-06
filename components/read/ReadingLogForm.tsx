@@ -7,10 +7,10 @@ import { createClient } from '@/lib/supabase/client'
 import {
   MIN_READING_NOTE_CHARS, logReadingPages, readingNoteProblem,
   type Reading, type ReadingStatus,
-} from '@/lib/readapp/reading'
+} from '@/lib/read/reading'
 import {
   loadLogMode, loadNoteDraft, pagesFromInput, saveLogMode, saveNoteDraft, type LogMode,
-} from '@/lib/readapp/drafts'
+} from '@/lib/read/drafts'
 
 interface Props {
   book: Reading

@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { BookMarked, Loader2, Pencil, Play, Target } from 'lucide-react'
 import { addDays, toLocalDateKey } from '@/lib/dates'
-import { type Reading } from '@/lib/readapp/reading'
+import { type Reading } from '@/lib/read/reading'
 import ReadingLogForm from './ReadingLogForm'
 
 interface Props {

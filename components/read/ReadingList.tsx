@@ -8,8 +8,8 @@ import AddReading from './AddReading'
 import ReadingCalendar from './ReadingCalendar'
 import BookShelf from './BookShelf'
 import CurrentlyReading from './CurrentlyReading'
-import { loadLibraryCache, saveLibraryCache } from '@/lib/readapp/drafts'
-import { READING_COLUMNS, STATUS_OPTIONS, type Reading, type ReadingCategory, type ReadingStatus } from '@/lib/readapp/reading'
+import { loadLibraryCache, saveLibraryCache } from '@/lib/read/drafts'
+import { READING_COLUMNS, STATUS_OPTIONS, type Reading, type ReadingCategory, type ReadingStatus } from '@/lib/read/reading'
 
 import {
   BookOpen,

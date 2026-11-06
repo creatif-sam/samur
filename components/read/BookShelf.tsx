@@ -17,7 +17,7 @@ import {
   Layers,
 } from 'lucide-react'
 import ReadingCard from './ReadingCard'
-import type { Reading, ReadingCategory, ReadingStatus } from '@/lib/readapp/reading'
+import type { Reading, ReadingCategory, ReadingStatus } from '@/lib/read/reading'
 
 interface BookShelfProps {
   category: ReadingCategory

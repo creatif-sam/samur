@@ -13,8 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Loader2, BookPlus, Save } from 'lucide-react'
-import { ensureReadingLogsNotebook, ensureBookSection } from '@/lib/readapp/journalSync'
-import { renameBookSection, type Reading } from '@/lib/readapp/reading'
+import { ensureReadingLogsNotebook, ensureBookSection } from '@/lib/read/journalSync'
+import { renameBookSection, type Reading } from '@/lib/read/reading'
 
 type ReadingCategory =
   | 'faith'

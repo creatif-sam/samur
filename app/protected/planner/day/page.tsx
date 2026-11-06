@@ -5,7 +5,7 @@ import React, { useState } from 'react'
 import DailyPlanner from '@/components/planner/DailyPlanner'
 import { Button } from '@/components/ui/button'
 import { Clock, Wallet } from 'lucide-react'
-import DailyMoneyPlanner from '@/components/planner/money_planner/page'
+import MoneyTabs from '@/components/planner/money/MoneyTabs'
 
 type PlanningMode = 'time' | 'money'
 
@@ -45,7 +45,7 @@ export default function DayPlannerPage(): React.JSX.Element {
 
           {mode === 'money' && (
             <div className="text-sm text-muted-foreground text-center py-10">
-              {mode === 'money' && <DailyMoneyPlanner />}
+              {mode === 'money' && <MoneyTabs />}
             </div>
           )}
         </div>

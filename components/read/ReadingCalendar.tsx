@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import clsx from 'clsx'
 import { X, ChevronLeft, ChevronRight, Flame, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import type { Reading } from '@/lib/readapp/reading'
+import type { Reading } from '@/lib/read/reading'
 
 type DayState = 'before' | 'read' | 'missed' | 'future'
 

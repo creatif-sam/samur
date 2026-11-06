@@ -54,7 +54,7 @@ export async function GET(request: Request) {
             type: 'work_log_reminder',
             title: 'Work Log Reminder 📝',
             body: 'Don\'t forget to log your creative work for today!',
-            url: '/protected/readapp'
+            url: '/protected/readapp?tab=create'
           })
         });
 

@@ -125,7 +125,7 @@ export const HELP = {
   },
   'reading.create': {
     title: 'Work sessions',
-    text: 'Log a focused work session: what you worked on, when it started and ended, what it produced and how it went. Past sessions are listed below.',
+    text: 'Tap Start when you begin and Stop when you finish, or log a past session. Say what you worked on and what it produced. This card shows your week, and your sessions are listed below.',
   },
 
   // ── Bible ──

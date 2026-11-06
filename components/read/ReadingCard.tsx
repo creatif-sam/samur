@@ -43,7 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { type Reading } from '@/lib/readapp/reading'
+import { type Reading } from '@/lib/read/reading'
 import ReadingLogForm from './ReadingLogForm'
 
 type ReadingStatus =

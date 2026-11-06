@@ -1,8 +1,8 @@
 'use client';
 
 import { HelpTip } from '@/components/ui/help-tip'
-import ReadAppTabs from '@/components/readapp/ReadAppTabs';
-import { JSX } from 'react';
+import LibraryTabs from '@/components/library/LibraryTabs';
+import { JSX, Suspense } from 'react';
 import { motion } from 'framer-motion';
 
 export default function ReadAppPage(): JSX.Element {
@@ -26,7 +26,9 @@ export default function ReadAppPage(): JSX.Element {
         </p>
       </header>
 
-      <ReadAppTabs />
+      <Suspense fallback={null}>
+        <LibraryTabs />
+      </Suspense>
     </motion.main>
   );
 }

@@ -1,10 +1,11 @@
 'use client';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import ReadingList from './ReadingList';
+import ReadingList from '@/components/read/ReadingList';
 import QuizTabs from '@/components/quiz/QuizTabs';
-import CreativeWork from './CreativeWorky';
-import { JSX } from 'react';
+import Create from '@/components/create/Create';
+import { JSX, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { BookOpen, ListChecks, Sparkles } from 'lucide-react';
 
 // Optimized classes for Theme support
@@ -21,9 +22,23 @@ const triggerClass =
 const labelClass =
   'text-sm font-black uppercase tracking-widest'; // Matches your PWA aesthetic
 
-export default function ReadAppTabs(): JSX.Element {
+const TABS = ['read', 'quiz', 'creative'] as const;
+type TabKey = (typeof TABS)[number];
+
+// ?tab=create (also ?tab=creative) opens that tab, e.g. from the work log reminder
+function tabFromParam(param: string | null): TabKey {
+  if (param === 'create') return 'creative';
+  return TABS.includes(param as TabKey) ? (param as TabKey) : 'read';
+}
+
+export default function LibraryTabs(): JSX.Element {
+  const requested = useSearchParams().get('tab');
+  const [tab, setTab] = useState<TabKey>(() => tabFromParam(requested));
+  // Follow the link when it changes while the Library is already open
+  useEffect(() => { setTab(tabFromParam(requested)); }, [requested]);
+
   return (
-    <Tabs defaultValue="read" className="w-full transition-colors duration-300">
+    <Tabs value={tab} onValueChange={v => setTab(v as TabKey)} className="w-full transition-colors duration-300">
       <TabsList className="grid grid-cols-3 gap-1.5 p-1.5 bg-muted/50 dark:bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-border/50">
         <TabsTrigger value="read" className={triggerClass}>
           <BookOpen className="w-4 h-4" />
@@ -52,7 +67,7 @@ export default function ReadAppTabs(): JSX.Element {
         </TabsContent>
 
         <TabsContent value="creative" className="animate-in fade-in slide-in-from-bottom-2 duration-300 outline-none">
-          <CreativeWork />
+          <Create />
         </TabsContent>
       </div>
     </Tabs>
