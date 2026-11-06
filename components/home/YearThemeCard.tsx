@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Crown, Sparkles } from 'lucide-react'
 import { parseDateKey, toLocalDateKey } from '@/lib/dates'
-import { EMPTY_THEMES, loadThemes, themeSpan, type Themes } from '@/lib/themes'
+import { EMPTY_THEMES, currentMonthTheme, loadThemes, themeSpan, type Themes } from '@/lib/themes'
 
 // Time walked in the theme, counted from the day it began (which may be before Jan 1)
 function elapsedSince(startKey: string) {
@@ -31,7 +31,9 @@ export default function YearThemeCard() {
     return () => clearInterval(id)
   }, [])
 
-  const { yearTheme, yearScripture, monthTheme, monthScripture } = themes
+  const { yearTheme, yearScripture } = themes
+  // Last month's theme stops showing when a new month begins
+  const { theme: monthTheme, scripture: monthScripture } = currentMonthTheme(themes)
   if (!yearTheme && !monthTheme) return null
 
   const span = themeSpan(themes.themeYear, themes.themeStart, toLocalDateKey(new Date()))

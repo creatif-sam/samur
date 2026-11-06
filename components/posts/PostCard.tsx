@@ -20,7 +20,7 @@ import { PostHeader } from './PostHeader';
 import { PostActions } from './PostActions';
 import { CommentSection } from './CommentSection';
 import { FormattedContent } from './FormattedContent';
-import { kindInfo, parsePost } from '@/lib/posts';
+import { composePost, kindInfo, parsePost } from '@/lib/posts';
 import { cn } from '@/lib/utils';
 
 // Posts longer than this start folded, with a Read more toggle
@@ -40,6 +40,7 @@ interface PostCardProps {
   isNew?: boolean;
   highlight?: string;
   partnerName?: string;
+  onToggleAnswered?: (id: string, answered: boolean) => Promise<boolean>;
 }
 
 // Nest a flat comment list by parent_comment_id (replies to replies included)
@@ -59,7 +60,7 @@ function descendantIds(flat: PostComment[], id: string): string[] {
   return children.flatMap(c => [c.id, ...descendantIds(flat, c.id)]);
 }
 
-export default function PostCard({ post, currentUserId, initialReactions, initialComments, onUpdate, onDelete, isNew, highlight = '', partnerName }: PostCardProps) {
+export default function PostCard({ post, currentUserId, initialReactions, initialComments, onUpdate, onDelete, isNew, highlight = '', partnerName, onToggleAnswered }: PostCardProps) {
   const [reactions, setReactions] = useState<PostReaction[]>(initialReactions);
   const [comments, setComments] = useState<PostComment[]>(initialComments);
   const [showComments, setShowComments] = useState(false);
@@ -81,6 +82,7 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   const [expanded, setExpanded] = useState(false);
   // On a prayer request, a "like" means "I prayed for this"
   const isPrayer = kind === 'prayer';
+  const answered = isPrayer && !!post.answered_at;
   // On your own posts, show that your partner liked (or prayed for) it
   const likedBy = isMine && reactions.some(r => r.user_id !== currentUserId)
     ? `${partnerName || 'Your partner'} ${isPrayer ? 'prayed for this' : 'liked this'}`
@@ -195,9 +197,11 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   const saveEdit = async () => {
     const text = editText.trim();
     if (!text) return;
-    if (text === post.content) { setEditing(false); return; }
+    // Only the words are edited; the post type line is kept as it was
+    const next = composePost(kind, text);
+    if (next === post.content) { setEditing(false); return; }
     setSavingEdit(true);
-    const ok = await onUpdate(post.id, text);
+    const ok = await onUpdate(post.id, next);
     setSavingEdit(false);
     if (ok) setEditing(false);
   };
@@ -220,9 +224,11 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
         post={post}
         currentUserId={currentUserId}
         isNew={isNew}
-        onEdit={() => { setEditText(post.content); setEditing(true); }}
+        onEdit={() => { setEditText(body); setEditing(true); }}
         onDelete={() => setConfirmDelete(true)}
         onCopy={copyText}
+        answered={isPrayer && isMine && onToggleAnswered ? answered : undefined}
+        onToggleAnswered={() => onToggleAnswered?.(post.id, !answered)}
       />
 
       <div className="px-4 pb-3">
@@ -244,7 +250,11 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
           </div>
         ) : (
           <>
-            {kindMeta && (
+            {answered ? (
+              <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                🙌 Prayer answered · {new Date(post.answered_at!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              </span>
+            ) : kindMeta && (
               <span className={cn('mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold', kindMeta.pill)}>
                 {kindMeta.emoji} {kindMeta.label}
               </span>

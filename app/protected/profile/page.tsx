@@ -153,9 +153,15 @@ export default function ProfilePage() {
     const result = await saveThemes(supabase, user.id, clean)
     setSavingTheme(false)
     if (result === 'error') { toast.error("Couldn't save your themes. Try again."); return false }
-    if (result === 'partial') {
-      // Words saved; the year and start date need the year_theme_start migration
-      setThemes({ ...clean, themeYear: themes.themeYear, themeStart: themes.themeStart })
+    if (result === 'no-month') {
+      // Year and start date saved; the month needs the newest migration
+      setThemes({ ...clean, themeMonth: null })
+      toast.success('Themes saved')
+      return true
+    }
+    if (result === 'no-dates') {
+      // Only the words saved; the year and start date need the year_theme_start migration
+      setThemes({ ...clean, themeYear: themes.themeYear, themeStart: themes.themeStart, themeMonth: null })
       toast.warning('Themes saved, but the start date needs a database update first')
       return true
     }

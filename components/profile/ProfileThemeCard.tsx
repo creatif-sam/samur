@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { toLocalDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
-import { formatThemeDate, themeSpan, type Themes } from '@/lib/themes'
+import { currentMonthTheme, formatThemeDate, monthKey, themeSpan, type Themes } from '@/lib/themes'
 
 interface Props {
   themes: Themes
@@ -46,14 +46,18 @@ const chipCls = (on: boolean) => cn(
 )
 
 export function ProfileThemeCard({ themes, saving, onSave }: Props) {
-  const { yearTheme, yearScripture, monthTheme, monthScripture } = themes
+  const { yearTheme, yearScripture } = themes
+  // A month theme from an earlier month no longer shows
+  const month = currentMonthTheme(themes)
+  const monthTheme = month.theme
+  const monthScripture = month.scripture
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState<Themes>(themes)
   const todayKey = toLocalDateKey(new Date())
   const thisYear = Number(todayKey.slice(0, 4))
   const span = themeSpan(themes.themeYear, themes.themeStart, todayKey)
   const monthName = new Date().toLocaleDateString(undefined, { month: 'long' })
-  const hasAny = !!(yearTheme || monthTheme)
+  const hasAny = !!(yearTheme || themes.monthTheme)
 
   // Draft year and start, with the defaults filled in so the editor always shows real values
   const draftYear = draft.themeYear ?? thisYear
@@ -62,7 +66,8 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
   const yearOptions = [...new Set([thisYear, thisYear + 1, draftYear])].sort()
 
   const startEdit = () => {
-    setDraft(themes)
+    // Start the month theme fresh when the saved one belongs to an earlier month
+    setDraft(month.stale ? { ...themes, monthTheme: '', monthScripture: '' } : themes)
     setEditing(true)
   }
   const setDraftYear = (y: number) =>
@@ -78,6 +83,7 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
       // Store the plain calendar defaults as null, so they keep following the calendar
       themeYear: draftYear,
       themeStart: draftStart === `${draftYear}-01-01` ? null : draftStart,
+      themeMonth: draft.monthTheme.trim() ? monthKey(todayKey) : null,
     }
     if (await onSave(next)) setEditing(false)
   }
@@ -252,9 +258,12 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
             {monthScripture && <Scripture value={monthScripture} tone="cyan" />}
           </>
         ) : (
-          <button onClick={startEdit} className="mt-2 text-left text-sm font-bold text-white/75 underline decoration-dashed underline-offset-4">
-            Set a theme for {monthName}
-          </button>
+          <>
+            <button onClick={startEdit} className="mt-2 block text-left text-sm font-bold text-white/85 underline decoration-dashed underline-offset-4">
+              Set a theme for {monthName}
+            </button>
+            {month.previous && <p className="mt-1.5 text-[11px] text-white/60">Last month: {month.previous}</p>}
+          </>
         )}
       </div>
     </section>

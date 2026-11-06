@@ -24,6 +24,8 @@ export type Post = {
   partner_id?: string;
   related_goal_id?: string;
   created_at: string;
+  // Set when a prayer request has been marked as answered
+  answered_at?: string | null;
 };
 
 export type PostReaction = {

@@ -54,9 +54,8 @@ export function PushInitializer() {
           updateViaCache: 'none'
         })
         .then((reg) => {
-          console.log('SamUr Service Worker registered', reg.scope)
           // For iOS, we need to explicitly update the service worker
-          reg.update().catch(err => console.log('SW update check:', err))
+          reg.update().catch(() => {})
         })
         .catch((err) => console.error('Service Worker failed', err));
     }

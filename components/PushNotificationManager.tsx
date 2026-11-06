@@ -85,12 +85,6 @@ export default function PushNotificationManager() {
   const subscribe = async () => {
     setActionLoading(true)
     try {
-      // Check if iOS Safari
-      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
-      const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent)
-      
-      console.log('Device info:', { isIOS, isSafari, userAgent: navigator.userAgent })
-      
       const result = await Notification.requestPermission()
       setPermission(result)
       if (result !== 'granted') {
@@ -100,12 +94,10 @@ export default function PushNotificationManager() {
 
       // Play audio to warm up audio context (helps with iOS)
       const audio = new Audio('/sounds/notification.mp3')
-      await audio.play().catch(() => console.log("Audio context warmed up"))
+      await audio.play().catch(() => {})
 
       // Wait for service worker to be ready
-      console.log('Waiting for service worker...')
       const registration = await navigator.serviceWorker.ready
-      console.log('Service worker ready:', registration.scope)
       
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
       if (!vapidKey) {
@@ -113,14 +105,12 @@ export default function PushNotificationManager() {
         throw new Error('VAPID Key missing')
       }
       
-      console.log('VAPID key loaded, subscribing...')
 
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey)
       })
 
-      console.log('Push subscription successful:', subscription.endpoint)
 
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
@@ -130,7 +120,6 @@ export default function PushNotificationManager() {
 
       const subscriptionJSON = subscription.toJSON()
       
-      console.log('Saving subscription to database...')
       // Store subscription with proper structure
       const { error: upsertError } = await supabase.from('push_subscriptions').upsert({
         user_id: user.id,
@@ -147,13 +136,11 @@ export default function PushNotificationManager() {
         return
       }
 
-      console.log('Subscription saved successfully')
       setIsSubscribed(true)
       toast.success('SamUr Connect: Notifications Active 🤍')
-    } catch (error: any) {
+    } catch (error) {
       console.error('Subscription error:', error)
-      console.error('Error stack:', error.stack)
-      toast.error(`Failed to subscribe: ${error.message || 'Unknown error'}`)
+      toast.error(`Failed to subscribe: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally { 
       setActionLoading(false) 
     }
@@ -170,7 +157,7 @@ export default function PushNotificationManager() {
       }
       setIsSubscribed(false)
       toast.success('Notifications Paused')
-    } catch (error) { toast.error('Error disabling push.') } finally { setActionLoading(false) }
+    } catch { toast.error('Error disabling push.') } finally { setActionLoading(false) }
   }
 
   const savePreferences = async (patch: Partial<NotificationPreferences>) => {
@@ -233,9 +220,9 @@ export default function PushNotificationManager() {
           description: result.details
         })
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Test notification error:', error)
-      toast.error(`Error: ${error.message}`)
+      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setActionLoading(false)
     }
@@ -391,7 +378,7 @@ export default function PushNotificationManager() {
               <li>• Requires iOS 16.4+ and Safari browser</li>
               <li>• Add app to Home Screen first (Share → Add to Home Screen)</li>
               <li>• Open from Home Screen icon, not Safari</li>
-              <li>• Enable in Settings → Safari → Advanced → Experimental Features → "Notifications"</li>
+              <li>• Enable in Settings → Safari → Advanced → Experimental Features → &ldquo;Notifications&rdquo;</li>
               <li>• If still failing, delete app from Home Screen and re-add</li>
             </ul>
             {!isSubscribed && (

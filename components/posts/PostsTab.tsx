@@ -23,7 +23,7 @@ type FeedData = {
   reactions: Record<string, PostReaction[]>
   comments: Record<string, PostComment[]>
 }
-type Filter = 'all' | 'partner' | 'mine' | 'private' | PostKind
+type Filter = 'all' | 'partner' | 'mine' | 'private' | 'answered' | PostKind
 type Draft = { content: string; visibility: 'private' | 'shared'; kind?: PostKind | null }
 
 function group<T extends { post_id: string }>(rows: T[]) {
@@ -201,6 +201,36 @@ export default function PostsTab() {
     return true
   }
 
+  // Mark a prayer request as answered (or undo it) and let your partner rejoice with you
+  async function toggleAnswered(id: string, answered: boolean) {
+    const answeredAt = answered ? new Date().toISOString() : null
+    const { error } = await createClient().from('posts').update({ answered_at: answeredAt }).eq('id', id)
+    if (error) {
+      toast.error(/answered_at/.test(error.message)
+        ? 'Answered prayers need the latest database update first'
+        : error.message || "Couldn't update the prayer request")
+      return false
+    }
+    const post = posts.find(p => p.id === id)
+    setPosts(prev => prev.map(p => (p.id === id ? { ...p, answered_at: answeredAt } : p)))
+    toast.success(answered ? 'Praise God! Marked as answered 🙌' : 'Marked as not answered yet')
+    if (answered && post?.visibility === 'shared' && partnerId) {
+      const words = parsePost(post.content).body
+      fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: partnerId,
+          type: 'post',
+          title: 'Prayer answered 🙌',
+          body: `${me.name}'s prayer was answered: ${words.slice(0, 60)}${words.length > 60 ? '…' : ''}`,
+          url: '/protected/posts?tab=posts',
+        }),
+      }).catch(() => {})
+    }
+    return true
+  }
+
   async function deletePost(id: string) {
     const { error } = await createClient().from('posts').delete().eq('id', id)
     if (error) {
@@ -216,11 +246,12 @@ export default function PostsTab() {
   const newCount = posts.filter(isNew).length
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: posts.length, partner: 0, mine: 0, private: 0 }
+    const c: Record<string, number> = { all: posts.length, partner: 0, mine: 0, private: 0, answered: 0 }
     for (const p of posts) {
       if (p.author_id === userId) c.mine++
       else c.partner++
       if (p.visibility === 'private') c.private++
+      if (p.answered_at) c.answered++
       const k = parsePost(p.content).kind
       if (k) c[k] = (c[k] ?? 0) + 1
     }
@@ -233,6 +264,7 @@ export default function PostsTab() {
       if (filter === 'partner' && p.author_id === userId) return false
       if (filter === 'mine' && p.author_id !== userId) return false
       if (filter === 'private' && p.visibility !== 'private') return false
+      if (filter === 'answered' && !p.answered_at) return false
       if (POST_KINDS.some(k => k.id === filter) && parsePost(p.content).kind !== filter) return false
       return !q || p.content.toLowerCase().includes(q)
     })
@@ -261,6 +293,7 @@ export default function PostsTab() {
     { id: 'mine', label: 'Mine' },
     { id: 'private', label: 'Only me' },
     ...POST_KINDS.map(k => ({ id: k.id as Filter, label: `${k.emoji} ${k.label}` })),
+    { id: 'answered', label: '🙌 Answered' },
   ]
   const activeKind = kindInfo(kind)
 
@@ -463,6 +496,7 @@ export default function PostsTab() {
                 currentUserId={userId}
                 isNew={isNew(post)}
                 partnerName={partnerName}
+                onToggleAnswered={toggleAnswered}
                 highlight={query.trim()}
                 initialReactions={feed.reactions[post.id] ?? []}
                 initialComments={feed.comments[post.id] ?? []}

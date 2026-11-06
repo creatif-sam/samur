@@ -10,6 +10,8 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Generated and third-party files are not ours to lint
+  { ignores: [".next/**", "node_modules/**", "next-env.d.ts"] },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
 ];
 

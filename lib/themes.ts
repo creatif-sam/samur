@@ -9,14 +9,19 @@ export interface Themes {
   // Year the theme is for, and the day you began walking in it (may be before Jan 1)
   themeYear: number | null
   themeStart: string | null
+  // Month the month theme is for ('YYYY-MM'); it stops showing once that month is over
+  themeMonth: string | null
 }
 
 export const EMPTY_THEMES: Themes = {
-  yearTheme: '', yearScripture: '', monthTheme: '', monthScripture: '', themeYear: null, themeStart: null,
+  yearTheme: '', yearScripture: '', monthTheme: '', monthScripture: '', themeYear: null, themeStart: null, themeMonth: null,
 }
 
 const BASE_COLS = 'year_theme, year_scripture, month_theme, month_scripture'
-const YEAR_COLS = 'year_theme_year, year_theme_start'
+// Added by later migrations, in order; each tier is tried before falling back to the one below
+const YEAR_COLS = 'year_theme_year, year_theme_start'       // 20261104000000_year_theme_start
+const MONTH_COLS = 'month_theme_month'                       // 20261106000000_month_theme_and_answered_prayers
+const missing = (msg: string | undefined, re: RegExp) => !!msg && re.test(msg)
 
 type Row = Record<string, string | number | null | undefined>
 
@@ -28,20 +33,29 @@ function fromRow(data: Row | null): Themes {
     monthScripture: (data?.month_scripture as string) ?? '',
     themeYear: typeof data?.year_theme_year === 'number' ? data.year_theme_year : null,
     themeStart: typeof data?.year_theme_start === 'string' ? data.year_theme_start.slice(0, 10) : null,
+    themeMonth: typeof data?.month_theme_month === 'string' ? data.month_theme_month : null,
   }
 }
 
-// Reads the themes; still works if the year/start columns haven't been added yet
+// Reads the themes. Works whichever migrations have been run: all columns, then
+// without the month column, then the original columns only.
 export async function loadThemes(supabase: SupabaseClient, userId: string, extraCols = ''): Promise<{ themes: Themes; row: Row | null }> {
   const extra = extraCols ? `, ${extraCols}` : ''
-  const full = await supabase.from('user_preferences').select(`${BASE_COLS}, ${YEAR_COLS}${extra}`).eq('user_id', userId).maybeSingle()
-  if (!full.error) return { themes: fromRow(full.data as Row | null), row: full.data as Row | null }
-  const basic = await supabase.from('user_preferences').select(`${BASE_COLS}${extra}`).eq('user_id', userId).maybeSingle()
-  return { themes: fromRow(basic.data as Row | null), row: basic.data as Row | null }
+  const tiers = [`${BASE_COLS}, ${YEAR_COLS}, ${MONTH_COLS}`, `${BASE_COLS}, ${YEAR_COLS}`, BASE_COLS]
+  let row: Row | null = null
+  for (const cols of tiers) {
+    const res = await supabase.from('user_preferences').select(`${cols}${extra}`).eq('user_id', userId).maybeSingle()
+    if (!res.error) { row = res.data as Row | null; break }
+  }
+  return { themes: fromRow(row), row }
 }
 
-// Saves the themes. Returns 'ok', 'partial' (saved, but the start date columns are missing) or 'error'.
-export async function saveThemes(supabase: SupabaseClient, userId: string, t: Themes): Promise<'ok' | 'partial' | 'error'> {
+// Saves the themes as fully as the database allows.
+// 'ok': everything saved. 'no-month': saved, but the month column is missing.
+// 'no-dates': only the words saved (year and month columns missing). 'error': nothing saved.
+export type SaveResult = 'ok' | 'no-month' | 'no-dates' | 'error'
+
+export async function saveThemes(supabase: SupabaseClient, userId: string, t: Themes): Promise<SaveResult> {
   const base = {
     user_id: userId,
     year_theme: t.yearTheme,
@@ -49,14 +63,23 @@ export async function saveThemes(supabase: SupabaseClient, userId: string, t: Th
     month_theme: t.monthTheme,
     month_scripture: t.monthScripture,
   }
-  const full = await supabase.from('user_preferences').upsert({ ...base, year_theme_year: t.themeYear, year_theme_start: t.themeStart })
+  const withYear = { ...base, year_theme_year: t.themeYear, year_theme_start: t.themeStart }
+  const table = () => supabase.from('user_preferences')
+
+  const full = await table().upsert({ ...withYear, month_theme_month: t.themeMonth })
   if (!full.error) return 'ok'
-  // Column missing (migration not applied yet): keep the words at least
-  if (/year_theme_(year|start)/.test(full.error.message)) {
-    const basic = await supabase.from('user_preferences').upsert(base)
-    return basic.error ? 'error' : 'partial'
+  if (!missing(full.error.message, /month_theme_month|year_theme_(year|start)/)) return 'error'
+
+  // Month column not there yet: keep the year and start date
+  if (missing(full.error.message, /month_theme_month/)) {
+    const year = await table().upsert(withYear)
+    if (!year.error) return 'no-month'
+    if (!missing(year.error.message, /year_theme_(year|start)/)) return 'error'
   }
-  return 'error'
+
+  // Neither newer column set: keep the words at least
+  const basic = await table().upsert(base)
+  return basic.error ? 'error' : 'no-dates'
 }
 
 export interface ThemeSpan {
@@ -95,4 +118,19 @@ export function themeSpan(themeYear: number | null, themeStart: string | null, t
 
 export function formatThemeDate(key: string) {
   return parseDateKey(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+export const monthKey = (todayKey = toLocalDateKey(new Date())) => todayKey.slice(0, 7)
+
+// The month theme is current only in the month it was set for.
+// Without a stored month (database not updated yet) it keeps showing, as before.
+export function currentMonthTheme(t: Themes, todayKey = toLocalDateKey(new Date())) {
+  const stale = !!t.monthTheme && !!t.themeMonth && t.themeMonth !== monthKey(todayKey)
+  return {
+    stale,
+    theme: stale ? '' : t.monthTheme,
+    scripture: stale ? '' : t.monthScripture,
+    // What it was, to show as "Last month" when it has gone stale
+    previous: stale ? t.monthTheme : '',
+  }
 }

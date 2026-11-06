@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Edit, Trash2, Lock, Users, Copy } from 'lucide-react'
+import { MoreHorizontal, Edit, Trash2, Lock, Users, Copy, CheckCircle2, RotateCcw } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import type { Post, Profile } from '@/lib/types'
 
@@ -12,9 +12,12 @@ interface PostHeaderProps {
   onEdit: () => void
   onDelete: () => void
   onCopy: () => void
+  // Defined only for your own prayer requests
+  answered?: boolean
+  onToggleAnswered?: () => void
 }
 
-export function PostHeader({ post, currentUserId, isNew, onEdit, onDelete, onCopy }: PostHeaderProps) {
+export function PostHeader({ post, currentUserId, isNew, onEdit, onDelete, onCopy, answered, onToggleAnswered }: PostHeaderProps) {
   const isMine = currentUserId === post.author_id
   const created = new Date(post.created_at)
   return (
@@ -47,6 +50,13 @@ export function PostHeader({ post, currentUserId, isNew, onEdit, onDelete, onCop
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          {answered !== undefined && (
+            <DropdownMenuItem onClick={onToggleAnswered}>
+              {answered
+                ? <><RotateCcw className="h-4 w-4 mr-2" /> Not answered yet</>
+                : <><CheckCircle2 className="h-4 w-4 mr-2 text-emerald-600" /> Mark as answered</>}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onCopy}><Copy className="h-4 w-4 mr-2" /> Copy text</DropdownMenuItem>
           {isMine && <DropdownMenuItem onClick={onEdit}><Edit className="h-4 w-4 mr-2" /> Edit</DropdownMenuItem>}
           {isMine && <DropdownMenuItem onClick={onDelete} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" /> Delete</DropdownMenuItem>}
