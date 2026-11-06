@@ -27,8 +27,8 @@ export async function POST(request: Request) {
     const result = await notify({
       userId: targetUserId,
       type: resolvedType,
-      title: title || 'SamUr',
-      body: body || 'New update in SamUr',
+      title: title || 'Mastery',
+      body: body || 'New update in Mastery',
       url,
       data: data && typeof data === 'object' ? data : undefined,
     })

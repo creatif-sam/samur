@@ -4,7 +4,7 @@ import { buildWeeklySummaryEmail } from './email'
 import { collectWeeklyData, type SummaryUser } from './stats'
 
 export const SITE_URL = () => process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'
-export const FROM_EMAIL = () => process.env.FROM_EMAIL || 'SamUr <noreply@mastery.samuelgyasi.com>'
+export const FROM_EMAIL = () => process.env.FROM_EMAIL || 'Mastery <noreply@mastery.samuelgyasi.com>'
 
 export type SendOutcome = { ok: true; id?: string } | { ok: false; error: string }
 

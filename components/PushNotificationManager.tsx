@@ -137,7 +137,7 @@ export default function PushNotificationManager() {
       }
 
       setIsSubscribed(true)
-      toast.success('SamUr Connect: Notifications Active 🤍')
+      toast.success('Mastery Connect: Notifications Active 🤍')
     } catch (error) {
       console.error('Subscription error:', error)
       toast.error(`Failed to subscribe: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -217,7 +217,7 @@ export default function PushNotificationManager() {
           targetUserId: user.id,
           type: 'system',
           title: 'Test Notification',
-          body: 'This is a test push notification from SamUr!',
+          body: 'This is a test push notification from Mastery!',
           url: '/protected'
         })
       })
@@ -262,7 +262,7 @@ export default function PushNotificationManager() {
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-xl font-black">SamUr Connect</CardTitle>
+            <CardTitle className="text-xl font-black">Mastery Connect</CardTitle>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Global Sync</p>
           </div>
           {isSubscribed ? (

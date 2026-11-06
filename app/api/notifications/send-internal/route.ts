@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     const result = await notify({
       userId: targetUserId,
       type: type || 'system',
-      title: title || 'SamUr',
+      title: title || 'Mastery',
       body: body || '',
       url,
       data: data && typeof data === 'object' ? data : undefined,

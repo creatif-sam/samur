@@ -393,9 +393,9 @@ self.addEventListener('push', function (event) {
     try {
       const data = event.data.json();
       
-      const title = data.title || "SamUr🤍 Update";
+      const title = data.title || "Mastery🤍 Update";
       const options = {
-        body: data.body || "You have a new update in SamUr.",
+        body: data.body || "You have a new update in Mastery.",
         icon: '/icon-192-v2.png', // Main app icon (larger for visibility)
         badge: '/icon-192-v2.png', // Badge icon for notification tray
         image: data.image, // Optional large image
@@ -410,7 +410,7 @@ self.addEventListener('push', function (event) {
         },
         // Each notification gets its own tag so they stack in the tray; the server
         // reuses a tag only to replace an outdated version of the same notification
-        tag: data.tag || ('samur-' + Date.now()),
+        tag: data.tag || ('Mastery-' + Date.now()),
         renotify: true, // Vibrate/sound even if replacing same tag
         // Actions for Android expandable notifications
         actions: data.actions || [
@@ -444,11 +444,11 @@ self.addEventListener('push', function (event) {
       console.error("Error parsing push data:", err);
       // Fallback notification if parsing fails
       event.waitUntil(
-        self.registration.showNotification('SamUr Update', {
+        self.registration.showNotification('Mastery Update', {
           body: 'You have a new notification',
           icon: '/icon-192-v2.png',
           badge: '/icon-192-v2.png',
-          tag: 'samur-fallback'
+          tag: 'Mastery-fallback'
         })
       );
     }

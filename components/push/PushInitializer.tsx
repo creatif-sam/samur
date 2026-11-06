@@ -19,7 +19,7 @@ function reloadOnceOnControllerChange() {
 // browser throws a ChunkLoadError — reload once to pick up the fresh shell
 // instead of leaving the user stuck on a broken page.
 function reloadOnceOnChunkError() {
-  const RELOAD_FLAG = 'samur-chunk-reload'
+  const RELOAD_FLAG = 'Mastery-chunk-reload'
   window.addEventListener('error', (event) => {
     const isChunkError =
       event?.error?.name === 'ChunkLoadError' ||
