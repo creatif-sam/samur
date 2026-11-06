@@ -18,32 +18,57 @@ interface Props {
   mode: GraphMode
   onModeChange: (m: GraphMode) => void
   formatMinutes: (mins: number) => string
+  // Daily target in minutes, drawn as one bold green line
+  target: number
+  // Draw-in animation; turn off for screenshots or reduced motion
+  animate?: boolean
 }
 
-export default function PrayerMonthGraph({ days, month, mode, onModeChange, formatMinutes }: Props) {
+const GREEN = '#16a34a'
+
+// Round the top of the chart up to a tidy step so labels stay few and readable
+function niceAxis(top: number, steps: number[], maxTicks: number) {
+  const step = steps.find(s => top / s <= maxTicks) ?? steps[steps.length - 1]
+  const yMax = Math.max(Math.ceil(top / step), 2) * step
+  return { yMax, ticks: Array.from({ length: Math.floor(yMax / step) + 1 }, (_, i) => i * step) }
+}
+
+export default function PrayerMonthGraph({ days, month, mode, onModeChange, formatMinutes, target, animate = true }: Props) {
   // Only this month's days; future days and days before you started have no value so the line stops there
-  const data = useMemo(() => {
+  const { data, lastCounted, hitDays, countedDays } = useMemo(() => {
     let running = 0
-    return days
+    let hit = 0
+    let counted = 0
+    let last = 0
+    const rows = days
       .filter(d => d.date.getMonth() === month)
       .map(d => {
-        const counted = d.state === 'prayed' || d.state === 'missed'
-        if (counted) running += d.totalMinutes
+        const isCounted = d.state === 'prayed' || d.state === 'missed'
+        if (isCounted) {
+          running += d.totalMinutes
+          counted++
+          last = d.date.getDate()
+          if (d.totalMinutes >= target) hit++
+        }
         return {
           day: d.date.getDate(),
           label: d.date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }),
-          value: counted ? (mode === 'daily' ? d.totalMinutes : running) : null,
+          value: isCounted ? (mode === 'daily' ? d.totalMinutes : running) : null,
         }
       })
-  }, [days, month, mode])
+    return { data: rows, lastCounted: last, hitDays: hit, countedDays: counted }
+  }, [days, month, mode, target])
 
   const hasData = data.some(d => d.value !== null && d.value > 0)
   const best = data.reduce((m, d) => Math.max(m, d.value ?? 0), 0)
-  // Daily: steps of 30 minutes so the 30m / 60m guides sit on grid lines
-  const yMax = mode === 'daily' ? Math.max(90, Math.ceil((best + 5) / 30) * 30) : Math.max(60, Math.ceil((best * 1.1) / 60) * 60)
-  const step = mode === 'daily' ? 30 : Math.max(60, Math.ceil(yMax / 4 / 60) * 60)
-  const yTicks = Array.from({ length: Math.floor(yMax / step) + 1 }, (_, i) => i * step)
+  const runningNow = mode === 'total' ? best : 0
+  const paceNow = target * lastCounted
   const lastDay = data.length
+
+  // The target must always fit on the chart, even in a quiet month
+  const { yMax, ticks: yTicks } = mode === 'daily'
+    ? niceAxis(Math.max(best, target) + 5, [30, 60, 120, 180], 6)
+    : niceAxis(Math.max(best, paceNow) * 1.1, [30, 60, 120, 300, 600, 1200], 4)
 
   return (
     <div>
@@ -97,12 +122,6 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
               tickFormatter={(v: number) => (v === 0 ? '0' : v % 60 === 0 ? `${v / 60}h` : `${v}m`)}
               tick={{ fontSize: 10, fill: 'currentColor', opacity: 0.5 }}
             />
-            {mode === 'daily' && (
-              <>
-                <ReferenceLine y={60} stroke="#22c55e" strokeDasharray="4 4" strokeOpacity={0.7} />
-                <ReferenceLine y={30} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.7} />
-              </>
-            )}
             <Tooltip
               cursor={{ stroke: '#8b5cf6', strokeOpacity: 0.3 }}
               contentStyle={{ borderRadius: 12, border: '1px solid rgba(127,127,127,0.2)', fontSize: 12, background: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}
@@ -118,8 +137,24 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
               connectNulls={false}
               dot={{ r: 2.5, fill: '#8b5cf6', strokeWidth: 0 }}
               activeDot={{ r: 5, stroke: '#fff', strokeWidth: 2 }}
-              isAnimationActive
+              isAnimationActive={animate}
             />
+            {/* The one target line. Running total shows it as a pace line, only up to today. */}
+            {mode === 'daily' ? (
+              <ReferenceLine
+                y={target}
+                stroke={GREEN}
+                strokeWidth={3}
+                ifOverflow="extendDomain"
+              />
+            ) : lastCounted > 0 ? (
+              <ReferenceLine
+                segment={[{ x: 1, y: target }, { x: lastCounted, y: paceNow }]}
+                stroke={GREEN}
+                strokeWidth={3}
+                ifOverflow="extendDomain"
+              />
+            ) : null}
           </AreaChart>
         </ResponsiveContainer>
         {!hasData && (
@@ -129,13 +164,22 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
         )}
       </div>
 
-      {mode === 'daily' && (
-        <div className="mt-3 flex items-center gap-4 border-t border-border/40 pt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 border-t-2 border-dashed border-green-500" />60m goal</span>
-          <span className="flex items-center gap-1.5"><span className="h-0.5 w-4 border-t-2 border-dashed border-amber-500" />30m</span>
-          {best > 0 && <span className="ml-auto normal-case tracking-normal">Best day {formatMinutes(best)}</span>}
-        </div>
-      )}
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 pt-3 text-[11px] font-bold text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <span className="h-[3px] w-5 rounded-full" style={{ backgroundColor: GREEN }} />
+          {mode === 'daily' ? `Target ${formatMinutes(target)} a day` : `Pace at ${formatMinutes(target)} a day`}
+        </span>
+        {countedDays > 0 && mode === 'daily' && (
+          <span className="ml-auto font-semibold">Reached on {hitDays} of {countedDays} days{best > 0 ? ` · best ${formatMinutes(best)}` : ''}</span>
+        )}
+        {countedDays > 0 && mode === 'total' && (
+          <span className={clsx('ml-auto font-semibold', runningNow >= paceNow ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400')}>
+            {runningNow >= paceNow
+              ? `${formatMinutes(runningNow - paceNow)} ahead of pace`
+              : `${formatMinutes(paceNow - runningNow)} behind pace`}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

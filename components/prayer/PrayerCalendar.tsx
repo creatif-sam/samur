@@ -4,8 +4,11 @@ import { JSX, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import clsx from 'clsx'
 import { CalendarDays, ChevronLeft, ChevronRight, Flame, LineChart, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import PrayerMonthGraph, { type GraphMode } from './PrayerMonthGraph'
+import PrayerTargetControl from './PrayerTargetControl'
+import { amberFrom, loadTargets, monthKeyOf, saveTarget, targetFor, toneFor, type Targets } from '@/lib/prayerTarget'
 
 const VIEW_KEY = 'prayer-month-view'
 
@@ -29,6 +32,32 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
   const [selectedDay, setSelectedDay] = useState<SessionDay | null>(null)
 
   const [monthSeconds, setMonthSeconds] = useState(0)
+
+  // Daily prayer target, set per month
+  const [targets, setTargets] = useState<Targets>({})
+  const [savingTarget, setSavingTarget] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    void loadTargets(supabase, userId).then(r => { if (!cancelled) setTargets(r.targets) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
+  const monthKey = monthKeyOf(viewDate)
+  const { minutes: target, from: targetFrom } = targetFor(targets, monthKey)
+  const monthNameOf = (key: string) => new Date(Number(key.slice(0, 4)), Number(key.slice(5)) - 1, 1).toLocaleString('default', { month: 'long' })
+  const handleSaveTarget = async (minutes: number) => {
+    setSavingTarget(true)
+    const res = await saveTarget(supabase, userId, targets, monthKey, minutes)
+    setSavingTarget(false)
+    if (res.result === 'error') {
+      toast.error("Couldn't save your target. Try again.")
+      return false
+    }
+    setTargets(res.targets)
+    if (res.result === 'device') toast.warning(`Target set to ${res.targets[monthKey]} min a day, saved on this device. It needs a database update to sync.`)
+    else toast.success(`Target set to ${res.targets[monthKey]} min a day for ${monthNameOf(monthKey)}`)
+    return true
+  }
   // Calendar or graph, remembered on this device
   const [view, setView] = useState<'calendar' | GraphMode>('calendar')
   const [graphMode, setGraphMode] = useState<GraphMode>('daily')
@@ -214,6 +243,15 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
           </div>
         </div>
 
+        {/* Daily target: shared by the calendar colours and the graph line */}
+        <PrayerTargetControl
+          monthName={monthNameOf(monthKey)}
+          target={target}
+          carriedFrom={targetFrom && targetFrom !== monthKey ? monthNameOf(targetFrom) : null}
+          saving={savingTarget}
+          onSave={handleSaveTarget}
+        />
+
         {/* Calendar / graph switch */}
         <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-muted/50 p-1">
           {([
@@ -244,6 +282,7 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
             mode={graphMode}
             onModeChange={chooseView}
             formatMinutes={formatMinutes}
+            target={target}
           />
         ) : (
         <>
@@ -263,8 +302,8 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
         <div className="grid grid-cols-7 gap-y-3 justify-items-center">
           {days.map((day, i) => {
             const isToday = day.date.toDateString() === new Date().toDateString()
-            // Colour prayed days by total minutes: 60+ green, 30–59 amber, under 30 red
-            const tone = day.totalMinutes >= 60 ? 'green' : day.totalMinutes >= 30 ? 'amber' : 'red'
+            // Colour prayed days against the target: green at the target, amber from half of it, red below
+            const tone = toneFor(day.totalMinutes, target)
 
             return (
               <button
@@ -304,9 +343,9 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
         {/* Legend */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-5 pt-4 border-t border-border/40">
           {[
-            { bg: 'bg-green-500', label: '60m+' },
-            { bg: 'bg-amber-500', label: '30–59m' },
-            { bg: 'bg-red-500', label: '<30m' },
+            { bg: 'bg-green-500', label: `${target}m+` },
+            { bg: 'bg-amber-500', label: `${amberFrom(target)}–${target - 1}m` },
+            { bg: 'bg-red-500', label: `<${amberFrom(target)}m` },
           ].map(({ bg, label }) => (
             <div key={label} className="flex items-center gap-1.5">
               <div className={clsx('w-4 h-4 rounded-md flex items-center justify-center', bg)}>
