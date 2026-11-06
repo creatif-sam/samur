@@ -1,6 +1,7 @@
 'use client'
 
-import { Bell, BellRing, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { BellIcon } from './BellIcon'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -41,23 +42,22 @@ export function NotificationCenter({ notifications, unreadCount, loading, onMark
           variant="ghost"
           size="icon"
           aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
-          className="relative w-10 h-10 rounded-full text-white hover:bg-white/10 transition-colors"
+          className="relative h-10 w-10 rounded-full bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white active:scale-95"
         >
-          {/* Pulse ring — only visible when there are unread notifications */}
-          {unreadCount > 0 && (
-            <span className="absolute inset-0 rounded-full animate-ping bg-white/20 pointer-events-none" />
-          )}
-
-          {unreadCount > 0 ? (
-            <BellRing className="w-[22px] h-[22px] drop-shadow-[0_0_6px_rgba(255,255,255,0.7)] animate-[bell-ring_0.6s_ease-in-out]" />
-          ) : (
-            <Bell className="w-[22px] h-[22px]" />
-          )}
+          {/* Solid bell that gives a little shake when something is waiting, an outline when caught up */}
+          <BellIcon
+            filled={unreadCount > 0}
+            className={`h-6 w-6 ${unreadCount > 0 ? 'origin-top animate-[bell-ring_0.6s_ease-in-out]' : ''}`}
+          />
 
           {unreadCount > 0 && (
-            <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-black border-2 border-[#7c3aed] leading-none">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
+            <>
+              {/* A soft pulse behind the count, not around the whole button */}
+              <span className="pointer-events-none absolute -right-1 -top-1 h-[18px] w-[18px] animate-ping rounded-full bg-rose-400/60" />
+              <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[#1b0c3d]">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            </>
           )}
         </Button>
       </DropdownMenuTrigger>

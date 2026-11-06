@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import type { Dispatch, SetStateAction } from 'react'
 import {
   ChevronLeft, ChevronDown, Search, BookMarked, Type, X,
@@ -85,6 +86,8 @@ export function BibleTopBar({
       </div>
 
       <div className="flex items-center gap-1 shrink-0">
+        {view === 'books' && <HelpTip topic="bible.books" />}
+        {view === 'compare' && <HelpTip topic="bible.compare" />}
         {view === 'read' && selectedVerses.size > 0 && (
           <button
             onClick={() => { setSelectedVerses(new Set()); setShowHighlightPanel(false) }}

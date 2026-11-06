@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useState } from 'react'
 import { Crown, Pencil, Save, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -197,6 +198,7 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/90">
               <Crown className="h-3.5 w-3.5 text-amber-300" /> Theme of {span.year}
+              <HelpTip topic="profile.themes" tone="onDark" align="left" className="-my-1.5" />
             </span>
             <button onClick={startEdit} aria-label="Edit themes" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-90 transition">
               <Pencil className="h-3.5 w-3.5" />

@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
@@ -187,7 +188,10 @@ export default function GoalDetailPage() {
 
         {/* Status, milestones and scheduling (same controls as the goals list) */}
         <div className="space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Track it</p>
+          <div className="flex items-center gap-0.5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Track it</p>
+            <HelpTip topic="goals.track" align="left" className="-my-1" />
+          </div>
           <GoalCard
             goal={goal}
             canManage={isOwner}

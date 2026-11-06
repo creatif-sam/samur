@@ -18,7 +18,7 @@ const ThemeSwitcher = () => {
     return null;
   }
 
-  const ICON_SIZE = 16;
+  const ICON_SIZE = 18;
 
   // Toggle between light and dark only
   const toggleTheme = () => {
@@ -30,7 +30,8 @@ const ThemeSwitcher = () => {
       variant="ghost" 
       size={"sm"} 
       onClick={toggleTheme}
-      className="text-white hover:bg-white/10"
+      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      className="h-10 w-10 rounded-full bg-white/10 p-0 text-white ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white active:scale-95"
     >
       {theme === "dark" ? (
         <Sun

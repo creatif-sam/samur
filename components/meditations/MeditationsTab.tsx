@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -247,7 +248,10 @@ export default function MeditationsTab() {
       {/* ── Journal ── */}
       <section className="space-y-3">
         <div className="flex items-baseline justify-between px-1">
-          <h3 className="text-base font-black tracking-tight">Your journal</h3>
+          <div className="flex items-center gap-0.5">
+            <h3 className="text-base font-black tracking-tight">Your journal</h3>
+            <HelpTip topic="spirit.journal" align="left" className="-my-1" />
+          </div>
           <span className="text-[11px] font-bold text-muted-foreground">{filtered.length} of {meditations.length}</span>
         </div>
 

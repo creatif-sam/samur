@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
@@ -82,9 +83,12 @@ export default function AnalyticsPage() {
           Planner
         </Link>
         <p className="text-sm text-muted-foreground font-medium">Your growth</p>
-        <h1 className="text-3xl font-black tracking-tight leading-none">
-          Analytics <span className="text-violet-500">Lab</span>
-        </h1>
+        <div className="flex items-center gap-1">
+          <h1 className="text-3xl font-black tracking-tight leading-none">
+            Analytics <span className="text-violet-500">Lab</span>
+          </h1>
+          <HelpTip topic="analytics.page" align="left" />
+        </div>
         <p className="text-xs text-muted-foreground mt-1">Track what matters. Improve what counts.</p>
       </div>
 

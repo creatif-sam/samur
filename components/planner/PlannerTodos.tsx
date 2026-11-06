@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -92,12 +93,15 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
 
   return (
     <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-3xl border border-white/50 dark:border-slate-700/50 shadow-sm p-4">
-      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between">
+      <div className="flex items-center gap-1">
+      <button onClick={() => setOpen(o => !o)} className="flex flex-1 items-center justify-between">
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
           <ListTodo className="w-3.5 h-3.5" /> To-do{todos.length > 0 && ` · ${todos.length}`}
         </span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
+      <HelpTip topic="planner.todos" />
+      </div>
 
       {open && (
         <div className="mt-3 space-y-2">

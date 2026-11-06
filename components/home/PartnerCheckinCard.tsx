@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { HeartHandshake, Loader2, Pencil, X } from 'lucide-react'
@@ -103,7 +104,9 @@ export default function PartnerCheckinCard({ userId }: { userId: string | null }
       <div className="rounded-3xl border border-rose-200/70 dark:border-rose-900/40 bg-rose-50/60 dark:bg-rose-950/20 p-4 space-y-2">
         <div className="flex items-center gap-2">
           <HeartHandshake className="w-5 h-5 text-rose-500" />
-          <p className="text-sm font-black flex-1">Weekly check-in</p>
+          <p className="text-sm font-black">Weekly check-in</p>
+          <HelpTip topic="home.checkin" align="left" className="-my-1" />
+          <span className="flex-1" />
           <span className="text-[10px] text-muted-foreground">Week of {weekLabel}</span>
         </div>
         {!mine ? (

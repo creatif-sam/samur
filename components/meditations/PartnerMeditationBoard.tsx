@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { getPartnerMeditations } from '@/lib/meditations/getPartnerMeditations'
 import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
@@ -52,6 +53,7 @@ export default function PartnerMeditationBoard() {
       <div className="flex items-center gap-2 mb-1">
         <Users className="w-4 h-4 text-muted-foreground" />
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Partnership Streaks</h3>
+        <HelpTip topic="spirit.partnerStreaks" align="left" className="-my-1" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <PersonCard data={data.me} isMe />

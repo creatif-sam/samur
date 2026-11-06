@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -232,10 +233,13 @@ export default function MemoryVerseCard() {
   return (
     <div className="rounded-3xl border border-border bg-card p-4 w-full space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-          <Brain className="h-3.5 w-3.5 text-violet-500" />
-          Memory Verse
-        </p>
+        <div className="flex items-center gap-0.5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Brain className="h-3.5 w-3.5 text-violet-500" />
+            Memory Verse
+          </p>
+          <HelpTip topic="spirit.memoryVerse" align="left" className="-my-1" />
+        </div>
         {memorizedCount > 0 && (
           <span className="text-[11px] text-muted-foreground">{memorizedCount} memorized</span>
         )}

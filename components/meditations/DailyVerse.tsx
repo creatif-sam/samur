@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { Sparkles, Copy, Check } from 'lucide-react'
 
@@ -55,6 +56,7 @@ export default function DailyVerseCard() {
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-100/80">Daily Bread</span>
               {copied && <span className="text-[9px] font-bold text-green-300 animate-in fade-in slide-in-from-left-1">Copied!</span>}
             </div>
+            <HelpTip topic="home.dailyVerse" tone="onDark" align="left" />
           </div>
           
           <button 

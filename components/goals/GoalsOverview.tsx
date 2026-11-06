@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -8,6 +9,7 @@ import type { Goal } from '@/lib/types'
 import type { Vision } from '@/app/protected/goals/page'
 import type { GoalCategory } from '@/components/goals/NewGoalForm'
 import { cn } from '@/lib/utils'
+import type { HelpTopic } from '@/lib/help'
 import { inPeriod, isOverdue, type GoalPeriod } from '@/lib/goals'
 import { addDays, daysBetween, parseDateKey, toLocalDateKey } from '@/lib/dates'
 import { PACE_LABEL, PACE_STYLE, daysLeftLabel, visionPace, visionProgress } from '@/lib/visions'
@@ -46,12 +48,15 @@ function Ring({ pct, size = 104 }: { pct: number; size?: number }) {
   )
 }
 
-function SectionTitle({ eyebrow, title, right }: { eyebrow: string; title: string; right?: React.ReactNode }) {
+function SectionTitle({ eyebrow, title, right, help }: { eyebrow: string; title: string; right?: React.ReactNode; help?: HelpTopic }) {
   return (
     <div className="flex items-end justify-between gap-3 mb-4">
       <div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{eyebrow}</p>
-        <h3 className="text-base font-black tracking-tight">{title}</h3>
+        <div className="flex items-center gap-0.5">
+          <h3 className="text-base font-black tracking-tight">{title}</h3>
+          {help && <HelpTip topic={help} align="left" className="-my-1" />}
+        </div>
       </div>
       {right}
     </div>
@@ -220,6 +225,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
           <SectionTitle
             eyebrow="Focus"
             title="Needs attention"
+            help="goals.attention"
             right={attention.length > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-black text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">{attention.length}</span>}
           />
           {attention.length === 0 ? (
@@ -279,7 +285,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {/* ── Momentum ── */}
         <section className={card}>
-          <SectionTitle eyebrow={SCOPE_LABEL[scope]} title="Momentum" />
+          <SectionTitle eyebrow={SCOPE_LABEL[scope]} title="Momentum" help="goals.momentum" />
           <div className="mb-4 grid grid-cols-3 gap-2">
             {[
               { label: 'Due', value: scoped.length },
@@ -320,7 +326,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
 
         {/* ── Categories ── */}
         <section className={card}>
-          <SectionTitle eyebrow={SCOPE_LABEL[scope]} title="By category" />
+          <SectionTitle eyebrow={SCOPE_LABEL[scope]} title="By category" help="goals.categories" />
           {categoryRows.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">No goals due {SCOPE_LABEL[scope].toLowerCase()}.</p>
           ) : (
@@ -351,6 +357,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
         <SectionTitle
           eyebrow="Long term"
           title="Visions"
+          help="goals.overviewVisions"
           right={visionRows.length > 0 && (
             <button onClick={onOpenVisions} className="flex items-center gap-0.5 text-xs font-bold text-violet-600 dark:text-violet-400">
               See all <ChevronRight className="h-3.5 w-3.5" />

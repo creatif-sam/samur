@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import React, { useState } from 'react'
 import DailyPlanner from '@/components/planner/DailyPlanner'
 import { Button } from '@/components/ui/button'
@@ -14,8 +15,9 @@ export default function DayPlannerPage(): React.JSX.Element {
   return (
     // Changed to use 'text-foreground' for automatic theme text switching
     <div className="flex flex-col gap-4 px-3 pb-20 max-w-xl mx-auto text-foreground">
-      <div className="text-lg font-semibold text-center">
+      <div className="flex items-center justify-center gap-1 text-lg font-semibold">
         Daily Planning
+        <HelpTip topic="planner.page" align="left" />
       </div>
 
       {/* bg-muted automatically handles light/dark background for the tab track */}

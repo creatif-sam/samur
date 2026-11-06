@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { BookOpen, Brain, CalendarClock, Check, ChevronDown, ChevronRight, Flame, Target } from 'lucide-react'
@@ -112,7 +113,10 @@ export default function TodayPanel({ userId, goals }: { userId: string | null; g
     <section className="px-4 mt-4 space-y-3">
       <div className="rounded-3xl bg-card dark:bg-zinc-900/60 border border-border/60 shadow-sm p-4 space-y-4">
         <div className="flex items-baseline justify-between">
-          <h2 className="text-lg font-black tracking-tight">Today</h2>
+          <div className="flex items-center gap-0.5">
+            <h2 className="text-lg font-black tracking-tight">Today</h2>
+            <HelpTip topic="home.today" align="left" />
+          </div>
           <span className="text-xs text-muted-foreground">
             {now.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
           </span>

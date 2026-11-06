@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -160,7 +161,10 @@ export default function UpcomingGoalsCountdown() {
             <Target className="w-4 h-4 text-violet-600 dark:text-violet-400" />
           </div>
           <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upcoming Goals</p>
+            <div className="flex items-center gap-0.5">
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upcoming Goals</p>
+              <HelpTip topic="home.countdown" align="left" className="-my-1.5" />
+            </div>
             <p className="text-[11px] font-semibold text-muted-foreground/60">Live countdown</p>
           </div>
         </div>

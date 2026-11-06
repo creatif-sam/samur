@@ -1,3 +1,4 @@
+import { HelpTip } from '@/components/ui/help-tip'
 import { Search, Book, Grid, List, X, Pin, PinOff, Pencil, Trash2, Users, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { searchPages } from '@/lib/notes/data'
@@ -159,7 +160,10 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
   return (
     <>
       <header className="px-6 pt-12 pb-6 sticky top-0 bg-white/90 dark:bg-[#0f172a]/90 backdrop-blur-xl z-20 border-b border-slate-50 dark:border-slate-800">
-        <h2 className="text-3xl font-semibold tracking-tight text-[#7719aa] dark:text-[#a78bfa] uppercase mb-4 text-center">Library</h2>
+        <div className="mb-4 flex items-center justify-center gap-1">
+          <h2 className="text-3xl font-semibold tracking-tight text-[#7719aa] dark:text-[#a78bfa] uppercase text-center">Library</h2>
+          <HelpTip topic="notes.library" align="left" />
+        </div>
 
         {/* Global Search Input */}
         <div className="relative mb-4">

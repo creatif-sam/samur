@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon, ArrowRight, List, Clock3, LayoutTemplate } from 'lucide-react'
@@ -674,8 +675,9 @@ export default function DailyPlanner() {
           <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-[32px] p-6 border border-white/50 dark:border-slate-700/50 shadow-sm">
             <DaySummary tasks={tasks} completedTaskIds={completedTaskIds} visions={visionsMap} />
           </div>
-          <div className="flex justify-start px-2">
+          <div className="flex items-center gap-1 px-2">
             <FreeTimeExportButton tasks={tasks} date={selectedDate} />
+            <HelpTip topic="planner.summary" align="left" />
           </div>
         </div>
 
@@ -686,6 +688,7 @@ export default function DailyPlanner() {
               <div className="flex items-center gap-2 mb-3">
                 <Sun className="w-3.5 h-3.5 text-white/70" />
                 <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Morning Intention</span>
+                <HelpTip topic="planner.intention" tone="onDark" align="left" className="-my-1" />
               </div>
               <textarea
                 value={morning}
@@ -901,6 +904,7 @@ export default function DailyPlanner() {
               <div className="flex items-center gap-2 mb-3">
                 <Moon className="w-3.5 h-3.5 text-white/70" />
                 <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Evening Reflection</span>
+                <HelpTip topic="planner.reflection" tone="onDark" align="left" className="-my-1" />
               </div>
               <textarea
                 value={reflection}

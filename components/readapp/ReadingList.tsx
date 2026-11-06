@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { JSX, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { createClient } from '@/lib/supabase/client'
@@ -145,7 +146,10 @@ export default function ReadingList(): JSX.Element {
         {/* Library Shelves Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="font-black text-foreground uppercase tracking-tight">Your Library</h2>
+            <div className="flex items-center gap-0.5">
+              <h2 className="font-black text-foreground uppercase tracking-tight">Your Library</h2>
+              <HelpTip topic="reading.library" align="left" />
+            </div>
             <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{readings.length} Total</span>
           </div>
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import type { RefObject } from 'react'
 import {
   Check,
@@ -87,6 +88,7 @@ export function BibleReadView({
             <div className="mx-auto mt-4 flex items-center justify-center gap-2 text-[11px] font-semibold text-muted-foreground">
               <span className="h-px w-8 bg-border" />
               {TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'} · {verses.length} {isFrench(translation) ? 'versets' : 'verses'}
+              <HelpTip topic="bible.read" className="-my-1.5" />
               <span className="h-px w-8 bg-border" />
             </div>
           </div>

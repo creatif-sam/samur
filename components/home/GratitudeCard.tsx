@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
@@ -98,8 +99,9 @@ export default function GratitudeCard() {
   return (
     <div className="mx-4 mt-5 rounded-3xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/60 dark:border-amber-800/40 overflow-hidden">
       {/* Header */}
+      <div className="flex items-center pr-3">
       <button
-        className="w-full flex items-center justify-between px-5 py-4"
+        className="flex flex-1 items-center justify-between px-5 py-4 text-left"
         onClick={() => setExpanded(v => !v)}
       >
         <div className="flex items-center gap-3">
@@ -119,6 +121,8 @@ export default function GratitudeCard() {
           ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
           : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
       </button>
+      <HelpTip topic="home.gratitude" />
+      </div>
 
       {/* Inputs */}
       {expanded && (

@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
@@ -19,7 +20,8 @@ export default function MoneyTabs() {
   return (
     <div className="relative pb-24">
       {/* MONEY SUB TABS */}
-      <div className="flex gap-2 rounded-xl bg-muted p-1 mb-4">
+      <div className="mb-4 flex items-center gap-1">
+      <div className="flex flex-1 gap-2 rounded-xl bg-muted p-1">
         <TabButton active={tab === 'log'} onClick={() => setTab('log')}>
           {t.money.log}
         </TabButton>
@@ -29,6 +31,8 @@ export default function MoneyTabs() {
         <TabButton active={tab === 'budget'} onClick={() => setTab('budget')}>
           {t.money.budget}
         </TabButton>
+      </div>
+      <HelpTip topic="planner.money" />
       </div>
 
       {/* CONTENT */}

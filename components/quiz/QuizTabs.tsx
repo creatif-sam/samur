@@ -1,5 +1,6 @@
 'use client';
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import QuizList from './QuizList';
 import QuizCreate from './QuizCreate';
@@ -10,7 +11,8 @@ import { ListChecks, PlusCircle, History } from 'lucide-react';
 export default function QuizTabs(): JSX.Element {
   return (
     <Tabs defaultValue="list">
-      <TabsList className="grid grid-cols-3">
+      <div className="flex items-center gap-1">
+      <TabsList className="grid flex-1 grid-cols-3">
         <TabsTrigger
           value="list"
           className="group flex items-center justify-center"
@@ -32,6 +34,8 @@ export default function QuizTabs(): JSX.Element {
           <History className="w-5 h-5 transition-all duration-200 group-data-[state=active]:scale-125 group-data-[state=active]:text-violet-600" />
         </TabsTrigger>
       </TabsList>
+      <HelpTip topic="reading.quiz" />
+      </div>
 
       <TabsContent value="list">
         <QuizList />

@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Users } from 'lucide-react'
@@ -101,6 +102,7 @@ export default function PartnerPrayerBoard({ refreshKey }: { refreshKey?: number
       <div className="flex items-center gap-2">
         <Users className="w-4 h-4 text-muted-foreground" />
         <h3 className="text-sm font-medium text-muted-foreground">Partnership Prayer Streaks</h3>
+        <HelpTip topic="prayer.partnerStreaks" align="left" className="-my-1" />
       </div>
 
       <div className="grid grid-cols-2 gap-3">

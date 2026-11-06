@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { BookOpen, Check, ChevronRight, Loader2, Users, X } from 'lucide-react'
@@ -160,9 +161,12 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
       )}
 
       <section className="space-y-2">
-        <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-          {active.length > 0 ? 'More plans' : 'Start a reading plan'}
-        </h2>
+        <div className="flex items-center gap-0.5">
+          <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+            {active.length > 0 ? 'More plans' : 'Start a reading plan'}
+          </h2>
+          <HelpTip topic="bible.plans" align="left" className="-my-1" />
+        </div>
         {available.map(plan => {
           const partnerOn = partnerPlans.some(p => p.plan_key === plan.key)
           return (

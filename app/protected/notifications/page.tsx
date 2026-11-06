@@ -1,11 +1,13 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
-import { BellOff, CheckCheck, ChevronLeft, Loader2, Settings, Trash2 } from 'lucide-react'
+import { CheckCheck, ChevronLeft, Loader2, Settings, Trash2 } from 'lucide-react'
+import { BellIcon } from '@/components/notifications/BellIcon'
 import { notificationIcon, notificationUrl } from '@/lib/notifications/categories'
 import type { AppNotification } from '@/components/notifications/NotificationCenter'
 
@@ -115,6 +117,7 @@ export default function NotificationsPage() {
           <h1 className="text-base font-black">Notifications</h1>
           <p className="text-[11px] text-muted-foreground">{unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}</p>
         </div>
+        <HelpTip topic="notifications.page" />
         <Link href="/protected/profile#notifications" aria-label="Notification settings" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
           <Settings className="w-4 h-4" />
         </Link>
@@ -148,7 +151,7 @@ export default function NotificationsPage() {
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>
       ) : visible.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
-          <BellOff className="w-10 h-10 mx-auto mb-3 opacity-40" />
+          <BellIcon slashed className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="text-sm font-semibold">{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</p>
         </div>
       ) : (

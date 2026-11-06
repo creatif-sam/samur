@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import React from 'react'
 import { Smile } from 'lucide-react'
 
@@ -56,7 +57,10 @@ export default function MoodPicker({ currentMood, onMoodSelect }: MoodPickerProp
   return (
     <div className="flex items-start justify-between mb-8">
       <div className="flex flex-col flex-1 pr-4">
-        <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1 mb-1">Daily Verse</span>
+        <div className="mb-1 flex items-center gap-0.5">
+          <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest ml-1">Daily Verse</span>
+          <HelpTip topic="planner.mood" align="left" className="-my-1" />
+        </div>
         <p className={`text-[13px] font-medium leading-relaxed italic ${theme.text} opacity-80 animate-in fade-in duration-700`}>
           "{theme.verse}"
         </p>

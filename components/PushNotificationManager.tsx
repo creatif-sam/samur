@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Bell, BellOff, AlertCircle, Loader2, ShieldCheck, Moon, Mail } from 'lucide-react'
+import { AlertCircle, Loader2, ShieldCheck, Moon, Mail } from 'lucide-react'
+import { BellIcon } from '@/components/notifications/BellIcon'
 import { toast } from 'sonner'
 import {
   DEFAULT_PREFERENCES,
@@ -293,7 +294,7 @@ export default function PushNotificationManager() {
                 : 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-lg shadow-violet-200'
             }`}
           >
-            {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isSubscribed ? <BellOff className="mr-2 h-4 w-4" /> : <Bell className="mr-2 h-4 w-4" />}
+            {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BellIcon slashed={isSubscribed} className="mr-2 h-4 w-4" />}
             {isSubscribed ? 'Pause Notifications' : 'Enable Chimes & Alerts'}
           </Button>
         </div>

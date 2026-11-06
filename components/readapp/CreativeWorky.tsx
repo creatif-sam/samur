@@ -1,5 +1,6 @@
 'use client';
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
@@ -103,7 +104,10 @@ export default function CreativeWork() {
             <PenTool className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight">Work Entry</h2>
+            <div className="flex items-center gap-0.5">
+              <h2 className="text-xl font-bold tracking-tight">Work Entry</h2>
+              <HelpTip topic="reading.create" align="left" />
+            </div>
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">New Session Log</p>
           </div>
         </div>

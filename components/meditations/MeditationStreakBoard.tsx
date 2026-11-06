@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { CalendarDays, Flame, Moon, Sun, Trophy } from 'lucide-react'
@@ -74,6 +75,7 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
                 : current > 0 ? 'Your best streak yet' : 'Write today to start a streak'}
             </p>
           </div>
+          <HelpTip topic="spirit.streak" align="left" />
         </div>
         <button
           onClick={() => setShowCalendar(true)}

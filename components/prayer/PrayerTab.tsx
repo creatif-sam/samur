@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { JSX, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -541,7 +542,10 @@ export default function PrayerTab(): JSX.Element {
       {/* ── Active Requests ─────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-semibold text-foreground">Prayer Requests</p>
+          <div className="flex items-center gap-0.5">
+            <p className="text-sm font-semibold text-foreground">Prayer Requests</p>
+            <HelpTip topic="prayer.requests" align="left" className="-my-1" />
+          </div>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
@@ -605,6 +609,7 @@ export default function PrayerTab(): JSX.Element {
               <BookOpen className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
             </div>
             <p className="text-sm font-semibold">Prayer Diary</p>
+            <HelpTip topic="prayer.diary" align="left" className="-my-1" />
           </div>
           <button
             onClick={() => setShowDiaryModal(true)}

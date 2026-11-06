@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -207,7 +208,8 @@ export default function WeeklyReviewPage() {
           <h1 className="text-base font-black">Weekly Review</h1>
           <p className="text-[11px] text-muted-foreground">Week of {weekLabel}</p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <HelpTip topic="review.page" />
           <Calendar className="w-5 h-5 text-muted-foreground" />
         </div>
       </div>

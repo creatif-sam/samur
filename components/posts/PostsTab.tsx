@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { BookMarked, Loader2, Lock, NotebookPen, RefreshCw, Search, Send, Users, X } from 'lucide-react'
@@ -451,6 +452,7 @@ export default function PostsTab() {
               )
             })}
           </div>
+          <HelpTip topic="posts.feed" className="-mx-1" />
           <button
             onClick={() => { setShowSearch(s => !s); if (showSearch) setQuery('') }}
             aria-label="Search posts"

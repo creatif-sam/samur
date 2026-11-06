@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -331,6 +332,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
           </span>
           {pinned && <Pin className="w-3.5 h-3.5 text-white/70" aria-label="Pinned" />}
           {shared && <Users className="w-3.5 h-3.5 text-white/70" aria-label="Shared with partner" />}
+          <HelpTip topic="notes.editor" tone="onDark" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-white/10" aria-label="Note options">

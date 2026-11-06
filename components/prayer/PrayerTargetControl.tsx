@@ -1,9 +1,9 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useState } from 'react'
 import { Check, Pencil, Target } from 'lucide-react'
 import clsx from 'clsx'
-import { InfoTip } from '@/components/ui/info-tip'
 import { MAX_TARGET, MIN_TARGET, TARGET_PRESETS } from '@/lib/prayerTarget'
 
 interface Props {
@@ -50,10 +50,7 @@ export default function PrayerTargetControl({ monthName, target, carriedFrom, sa
           </span>
           <Pencil className="h-3.5 w-3.5 shrink-0 text-green-700/70 dark:text-green-400/70" />
         </button>
-        <InfoTip title="Daily prayer target" label="About the daily target">
-          Choose how many minutes you want to pray each day this month. The bold green line on the graph shows it,
-          and a calendar day turns green when you reach it. Each month keeps its own target.
-        </InfoTip>
+        <HelpTip topic="prayer.target" />
       </div>
 
       {open && (

@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { JSX, useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Play, Pause, Square, Flame, X, Check } from 'lucide-react'
@@ -309,6 +310,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
         <div className="flex items-center gap-2">
           <Flame className="w-5 h-5 text-amber-400 fill-amber-400" />
           <h3 className="font-black text-white uppercase tracking-tight text-sm">Prayer Timer</h3>
+          <HelpTip topic="prayer.timer" tone="onDark" align="left" className="-my-1" />
         </div>
         <p className="text-violet-300 text-xs font-medium">Set your prayer duration then press Start</p>
 

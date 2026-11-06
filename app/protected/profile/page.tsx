@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Profile } from '@/lib/types'
@@ -11,7 +12,7 @@ import { LanguageSwitcher } from '@/components/language-switcher'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   LogOut, Camera, Save, Users, Trash2, AlertTriangle, UserPlus, Check,
-  X, Clock, Link2Off, ChevronRight, Globe, DollarSign, Bell, CreditCard,
+  X, Clock, Link2Off, ChevronRight, Globe, DollarSign, CreditCard,
   Shield, Pencil, Target, BookOpen, Eye,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -25,6 +26,8 @@ import { useRouter } from 'next/navigation'
 import { currencies } from '@/lib/currencies'
 import { cn } from '@/lib/utils'
 import { ProfileThemeCard } from '@/components/profile/ProfileThemeCard'
+import { BellIcon } from '@/components/notifications/BellIcon'
+import type { HelpTopic } from '@/lib/help'
 import { EMPTY_THEMES, loadThemes, saveThemes, type Themes } from '@/lib/themes'
 
 type PartnerPerson = { id: string; name: string; avatar_url: string | null }
@@ -399,6 +402,7 @@ export default function ProfilePage() {
           <SettingsRow
             icon={<Users className="w-4 h-4" />}
             label="Accountability Partner"
+            help="profile.partner"
             sublabel={partnerState.partner ? partnerName || 'Connected' : partnerState.incoming.length ? `${partnerState.incoming.length} invite${partnerState.incoming.length > 1 ? 's' : ''} pending` : partnerState.outgoing.length ? 'Invite sent' : 'None'}
             expanded={expanded === 'partner'}
             onTap={() => toggle('partner')}
@@ -427,6 +431,7 @@ export default function ProfilePage() {
           <SettingsRow
             icon={<DollarSign className="w-4 h-4" />}
             label="Currency"
+            help="profile.currency"
             sublabel={currencies.find(c => c.code === selectedCurrency)?.label || selectedCurrency}
             expanded={expanded === 'currency'}
             onTap={() => toggle('currency')}
@@ -458,6 +463,7 @@ export default function ProfilePage() {
           <SettingsRow
             icon={<CreditCard className="w-4 h-4" />}
             label="Business Card"
+            help="profile.businessCard"
             expanded={expanded === 'bizcard'}
             onTap={() => toggle('bizcard')}
           />
@@ -471,8 +477,9 @@ export default function ProfilePage() {
 
           {/* Notifications */}
           <SettingsRow
-            icon={<Bell className="w-4 h-4" />}
+            icon={<BellIcon className="w-4 h-4" />}
             label="Push Notifications"
+            help="profile.notifications"
             expanded={expanded === 'notifications'}
             onTap={() => toggle('notifications')}
           />
@@ -488,6 +495,7 @@ export default function ProfilePage() {
           <SettingsRow
             icon={<Shield className="w-4 h-4 text-orange-500" />}
             label="Delete Specific Data"
+            help="profile.deleteData"
             labelClass="text-orange-600 dark:text-orange-400"
             onTap={() => { setDeleteType('data'); setShowDeleteDialog(true) }}
           />
@@ -589,7 +597,7 @@ function StatCard2({
 }
 
 function SettingsRow({
-  icon, label, sublabel, expanded, onTap, labelClass,
+  icon, label, sublabel, expanded, onTap, labelClass, help,
 }: {
   icon: React.ReactNode
   label: string
@@ -597,9 +605,11 @@ function SettingsRow({
   expanded?: boolean
   onTap: () => void
   labelClass?: string
+  help?: HelpTopic
 }) {
   return (
-    <button onClick={onTap} className="w-full flex items-center gap-4 px-5 py-4 hover:bg-muted/40 transition-colors">
+    <div className="flex items-center transition-colors hover:bg-muted/40">
+    <button onClick={onTap} className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4">
       <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center shrink-0 text-muted-foreground">
         {icon}
       </div>
@@ -609,5 +619,7 @@ function SettingsRow({
       </div>
       <ChevronRight className={cn('w-4 h-4 text-muted-foreground/50 transition-transform shrink-0', expanded && 'rotate-90')} />
     </button>
+    {help && <div className="pr-3"><HelpTip topic={help} /></div>}
+    </div>
   )
 }

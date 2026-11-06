@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState, useRef } from 'react'
 import { Goal } from '@/lib/types'
 
@@ -170,6 +171,7 @@ export function VisionListView({
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5" /> Vision {year.year}
+              <HelpTip topic="goals.visionYear" tone="onDark" align="left" className="-my-1.5" />
             </p>
             <p className="mt-1 text-xl font-black leading-tight">
               {yearSummary
@@ -292,6 +294,7 @@ export function VisionListView({
         <p className="-mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
           <span className="inline-block h-3 w-0.5 shrink-0 rounded-full bg-foreground/60" />
           The line on each bar marks where an even pace would put you today.
+          <HelpTip topic="goals.pace" align="left" className="-my-1.5" />
         </p>
       )}
 

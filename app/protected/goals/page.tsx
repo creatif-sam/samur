@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
@@ -126,9 +127,12 @@ export default function GoalsPage() {
     <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-8">
       <header className="flex flex-col gap-4">
         <div className="text-center sm:text-left">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">
-            Goals & Vision
-          </h1>
+          <div className="flex items-center justify-center gap-1 sm:justify-start">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">
+              Goals & Vision
+            </h1>
+            <HelpTip topic="goals.page" align="left" />
+          </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
             "Write the vision and make it plain." Habakkuk 2:2
           </p>
@@ -140,6 +144,7 @@ export default function GoalsPage() {
         <div className="flex justify-center sm:justify-start items-center gap-2 text-primary font-bold text-[10px] uppercase">
           <Sparkles className="w-4 h-4" />
           Focus Vision
+          <HelpTip topic="goals.focus" align="left" className="-my-1" />
         </div>
 
         <Select value={selectedVisionId} onValueChange={setSelectedVisionId}>
@@ -203,6 +208,10 @@ export default function GoalsPage() {
           </Dialog>
 
           {/* Period summary cards */}
+          <div className="flex items-center gap-0.5">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Goals due</p>
+            <HelpTip topic="goals.list" align="left" className="-my-1" />
+          </div>
           <div className="flex bg-muted/40 p-1 rounded-2xl gap-1">
             {(['weekly', 'monthly', 'quarterly', 'yearly'] as const).map(v => (
               <button
@@ -278,6 +287,7 @@ export default function GoalsPage() {
               <h3 className="text-sm font-black uppercase flex gap-2">
                 <Flag className="w-4 h-4 text-primary" />
                 Vision Portfolio
+                <HelpTip topic="goals.visions" align="left" className="-my-1" />
               </h3>
               <p className="text-[10px] text-muted-foreground uppercase">
                 Long term strategic roadmap

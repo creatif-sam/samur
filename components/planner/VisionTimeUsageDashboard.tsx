@@ -1,5 +1,6 @@
 'use client'
 
+import { HelpTip } from '@/components/ui/help-tip'
 import React, { useState, useMemo } from 'react'
 import { 
   BarChart, Bar, LineChart, Line, XAxis, YAxis, 
@@ -57,7 +58,10 @@ export default function VisionProgressDashboard({ allTasks, visionsMap }: Dashbo
             <TrendingUp size={20} />
           </div>
           <div>
-            <h3 className="text-base font-black text-foreground tracking-tight">Vision Time</h3>
+            <div className="flex items-center gap-0.5">
+              <h3 className="text-base font-black text-foreground tracking-tight">Vision Time</h3>
+              <HelpTip topic="analytics.visionTime" align="left" className="-my-1" />
+            </div>
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Time spent per vision</p>
           </div>
         </div>
