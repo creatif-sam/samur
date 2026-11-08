@@ -30,6 +30,7 @@ import { PLACEHOLDER_TITLES, type Page, type PagePatch } from './types'
 import { clearDraft, isOffline, loadDraft, saveDraft } from '@/lib/offline'
 import { exportPdf } from '@/lib/exportPdf'
 import DictationButton from '@/components/DictationButton'
+import { useVisualViewport } from '@/lib/useVisualViewport'
 
 const HIGHLIGHT_COLORS = [
   { label: 'Yellow',  value: '#fef08a' },
@@ -313,12 +314,24 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
     setShowShareModal(true)
   }
 
+  // While the on-screen keyboard is up, fit the editor to the part of the screen still
+  // visible, so the formatting toolbar (the last row) sits right above the keyboard.
+  const visible = useVisualViewport()
+  const keyboardOpen = !!visible?.keyboardOpen
+
+  // The writing area just got shorter: keep the line being typed in view
+  useEffect(() => {
+    if (!keyboardOpen || !editor?.isFocused) return
+    const id = requestAnimationFrame(() => editor.commands.scrollIntoView())
+    return () => cancelAnimationFrame(id)
+  }, [keyboardOpen, visible?.height, editor])
+
   if (!editor) return null
 
   return (
     <div
       className="fixed top-0 left-0 right-0 z-[60] bg-white dark:bg-[#0f172a] flex flex-col animate-in slide-in-from-right duration-300 overflow-hidden font-poppins transition-colors duration-500"
-      style={{ height: '100dvh' }}
+      style={keyboardOpen && visible ? { height: visible.height, top: visible.offsetTop } : { height: '100dvh' }}
     >
 
       {/* MOBILE HEADER - VIOLET THEME */}
@@ -444,7 +457,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
       )}
 
       {/* KEYBOARD TOOLBAR — sits right above the virtual keyboard, scrolls sideways on narrow screens */}
-      <div className="flex items-center overflow-x-auto bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0 [scrollbar-width:none]" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <div className="flex items-center overflow-x-auto bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0 [scrollbar-width:none]" style={{ paddingBottom: keyboardOpen ? 0 : 'env(safe-area-inset-bottom)' }}>
         <DictationButton className="shrink-0 w-11 h-11" onText={text => editor.chain().focus().insertContent(`${text} `).run()} />
         <ToolbarBtn
           label="Add photo"

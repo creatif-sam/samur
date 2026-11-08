@@ -30,6 +30,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
+import { useVisualViewport } from '@/lib/useVisualViewport'
 
 export default function MeditationComposer({ meditation, onClose, onCreated }: any) {
   const [title, setTitle] = useState('')
@@ -259,10 +260,18 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     } finally { setSaving(false) }
   }
 
+  // While the on-screen keyboard is up, fit the sheet to what is still visible, so its
+  // header and formatting buttons don't scroll away behind or above the keyboard (iOS)
+  const visible = useVisualViewport()
+  const fit = visible?.keyboardOpen ? visible : null
+
   if (!editor) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/40 dark:bg-black/70 backdrop-blur-sm p-0 md:p-4 font-poppins overflow-y-auto">
+    <div
+      className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/40 dark:bg-black/70 backdrop-blur-sm p-0 md:p-4 font-poppins overflow-y-auto"
+      style={fit ? { top: fit.offsetTop, height: fit.height, bottom: 'auto' } : undefined}
+    >
 
       {/* Background Overlay to close on PC */}
       <motion.div
@@ -279,6 +288,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         animate={{ y: 0, opacity: 1, scale: 1 }}
         exit={{ y: "100%", opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 200 }} // This is the "Glide" logic
+        style={fit ? { height: fit.height } : undefined}
         className="w-full max-w-full h-[94dvh] md:h-auto md:max-h-[85dvh] md:max-w-3xl border-none shadow-2xl md:rounded-[32px] rounded-t-[40px] bg-white dark:bg-[#0f172a] flex flex-col overflow-hidden"
       >
 
