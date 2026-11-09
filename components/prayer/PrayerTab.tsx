@@ -1,16 +1,24 @@
 'use client'
 
 import { HelpTip } from '@/components/ui/help-tip'
-import { JSX, useEffect, useState } from 'react'
+import { JSX, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import PrayerTimer from './PrayerTimer'
 import PrayerCalendar from './PrayerCalendar'
 import PartnerPrayerBoard from './PartnerPrayerBoard'
 import { ThoughtEditor } from '@/components/note/ThoughtEditor'
-import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight } from 'lucide-react'
+import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight, Play } from 'lucide-react'
+import { toast } from 'sonner'
 import { toLocalDateKey } from '@/lib/dates'
 import { ensureSystemNotebook, findSystemNotebook } from '@/lib/notes/data'
+import { loadDraft, saveDraft } from '@/lib/offline'
+import { useVisualViewport } from '@/lib/useVisualViewport'
+import { buildDiaryHtml, extractPoints, togglePoint } from '@/lib/prayer/points'
+import { classicTimerRunning, clearGuided, loadGuided, saveGuided, type GuidedItem, type GuidedState } from '@/lib/prayer/session'
+import GuidedPrayerSetup from './GuidedPrayerSetup'
+import GuidedPrayerSession from './GuidedPrayerSession'
+import DiaryEntryCard from './DiaryEntryCard'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -220,10 +228,11 @@ function MarkAnsweredModal({ request, onClose, onSave }: { request: PrayerReques
   )
 }
 
-function RequestCard({ req, onMarkAnswered, onDelete }: {
+function RequestCard({ req, onMarkAnswered, onDelete, onPray }: {
   req: PrayerRequest
   onMarkAnswered: (r: PrayerRequest) => void
   onDelete: (id: string) => void
+  onPray: (r: PrayerRequest) => void
 }) {
   const [expanded, setExpanded] = useState(false)
 
@@ -250,7 +259,13 @@ function RequestCard({ req, onMarkAnswered, onDelete }: {
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t pt-3">
           {req.description && <p className="text-sm text-muted-foreground">{req.description}</p>}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => onPray(req)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" /> Pray for this
+            </button>
             <button
               onClick={() => onMarkAnswered(req)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
@@ -270,16 +285,31 @@ function RequestCard({ req, onMarkAnswered, onDelete }: {
   )
 }
 
-function DiaryModal({ onClose, onSave, saving, sections, onCreateSection }: {
+function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initialTitle, initialPoints }: {
   onClose: () => void
-  onSave: (title: string, content: string, sectionId: string) => Promise<void>
+  onSave: (title: string, html: string, sectionId: string) => Promise<void>
   saving: boolean
   sections: DiarySection[]
   onCreateSection: (title: string) => Promise<DiarySection | null>
+  // Set when a prayer session adds itself to the diary
+  initialTitle?: string
+  initialPoints?: { text: string; checked: boolean }[]
 }) {
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-  const [title, setTitle] = useState(today)
+  const [title, setTitle] = useState(initialTitle ?? today)
   const [content, setContent] = useState('')
+  // Prayer points become a checklist you can tick here and in Notes
+  const [points, setPoints] = useState<{ text: string; checked: boolean }[]>(initialPoints ?? [])
+  const [pointDraft, setPointDraft] = useState('')
+  const visible = useVisualViewport()
+  const fit = visible?.keyboardOpen ? visible : null
+
+  function addPoint() {
+    const text = pointDraft.trim()
+    if (!text) return
+    setPoints(prev => [...prev, { text, checked: false }])
+    setPointDraft('')
+  }
   const [selectedSectionId, setSelectedSectionId] = useState<string>(sections[0]?.id ?? '')
   const [showNewCategory, setShowNewCategory] = useState(sections.length === 0)
   const [newCategoryTitle, setNewCategoryTitle] = useState('')
@@ -299,13 +329,20 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection }: {
 
   async function submit() {
     if (!title.trim() || !selectedSectionId) return
-    await onSave(title.trim(), content.trim(), selectedSectionId)
+    const allPoints = pointDraft.trim() ? [...points, { text: pointDraft.trim(), checked: false }] : points
+    await onSave(title.trim(), buildDiaryHtml(content, allPoints), selectedSectionId)
     onClose()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-4 mb-20 sm:mb-0">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      style={fit ? { top: fit.offsetTop, height: fit.height, bottom: 'auto' } : undefined}
+    >
+      <div
+        className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-4 mb-20 sm:mb-0 overflow-y-auto"
+        style={{ maxHeight: fit ? fit.height - 16 : 'calc(100dvh - 7rem)', marginBottom: fit ? 8 : undefined }}
+      >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-violet-600" />
@@ -374,7 +411,37 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection }: {
           rows={4}
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
-        <p className="text-[10px] text-muted-foreground">Saved to your Prayer Diary notebook in Notes.</p>
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Prayer points <span className="normal-case tracking-normal font-medium">(optional)</span></p>
+          {points.length > 0 && (
+            <ul className="space-y-1.5">
+              {points.map((pt, i) => (
+                <li key={i} className="flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2 text-sm">
+                  <span className={`grid h-4 w-4 shrink-0 place-items-center rounded border-2 ${pt.checked ? 'border-violet-600 bg-violet-600 text-white' : 'border-muted-foreground/40'}`}>
+                    {pt.checked && <Check className="h-3 w-3" strokeWidth={3} />}
+                  </span>
+                  <span className="min-w-0 flex-1 break-words">{pt.text}</span>
+                  <button type="button" onClick={() => setPoints(prev => prev.filter((_, j) => j !== i))} aria-label={`Remove ${pt.text}`} className="p-1 rounded-full text-muted-foreground hover:bg-muted">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={pointDraft}
+              onChange={e => setPointDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPoint() } }}
+              placeholder="Add a point, e.g. Healing for Mum"
+              className="min-w-0 flex-1 rounded-xl border bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+            <button type="button" onClick={addPoint} disabled={!pointDraft.trim()} className="px-3 py-2 rounded-xl bg-muted text-xs font-semibold disabled:opacity-50">
+              Add
+            </button>
+          </div>
+        </div>
+        <p className="text-[10px] text-muted-foreground">Saved to your Prayer Diary notebook in Notes. Tick points off on this tab or in Notes.</p>
         <div className="flex gap-2">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">Cancel</button>
           <button
@@ -407,8 +474,17 @@ export default function PrayerTab(): JSX.Element {
   const [showDiaryModal, setShowDiaryModal] = useState(false)
   const [selectedDiaryPage, setSelectedDiaryPage] = useState<DiaryPage | null>(null)
   const [savingDiary, setSavingDiary] = useState(false)
+  // Guided prayer sessions (new): the setup sheet, the running session, and a diary entry it can prefill
+  const [guidedSetup, setGuidedSetup] = useState<{ topicId: string | null } | null>(null)
+  const [guided, setGuided] = useState<GuidedState | null>(null)
+  const [diaryPrefill, setDiaryPrefill] = useState<{ title: string; points: { text: string; checked: boolean }[] } | null>(null)
+  const diaryPagesRef = useRef<DiaryPage[]>([])
+  const pointQueue = useRef(new Map<string, Promise<void>>())
 
   useEffect(() => { void loadAll() }, [])
+  useEffect(() => { diaryPagesRef.current = diaryPages }, [diaryPages])
+  // A session still running in this tab (e.g. after moving between pages) comes back
+  useEffect(() => { const g = loadGuided(); if (g) setGuided(g) }, [])
 
   async function loadAll() {
     const supabase = createClient()
@@ -489,13 +565,73 @@ export default function PrayerTab(): JSX.Element {
     return newSection
   }
 
-  async function saveDiaryEntry(title: string, content: string, sectionId: string) {
+  async function saveDiaryEntry(title: string, htmlContent: string, sectionId: string) {
     setSavingDiary(true)
     const supabase = createClient()
-    const htmlContent = content ? `<p>${content.replace(/\n\n+/g, '</p><p>').replace(/\n/g, '<br/>')}</p>` : ''
     const { data } = await supabase.from('pages').insert({ section_id: sectionId, title, content: htmlContent }).select('id, title, content, created_at, section_id').single()
     if (data) setDiaryPages(prev => [data, ...prev].slice(0, 6))
     setSavingDiary(false)
+  }
+
+  // Ticks a point straight from the Prayer tab. One write at a time per entry, from the latest
+  // content; a failed or blocked write is undone. An unsaved device draft of the same note gets
+  // the same tick, so opening the note later does not bring the old state back.
+  function togglePagePoint(pageId: string, index: number) {
+    const run = async () => {
+      const page = diaryPagesRef.current.find(p => p.id === pageId)
+      if (!page?.content) return
+      const before = page.content
+      const point = extractPoints(before)[index]
+      const after = togglePoint(before, index)
+      if (!point || after === before) return
+      diaryPagesRef.current = diaryPagesRef.current.map(p => (p.id === pageId ? { ...p, content: after } : p))
+      setDiaryPages(diaryPagesRef.current)
+      const { data, error } = await createClient()
+        .from('pages')
+        .update({ content: after, updated_at: new Date().toISOString() })
+        .eq('id', pageId)
+        .select('id')
+      if (error || !data?.length) {
+        diaryPagesRef.current = diaryPagesRef.current.map(p => (p.id === pageId && p.content === after ? { ...p, content: before } : p))
+        setDiaryPages(diaryPagesRef.current)
+        toast.error("Couldn't save that tick. Check your connection.")
+        return
+      }
+      const key = `note:${pageId}`
+      const draft = loadDraft<{ title: string; content: string }>(key)
+      if (draft?.content) {
+        const same = extractPoints(draft.content)[index]
+        if (same && same.text === point.text) saveDraft(key, { title: draft.title, content: togglePoint(draft.content, index, !point.checked) })
+      }
+    }
+    const previous = pointQueue.current.get(pageId) ?? Promise.resolve()
+    const next = previous.then(run, run)
+    pointQueue.current.set(pageId, next)
+  }
+
+  // ── Guided prayer session ──
+  function openGuidedSetup(topicId: string | null) {
+    if (guided) return
+    setGuidedSetup({ topicId })
+  }
+  function beginGuided(state: GuidedState) {
+    saveGuided(state)
+    setGuided(state)
+    setGuidedSetup(null)
+  }
+  function updateGuided(state: GuidedState) {
+    saveGuided(state)
+    setGuided(state)
+  }
+  function closeGuided() {
+    clearGuided()
+    setGuided(null)
+  }
+  function guidedToDiary(prayed: GuidedItem[]) {
+    closeGuided()
+    const day = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+    setDiaryPrefill({ title: `Prayer session · ${day}`, points: prayed.map(i => ({ text: i.title, checked: true })) })
+    setShowDiaryModal(true)
   }
 
   const active = requests.filter(r => r.status === 'active' || r.status === 'ongoing')
@@ -546,12 +682,22 @@ export default function PrayerTab(): JSX.Element {
             <p className="text-sm font-semibold text-foreground">Prayer Requests</p>
             <HelpTip topic="prayer.requests" align="left" className="-my-1" />
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
-          >
-            <Plus className="w-3.5 h-3.5" /> Add
-          </button>
+          <div className="flex items-center gap-3">
+            {active.length > 0 && (
+              <button
+                onClick={() => openGuidedSetup(null)}
+                className="flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700 active:scale-95"
+              >
+                <Play className="w-3 h-3 fill-current" /> Pray through
+              </button>
+            )}
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add
+            </button>
+          </div>
         </div>
         {active.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-muted-foreground/30 p-8 text-center">
@@ -566,6 +712,7 @@ export default function PrayerTab(): JSX.Element {
                 req={req}
                 onMarkAnswered={setMarkAnsweringReq}
                 onDelete={deleteRequest}
+                onPray={r => openGuidedSetup(r.id)}
               />
             ))}
           </div>
@@ -626,23 +773,13 @@ export default function PrayerTab(): JSX.Element {
         ) : (
           <div className="space-y-2">
             {diaryPages.map(page => (
-              <button
+              <DiaryEntryCard
                 key={page.id}
-                onClick={() => setSelectedDiaryPage(page)}
-                className="w-full text-left rounded-2xl bg-card dark:bg-zinc-900/50 border border-border/50 shadow-sm p-4 hover:scale-[1.01] active:scale-[0.99] transition-transform"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <BookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold truncate">{page.title}</p>
-                    {(() => { const s = diarySections.find(sec => sec.id === page.section_id); return s ? <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 mt-0.5">{s.title}</span> : null })()}
-                    {page.content && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{page.content.replace(/<[^>]+>/g, ' ').trim()}</p>}
-                    <p className="text-[10px] text-muted-foreground mt-1">{daysAgo(page.created_at)}</p>
-                  </div>
-                </div>
-              </button>
+                page={page}
+                sectionTitle={diarySections.find(sec => sec.id === page.section_id)?.title}
+                onOpen={() => setSelectedDiaryPage(page)}
+                onToggle={i => togglePagePoint(page.id, i)}
+              />
             ))}
           </div>
         )}
@@ -661,11 +798,32 @@ export default function PrayerTab(): JSX.Element {
       )}
       {showDiaryModal && (
         <DiaryModal
-          onClose={() => setShowDiaryModal(false)}
+          onClose={() => { setShowDiaryModal(false); setDiaryPrefill(null) }}
           onSave={saveDiaryEntry}
           saving={savingDiary}
           sections={diarySections}
           onCreateSection={createDiarySection}
+          initialTitle={diaryPrefill?.title}
+          initialPoints={diaryPrefill?.points}
+        />
+      )}
+      {guidedSetup && (
+        <GuidedPrayerSetup
+          requests={active.map(r => ({ id: r.id, title: r.title, description: r.description, category: r.category }))}
+          initialTopicId={guidedSetup.topicId}
+          blockedReason={classicTimerRunning() ? 'Your prayer timer is running. Finish or stop it first.' : null}
+          onStart={beginGuided}
+          onClose={() => setGuidedSetup(null)}
+        />
+      )}
+      {guided && userId && (
+        <GuidedPrayerSession
+          state={guided}
+          userId={userId}
+          onState={updateGuided}
+          onSaved={() => setCalendarRefreshKey(k => k + 1)}
+          onAddToDiary={guidedToDiary}
+          onClose={closeGuided}
         />
       )}
       {selectedDiaryPage && (

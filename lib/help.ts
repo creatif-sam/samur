@@ -189,7 +189,11 @@ export const HELP = {
   },
   'prayer.diary': {
     title: 'Prayer diary',
-    text: 'Write down what you pray and hear. Entries are saved as notes in your Prayer Diary notebook, in sections you can name.',
+    text: 'Write down what you pray and hear, and add prayer points to tick off as you pray. Entries are saved as notes in your Prayer Diary notebook.',
+  },
+  'prayer.guided': {
+    title: 'Prayer session',
+    text: 'Pick your minutes and the requests to include, and the time is shared equally. Each request shows as a card with its own countdown. Your time is saved to the calendar, and you can add the session to your diary.',
   },
   'prayer.partnerStreaks': {
     title: 'Prayer streaks',

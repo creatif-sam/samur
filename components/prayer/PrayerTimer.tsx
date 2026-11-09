@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Plus, Play, Pause, Square, Flame, X, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { ensureSystemNotebook } from '@/lib/notes/data'
+import { guidedRunning } from '@/lib/prayer/session'
 
 const PRESETS = [1, 2, 3, 5, 10, 15, 20, 30]
 
@@ -202,6 +203,8 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
   const startTimer = async () => {
     const mins = customMinutes ? Number(customMinutes) : selectedMinutes
     if (!mins || mins <= 0) return
+    // One prayer clock at a time, so the same minutes are never counted twice
+    if (guidedRunning()) { toast.error('A prayer session is running. Finish it first.'); return }
     hasCompletedRef.current = false
     inspirationsRef.current = []
     const secs = mins * 60

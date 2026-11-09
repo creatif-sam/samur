@@ -21,7 +21,7 @@ function isBusy() {
   // Open dialogs, sheets and full-screen editors (all render as fixed overlays)
   const overlayOpen = !!document.querySelector('[role="dialog"], [role="alertdialog"], .fixed.inset-0')
   let prayerRunning = false
-  try { prayerRunning = !!sessionStorage.getItem('prayer_timer') } catch { /* ignore */ }
+  try { prayerRunning = !!sessionStorage.getItem('prayer_timer') || !!sessionStorage.getItem('guided_prayer') } catch { /* ignore */ }
   return typing || overlayOpen || prayerRunning
 }
 
