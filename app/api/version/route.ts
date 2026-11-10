@@ -5,7 +5,8 @@ export const dynamic = 'force-dynamic'
 
 export function GET() {
   return NextResponse.json(
-    { buildId: process.env.NEXT_PUBLIC_BUILD_ID ?? null },
+    // `now` lets the app check that the device's clock is right (see lib/clockCheck.ts)
+    { buildId: process.env.NEXT_PUBLIC_BUILD_ID ?? null, now: Date.now() },
     { headers: { 'Cache-Control': 'no-store, max-age=0' } },
   )
 }

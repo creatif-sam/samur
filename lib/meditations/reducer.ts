@@ -1,4 +1,4 @@
-import { toLocalDateKey } from '@/lib/dates'
+import { addDays, toLocalDateKey } from '@/lib/dates'
 
 // lib/meditations/reducer.ts
 type Period = 'morning' | 'evening'
@@ -36,18 +36,12 @@ export function reduceMeditations(meditations: any[]) {
   return byUser
 }
 
-export function calculateStreak(days: Record<string, ReducedDay>) {
+// Days in a row with a meditation, counting back from today, or from yesterday if today
+// isn't done yet (same rule as the streak on your own card)
+export function calculateStreak(days: Record<string, unknown>) {
+  const today = toLocalDateKey(new Date())
+  let cursor = days[today] ? today : addDays(today, -1)
   let streak = 0
-  const today = new Date()
-
-  for (let i = 0; ; i++) {
-    const date = new Date(today)
-    date.setDate(today.getDate() - i)
-    const key = toLocalDateKey(date)
-
-    if (!days[key]) break
-    streak++
-  }
-
+  while (days[cursor]) { streak++; cursor = addDays(cursor, -1) }
   return streak
 }
