@@ -290,6 +290,7 @@ export default function DailyPlanner() {
       }
       if (error) throw error
       dequeueDay(uid, row.day) // a newer save supersedes anything queued for this day
+      window.dispatchEvent(new Event('planner:changed'))
     }, "Couldn't save your planner. Check your connection.")
   }
 
@@ -387,6 +388,7 @@ export default function DailyPlanner() {
       const others = row.tasks.filter(t => t.id !== series.id)
       return { ...row, tasks: updated ? [...others, updated] : others }
     })
+    window.dispatchEvent(new Event('planner:changed'))
   }
 
   async function deleteSeriesEverywhere(taskId: string) {
@@ -410,6 +412,18 @@ export default function DailyPlanner() {
 
   // ---------- actions ----------
 
+  useEffect(() => {
+    function onAlarmDone(e: Event) {
+      const detail = (e as CustomEvent<{ taskId: string; day: string; handled?: boolean }>).detail
+      const s = stateRef.current
+      if (!detail || detail.day !== s.dateKey || s.loadedDateKey !== s.dateKey) return
+      detail.handled = true
+      if (!s.completedTaskIds.includes(detail.taskId)) toggleCompleteRef.current(detail.taskId)
+    }
+    window.addEventListener('planner:complete', onAlarmDone)
+    return () => window.removeEventListener('planner:complete', onAlarmDone)
+  }, [])
+
   function toggleComplete(taskId: string) {
     const updatedIds = completedTaskIds.includes(taskId)
       ? completedTaskIds.filter(id => id !== taskId)
@@ -417,6 +431,8 @@ export default function DailyPlanner() {
     setCompletedTaskIds(updatedIds)
     saveNow({ completedTaskIds: updatedIds })
   }
+  const toggleCompleteRef = useRef(toggleComplete)
+  toggleCompleteRef.current = toggleComplete
 
   function closeModal() {
     setTaskModalHour(null)

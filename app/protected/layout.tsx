@@ -4,6 +4,7 @@ import { TranslationProvider } from "@/contexts/TranslationContext";
 import FloatingPrayerTimer from "@/components/prayer/FloatingPrayerTimer";
 import TimezoneSync from "@/components/TimezoneSync";
 import OfflineSupport from "@/components/OfflineSupport";
+import AlarmWatcher from "@/components/planner/AlarmWatcher";
 
 export default function ProtectedLayout({
   children,
@@ -17,6 +18,7 @@ export default function ProtectedLayout({
         <FloatingPrayerTimer />
         <TimezoneSync />
         <OfflineSupport />
+        <AlarmWatcher />
         <main className="pb-20">
           {children}
         </main>

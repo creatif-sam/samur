@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CACHE CONFIGURATION
 // ─────────────────────────────────────────────────────────────────────────────
-const CACHE_VERSION = 'v6'
+const CACHE_VERSION = 'v7'
 const STATIC_CACHE  = `mastery-static-${CACHE_VERSION}`   // hashed JS/CSS chunks
 const PAGES_CACHE   = `mastery-pages-${CACHE_VERSION}`    // app-shell HTML pages
 const ASSETS_CACHE  = `mastery-assets-${CACHE_VERSION}`   // icons, images, sounds
@@ -393,16 +393,20 @@ self.addEventListener('push', function (event) {
   if (event.data) {
     try {
       const data = event.data.json();
-      
+      // Planner alarms (task_reminder with data.alarm): stay on screen until dismissed
+      const alarm = !!(data.data && data.data.alarm);
+
       const title = data.title || "Mastery🤍 Update";
       const options = {
         body: data.body || "You have a new update in Mastery.",
         icon: '/icon-192-v3.png', // Main app icon (larger for visibility)
         badge: '/badge-96.png', // Monochrome badge for the notification tray
         image: data.image, // Optional large image
-        vibrate: [200, 100, 200, 100, 200], // Stronger vibration pattern
+        vibrate: alarm
+          ? [800, 300, 800, 300, 800, 300, 800, 300, 800] // Alarm: long pattern
+          : [200, 100, 200, 100, 200], // Stronger vibration pattern
         timestamp: Date.now(),
-        requireInteraction: false, // Don't force user interaction, auto-dismiss
+        requireInteraction: alarm, // Alarms stay until dismissed; others auto-dismiss
         silent: false, // Always make sound
         data: {
           url: data.url || (data.data && data.data.url) || '/protected',
@@ -417,7 +421,7 @@ self.addEventListener('push', function (event) {
         actions: data.actions || [
           {
             action: 'open',
-            title: 'Open',
+            title: alarm ? 'Open planner' : 'Open',
             icon: '/icon-192-v3.png'
           },
           {
@@ -434,12 +438,27 @@ self.addEventListener('push', function (event) {
       // CRITICAL: Always show notification, even if app is open.
       // Also update the home-screen app badge with the unread count (Android/Chrome PWA).
       const badgeCount = typeof data.badgeCount === 'number' ? data.badgeCount : undefined;
+      // An open window rings the alarm on a loop (components/planner/AlarmWatcher.tsx)
+      const ringOpenWindows = alarm
+        ? clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+            windowClients.forEach((client) => client.postMessage({
+              type: 'mastery-alarm',
+              taskId: data.data.taskId,
+              day: data.data.day,
+              text: data.data.taskText,
+              start: data.data.taskStart,
+            }))
+          })
+        : Promise.resolve()
       event.waitUntil(
-        self.registration.showNotification(title, options).then(() => {
-          if ('setAppBadge' in self.navigator) {
-            return self.navigator.setAppBadge(badgeCount).catch(() => {})
-          }
-        })
+        Promise.all([
+          self.registration.showNotification(title, options).then(() => {
+            if ('setAppBadge' in self.navigator) {
+              return self.navigator.setAppBadge(badgeCount).catch(() => {})
+            }
+          }),
+          ringOpenWindows.catch(() => {}),
+        ])
       );
     } catch (err) {
       console.error("Error parsing push data:", err);

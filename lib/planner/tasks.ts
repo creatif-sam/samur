@@ -28,6 +28,7 @@ export interface PlannerTask {
   source_day?: string // The day this recurring task was originally created
   recurring?: PlannerRecurrence
   reminder?: number | null // Minutes before start to notify; null = no reminder, unset = default
+  alarm?: boolean // Ring like an alarm (stays until dismissed; rings on a loop while the app is open)
 }
 
 export const DEFAULT_REMINDER_MINUTES = 5
@@ -43,6 +44,12 @@ export const REMINDER_OPTIONS: { value: number | null; label: string }[] = [
 
 export function reminderMinutes(task: Pick<PlannerTask, 'reminder'>) {
   return task.reminder === undefined ? DEFAULT_REMINDER_MINUTES : task.reminder
+}
+
+// Minutes before start that the task alerts: an alarm with "None" picked still rings at the start
+export function alertMinutes(task: Pick<PlannerTask, 'reminder' | 'alarm'>) {
+  const lead = reminderMinutes(task)
+  return task.alarm ? lead ?? 0 : lead
 }
 
 export interface PlannerDayRow {

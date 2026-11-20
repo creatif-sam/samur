@@ -5,7 +5,7 @@ import type { PlannerTask } from '../DailyPlanner'
 import { TaskBasics } from './TaskBasics'
 import { TaskRecurrence } from './TaskRecurrence'
 import { Modal } from './Modal'
-import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2, Eye, EyeOff, AlertTriangle, Bell } from 'lucide-react'
+import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2, Eye, EyeOff, AlertTriangle, Bell, AlarmClock } from 'lucide-react'
 import { DEFAULT_REMINDER_MINUTES, REMINDER_OPTIONS, endsNextDay, overlapping, reminderMinutes, taskDuration } from '@/lib/planner/tasks'
 
 export type SaveScope = 'this' | 'all'
@@ -56,6 +56,7 @@ export function TaskModal({
   const [recurring, setRecurring] = useState<PlannerTask['recurring'] | null>(null)
   const [visibility, setVisibility] = useState<'private' | 'shared'>('private')
   const [reminder, setReminder] = useState<number | null>(DEFAULT_REMINDER_MINUTES)
+  const [alarm, setAlarm] = useState(false)
   const [confirm, setConfirm] = useState<'save' | 'delete' | null>(null)
 
   // Determine if user can edit this task
@@ -71,6 +72,7 @@ export function TaskModal({
       setRecurring(existingTask.recurring ?? null)
       setVisibility(existingTask.visibility || 'private')
       setReminder(reminderMinutes(existingTask))
+      setAlarm(!!existingTask.alarm)
     } else {
       const start = startMinutes ?? hour * 60
       setStartTime(formatTime(start))
@@ -100,6 +102,7 @@ export function TaskModal({
       owner_id: existingTask?.owner_id ?? userId ?? undefined,
       source_day: existingTask?.source_day,
       reminder,
+      alarm: alarm || undefined,
     }
   }
 
@@ -246,6 +249,24 @@ export function TaskModal({
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={alarm}
+                  onClick={() => setAlarm(a => !a)}
+                  className="mt-3 w-full flex items-center gap-3 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 px-3 py-2.5 text-left"
+                >
+                  <AlarmClock size={16} className={alarm ? 'text-rose-500' : 'text-slate-400'} />
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-xs font-bold text-slate-700 dark:text-slate-200">Alarm</span>
+                    <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                      {reminder === null ? 'Rings at the start' : 'Rings at the reminder time'}, stays until you dismiss it
+                    </span>
+                  </span>
+                  <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${alarm ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${alarm ? 'left-[18px]' : 'left-0.5'}`} />
+                  </span>
+                </button>
               </div>
             )}
 

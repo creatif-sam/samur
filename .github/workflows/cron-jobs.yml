@@ -2,8 +2,10 @@ name: Scheduled Notifications
 
 on:
   schedule:
-    # Task reminders - hourly trigger, loops internally every 5 min (GitHub
-    # does not reliably honor schedules more frequent than ~hourly)
+    # Hourly: habit streak nudge (7pm in each user's time zone).
+    # Task reminders and alarms are NOT here: Supabase pg_cron calls
+    # /api/cron/task-reminders every minute (supabase/migrations/*_task_reminders_cron.sql),
+    # because GitHub skipped most of the hourly runs.
     - cron: '0 * * * *'
     # Morning planner reminder - 8:00 UTC (9:00 AM local UTC+1)
     - cron: '0 8 * * *'
@@ -25,7 +27,7 @@ env:
   APP_URL: https://mastery.samuelgyasi.com
 
 jobs:
-  task-reminders:
+  hourly:
     if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
@@ -34,18 +36,6 @@ jobs:
           curl -fsS -X GET ${{ env.APP_URL }}/api/cron/habit-nudge \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             || echo "::warning::habit-nudge call failed"
-
-      - name: Task Reminders (every 5 min for the hour)
-        run: |
-          ITERATIONS=12
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then ITERATIONS=1; fi
-          for i in $(seq 1 $ITERATIONS); do
-            echo "Call $i/$ITERATIONS"
-            curl -fsS -X GET ${{ env.APP_URL }}/api/cron/task-reminders \
-              -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-              || echo "::warning::task-reminders call $i failed"
-            if [ "$i" -lt "$ITERATIONS" ]; then sleep 300; fi
-          done
 
   send-notifications:
     if: github.event.schedule != '0 * * * *' || github.event_name == 'workflow_dispatch'

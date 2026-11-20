@@ -148,13 +148,16 @@ export async function notify(input: NotifyInput): Promise<NotifyResult> {
     .eq('user_id', input.userId)
     .eq('read', false)
 
-  const message = {
+  const message: PushMessage = {
     title: input.title,
     body: input.body,
     url,
     tag: input.tag || `${input.type}-${notification.id}`,
     badgeCount: unreadCount ?? 1,
     data: { ...(input.data ?? {}), url, notificationId: notification.id },
+    // Task reminders and alarms: delivered straight away (not batched by Android's battery
+    // saver), and dropped if they can't arrive within 15 minutes instead of ringing late
+    urgent: input.type === 'task_reminder',
   }
 
   const results = await Promise.allSettled(
@@ -176,7 +179,10 @@ type PushMessage = {
   tag: string
   badgeCount: number
   data: Record<string, unknown>
+  urgent?: boolean
 }
+
+const URGENT_TTL_SECONDS = 15 * 60
 
 async function removeSubscription(endpoint: string) {
   await createServiceClient().from('push_subscriptions').delete().eq('endpoint', endpoint)
@@ -186,7 +192,12 @@ async function sendWebPush(sub: Subscription, message: PushMessage) {
   ensureVapidConfigured()
   const target = webPushTarget(sub)
   try {
-    await webPush.sendNotification(target, JSON.stringify(message))
+    const { urgent, ...payload } = message
+    await webPush.sendNotification(
+      target,
+      JSON.stringify(payload),
+      urgent ? { urgency: 'high', TTL: URGENT_TTL_SECONDS } : undefined,
+    )
   } catch (err) {
     const status = (err as { statusCode?: number }).statusCode
     if (status === 404 || status === 410) await removeSubscription(sub.endpoint)
@@ -209,6 +220,7 @@ async function sendExpoPush(sub: Subscription, message: PushMessage) {
       sound: 'default',
       badge: message.badgeCount,
       data: message.data,
+      ...(message.urgent ? { priority: 'high', ttl: URGENT_TTL_SECONDS } : {}),
     }),
   })
 

@@ -2,9 +2,10 @@ import { createServiceClient } from '@/lib/supabase/service';
 import { NextResponse } from 'next/server';
 import { addDays, zonedNow } from '@/lib/dates';
 import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries';
-import { buildDayTasks, parseMinutes, reminderMinutes, type PlannerTask } from '@/lib/planner/tasks';
+import { alertMinutes, buildDayTasks, parseMinutes, type PlannerTask } from '@/lib/planner/tasks';
 
-// The workflow calls this every ~5 minutes. A reminder fires on the first call
+// Supabase pg_cron calls this every minute (supabase/migrations/*_task_reminders_cron.sql).
+// A reminder fires on the first call
 // at or after its time (each task picks how long before start), within a window
 // a bit wider than the interval so a late call never skips one; already-sent
 // reminders are deduped.
@@ -64,7 +65,8 @@ export async function GET(request: Request) {
       }
 
       for (const { task, day, minutesUntilTask } of candidates) {
-        const lead = reminderMinutes(task);
+        // Alarms with no reminder picked still ring at the start
+        const lead = alertMinutes(task);
         if (lead === null) continue;
         if (minutesUntilTask > lead || minutesUntilTask <= lead - WINDOW_MINUTES) continue;
 
@@ -93,11 +95,19 @@ export async function GET(request: Request) {
           visionEmoji = visionEmojis.get(task.vision_id)!;
         }
 
-        const title = minutesUntilTask <= 0
+        const when = minutesUntilTask <= 0
+          ? 'Starting now'
+          : minutesUntilTask >= 60
+          ? 'In 1 hour'
+          : `In ${minutesUntilTask} minute${minutesUntilTask === 1 ? '' : 's'}`;
+        const title = task.alarm
+          ? `⏰ ${task.text}`
+          : minutesUntilTask <= 0
           ? `${visionEmoji} Starting now`
           : minutesUntilTask >= 60
           ? `${visionEmoji} Task in 1 hour`
           : `${visionEmoji} Task in ${minutesUntilTask} minute${minutesUntilTask === 1 ? '' : 's'}`;
+        const body = task.alarm ? `Alarm · ${when} (${task.start})` : `${task.text} starts at ${task.start}`;
 
         const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
           method: 'POST',
@@ -109,9 +119,9 @@ export async function GET(request: Request) {
             targetUserId: user.id,
             type: 'task_reminder',
             title,
-            body: `${task.text} starts at ${task.start}`,
+            body,
             url: '/protected/planner',
-            data: { taskId: task.id, taskStart: task.start, day },
+            data: { taskId: task.id, taskStart: task.start, day, ...(task.alarm ? { alarm: true, taskText: task.text } : {}) },
             tag: `task-${task.id}-${day}`
           })
         });
