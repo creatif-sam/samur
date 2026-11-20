@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="0.55" stop-color="#6d28d9"/>
+      <stop offset="1" stop-color="#4c1d95"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.28" cy="0.2" r="0.8">
+      <stop offset="0" stop-color="#ddd6fe" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#ddd6fe" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="0.5" stop-color="#fcd34d"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  
+  <g transform="translate(512 512) scale(1.0) translate(-512 -512)"><g transform="translate(512 365) scale(0.74) translate(-512 -520)">
+      <path d="M512 310 L732 420 L512 530 L292 420 Z" fill="url(#gold)" stroke="url(#gold)" stroke-width="40" stroke-linejoin="round"/>
+      <path d="M292 522 L512 632 L732 522" fill="none" stroke="#ffffff" stroke-opacity="0.92" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M292 620 L512 730 L732 620" fill="none" stroke="#ffffff" stroke-opacity="0.62" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+    </g><path d="M327.0 610.0 V735.0 A75.0 75.0 0 0 0 477.0 735.0 V610.0" fill="none" stroke="url(#gold)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/><path d="M681.1 629.2 A75.0 50.0 0 1 0 622.0 710.0 A75.0 50.0 0 1 1 562.9 790.8" fill="none" stroke="#ffffff" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/></g>
+</svg>

@@ -1,7 +1,6 @@
 ﻿'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 const PHRASES = [
@@ -78,11 +77,13 @@ export default function SplashLoader() {
       >
         {/* Icon */}
         <motion.div
-          animate={{ rotate: [0, 12, -12, 0], scale: [1, 1.1, 1] }}
+          animate={{ scale: [1, 1.06, 1] }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-          className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-[0_0_40px_rgba(167,139,250,0.4)]"
+          className="w-24 h-24 rounded-3xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center shadow-[0_0_40px_rgba(167,139,250,0.4)]"
         >
-          <Sparkles className="w-8 h-8 text-violet-300" />
+          {/* The Mastery mark: three layers over "US" (Samuel & Urbright) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/us-mark.svg" alt="Mastery" width={80} height={80} className="w-20 h-20" />
         </motion.div>
 
         {/* Wordmark */}

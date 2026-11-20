@@ -2,7 +2,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // CACHE CONFIGURATION
 // ─────────────────────────────────────────────────────────────────────────────
-const CACHE_VERSION = 'v5'
+const CACHE_VERSION = 'v6'
 const STATIC_CACHE  = `mastery-static-${CACHE_VERSION}`   // hashed JS/CSS chunks
 const PAGES_CACHE   = `mastery-pages-${CACHE_VERSION}`    // app-shell HTML pages
 const ASSETS_CACHE  = `mastery-assets-${CACHE_VERSION}`   // icons, images, sounds
@@ -31,8 +31,9 @@ const PRECACHE_PAGES = [
 // Static public assets to pre-cache
 const PRECACHE_ASSETS = [
   '/manifest.json',
-  '/icon-192-v2.png',
-  '/icon-512-v2.png',
+  '/icon-192-v3.png',
+  '/icon-512-v3.png',
+  '/badge-96.png',
 ]
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -396,8 +397,8 @@ self.addEventListener('push', function (event) {
       const title = data.title || "Mastery🤍 Update";
       const options = {
         body: data.body || "You have a new update in Mastery.",
-        icon: '/icon-192-v2.png', // Main app icon (larger for visibility)
-        badge: '/icon-192-v2.png', // Badge icon for notification tray
+        icon: '/icon-192-v3.png', // Main app icon (larger for visibility)
+        badge: '/badge-96.png', // Monochrome badge for the notification tray
         image: data.image, // Optional large image
         vibrate: [200, 100, 200, 100, 200], // Stronger vibration pattern
         timestamp: Date.now(),
@@ -417,12 +418,12 @@ self.addEventListener('push', function (event) {
           {
             action: 'open',
             title: 'Open',
-            icon: '/icon-192-v2.png'
+            icon: '/icon-192-v3.png'
           },
           {
             action: 'close',
             title: 'Close',
-            icon: '/icon-192-v2.png'
+            icon: '/icon-192-v3.png'
           }
         ],
         // Additional options for better visibility
@@ -446,8 +447,8 @@ self.addEventListener('push', function (event) {
       event.waitUntil(
         self.registration.showNotification('Mastery Update', {
           body: 'You have a new notification',
-          icon: '/icon-192-v2.png',
-          badge: '/icon-192-v2.png',
+          icon: '/icon-192-v3.png',
+          badge: '/badge-96.png',
           tag: 'Mastery-fallback'
         })
       );

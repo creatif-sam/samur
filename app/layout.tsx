@@ -17,13 +17,20 @@ export const metadata: Metadata = {
   title: "Mastery Goals & Habits",
   description: "A personal app for couples & partners to share goals, plan, and connect",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon-192-v3.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512-v3.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
     title: "Mastery",
     startupImage: [
       {
-        url: "/icon-512.png",
+        url: "/icon-512-v3.png",
         media: "(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)",
       },
     ],
