@@ -31,7 +31,7 @@ export const translations = {
     // Navigation
     nav: {
       home: 'Home',
-      goals: 'Goals',
+      goals: 'Compass',
       planner: 'Planner',
       posts: 'Spirit',
       readApp: 'Library',
@@ -285,7 +285,7 @@ export const translations = {
     // Navigation
     nav: {
       home: 'Accueil',
-      goals: 'Objectifs',
+      goals: 'Boussole',
       planner: 'Planify',
       posts: 'Esprit',
       readApp: 'Lecture',

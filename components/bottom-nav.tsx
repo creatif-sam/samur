@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import React, { JSX, useEffect, useRef, useState } from 'react'
 import {
   Home,
-  Target,
+  Compass,
   Calendar,
   Flame,
   BookOpen,
@@ -16,7 +16,7 @@ import { useTranslation } from '@/contexts/TranslationContext'
 
 const navItems = [
   { href: '/protected', key: 'home', icon: Home },
-  { href: '/protected/goals', key: 'goals', icon: Target },
+  { href: '/protected/goals', key: 'goals', icon: Compass },
   { href: '/protected/note', key: 'note', icon: NotebookPen },
   { href: '/protected/readapp', key: 'readApp', icon: BookOpen },
   { href: '/protected/planner', key: 'planner', icon: Calendar },
