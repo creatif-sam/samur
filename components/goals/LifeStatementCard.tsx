@@ -173,7 +173,7 @@ function LifeStatementEditor({ open, initial, userId, ready, onClose, onSaved }:
       <DialogContent className="w-[95vw] max-w-lg max-h-[90svh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-black text-xl tracking-tight">Life mission &amp; vision</DialogTitle>
-          <DialogDescription>Your why and your where. Every vision and goal sits under these.</DialogDescription>
+          <DialogDescription>Your why and your where. Every role and goal sits under these.</DialogDescription>
         </DialogHeader>
 
         {!ready && (

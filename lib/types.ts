@@ -14,6 +14,8 @@ export type Goal = {
   completed_at?: string;
   category_id?: string;
   vision_id?: string;
+  // The role this goal serves (Covey); null until it is filed under one
+  role_id?: string | null;
 };
 
 export type Post = {

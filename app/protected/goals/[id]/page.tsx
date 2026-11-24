@@ -11,6 +11,7 @@ import { daysBetween, toLocalDateKey } from '@/lib/dates'
 import { dueDate, isOverdue } from '@/lib/goals'
 import { GoalCard, type EnhancedGoal } from '@/components/goals/GoalList'
 import { NewGoalForm, type GoalCategory } from '@/components/goals/NewGoalForm'
+import type { Role } from '@/lib/roles'
 import type { Vision } from '@/app/protected/goals/page'
 import { Button } from '@/components/ui/button'
 import {
@@ -35,6 +36,8 @@ export default function GoalDetailPage() {
   const [names, setNames] = useState<Record<string, string>>({})
   const [categories, setCategories] = useState<GoalCategory[]>([])
   const [visions, setVisions] = useState<Vision[]>([])
+  // The role this goal serves, when it is one of your roles
+  const [role, setRole] = useState<Pick<Role, 'name' | 'emoji' | 'color' | 'mission'> | null>(null)
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -64,6 +67,14 @@ export default function GoalDetailPage() {
     setNames(Object.fromEntries((profiles ?? []).map(p => [p.id, p.name || 'Partner'])))
     setCategories((cats ?? []).map(c => ({ id: c.id, name: c.name, color: c.color, emoji: c.emoji ?? undefined })))
     setVisions((vis ?? []) as Vision[])
+    // Read on its own: before the roles migration (or for a partner's goal) there is none to show
+    const roleId = (data as { role_id?: string | null }).role_id
+    if (roleId) {
+      const { data: r } = await supabase.from('roles').select('name, emoji, color, mission').eq('id', roleId).maybeSingle()
+      setRole(r ?? null)
+    } else {
+      setRole(null)
+    }
   }
 
   async function deleteGoal() {
@@ -158,6 +169,17 @@ export default function GoalDetailPage() {
             <p className="text-sm font-bold mt-0.5 truncate">{sharedWith ? (isOwner ? `With ${sharedWith}` : `From ${sharedWith}`) : 'Only you'}</p>
           </div>
         </div>
+
+        {role && (
+          <Link href="/protected/goals" className="flex items-center gap-3 rounded-2xl border border-border p-3" style={{ backgroundColor: `${role.color}14` }}>
+            <span className="text-xl">{role.emoji || '🎯'}</span>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Role</p>
+              <p className="text-sm font-bold truncate">{role.name}</p>
+              {role.mission && <p className="mt-0.5 line-clamp-2 font-serif text-xs text-muted-foreground">{role.mission}</p>}
+            </div>
+          </Link>
+        )}
 
         {vision && (
           <Link href="/protected/goals" className="flex items-center gap-3 rounded-2xl border border-border p-3" style={{ backgroundColor: `${vision.color}14` }}>

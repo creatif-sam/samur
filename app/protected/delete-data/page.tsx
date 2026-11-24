@@ -29,7 +29,7 @@ const DATA_TYPES = [
   {
     id: "goals" as DataType,
     label: "Goals & Progress",
-    description: "All your goals, progress tracking, and vision boards",
+    description: "All your goals, progress tracking, vision boards, roles and weekly big rocks",
   },
   {
     id: "posts" as DataType,

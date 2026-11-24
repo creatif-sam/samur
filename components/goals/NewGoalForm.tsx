@@ -19,6 +19,7 @@ import { ChevronDown, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toLocalDateKey } from '@/lib/dates'
 import { goalDatePresets, isFarAway, newGoalOwnership } from '@/lib/goalGuide'
+import { loadRoles, sortRoles, type Role } from '@/lib/roles'
 
 const CATEGORY_EMOJIS = ['🎯', '📚', '💪', '🙏', '💼', '❤️', '🧠', '🏡', '💰', '⏰']
 
@@ -50,13 +51,18 @@ export function NewGoalForm({
   visions,
   initialVisionId, // 1. Add this here
   initialData, // Add this to receive the goal being edited
+  roles: rolesProp,
+  initialRoleId,
 }: {
   onCancel: () => void
   onCreated: (goal: any) => void
   categories: GoalCategory[]
   visions: Vision[]
   initialVisionId?: string
-  initialData?: any 
+  initialData?: any
+  // Roles the goal can serve; loaded here when not given
+  roles?: Role[]
+  initialRoleId?: string
 }) {
 
   const supabase = createClient()
@@ -71,6 +77,26 @@ export function NewGoalForm({
   const [visionId, setVisionId] = useState<string>(
     initialData?.vision_id || initialVisionId || 'none'
   )
+  // The role this goal serves (Covey: every goal sits under a role)
+  const [roleId, setRoleId] = useState<string>(initialData?.role_id || initialRoleId || 'none')
+  const [roles, setRoles] = useState<Role[]>(rolesProp ?? [])
+  // Until the roles migration runs there is no role_id column, so it isn't sent
+  const [rolesReady, setRolesReady] = useState(rolesProp !== undefined)
+  useEffect(() => {
+    if (rolesProp !== undefined) { setRoles(rolesProp); setRolesReady(true); return }
+    let cancelled = false
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+      const res = await loadRoles(supabase, user.id)
+      if (cancelled) return
+      setRoles(res.roles)
+      setRolesReady(res.ready)
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolesProp])
+
   // Single toggle drives both goal_type and visibility
   const [isShared, setIsShared] = useState(
     initialData
@@ -79,7 +105,7 @@ export function NewGoalForm({
   )
   // Create only: the first small step goes to the planner to-dos, where it can be scheduled
   const [firstStep, setFirstStep] = useState('')
-  const [showMore, setShowMore] = useState(Boolean(initialData?.category_id))
+  const [showMore, setShowMore] = useState(Boolean(initialData?.category_id || initialData?.vision_id || initialVisionId))
   const [showCategoryInput, setShowCategoryInput] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [selectedEmoji, setSelectedEmoji] = useState(CATEGORY_EMOJIS[0])
@@ -99,6 +125,10 @@ export function NewGoalForm({
 
   // Archived visions are hidden, except the one this goal is already linked to
   const visionOptions = visions.filter(v => !v.is_archived || v.id === visionId)
+  // Archived roles likewise
+  const roleOptions = sortRoles(roles.filter(r => !r.is_archived || r.id === roleId))
+  // A partner editing your shared goal can't see your roles, so the role stays yours to set
+  const canSetRole = rolesReady && isOwner
 
 
 
@@ -149,6 +179,7 @@ export function NewGoalForm({
     }
     const goalPayload = {
       ...goalBase,
+      ...(canSetRole ? { role_id: roleId === 'none' ? null : roleId } : {}),
       ...(isOwner
         ? {
             goal_type: isShared ? 'combined' : 'single',
@@ -171,7 +202,11 @@ export function NewGoalForm({
     } else {
       const { data, error } = await supabase
         .from('goals')
-        .insert({ ...goalBase, ...newGoalOwnership({ ownerId: auth.user.id, shared: isShared, partnerId }) })
+        .insert({
+          ...goalBase,
+          ...(canSetRole && roleId !== 'none' ? { role_id: roleId } : {}),
+          ...newGoalOwnership({ ownerId: auth.user.id, shared: isShared, partnerId }),
+        })
         .select('*, visions(*), goal_categories(*)')
         .single()
       if (error) { toast.error('Failed to create goal'); return }
@@ -242,6 +277,34 @@ export function NewGoalForm({
         <p className={hintCls}>Say what you will do, and be specific.</p>
       </div>
 
+      {/* Role */}
+      {canSetRole && (
+        <div className="space-y-1.5">
+          <Label className={labelCls}>Which role does it serve?</Label>
+          {roleOptions.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {roleOptions.map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setRoleId(roleId === r.id ? 'none' : r.id)}
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-[12px] font-bold transition active:scale-95',
+                    roleId === r.id ? 'text-white' : 'border-border bg-muted/40 text-muted-foreground',
+                  )}
+                  style={roleId === r.id ? { backgroundColor: r.color, borderColor: r.color } : undefined}
+                >
+                  {r.emoji ?? '🎯'} {r.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className={hintCls}>Add your roles in the Roles tab to file goals under them.</p>
+          )}
+          {roleOptions.length > 0 && roleId === 'none' && <p className={hintCls}>Pick the role this goal serves. Without one it waits under Unassigned.</p>}
+        </div>
+      )}
+
       {/* Measurable outcome */}
       <div className="space-y-1.5">
         <Label className={labelCls}>How will you know it&apos;s done?</Label>
@@ -309,23 +372,6 @@ export function NewGoalForm({
         />
       </div>
 
-      {/* Vision */}
-      <div className="space-y-1.5">
-        <Label className={labelCls}>Linked vision</Label>
-        <Select value={visionId} onValueChange={setVisionId}>
-          <SelectTrigger>
-            <SelectValue placeholder="No vision (standalone)" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">No Vision (Standalone)</SelectItem>
-            {visionOptions.map(v => (
-              <SelectItem key={v.id} value={v.id}>✨ {v.title}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {visionOptions.length > 0 && <p className={hintCls}>A linked goal moves its vision forward.</p>}
-      </div>
-
       {/* Shared toggle (owner only) */}
       {isOwner ? (
         <div className="flex items-center justify-between rounded-2xl bg-muted/50 px-4 py-3">
@@ -353,6 +399,24 @@ export function NewGoalForm({
         </button>
         {showMore && (
           <div className="mt-3 space-y-1.5">
+            {/* Vision */}
+            <div className="space-y-1.5 pb-3">
+              <Label className={labelCls}>
+                Linked vision <span className="font-medium normal-case tracking-normal">(optional)</span>
+              </Label>
+              <Select value={visionId} onValueChange={setVisionId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No vision (standalone)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Vision (Standalone)</SelectItem>
+                  {visionOptions.map(v => (
+                    <SelectItem key={v.id} value={v.id}>✨ {v.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {visionOptions.length > 0 && <p className={hintCls}>A linked goal moves its vision forward.</p>}
+            </div>
             <Label className={labelCls}>
               Category <span className="font-medium normal-case tracking-normal">(optional)</span>
             </Label>

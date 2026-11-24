@@ -26,16 +26,28 @@ export const HELP = {
 
   // ── Goals ──
   'goals.page': {
-    title: 'Goals & Vision',
-    text: 'A goal is something you finish by a date. A vision is a bigger, long-term picture: link goals to it and it tracks their average progress. Use the tabs to see the big picture, your goals or your visions.',
+    title: 'Goals & Roles',
+    text: 'Begin with the end in mind. List the roles you live in, give each a mission and a vision, and set goals under them. Then put first things first: plan each week around your big rocks.',
+  },
+  'goals.roles': {
+    title: 'Roles',
+    text: 'A role is a part of life you are responsible for, like parent or professional. Group roles into categories, give each a mission and a vision, and add the goals that serve it. Its progress is the average of its goals.',
+  },
+  'goals.unassigned': {
+    title: 'Unassigned',
+    text: 'Goals with no role yet, grouped by their old vision. Use Move to file a goal, or Move all to file a whole group, under the role it serves.',
+  },
+  'goals.week': {
+    title: 'Your week',
+    text: 'Choose one or two big rocks for each role, the things that matter most this week. Tap the calendar icon to book time for one, tick it when done, and bring unfinished ones into the next week.',
   },
   'goals.life': {
     title: 'Life mission and vision',
-    text: 'Your mission says why you exist and how you live it out, in the present tense. Your vision describes the future you are building. Keep both short enough to remember; every vision and goal sits under them.',
+    text: 'Your mission says why you exist and how you live it out, in the present tense. Your vision describes the future you are building. Keep both short enough to remember; every role and goal sits under them.',
   },
   'goals.focus': {
-    title: 'Focus Vision',
-    text: 'Choose one vision to see only its goals everywhere on this page, or show them all.',
+    title: 'Focus role',
+    text: 'Choose one role to see only its goals on this page, or show them all. Unassigned shows your goals with no role yet.',
   },
   'goals.attention': {
     title: 'Needs attention',
@@ -51,7 +63,7 @@ export const HELP = {
   },
   'goals.overviewVisions': {
     title: 'Visions',
-    text: 'Each vision’s progress. The small line marks where an even pace would put you today. Tap one to open the Visions tab.',
+    text: 'Each vision’s progress. The small line marks where an even pace would put you today. Tap one to open your visions under Roles.',
   },
   'goals.list': {
     title: 'Your goals',
