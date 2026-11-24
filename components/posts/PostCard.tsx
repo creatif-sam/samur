@@ -20,6 +20,7 @@ import { PostHeader } from './PostHeader';
 import { PostActions } from './PostActions';
 import { CommentSection } from './CommentSection';
 import { FormattedContent } from './FormattedContent';
+import PostPhotos from './PostPhotos';
 import { composePost, kindInfo, parsePost } from '@/lib/posts';
 import { cn } from '@/lib/utils';
 
@@ -78,6 +79,7 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   const isMine = post.author_id === currentUserId;
   const { kind, body } = parsePost(post.content);
   const kindMeta = kindInfo(kind);
+  const photos = post.image_urls ?? [];
   const isLong = body.length > FOLD_CHARS || body.split('\n').length > FOLD_LINES;
   const [expanded, setExpanded] = useState(false);
   // On a prayer request, a "like" means "I prayed for this"
@@ -196,7 +198,8 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   // --- POST EDIT / DELETE ---
   const saveEdit = async () => {
     const text = editText.trim();
-    if (!text) return;
+    // A photo post may have no words
+    if (!text && !photos.length) return;
     // Only the words are edited; the post type line is kept as it was
     const next = composePost(kind, text);
     if (next === post.content) { setEditing(false); return; }
@@ -243,7 +246,7 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
             />
             <div className="flex justify-end gap-2">
               <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</Button>
-              <Button size="sm" onClick={saveEdit} disabled={savingEdit || !editText.trim()}>
+              <Button size="sm" onClick={saveEdit} disabled={savingEdit || (!editText.trim() && !photos.length)}>
                 {savingEdit ? 'Saving…' : 'Save'}
               </Button>
             </div>
@@ -259,19 +262,20 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
                 {kindMeta.emoji} {kindMeta.label}
               </span>
             )}
-            <p
+            {body && <p
               className={cn(
                 'whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground/90',
                 isLong && !expanded && !highlight && 'line-clamp-[8]',
               )}
             >
               <FormattedContent content={body} highlight={highlight} />
-            </p>
+            </p>}
             {isLong && !highlight && (
               <button onClick={() => setExpanded(e => !e)} className="mt-1 text-xs font-bold text-violet-600 dark:text-violet-400">
                 {expanded ? 'Show less' : 'Read more'}
               </button>
             )}
+            {photos.length > 0 && <div className={body ? 'mt-3' : ''}><PostPhotos urls={photos} /></div>}
           </>
         )}
       </div>

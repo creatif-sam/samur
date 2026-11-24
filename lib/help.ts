@@ -29,6 +29,10 @@ export const HELP = {
     title: 'Goals & Vision',
     text: 'A goal is something you finish by a date. A vision is a bigger, long-term picture: link goals to it and it tracks their average progress. Use the tabs to see the big picture, your goals or your visions.',
   },
+  'goals.life': {
+    title: 'Life mission and vision',
+    text: 'Your mission says why you exist and how you live it out, in the present tense. Your vision describes the future you are building. Keep both short enough to remember; every vision and goal sits under them.',
+  },
   'goals.focus': {
     title: 'Focus Vision',
     text: 'Choose one vision to see only its goals everywhere on this page, or show them all.',
@@ -157,7 +161,7 @@ export const HELP = {
   },
   'spirit.posts': {
     title: 'Posts',
-    text: 'Share a prayer request, thanks or something God showed you, with your partner or just for yourself. Tap “I prayed” on a request to stand with them.',
+    text: 'Share a prayer request, thanks or something God showed you, with your partner or just for yourself. Add up to four photos with the picture button. Tap “I prayed” on a request to stand with them.',
   },
   'spirit.streak': {
     title: 'Meditation streak',

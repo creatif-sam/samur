@@ -26,6 +26,8 @@ export type Post = {
   created_at: string;
   // Set when a prayer request has been marked as answered
   answered_at?: string | null;
+  // Public links to the post's photos (up to 4)
+  image_urls?: string[] | null;
 };
 
 export type PostReaction = {

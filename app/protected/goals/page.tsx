@@ -21,6 +21,7 @@ import { GoalList } from '@/components/goals/GoalList'
 import { GoalsOverview } from '@/components/goals/GoalsOverview'
 import { VisionCreator } from '@/components/goals/VisionCreator'
 import { VisionListView } from '@/components/goals/VisionListView'
+import LifeStatementCard from '@/components/goals/LifeStatementCard'
 import { cn } from '@/lib/utils'
 import { dueDate, inPeriod, isOverdue } from '@/lib/goals'
 import { parseDateKey } from '@/lib/dates'
@@ -139,6 +140,9 @@ export default function GoalsPage() {
         </div>
 
       </header>
+
+      {/* The why and the where above every vision and goal */}
+      <LifeStatementCard variant="goals" />
 
       <div className="flex flex-col gap-3 bg-secondary/20 p-4 rounded-xl border border-dashed border-primary/20">
         <div className="flex justify-center sm:justify-start items-center gap-2 text-primary font-bold text-[10px] uppercase">

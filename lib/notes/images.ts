@@ -22,17 +22,21 @@ async function compress(file: File): Promise<Blob> {
   }
 }
 
-// Uploads a photo into the user's own folder and returns its public URL
-export async function uploadNoteImage(supabase: SupabaseClient, userId: string, file: File) {
+// Uploads a photo into the user's own folder of a public bucket and returns its public URL
+export async function uploadImage(supabase: SupabaseClient, bucket: string, userId: string, file: File) {
   if (!file.type.startsWith('image/')) throw new Error('Choose an image file')
   if (file.size > MAX_BYTES) throw new Error('That image is too large (max 12 MB)')
   const blob = await compress(file)
-  const ext = blob.type === 'image/jpeg' ? 'jpg' : (file.name.split('.').pop() || 'png').toLowerCase()
+  const named = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : ''
+  const ext = blob.type === 'image/jpeg' ? 'jpg' : /^[a-z0-9]{2,5}$/.test(named) ? named : (blob.type.split('/')[1] || 'png').replace(/[^a-z0-9]/g, '').slice(0, 5) || 'png'
   const path = `${userId}/${crypto.randomUUID()}.${ext}`
-  const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
+  const { error } = await supabase.storage.from(bucket).upload(path, blob, {
     contentType: blob.type || file.type,
     cacheControl: '31536000',
   })
   if (error) throw error
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
+  return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl
 }
+
+export const uploadNoteImage = (supabase: SupabaseClient, userId: string, file: File) =>
+  uploadImage(supabase, BUCKET, userId, file)

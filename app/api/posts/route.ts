@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { detectMentions } from '@/lib/mentions'
 import { notify } from '@/lib/push-notifications'
+import { cleanPostImages } from '@/lib/postImages'
 
 export async function POST(req: Request) {
   try {
@@ -14,7 +15,9 @@ export async function POST(req: Request) {
     const body = await req.json()
     const content = typeof body.content === 'string' ? body.content.trim() : ''
     const visibility: 'private' | 'shared' = body.visibility === 'private' ? 'private' : 'shared'
-    if (!content) return NextResponse.json({ error: 'Write something first' }, { status: 400 })
+    // Photos must be in the poster's own folder of this project's bucket
+    const imageUrls = cleanPostImages(body.image_urls, process.env.NEXT_PUBLIC_SUPABASE_URL ?? '', user.id)
+    if (!content && !imageUrls.length) return NextResponse.json({ error: 'Write something or add a photo first' }, { status: 400 })
 
     // 2. Fetch Partner ID for the notification
     const { data: profile } = await supabase
@@ -34,10 +37,15 @@ export async function POST(req: Request) {
         author_id: user.id, // Mandatory column in your schema
         user_id: user.id,   // Included for consistency
         partner_id: visibility === 'shared' ? partnerId : null,
+        // Only sent with photos, so text posts still work before the photo migration is run
+        ...(imageUrls.length ? { image_urls: imageUrls } : {}),
       })
       .select()
       .single()
 
+    if (dbError && /image_urls/.test(dbError.message)) {
+      return NextResponse.json({ error: 'Photos need a quick database update first (the post photos migration). Post without the photo for now.' }, { status: 400 })
+    }
     if (dbError) {
       console.error("❌ Database Insert Error:", dbError.message)
       return NextResponse.json({ error: dbError.message }, { status: 500 })
@@ -52,7 +60,9 @@ export async function POST(req: Request) {
           userId: partnerId,
           type: 'post',
           title: 'New post from your partner 🤍',
-          body: content.slice(0, 60) + (content.length > 60 ? '...' : ''),
+          body: content
+            ? content.slice(0, 60) + (content.length > 60 ? '...' : '')
+            : `📷 ${imageUrls.length === 1 ? 'A photo' : `${imageUrls.length} photos`}`,
           url: '/protected/posts?tab=posts',
         })
       } catch (notifyError) {

@@ -7,6 +7,7 @@ import DailyVerseCard from '@/components/meditations/DailyVerse'
 import HomeQuickNav from '@/components/home/HomeQuickNav'
 import GratitudeCard from '@/components/home/GratitudeCard'
 import YearThemeCard from '@/components/home/YearThemeCard'
+import LifeStatementCard from '@/components/goals/LifeStatementCard'
 import UpcomingGoalsCountdown from '@/components/home/UpcomingGoalsCountdown'
 import TodayPanel from '@/components/home/TodayPanel'
 import CurrentBookCard, { type CurrentBook } from '@/components/home/CurrentBookCard'
@@ -62,6 +63,7 @@ export default function HomePage() {
         </div>
 
         <TodayPanel userId={userId} goals={goals} />
+        <LifeStatementCard variant="home" />
         <YearThemeCard />
         <GratitudeCard />
         <HomeQuickNav />

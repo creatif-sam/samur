@@ -3,7 +3,7 @@
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { BookMarked, Loader2, Lock, NotebookPen, RefreshCw, Search, Send, Users, X } from 'lucide-react'
+import { BookMarked, ImagePlus, Loader2, Lock, NotebookPen, RefreshCw, Search, Send, Users, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { PostComment, PostReaction } from '@/lib/types'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/offline'
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea'
 import PostCard, { type PostWithProfile } from '@/components/posts/PostCard'
 import DailyJournalModal from '@/components/posts/DailyJournalModal'
 import { cn } from '@/lib/utils'
+import { MAX_POST_PHOTOS, deletePostImages, uploadPostImage } from '@/lib/postImages'
 
 const PAGE_SIZE = 15
 const COMPOSER_DRAFT_KEY = 'post-composer'
@@ -25,7 +26,9 @@ type FeedData = {
   comments: Record<string, PostComment[]>
 }
 type Filter = 'all' | 'partner' | 'mine' | 'private' | 'answered' | PostKind
-type Draft = { content: string; visibility: 'private' | 'shared'; kind?: PostKind | null }
+type Draft = { content: string; visibility: 'private' | 'shared'; kind?: PostKind | null; images?: string[] }
+// A photo in the composer: shown from the device at once, then from storage once uploaded
+type ComposerPhoto = { id: string; preview: string; url: string | null }
 
 function group<T extends { post_id: string }>(rows: T[]) {
   const map: Record<string, T[]> = {}
@@ -56,12 +59,19 @@ export default function PostsTab() {
   // Partner posts newer than this were posted since your last visit
   const [seenBefore, setSeenBefore] = useState<string | null>(null)
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  const [photos, setPhotos] = useState<ComposerPhoto[]>([])
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
+  const uploadedUrls = photos.flatMap(p => (p.url ? [p.url] : []))
+  const uploading = photos.some(p => !p.url)
+  // Photos removed (or the composer closed) while still uploading; deleted from storage once their upload lands
+  const removedWhileUploading = useRef(new Set<string>())
 
   useEffect(() => {
     // Bring back an unfinished post
     const draft = loadDraft<Draft>(COMPOSER_DRAFT_KEY)
-    if (draft?.content) {
-      setContent(draft.content)
+    if (draft?.content || draft?.images?.length) {
+      setContent(draft.content ?? '')
+      setPhotos((draft.images ?? []).map(url => ({ id: url, preview: url, url })))
       setVisibility(draft.visibility)
       setKind(draft.kind ?? null)
       setShowComposer(true)
@@ -72,11 +82,12 @@ export default function PostsTab() {
   // Keep the composer text on the device until it's posted
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (content.trim()) saveDraft(COMPOSER_DRAFT_KEY, { content, visibility, kind })
+      if (content.trim() || uploadedUrls.length) saveDraft(COMPOSER_DRAFT_KEY, { content, visibility, kind, images: uploadedUrls })
       else clearDraft(COMPOSER_DRAFT_KEY)
     }, 400)
     return () => clearTimeout(timer)
-  }, [content, visibility, kind])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [content, visibility, kind, uploadedUrls.join(' ')])
 
   async function init() {
     const supabase = createClient()
@@ -162,26 +173,73 @@ export default function PostsTab() {
     setTimeout(() => composerRef.current?.focus(), 50)
   }
 
-  function closeComposer() {
+  // After posting: the photos now belong to the post
+  function resetComposer() {
+    photos.forEach(p => { if (p.preview.startsWith('blob:')) URL.revokeObjectURL(p.preview) })
+    setPhotos([])
     setShowComposer(false)
     setContent('')
     setKind(null)
     clearDraft(COMPOSER_DRAFT_KEY)
   }
 
+  // Closing without posting throws the draft away, photos included
+  function closeComposer() {
+    void deletePostImages(createClient(), uploadedUrls)
+    photos.forEach(p => { if (!p.url) removedWhileUploading.current.add(p.id) })
+    resetComposer()
+  }
+
+  async function addPhotos(files: FileList | null) {
+    if (!files?.length || !userId) return
+    const room = MAX_POST_PHOTOS - photos.length
+    const picked = Array.from(files).slice(0, Math.max(0, room))
+    if (files.length > room) toast.message(`Up to ${MAX_POST_PHOTOS} photos per post`)
+    const added = picked.map(file => ({ file, photo: { id: crypto.randomUUID(), preview: URL.createObjectURL(file), url: null } as ComposerPhoto }))
+    setPhotos(prev => [...prev, ...added.map(a => a.photo)])
+    const supabase = createClient()
+    await Promise.all(added.map(async ({ file, photo }) => {
+      try {
+        const url = await uploadPostImage(supabase, userId, file)
+        if (removedWhileUploading.current.delete(photo.id)) {
+          void deletePostImages(supabase, [url])
+          return
+        }
+        setPhotos(prev => prev.map(p => (p.id === photo.id ? { ...p, url } : p)))
+      } catch (err) {
+        URL.revokeObjectURL(photo.preview)
+        setPhotos(prev => prev.filter(p => p.id !== photo.id))
+        if (removedWhileUploading.current.delete(photo.id)) return
+        const msg = err instanceof Error ? err.message : ''
+        toast.error(/bucket|not found|policy|row-level/i.test(msg)
+          ? 'Photos need a quick database update first (the post photos migration).'
+          : msg || "Couldn't add that photo")
+      }
+    }))
+  }
+
+  function removePhoto(id: string) {
+    const photo = photos.find(p => p.id === id)
+    if (!photo) return
+    if (photo.preview.startsWith('blob:')) URL.revokeObjectURL(photo.preview)
+    if (photo.url) void deletePostImages(createClient(), [photo.url])
+    else removedWhileUploading.current.add(id)
+    setPhotos(prev => prev.filter(p => p.id !== id))
+  }
+
   async function createPost() {
-    if (!content.trim() || isSubmitting || !userId) return
+    if ((!content.trim() && !uploadedUrls.length) || uploading || isSubmitting || !userId) return
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: composePost(kind, content), visibility }),
+        body: JSON.stringify({ content: content.trim() ? composePost(kind, content) : '', visibility, image_urls: uploadedUrls }),
       })
       const result = await res.json().catch(() => ({}))
       if (!res.ok) { toast.error(result.error || 'Failed to publish post'); return }
       toast.success(visibility === 'shared' ? `Shared with ${partnerName || 'your partner'}` : 'Saved privately')
-      closeComposer()
+      resetComposer()
       await loadPage(userId, partnerId, 0)
     } catch (err) {
       console.error('Network error while posting:', err)
@@ -233,11 +291,14 @@ export default function PostsTab() {
   }
 
   async function deletePost(id: string) {
-    const { error } = await createClient().from('posts').delete().eq('id', id)
+    const supabase = createClient()
+    const photosOf = posts.find(p => p.id === id)?.image_urls
+    const { error } = await supabase.from('posts').delete().eq('id', id)
     if (error) {
       toast.error(error.message || "Couldn't delete the post")
       return false
     }
+    void deletePostImages(supabase, photosOf)
     setPosts(prev => prev.filter(p => p.id !== id))
     toast.success('Post deleted')
     return true
@@ -397,15 +458,52 @@ export default function PostsTab() {
             disabled={isSubmitting}
           />
 
+          {photos.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-3">
+              {photos.map(p => (
+                <div key={p.id} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-muted">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={p.preview} alt="" className={cn('h-full w-full object-cover', !p.url && 'opacity-60')} />
+                  {!p.url && <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-white drop-shadow" />}
+                  <button
+                    onClick={() => removePhoto(p.id)}
+                    aria-label="Remove photo"
+                    disabled={isSubmitting}
+                    className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center gap-2 px-4 py-3 border-t border-border bg-muted/30">
             <p className="text-[11px] text-muted-foreground">
-              {content.trim() ? 'Draft saved on this device' : visibility === 'shared' && partnerName ? `${partnerName} will be notified` : ''}
+              {uploading ? 'Adding photos…' : content.trim() || uploadedUrls.length ? 'Draft saved on this device' : visibility === 'shared' && partnerName ? `${partnerName} will be notified` : ''}
             </p>
-            <DictationButton className="w-9 h-9 ml-auto" onText={text => setContent(c => appendDictation(c, text))} />
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={e => { void addPhotos(e.target.files); e.target.value = '' }}
+            />
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              disabled={isSubmitting || photos.length >= MAX_POST_PHOTOS}
+              aria-label="Add photos"
+              className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+            >
+              <ImagePlus className="h-[18px] w-[18px]" />
+            </button>
+            <DictationButton className="w-9 h-9" onText={text => setContent(c => appendDictation(c, text))} />
             <Button
               size="sm"
               onClick={createPost}
-              disabled={isSubmitting || !content.trim()}
+              disabled={isSubmitting || uploading || (!content.trim() && !uploadedUrls.length)}
               className="rounded-full px-5 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white border-0"
             >
               {isSubmitting
