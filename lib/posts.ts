@@ -55,3 +55,15 @@ export function dayLabel(iso: string, now = new Date()) {
     year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric',
   })
 }
+
+// "now", "5m", "3h", "2d", "4w": the short times shown under comments
+export function shortAgo(iso: string, now = Date.now()) {
+  const mins = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60_000))
+  if (mins < 1) return trNow('now')
+  if (mins < 60) return trNow('{n}m', { n: mins })
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return trNow('{n}h', { n: hours })
+  const days = Math.floor(hours / 24)
+  if (days < 7) return trNow('{n}d', { n: days })
+  return trNow('{n}w', { n: Math.floor(days / 7) })
+}

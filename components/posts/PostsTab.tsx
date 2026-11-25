@@ -4,7 +4,7 @@ import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { BookMarked, ImagePlus, Loader2, Lock, NotebookPen, RefreshCw, Search, Send, Users, X } from 'lucide-react'
+import { BookMarked, ImagePlus, Loader2, Lock, NotebookPen, Plus, RefreshCw, Search, Send, Users, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { PostComment, PostReaction } from '@/lib/types'
 import { clearDraft, loadDraft, saveDraft } from '@/lib/offline'
@@ -62,6 +62,8 @@ export default function PostsTab() {
   const [seenBefore, setSeenBefore] = useState<string | null>(null)
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const [photos, setPhotos] = useState<ComposerPhoto[]>([])
+  // The photo shown large in the composer (the newest by default)
+  const [activePhotoId, setActivePhotoId] = useState<string | null>(null)
   const photoInputRef = useRef<HTMLInputElement | null>(null)
   const uploadedUrls = photos.flatMap(p => (p.url ? [p.url] : []))
   const uploading = photos.some(p => !p.url)
@@ -199,6 +201,7 @@ export default function PostsTab() {
     if (files.length > room) toast.message(tr('Up to {MAX_POST_PHOTOS} photos per post', { MAX_POST_PHOTOS: MAX_POST_PHOTOS }))
     const added = picked.map(file => ({ file, photo: { id: crypto.randomUUID(), preview: URL.createObjectURL(file), url: null } as ComposerPhoto }))
     setPhotos(prev => [...prev, ...added.map(a => a.photo)])
+    if (added.length) setActivePhotoId(added[0].photo.id)
     const supabase = createClient()
     await Promise.all(added.map(async ({ file, photo }) => {
       try {
@@ -456,25 +459,55 @@ export default function PostsTab() {
             disabled={isSubmitting}
           />
 
-          {photos.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-3">
-              {photos.map(p => (
-                <div key={p.id} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-muted">
+          {photos.length > 0 && (() => {
+            // A large preview of the chosen photo, with the others in a strip below
+            const shown = photos.find(p => p.id === activePhotoId) ?? photos[photos.length - 1]
+            const index = photos.indexOf(shown)
+            return (
+              <div className="px-4 pb-3">
+                <div className="relative mx-auto aspect-[4/5] max-h-[22rem] w-full overflow-hidden rounded-2xl bg-muted">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.preview} alt="" className={cn('h-full w-full object-cover', !p.url && 'opacity-60')} />
-                  {!p.url && <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-white drop-shadow" />}
+                  <img src={shown.preview} alt="" className={cn('h-full w-full object-cover transition-opacity', !shown.url && 'opacity-60')} />
+                  {!shown.url && <Loader2 className="absolute inset-0 m-auto h-7 w-7 animate-spin text-white drop-shadow" />}
+                  {photos.length > 1 && (
+                    <span className="absolute left-3 top-3 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-white">{index + 1}/{photos.length}</span>
+                  )}
                   <button
-                    onClick={() => removePhoto(p.id)}
+                    onClick={() => removePhoto(shown.id)}
                     aria-label={tr('Remove photo')}
                     disabled={isSubmitting}
-                    className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"
+                    className="absolute right-2.5 top-2.5 grid h-8 w-8 place-items-center rounded-full bg-black/60 text-white backdrop-blur-sm"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4" />
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto">
+                  {photos.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setActivePhotoId(p.id)}
+                      aria-label={tr('Show photo')}
+                      className={cn('relative h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-muted ring-offset-2 ring-offset-background transition', p.id === shown.id ? 'ring-2 ring-violet-600' : 'opacity-70')}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.preview} alt="" className="h-full w-full object-cover" />
+                      {!p.url && <Loader2 className="absolute inset-0 m-auto h-4 w-4 animate-spin text-white drop-shadow" />}
+                    </button>
+                  ))}
+                  {photos.length < MAX_POST_PHOTOS && (
+                    <button
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={isSubmitting}
+                      aria-label={tr('Add photos')}
+                      className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border-2 border-dashed border-border text-muted-foreground hover:text-foreground"
+                    >
+                      <Plus className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           <div className="flex items-center gap-2 px-4 py-3 border-t border-border bg-muted/30">
             <p className="text-[11px] text-muted-foreground">

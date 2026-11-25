@@ -2,7 +2,7 @@
 
 import { appLocale } from '@/lib/i18n'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
 import { Post, PostReaction, PostComment, Profile } from '@/lib/types';
@@ -20,7 +20,7 @@ import {
 // Sub-components
 import { PostHeader } from './PostHeader';
 import { PostActions } from './PostActions';
-import { CommentSection } from './CommentSection';
+import { CommentBox, CommentList } from './CommentSection';
 import { FormattedContent } from './FormattedContent';
 import PostPhotos from './PostPhotos';
 import { composePost, kindInfo, parsePost } from '@/lib/posts';
@@ -69,6 +69,9 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   const [comments, setComments] = useState<PostComment[]>(initialComments);
   const [showComments, setShowComments] = useState(false);
   const [newComment, setNewComment] = useState('');
+  // Set when replying to a comment from the box under the post
+  const [replyTo, setReplyTo] = useState<PostComment | null>(null);
+  const commentBox = useRef<HTMLTextAreaElement | null>(null);
   const [loading, setLoading] = useState(false);
 
   const [editing, setEditing] = useState(false);
@@ -89,8 +92,12 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   const isPrayer = kind === 'prayer';
   const answered = isPrayer && !!post.answered_at;
   // On your own posts, show that your partner liked (or prayed for) it
-  const likedBy = isMine && reactions.some(r => r.user_id !== currentUserId)
-    ? `${partnerName || 'Your partner'} ${isPrayer ? 'prayed for this' : 'liked this'}`
+  const partnerReacted = isMine && reactions.some(r => r.user_id !== currentUserId);
+  const who = partnerName || tr('Your partner');
+  const likedBy = partnerReacted
+    ? isPrayer
+      ? (userReaction ? tr('{name} and you prayed for this', { name: who }) : tr('{name} prayed for this', { name: who }))
+      : (userReaction ? tr('Liked by {name} and you', { name: who }) : tr('Liked by {name}', { name: who }))
     : null;
 
   const copyText = async () => {
@@ -128,10 +135,31 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   };
 
   const handleComment = async () => {
-    if (await postComment(newComment)) setNewComment('');
+    if (await postComment(newComment, replyTo?.id)) {
+      setNewComment('');
+      if (commentBox.current) commentBox.current.style.height = 'auto';
+      // Show the new comment (or reply) in the open list
+      setReplyTo(null);
+      setShowComments(true);
+    }
   };
 
-  const handleReply = (parentId: string, content: string) => postComment(content, parentId);
+  const focusCommentBox = () => setTimeout(() => commentBox.current?.focus(), 0);
+
+  const startReply = (comment: PostComment) => {
+    setReplyTo(comment);
+    focusCommentBox();
+  };
+
+  // Share the words through the phone's share sheet, or copy them
+  const sharePost = async () => {
+    const text = body || post.content;
+    try {
+      if (navigator.share) { await navigator.share({ text }); return; }
+      await navigator.clipboard.writeText(text);
+      toast.success(tr('Copied'));
+    } catch { /* closed the share sheet */ }
+  };
 
   const handleEditComment = async (commentId: string, content: string) => {
     if (!content.trim()) return false;
@@ -157,6 +185,8 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
       toast.error(error.message || tr('Couldn\'t delete the comment'));
     }
   };
+
+  const likeFromPhoto = () => { if (!userReaction) void handleReaction(); };
 
   // --- REACTIONS ---
   const handleReaction = async () => {
@@ -237,8 +267,11 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
         onToggleAnswered={() => onToggleAnswered?.(post.id, !answered)}
       />
 
-      <div className="px-4 pb-3">
-        {editing ? (
+      {/* Photo posts: the photo first, like a feed; the words come after the icons */}
+      {photos.length > 0 && !editing && <PostPhotos urls={photos} onDoubleTap={likeFromPhoto} />}
+
+      {editing ? (
+        <div className="px-4 pb-3">
           <div className="space-y-2">
             <Textarea
               autoFocus
@@ -254,8 +287,9 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
               </Button>
             </div>
           </div>
-        ) : (
-          <>
+        </div>
+      ) : photos.length === 0 && (
+        <div className="px-4 pb-1">
             {answered ? (
               <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
                 {tr('🙌 Prayer answered · {value}', { value: new Date(post.answered_at!).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) })}
@@ -278,36 +312,87 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
                 {expanded ? tr('Show less') : tr('Read more')}
               </button>
             )}
-            {photos.length > 0 && <div className={body ? 'mt-3' : ''}><PostPhotos urls={photos} /></div>}
-          </>
-        )}
-      </div>
+        </div>
+      )}
 
       <PostActions
         userReaction={userReaction}
         likeCount={reactions.length}
-        commentCount={comments.length}
         likedBy={likedBy}
         prayer={isPrayer}
-        showComments={showComments}
         onReaction={handleReaction}
-        onToggleComments={() => setShowComments(!showComments)}
+        onComment={() => { setReplyTo(null); focusCommentBox(); }}
+        onShare={sharePost}
         loading={loading}
       />
 
-      {showComments && (
-        <CommentSection
-          comments={tree}
-          newComment={newComment}
-          setNewComment={setNewComment}
-          onComment={handleComment}
-          onReply={handleReply}
-          onEdit={handleEditComment}
-          onDelete={handleDeleteComment}
-          currentUserId={currentUserId}
-          loading={loading}
-        />
+      {photos.length > 0 && !editing && (body || kindMeta || answered) && (
+        <div className="px-4 pt-1">
+            {answered ? (
+              <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                {tr('🙌 Prayer answered · {value}', { value: new Date(post.answered_at!).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) })}
+              </span>
+            ) : kindMeta && (
+              <span className={cn('mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold', kindMeta.pill)}>
+                {kindMeta.emoji} {tr(kindMeta.label)}
+              </span>
+            )}
+            {body && <p
+              className={cn(
+                'whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground/90',
+                isLong && !expanded && !highlight && 'line-clamp-[8]',
+              )}
+            >
+              <FormattedContent content={body} highlight={highlight} />
+            </p>}
+            {isLong && !highlight && (
+              <button onClick={() => setExpanded(e => !e)} className="mt-1 text-xs font-bold text-violet-600 dark:text-violet-400">
+                {expanded ? tr('Show less') : tr('Read more')}
+              </button>
+            )}
+        </div>
       )}
+
+      {/* Comments: a peek at the latest, or the whole list when opened */}
+      {comments.length > 0 && !showComments && (
+        <div className="space-y-1 px-4 pt-1.5">
+          {/* More than the peek shows (older comments, or replies) */}
+          {(comments.length > 2 || tree.length < comments.length) && (
+            <button onClick={() => setShowComments(true)} className="text-sm text-muted-foreground">
+              {tr('View all {n} comments', { n: comments.length })}
+            </button>
+          )}
+          {tree.slice(-2).map(c => (
+            <p key={c.id} className="line-clamp-2 break-words text-sm">
+              <span className="mr-1.5 font-semibold">{c.profiles?.name || tr('Anonymous')}</span>
+              <span className="text-foreground/90">{c.content}</span>
+            </p>
+          ))}
+        </div>
+      )}
+      {showComments && (
+        <>
+          <CommentList
+            comments={tree}
+            currentUserId={currentUserId}
+            onReply={startReply}
+            onEdit={handleEditComment}
+            onDelete={handleDeleteComment}
+            loading={loading}
+          />
+          <button onClick={() => setShowComments(false)} className="px-4 pt-3 text-sm text-muted-foreground">{tr('Hide comments')}</button>
+        </>
+      )}
+
+      <CommentBox
+        ref={commentBox}
+        value={newComment}
+        onChange={setNewComment}
+        onSubmit={handleComment}
+        replyingTo={replyTo ? (replyTo.profiles?.name || tr('Anonymous')) : null}
+        onCancelReply={() => setReplyTo(null)}
+        loading={loading}
+      />
 
       <Dialog open={confirmDelete} onOpenChange={open => !deleting && setConfirmDelete(open)}>
         <DialogContent className="sm:max-w-md">

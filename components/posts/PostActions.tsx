@@ -1,62 +1,69 @@
 'use client'
 
 import { useTranslation } from '@/contexts/TranslationContext'
-import { HandHeart, Heart, MessageCircle } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { HandHeart, Heart, MessageCircle, Send } from 'lucide-react'
 import type { PostReaction } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 interface PostActionsProps {
   userReaction: PostReaction | null
   likeCount: number
-  commentCount: number
+  // "Liked by Urbright" on your own posts, when your partner liked (or prayed for) it
   likedBy: string | null
-  // Prayer requests use "I prayed" instead of "Like"
+  // Prayer requests use "I prayed" (a praying hand) instead of a heart
   prayer?: boolean
-  showComments: boolean
   onReaction: () => void
-  onToggleComments: () => void
+  onComment: () => void
+  onShare: () => void
   loading: boolean
 }
 
-export function PostActions({ userReaction, likeCount, commentCount, likedBy, prayer, showComments, onReaction, onToggleComments, loading }: PostActionsProps) {
+// An icon row (heart, comment, share), then who liked it
+export function PostActions({ userReaction, likeCount, likedBy, prayer, onReaction, onComment, onShare, loading }: PostActionsProps) {
   const { tr } = useTranslation()
+  const on = !!userReaction
   const Icon = prayer ? HandHeart : Heart
-  const on = prayer
-    ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-300'
-    : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400'
   return (
-    <div className="px-4 pb-3">
-      {likedBy && (
-        <p className={cn('mb-2 flex items-center gap-1 text-[11px] font-semibold', prayer ? 'text-violet-600 dark:text-violet-300' : 'text-rose-500')}>
-          <Icon className="h-3 w-3 fill-current" /> {likedBy}
-        </p>
-      )}
-      <div className="grid grid-cols-2 gap-2 border-t border-border/60 pt-2">
+    <div className="px-2.5 pt-1.5">
+      <div className="flex items-center">
         <button
           onClick={onReaction}
           disabled={loading}
-          aria-pressed={!!userReaction}
-          className={cn(
-            'flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition active:scale-95 disabled:opacity-60',
-            userReaction ? on : 'text-muted-foreground hover:bg-muted',
-          )}
+          aria-pressed={on}
+          aria-label={prayer ? (on ? tr('Prayed') : tr('I prayed')) : on ? tr('Unlike') : tr('Like')}
+          className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-muted/60 disabled:opacity-70"
         >
-          <Icon className={cn('h-4 w-4 transition-transform', userReaction && !prayer && 'fill-current', userReaction && 'scale-110')} />
-          {prayer ? (userReaction ? tr('Prayed') : tr('I prayed')) : userReaction ? tr('Liked') : tr('Like')}
-          {likeCount > 0 && <span className="tabular-nums opacity-70">{likeCount}</span>}
+          <motion.span
+            key={on ? 'on' : 'off'}
+            initial={on ? { scale: 0.6 } : false}
+            animate={{ scale: on ? [0.6, 1.25, 1] : 1 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="grid place-items-center"
+          >
+            <Icon
+              strokeWidth={on ? 2 : 1.75}
+              className={cn(
+                'h-[26px] w-[26px] transition-colors',
+                on ? (prayer ? 'fill-violet-500 text-violet-600 dark:text-violet-400' : 'fill-[#ff3040] text-[#ff3040]') : 'text-foreground',
+              )}
+            />
+          </motion.span>
         </button>
-        <button
-          onClick={onToggleComments}
-          aria-expanded={showComments}
-          className={cn(
-            'flex items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-bold transition active:scale-95',
-            showComments ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted',
-          )}
-        >
-          <MessageCircle className="h-4 w-4" />
-          {commentCount > 0 ? tr('{commentCount} {commentCount:comment|comments}', { commentCount: commentCount }) : tr('Comment')}
+        <button onClick={onComment} aria-label={tr('Comment')} className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted/60">
+          <MessageCircle strokeWidth={1.75} className="h-[25px] w-[25px] -scale-x-100 text-foreground" />
+        </button>
+        <button onClick={onShare} aria-label={tr('Share')} className="grid h-10 w-10 place-items-center rounded-full hover:bg-muted/60">
+          <Send strokeWidth={1.75} className="h-[23px] w-[23px] -rotate-12 text-foreground" />
         </button>
       </div>
+      {(likedBy || likeCount > 0) && (
+        <p className="px-1.5 text-sm font-semibold">
+          {likedBy ?? (prayer
+            ? tr('{n} {n:person prayed|people prayed}', { n: likeCount })
+            : tr('{n} {n:like|likes}', { n: likeCount }))}
+        </p>
+      )}
     </div>
   )
 }
