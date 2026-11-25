@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -42,6 +43,7 @@ export interface Vision {
 // with a weekly plan of big rocks per role. Your overall life mission and vision
 // sit above everything, and older visions are kept under the Roles tab.
 export default function GoalsPage() {
+  const { tr } = useTranslation()
   const supabase = createClient()
 
   const [goals, setGoals] = useState<Goal[]>([])
@@ -138,7 +140,7 @@ export default function GoalsPage() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center text-muted-foreground animate-pulse font-black uppercase">
-        Loading Architecture
+        {tr('Loading Architecture')}
       </div>
     )
   }
@@ -149,12 +151,12 @@ export default function GoalsPage() {
         <div className="text-center sm:text-left">
           <div className="flex items-center justify-center gap-1 sm:justify-start">
             <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase">
-              Goals & Roles
+              {tr('Goals & Roles')}
             </h1>
             <HelpTip topic="goals.page" align="left" />
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            "Write the vision and make it plain." Habakkuk 2:2
+            {tr('"Write the vision and make it plain." Habakkuk 2:2')}
           </p>
         </div>
 
@@ -167,22 +169,22 @@ export default function GoalsPage() {
         <div className="flex flex-col gap-3 bg-secondary/20 p-4 rounded-xl border border-dashed border-primary/20">
           <div className="flex justify-center sm:justify-start items-center gap-2 text-primary font-bold text-[10px] uppercase">
             <Sparkles className="w-4 h-4" />
-            Focus role
+            {tr('Focus role')}
             <HelpTip topic="goals.focus" align="left" className="-my-1" />
           </div>
 
           <Select value={focusRole} onValueChange={setFocusRole}>
             <SelectTrigger className="w-full h-10 font-bold">
-              <SelectValue placeholder="All roles" />
+              <SelectValue placeholder={tr('All roles')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All roles</SelectItem>
+              <SelectItem value="all">{tr('All roles')}</SelectItem>
               {focusGroups.map(g => g.roles.map(r => (
                 <SelectItem key={r.id} value={r.id}>
-                  {r.emoji} {r.name}
+                  {r.emoji} {tr(r.name)}
                 </SelectItem>
               )))}
-              <SelectItem value="unassigned">Unassigned goals</SelectItem>
+              <SelectItem value="unassigned">{tr('Unassigned goals')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -192,19 +194,19 @@ export default function GoalsPage() {
         <TabsList className="grid grid-cols-4 h-14">
           <TabsTrigger value="overview" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <LayoutDashboard className="w-4 h-4" />
-            Overview
+            {tr('Overview')}
           </TabsTrigger>
           <TabsTrigger value="roles" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <Users className="w-4 h-4" />
-            Roles
+            {tr('Roles')}
           </TabsTrigger>
           <TabsTrigger value="goals" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <Target className="w-4 h-4" />
-            Goals
+            {tr('Goals')}
           </TabsTrigger>
           <TabsTrigger value="week" className="flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase py-1">
             <CalendarCheck className="w-4 h-4" />
-            Week
+            {tr('Week')}
           </TabsTrigger>
         </TabsList>
 
@@ -240,7 +242,7 @@ export default function GoalsPage() {
         <TabsContent value="goals" className="space-y-6">
           {/* Period summary cards */}
           <div className="flex items-center gap-0.5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Goals due</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{tr('Goals due')}</p>
             <HelpTip topic="goals.list" align="left" className="-my-1" />
           </div>
           <div className="flex bg-muted/40 p-1 rounded-2xl gap-1">
@@ -255,7 +257,7 @@ export default function GoalsPage() {
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                {v}
+                {tr(v)}
               </button>
             ))}
           </div>
@@ -267,14 +269,14 @@ export default function GoalsPage() {
                 <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
                   <Target className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{view}</span>
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{tr(view)}</span>
               </div>
               <p className="text-3xl font-black text-white leading-none">{filteredGoals.length}</p>
-              <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">goals</p>
+              <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">{tr('goals')}</p>
               <div className="flex flex-wrap gap-1.5 mt-3">
-                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">✓ {filteredGoals.filter(g => g.status === 'done').length} done</span>
-                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">▶ {filteredGoals.filter(g => g.status === 'doing').length} doing</span>
-                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">◯ {filteredGoals.filter(g => g.status === 'to_do').length} todo</span>
+                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">{tr('✓ {length} done', { length: filteredGoals.filter(g => g.status === 'done').length })}</span>
+                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">{tr('▶ {length} doing', { length: filteredGoals.filter(g => g.status === 'doing').length })}</span>
+                <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-semibold">{tr('◯ {length} todo', { length: filteredGoals.filter(g => g.status === 'to_do').length })}</span>
               </div>
             </div>
 
@@ -286,11 +288,11 @@ export default function GoalsPage() {
                 <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
                   <Users className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{view}</span>
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{tr(view)}</span>
               </div>
               <p className="text-3xl font-black text-white leading-none">{rolesInPeriod}<span className="text-lg text-white/60">/{activeRoles.length}</span></p>
-              <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">roles</p>
-              <p className="text-xs font-semibold text-white/70 mt-3 leading-tight">With goals due in this period</p>
+              <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">{tr('roles')}</p>
+              <p className="text-xs font-semibold text-white/70 mt-3 leading-tight">{tr('With goals due in this period')}</p>
             </button>
           </div>
 
@@ -309,7 +311,7 @@ export default function GoalsPage() {
           <button
             onClick={() => openNewGoal()}
             className="fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-violet-600 hover:bg-violet-700 active:scale-95 text-white shadow-lg shadow-violet-500/40 flex items-center justify-center transition-all"
-            aria-label="New Goal"
+            aria-label={tr('New Goal')}
           >
             <Plus className="w-6 h-6" />
           </button>
@@ -326,8 +328,8 @@ export default function GoalsPage() {
       <Dialog open={showNew} onOpenChange={setShowNew}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[90svh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-black text-xl uppercase tracking-tight">New Goal</DialogTitle>
-            <DialogDescription className="sr-only">Create a new goal</DialogDescription>
+            <DialogTitle className="font-black text-xl uppercase tracking-tight">{tr('New Goal')}</DialogTitle>
+            <DialogDescription className="sr-only">{tr('Create a new goal')}</DialogDescription>
           </DialogHeader>
           <NewGoalForm
             key={newGoalRole ?? 'none'}

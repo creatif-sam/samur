@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,11 +17,11 @@ export default async function CardPage({ params }: { params: { id: string } }) {
   if (error) {
     console.error("Supabase Error:", error.message)
     // This will tell you if it's an RLS issue or a "Row not found" issue
-    return <div className="p-6">Error: {error.message} (ID: {params.id})</div>
+    return <div className="p-6">{trNow('Error: {message} (ID: {id})', { message: error.message, id: params.id })}</div>
   }
 
   if (!card) {
-    return <div className="p-6">Card not found in database.</div>
+    return <div className="p-6">{trNow('Card not found in database.')}</div>
   }
 
 
@@ -37,7 +38,7 @@ export default async function CardPage({ params }: { params: { id: string } }) {
         </div>
 
         <div>
-          <h1 className="text-2xl font-bold">{card.name}</h1>
+          <h1 className="text-2xl font-bold">{trNow(card.name)}</h1>
           <p className="text-muted-foreground">
             {card.business_title}
           </p>
@@ -45,20 +46,20 @@ export default async function CardPage({ params }: { params: { id: string } }) {
 
         {card.email && (
           <Button asChild className="w-full">
-            <a href={`mailto:${card.email}`}>Email</a>
+            <a href={`mailto:${card.email}`}>{trNow('Email')}</a>
           </Button>
         )}
 
         {card.phone && (
           <Button asChild variant="outline" className="w-full">
-            <a href={`tel:${card.phone}`}>Call</a>
+            <a href={`tel:${card.phone}`}>{trNow('Call')}</a>
           </Button>
         )}
 
         {card.linkedin && (
           <Button asChild variant="outline" className="w-full">
             <a href={card.linkedin} target="_blank">
-              LinkedIn
+              {trNow('LinkedIn')}
             </a>
           </Button>
         )}

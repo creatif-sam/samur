@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -25,6 +27,7 @@ function weekStartKey(today: Date) {
 
 // Weekly accountability: both partners answer three prompts, then see each other's
 export default function PartnerCheckinCard({ userId }: { userId: string | null }) {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const now = new Date()
   const week = weekStartKey(now)
@@ -77,11 +80,11 @@ export default function PartnerCheckinCard({ userId }: { userId: string | null }
       .select()
       .single()
     setSaving(false)
-    if (error) { toast.error(error.message || "Couldn't share your check-in"); return }
+    if (error) { toast.error(error.message || tr('Couldn\'t share your check-in')); return }
     const firstTime = !mine
     setMine(data as Checkin)
     setOpen(false)
-    toast.success(firstTime ? 'Check-in shared 🤝' : 'Check-in updated')
+    toast.success(firstTime ? tr('Check-in shared 🤝') : tr('Check-in updated'))
     if (firstTime && partnerId) {
       fetch('/api/notifications/send', {
         method: 'POST',
@@ -97,25 +100,25 @@ export default function PartnerCheckinCard({ userId }: { userId: string | null }
     }
   }
 
-  const weekLabel = parseDateKey(week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+  const weekLabel = parseDateKey(week).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' })
 
   return (
     <>
       <div className="rounded-3xl border border-rose-200/70 dark:border-rose-900/40 bg-rose-50/60 dark:bg-rose-950/20 p-4 space-y-2">
         <div className="flex items-center gap-2">
           <HeartHandshake className="w-5 h-5 text-rose-500" />
-          <p className="text-sm font-black">Weekly check-in</p>
+          <p className="text-sm font-black">{tr('Weekly check-in')}</p>
           <HelpTip topic="home.checkin" align="left" className="-my-1" />
           <span className="flex-1" />
-          <span className="text-[10px] text-muted-foreground">Week of {weekLabel}</span>
+          <span className="text-[10px] text-muted-foreground">{tr('Week of {weekLabel}', { weekLabel: weekLabel })}</span>
         </div>
         {!mine ? (
           <>
             <p className="text-xs text-muted-foreground">
-              {theirs ? `${partnerName} has shared theirs. Share yours to see it.` : `Share your wins, struggles and prayer needs with ${partnerName}.`}
+              {theirs ? tr('{partnerName} has shared theirs. Share yours to see it.', { partnerName: partnerName }) : tr('Share your wins, struggles and prayer needs with {partnerName}.', { partnerName: partnerName })}
             </p>
             <button onClick={startEdit} className="w-full rounded-2xl bg-rose-500 text-white py-2.5 text-sm font-bold active:scale-[0.98]">
-              Share my check-in
+              {tr('Share my check-in')}
             </button>
           </>
         ) : (
@@ -125,9 +128,9 @@ export default function PartnerCheckinCard({ userId }: { userId: string | null }
               disabled={!theirs}
               className="flex-1 rounded-2xl bg-rose-500 text-white py-2.5 text-sm font-bold disabled:opacity-50 active:scale-[0.98]"
             >
-              {theirs ? `Read ${partnerName}'s` : `Waiting for ${partnerName}`}
+              {theirs ? tr('Read {partnerName}\'s', { partnerName: partnerName }) : tr('Waiting for {partnerName}', { partnerName: partnerName })}
             </button>
-            <button onClick={startEdit} aria-label="Edit my check-in" className="rounded-2xl border border-border px-3 text-muted-foreground">
+            <button onClick={startEdit} aria-label={tr('Edit my check-in')} className="rounded-2xl border border-border px-3 text-muted-foreground">
               <Pencil className="w-4 h-4" />
             </button>
           </div>
@@ -138,16 +141,16 @@ export default function PartnerCheckinCard({ userId }: { userId: string | null }
         <Modal onClose={() => setOpen(false)}>
           <div className="w-full max-w-md mx-auto bg-background rounded-[28px] p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <p className="text-lg font-black">Weekly check-in</p>
+              <p className="text-lg font-black">{tr('Weekly check-in')}</p>
               <button onClick={() => setOpen(false)} className="p-1.5 rounded-full hover:bg-muted"><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
             {PROMPTS.map(prompt => (
               <div key={prompt.key} className="space-y-1">
-                <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">{prompt.label}</label>
+                <label className="text-[11px] font-black uppercase tracking-wider text-muted-foreground">{tr(prompt.label)}</label>
                 <textarea
                   value={form[prompt.key]}
                   onChange={e => setForm(f => ({ ...f, [prompt.key]: e.target.value }))}
-                  placeholder={prompt.placeholder}
+                  placeholder={tr(prompt.placeholder)}
                   rows={3}
                   className="w-full rounded-2xl border bg-muted/30 px-3 py-2 text-[15px] outline-none focus:ring-2 focus:ring-rose-400 resize-none"
                 />
@@ -158,7 +161,7 @@ export default function PartnerCheckinCard({ userId }: { userId: string | null }
               disabled={saving || !Object.values(form).some(v => v.trim())}
               className="w-full rounded-2xl bg-rose-500 text-white py-3 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />} Share with {partnerName}
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}{' '}{tr('Share with')}{' '}{partnerName}
             </button>
           </div>
         </Modal>
@@ -168,12 +171,12 @@ export default function PartnerCheckinCard({ userId }: { userId: string | null }
         <Modal onClose={() => setViewing(false)}>
           <div className="w-full max-w-md mx-auto bg-background rounded-[28px] p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <p className="text-lg font-black">{partnerName}&apos;s week</p>
+              <p className="text-lg font-black">{tr('{partnerName}\'s week', { partnerName: partnerName })}</p>
               <button onClick={() => setViewing(false)} className="p-1.5 rounded-full hover:bg-muted"><X className="w-5 h-5 text-muted-foreground" /></button>
             </div>
             {PROMPTS.map(prompt => theirs[prompt.key]?.trim() && (
               <div key={prompt.key} className="space-y-1">
-                <p className="text-[11px] font-black uppercase tracking-wider text-rose-500">{prompt.label}</p>
+                <p className="text-[11px] font-black uppercase tracking-wider text-rose-500">{tr(prompt.label)}</p>
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{theirs[prompt.key]}</p>
               </div>
             ))}

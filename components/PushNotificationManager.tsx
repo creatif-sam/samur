@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ import {
 const GROUPS = ['Planning', 'Partner', 'Habits'] as const
 
 export default function PushNotificationManager() {
+  const { tr } = useTranslation()
   const [isSupported, setIsSupported] = useState(true)
   const [isSubscribed, setIsSubscribed] = useState(false)
   const [permission, setPermission] = useState<NotificationPermission>('default')
@@ -89,7 +91,7 @@ export default function PushNotificationManager() {
       const result = await Notification.requestPermission()
       setPermission(result)
       if (result !== 'granted') {
-        toast.error('Permission denied. Please enable notifications in settings.')
+        toast.error(tr('Permission denied. Please enable notifications in settings.'))
         return
       }
 
@@ -133,15 +135,15 @@ export default function PushNotificationManager() {
 
       if (upsertError) {
         console.error('Failed to save subscription:', upsertError)
-        toast.error(`Failed to save subscription: ${upsertError.message}`)
+        toast.error(tr('Failed to save subscription: {message}', { message: upsertError.message }))
         return
       }
 
       setIsSubscribed(true)
-      toast.success('Mastery Connect: Notifications Active 🤍')
+      toast.success(tr('Mastery Connect: Notifications Active 🤍'))
     } catch (error) {
       console.error('Subscription error:', error)
-      toast.error(`Failed to subscribe: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      toast.error(tr('Failed to subscribe: {value}', { value: error instanceof Error ? error.message : tr('Unknown error') }))
     } finally { 
       setActionLoading(false) 
     }
@@ -157,8 +159,8 @@ export default function PushNotificationManager() {
         await supabase.from('push_subscriptions').delete().eq('endpoint', subscription.endpoint)
       }
       setIsSubscribed(false)
-      toast.success('Notifications Paused')
-    } catch { toast.error('Error disabling push.') } finally { setActionLoading(false) }
+      toast.success(tr('Notifications Paused'))
+    } catch { toast.error(tr('Error disabling push.')) } finally { setActionLoading(false) }
   }
 
   const savePreferences = async (patch: Partial<NotificationPreferences>) => {
@@ -180,7 +182,7 @@ export default function PushNotificationManager() {
     }
     if (error) {
       console.error('Failed to save notification preferences', error)
-      toast.error('Could not save. If this keeps happening, the latest database update may not be installed yet.')
+      toast.error(tr('Could not save. If this keeps happening, the latest database update may not be installed yet.'))
       setPreferences(previous)
     }
   }
@@ -196,10 +198,10 @@ export default function PushNotificationManager() {
     try {
       const res = await fetch('/api/weekly-summary/preview', { method: 'POST' })
       const body = await res.json().catch(() => ({}))
-      if (res.ok) toast.success(`Sent to ${body.to}. Check your inbox (and spam).`)
-      else toast.error(body.error || "Couldn't send the summary")
+      if (res.ok) toast.success(tr('Sent to {to}. Check your inbox (and spam).', { to: body.to }))
+      else toast.error(body.error || tr('Couldn\'t send the summary'))
     } catch {
-      toast.error("Couldn't send. Check your connection.")
+      toast.error(tr('Couldn\'t send. Check your connection.'))
     } finally {
       setSendingSummary(false)
     }
@@ -226,20 +228,18 @@ export default function PushNotificationManager() {
       const result = await response.json()
 
       if (response.ok && result.pushed > 0) {
-        toast.success(`Test notification sent to ${result.pushed > 1 ? `${result.pushed} devices` : 'your device'}!`)
+        toast.success(tr('Test notification sent to {value}!', { value: result.pushed > 1 ? tr('{pushed} devices', { pushed: result.pushed }) : tr('your device') }))
       } else if (response.ok) {
-        toast.error(result.skipped === 'no_devices'
-          ? 'No device is registered. Turn notifications off and on again on this device.'
-          : 'The notification was saved but no device accepted the push.')
+        toast.error(result.skipped === 'no_devices' ? tr('No device is registered. Turn notifications off and on again on this device.') : tr('The notification was saved but no device accepted the push.'))
       } else {
         console.error('Push notification error:', result)
-        toast.error(`Failed: ${result.error}`, {
+        toast.error(tr('Failed: {error}', { error: result.error }), {
           description: result.details
         })
       }
     } catch (error) {
       console.error('Test notification error:', error)
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      toast.error(tr('Error: {value}', { value: error instanceof Error ? error.message : tr('Unknown error') }))
     } finally {
       setActionLoading(false)
     }
@@ -254,7 +254,7 @@ export default function PushNotificationManager() {
   if (!isSupported) return (
     <div className="p-6 bg-destructive/10 border border-destructive/20 rounded-[32px] flex items-center gap-4 text-destructive">
       <AlertCircle className="shrink-0" />
-      <p className="text-sm font-semibold">Push is not supported on this device.</p>
+      <p className="text-sm font-semibold">{tr('Push is not supported on this device.')}</p>
     </div>
   )
 
@@ -263,13 +263,13 @@ export default function PushNotificationManager() {
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-xl font-black">Mastery Connect</CardTitle>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">Global Sync</p>
+            <CardTitle className="text-xl font-black">{tr('Mastery Connect')}</CardTitle>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-1">{tr('Global Sync')}</p>
           </div>
           {isSubscribed ? (
-             <Badge className="bg-violet-500/10 text-[#7c3aed] border-violet-500/20">Connected</Badge>
+             <Badge className="bg-violet-500/10 text-[#7c3aed] border-violet-500/20">{tr('Connected')}</Badge>
           ) : (
-             <Badge variant="outline" className="opacity-50">Disconnected</Badge>
+             <Badge variant="outline" className="opacity-50">{tr('Disconnected')}</Badge>
           )}
         </div>
       </CardHeader>
@@ -278,11 +278,11 @@ export default function PushNotificationManager() {
         {/* Main Violet Toggle Card */}
         <div className={`p-5 rounded-[24px] border transition-all duration-300 ${isSubscribed ? 'bg-violet-50/50 border-violet-100 shadow-inner' : 'bg-muted/30 border-muted'}`}>
           <div className="flex items-center justify-between mb-2">
-            <Label className="text-base font-bold">Real-Time Chimes</Label>
+            <Label className="text-base font-bold">{tr('Real-Time Chimes')}</Label>
             <ShieldCheck className={isSubscribed ? 'text-[#7c3aed]' : 'text-muted-foreground'} size={20} />
           </div>
           <p className="text-xs text-muted-foreground mb-6 leading-relaxed">
-            Unlocks instant chimes and push alerts even when the app is closed.
+            {tr('Unlocks instant chimes and push alerts even when the app is closed.')}
           </p>
           
           <Button 
@@ -295,22 +295,22 @@ export default function PushNotificationManager() {
             }`}
           >
             {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BellIcon slashed={isSubscribed} className="mr-2 h-4 w-4" />}
-            {isSubscribed ? 'Pause Notifications' : 'Enable Chimes & Alerts'}
+            {isSubscribed ? tr('Pause Notifications') : tr('Enable Chimes & Alerts')}
           </Button>
         </div>
 
         <div className="space-y-5 px-1">
           <p className="text-[11px] text-muted-foreground px-2 leading-relaxed">
-            Choose what you hear about. Switching a category off stops it in the app, on your phone and by email.
+            {tr('Choose what you hear about. Switching a category off stops it in the app, on your phone and by email.')}
           </p>
           {GROUPS.map(group => (
             <div key={group} className="space-y-1">
-              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">{group}</h4>
+              <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">{tr(group)}</h4>
               {NOTIFICATION_CATEGORIES.filter(c => c.group === group).map(c => (
                 <div key={c.key} className="flex items-center justify-between gap-3 p-3 rounded-2xl hover:bg-muted/50 transition-colors">
                   <div className="min-w-0">
-                    <Label htmlFor={`pref-${c.key}`} className="text-sm font-bold">{c.label}</Label>
-                    <p className="text-[11px] text-muted-foreground leading-snug">{c.description}</p>
+                    <Label htmlFor={`pref-${c.key}`} className="text-sm font-bold">{tr(c.label)}</Label>
+                    <p className="text-[11px] text-muted-foreground leading-snug">{tr(c.description)}</p>
                   </div>
                   <Switch
                     id={`pref-${c.key}`}
@@ -325,23 +325,23 @@ export default function PushNotificationManager() {
 
           {preferences.weekly_summary && (
             <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/30 p-3">
-              <p className="text-[11px] leading-snug text-muted-foreground">See what the Sunday email looks like, sent to your own address now.</p>
+              <p className="text-[11px] leading-snug text-muted-foreground">{tr('See what the Sunday email looks like, sent to your own address now.')}</p>
               <Button onClick={sendSummaryPreview} disabled={sendingSummary} variant="outline" size="sm" className="shrink-0 rounded-xl font-bold">
                 {sendingSummary ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Mail className="mr-1.5 h-3.5 w-3.5" />}
-                Send me this week
+                {tr('Send me this week')}
               </Button>
             </div>
           )}
 
           {/* Quiet hours */}
           <div className="space-y-2">
-            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">Quiet Hours</h4>
+            <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2">{tr('Quiet Hours')}</h4>
             <div className="p-3 rounded-2xl bg-muted/30 space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <Label htmlFor="pref-quiet" className="text-sm font-bold flex items-center gap-1.5"><Moon size={14} /> Don&apos;t buzz me at night</Label>
+                  <Label htmlFor="pref-quiet" className="text-sm font-bold flex items-center gap-1.5"><Moon size={14} />{' '}{tr('Don\'t buzz me at night')}</Label>
                   <p className="text-[11px] text-muted-foreground leading-snug">
-                    Notifications still arrive in the app; your phone stays silent. Task reminders you set still come through.
+                    {tr('Notifications still arrive in the app; your phone stays silent. Task reminders you set still come through.')}
                   </p>
                 </div>
                 <Switch
@@ -353,14 +353,14 @@ export default function PushNotificationManager() {
               </div>
               {quietEnabled && (
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground text-xs">From</span>
+                  <span className="text-muted-foreground text-xs">{tr('From')}</span>
                   <input
                     type="time"
                     value={preferences.quiet_start ?? ''}
                     onChange={e => e.target.value && savePreferences({ quiet_start: e.target.value })}
                     className="flex-1 min-w-0 rounded-xl border bg-background px-2 py-1.5 text-sm font-semibold"
                   />
-                  <span className="text-muted-foreground text-xs">to</span>
+                  <span className="text-muted-foreground text-xs">{tr('to')}</span>
                   <input
                     type="time"
                     value={preferences.quiet_end ?? ''}
@@ -382,7 +382,7 @@ export default function PushNotificationManager() {
               className="w-full rounded-2xl py-3 font-bold"
             >
               {actionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
-              Test Push Notification
+              {tr('Test Push Notification')}
             </Button>
           </div>
         )}
@@ -390,7 +390,7 @@ export default function PushNotificationManager() {
         {permission === 'denied' && (
           <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-600 text-[10px] font-bold uppercase">
             <AlertCircle size={14} />
-            Permissions blocked. Reset in site settings.
+            {tr('Permissions blocked. Reset in site settings.')}
           </div>
         )}
 
@@ -399,18 +399,18 @@ export default function PushNotificationManager() {
           <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-2">
             <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400 text-sm font-bold">
               <AlertCircle size={16} />
-              iOS Setup Tips
+              {tr('iOS Setup Tips')}
             </div>
             <ul className="text-xs space-y-1 text-blue-900 dark:text-blue-200">
-              <li>• Requires iOS 16.4+ and Safari browser</li>
-              <li>• Add app to Home Screen first (Share → Add to Home Screen)</li>
-              <li>• Open from Home Screen icon, not Safari</li>
-              <li>• Enable in Settings → Safari → Advanced → Experimental Features → &ldquo;Notifications&rdquo;</li>
-              <li>• If still failing, delete app from Home Screen and re-add</li>
+              <li>{tr('• Requires iOS 16.4+ and Safari browser')}</li>
+              <li>{tr('• Add app to Home Screen first (Share → Add to Home Screen)')}</li>
+              <li>{tr('• Open from Home Screen icon, not Safari')}</li>
+              <li>{tr('• Enable in Settings → Safari → Advanced → Experimental Features → “Notifications”')}</li>
+              <li>{tr('• If still failing, delete app from Home Screen and re-add')}</li>
             </ul>
             {!isSubscribed && (
               <div className="pt-2 text-xs text-blue-700 dark:text-blue-300 font-medium">
-                Current browser: {/Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent) ? '✅ Safari' : '❌ Not Safari (use Safari)'}
+                {tr('Current browser: {value}', { value: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent) ? tr('✅ Safari') : tr('❌ Not Safari (use Safari)') })}
               </div>
             )}
           </div>

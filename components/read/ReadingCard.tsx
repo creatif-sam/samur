@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { JSX, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -130,6 +131,7 @@ export default function ReadingCard({
   onLogged,
   onEdit,
 }: Props): JSX.Element {
+  const { tr } = useTranslation()
   const [status, setStatus] = useState<ReadingStatus>(reading.status)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
@@ -147,9 +149,9 @@ export default function ReadingCard({
     
     if (error) {
       setStatus(previous) // rollback
-      toast.error('Failed to update status')
+      toast.error(tr('Failed to update status'))
     } else {
-      toast.success('Status updated!')
+      toast.success(tr('Status updated!'))
       onLogged?.() // refresh counts and shelves
     }
   }
@@ -162,9 +164,9 @@ export default function ReadingCard({
       .eq('id', reading.id)
     
     if (error) {
-      toast.error('Failed to delete book')
+      toast.error(tr('Failed to delete book'))
     } else {
-      toast.success('Book deleted successfully')
+      toast.success(tr('Book deleted successfully'))
       onLogged?.()
     }
     setShowDeleteDialog(false)
@@ -175,7 +177,7 @@ export default function ReadingCard({
     <div className="rounded-xl border p-4 space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1">
-          <h3 className="font-semibold">{reading.title}</h3>
+          <h3 className="font-semibold">{tr(reading.title)}</h3>
           {reading.author && (
             <p className="text-sm text-muted-foreground">
               {reading.author}
@@ -190,12 +192,12 @@ export default function ReadingCard({
               className={`flex items-center gap-1 ${categoryMeta[reading.category].className}`}
             >
               {categoryMeta[reading.category].icon}
-              {categoryMeta[reading.category].label}
+              {tr(categoryMeta[reading.category].label)}
             </Badge>
 
             <Badge variant="secondary" className="flex items-center gap-1">
               {statusMeta[status].icon}
-              {statusMeta[status].label}
+              {tr(statusMeta[status].label)}
             </Badge>
           </div>
 
@@ -209,7 +211,7 @@ export default function ReadingCard({
               {onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(reading)}>
                   <Pencil className="h-4 w-4 mr-2" />
-                  Edit
+                  {tr('Edit')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
@@ -217,7 +219,7 @@ export default function ReadingCard({
                 className="text-red-600 focus:text-red-600"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete
+                {tr('Delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -225,8 +227,8 @@ export default function ReadingCard({
       </div>
 
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span>Read {pagesRead} pages</span>
-        <span>{reading.pages_remaining} left</span>
+        <span>{tr('Read {pagesRead} pages', { pagesRead: pagesRead })}</span>
+        <span>{tr('{pages_remaining} left', { pages_remaining: reading.pages_remaining })}</span>
       </div>
 
       {reading.pages_remaining > 0 && (
@@ -246,10 +248,10 @@ export default function ReadingCard({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="to_read">To read</SelectItem>
-          <SelectItem value="reading">Reading</SelectItem>
-          <SelectItem value="done">Done</SelectItem>
-          <SelectItem value="applied">Applied</SelectItem>
+          <SelectItem value="to_read">{tr('To read')}</SelectItem>
+          <SelectItem value="reading">{tr('Reading')}</SelectItem>
+          <SelectItem value="done">{tr('Done')}</SelectItem>
+          <SelectItem value="applied">{tr('Applied')}</SelectItem>
         </SelectContent>
       </Select>
     </div>
@@ -257,17 +259,17 @@ export default function ReadingCard({
     <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete this book?</DialogTitle>
+          <DialogTitle>{tr('Delete this book?')}</DialogTitle>
           <DialogDescription>
-            This will permanently delete &ldquo;{reading.title}&rdquo; and all reading logs. This action cannot be undone.
+            {tr('This will permanently delete “{title}” and all reading logs. This action cannot be undone.', { title: reading.title })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="sm:justify-start gap-2">
           <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button variant="destructive" onClick={deleteReading}>
-            Delete
+            {tr('Delete')}
           </Button>
         </DialogFooter>
       </DialogContent>

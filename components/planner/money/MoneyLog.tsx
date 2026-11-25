@@ -1,5 +1,6 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import MoneyAddModal from './MoneyAddModal'
@@ -41,7 +42,7 @@ export default function MoneyLog({
   setOpen: (v: boolean) => void
 }) {
   const supabase = createClient()
-  const { t } = useTranslation()
+  const { t, tr } = useTranslation()
   const initialDate = new Date()
   
   const [entries, setEntries] = useState<MoneyEntry[]>([])
@@ -131,7 +132,7 @@ export default function MoneyLog({
     // One row per entry
     sortedEntries.forEach(entry => {
       const row = [
-        parseDateKey(entry.entry_date).toLocaleDateString(),
+        parseDateKey(entry.entry_date).toLocaleDateString(appLocale()),
         entry.title,
         entry.amount.toFixed(2),
         entry.type === 'income' ? t.money.income : t.money.expense,
@@ -173,7 +174,7 @@ export default function MoneyLog({
 
     visibleEntries.forEach(e => {
       const d = parseDateKey(e.entry_date)
-      const label = d.toLocaleDateString(undefined, {
+      const label = d.toLocaleDateString(appLocale(), {
         month: 'short',
         day: 'numeric',
         weekday: 'long',
@@ -302,7 +303,7 @@ export default function MoneyLog({
           >
             {Array.from({ length: 12 }).map((_, i) => (
               <option key={i} value={i}>
-                {new Date(0, i).toLocaleString(undefined, {
+                {new Date(0, i).toLocaleString(appLocale(), {
                   month: 'long',
                 })}
               </option>
@@ -404,7 +405,7 @@ export default function MoneyLog({
 
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-slate-900 dark:text-white">
-                            {e.title}
+                            {tr(e.title)}
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                             {e.money_categories?.name || t.money.uncategorized}

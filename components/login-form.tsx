@@ -28,7 +28,7 @@ export function LoginForm({
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, tr } = useTranslation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +45,7 @@ export function LoginForm({
       // Update this route to redirect to an authenticated route. The user already has an active session.
       router.push("/protected");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : tr('An error occurred'));
     } finally {
       setIsLoading(false);
     }
@@ -68,7 +68,7 @@ export function LoginForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder={tr('m@example.com')}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -102,7 +102,7 @@ export function LoginForm({
                   </button>
                 </div>
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && <p className="text-sm text-red-500">{tr(error)}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? t.auth.loggingIn : t.auth.login}
               </Button>

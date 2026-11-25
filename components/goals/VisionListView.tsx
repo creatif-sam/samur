@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState, useRef } from 'react'
 import { Goal } from '@/lib/types'
@@ -40,6 +42,7 @@ export function VisionListView({
 }: {
   goals: Goal[], visions: Vision[], categories: GoalCategory[], currentUserId: string | null, onRefresh: () => void
 }) {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterStatus, setFilterStatus] = useState<'active' | 'archived' | 'all'>('active')
@@ -132,7 +135,7 @@ export function VisionListView({
     const daysInMonth = new Date(now.getFullYear(), thisMonth + 1, 0).getDate()
     return Array.from({ length: 12 }, (_, i) => ({
       index: i,
-      label: new Date(year.year, i, 1).toLocaleDateString(undefined, { month: 'narrow' }),
+      label: new Date(year.year, i, 1).toLocaleDateString(appLocale(), { month: 'narrow' }),
       state: i < thisMonth ? 'past' : i === thisMonth ? 'current' : 'future',
       fill: Math.round((now.getDate() / daysInMonth) * 100),
       due: visions.filter(v => !v.is_archived && v.target_date?.startsWith(`${year.year}-${String(i + 1).padStart(2, '0')}`)).length,
@@ -141,16 +144,16 @@ export function VisionListView({
 
   async function toggleArchive(id: string, currentStatus: boolean) {
     const { error } = await supabase.from('visions').update({ is_archived: !currentStatus }).eq('id', id)
-    if (!error) { onRefresh(); toast.success(currentStatus ? "Restored" : "Archived"); }
+    if (!error) { onRefresh(); toast.success(currentStatus ? tr('Restored') : tr('Archived')); }
   }
 
   async function handleDelete() {
     if (!deletingId) return
     const { error: unlinkError } = await supabase.from('goals').update({ vision_id: null }).eq('vision_id', deletingId)
-    if (unlinkError) { toast.error("Couldn't delete the vision"); return }
+    if (unlinkError) { toast.error(tr('Couldn\'t delete the vision')); return }
     const { error } = await supabase.from('visions').delete().eq('id', deletingId)
-    if (error) { toast.error("Couldn't delete the vision"); return }
-    onRefresh(); setDeletingId(null); toast.success("Deleted")
+    if (error) { toast.error(tr('Couldn\'t delete the vision')); return }
+    onRefresh(); setDeletingId(null); toast.success(tr('Deleted'))
   }
 
   const chipPool = visions.filter(v => filterStatus === 'all' ? true : filterStatus === 'archived' ? v.is_archived : !v.is_archived)
@@ -170,22 +173,14 @@ export function VisionListView({
         <div className="relative flex items-start gap-4">
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5" /> Vision {year.year}
+              <Sparkles className="h-3.5 w-3.5" />{' '}{tr('Vision')}{' '}{year.year}
               <HelpTip topic="goals.visionYear" tone="onDark" align="left" className="-my-1.5" />
             </p>
             <p className="mt-1 text-xl font-black leading-tight">
-              {yearSummary
-                ? yearSummary.achieved === yearSummary.count
-                  ? 'Every vision for this year achieved'
-                  : yearSummary.progress >= year.pct - 10
-                  ? 'You\'re keeping pace with the year'
-                  : 'Time to press in'
-                : 'Cast your vision for this year'}
+              {yearSummary ? yearSummary.achieved === yearSummary.count ? tr('Every vision for this year achieved') : yearSummary.progress >= year.pct - 10 ? tr('You\'re keeping pace with the year') : tr('Time to press in') : tr('Cast your vision for this year')}
             </p>
             <p className="mt-1 text-xs text-white/75">
-              {yearSummary
-                ? `${yearSummary.count} vision${yearSummary.count !== 1 ? 's' : ''} due by Dec 31${yearSummary.behind ? ` · ${yearSummary.behind} need${yearSummary.behind === 1 ? 's' : ''} attention` : ''}`
-                : 'Give a vision a target date this year to track it here.'}
+              {yearSummary ? tr('{count} {count:vision|visions} due by Dec 31{value2}', { count: yearSummary.count, value2: yearSummary.behind ? tr(' · {behind} {behind:needs|need} attention', { behind: yearSummary.behind }) : '' }) : tr('Give a vision a target date this year to track it here.')}
             </p>
           </div>
           {yearSummary && (
@@ -197,7 +192,7 @@ export function VisionListView({
               </svg>
               <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
                 <span className="text-sm font-black">{yearSummary.progress}%</span>
-                <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wider text-white/70">done</span>
+                <span className="mt-0.5 text-[7px] font-bold uppercase tracking-wider text-white/70">{tr('done')}</span>
               </span>
             </div>
           )}
@@ -217,28 +212,28 @@ export function VisionListView({
                     <div className="h-full rounded-full bg-white" style={{ width: `${m.fill}%` }} />
                   )}
                 </div>
-                <span className={cn('text-[9px] font-bold', m.state === 'current' ? 'text-white' : 'text-white/55')}>{m.label}</span>
-                <span className={cn('h-1 w-1 rounded-full', m.due > 0 ? 'bg-amber-300' : 'bg-transparent')} title={m.due ? `${m.due} vision${m.due === 1 ? '' : 's'} due` : undefined} />
+                <span className={cn('text-[9px] font-bold', m.state === 'current' ? 'text-white' : 'text-white/55')}>{tr(m.label)}</span>
+                <span className={cn('h-1 w-1 rounded-full', m.due > 0 ? 'bg-amber-300' : 'bg-transparent')} title={m.due ? tr('{due} {due:vision|visions} due', { due: m.due }) : undefined} />
               </div>
             ))}
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2">
             <div className="rounded-2xl bg-white/10 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">Year gone</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">{tr('Year gone')}</p>
               <p className="text-base font-black leading-tight">{year.pct}%</p>
             </div>
             <div className="rounded-2xl bg-white/10 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">Achieved</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">{tr('Achieved')}</p>
               <p className="text-base font-black leading-tight">{yearSummary ? `${yearSummary.achieved}/${yearSummary.count}` : '—'}</p>
             </div>
             <div className="rounded-2xl bg-white/10 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">Days left</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-white/65">{tr('Days left')}</p>
               <p className="text-base font-black leading-tight">{year.daysLeft}</p>
             </div>
           </div>
           {monthStrip.some(m => m.due > 0) && (
             <p className="mt-2 flex items-center gap-1.5 text-[10px] text-white/65">
-              <span className="h-1 w-1 rounded-full bg-amber-300" /> a vision is due that month
+              <span className="h-1 w-1 rounded-full bg-amber-300" />{' '}{tr('a vision is due that month')}
             </p>
           )}
         </div>
@@ -255,7 +250,7 @@ export function VisionListView({
               yearFilter === c.value ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'
             )}
           >
-            {c.label}
+            {tr(c.label)}
             <span className="ml-1.5 tabular-nums opacity-60">{c.count}</span>
           </button>
         ))}
@@ -266,7 +261,7 @@ export function VisionListView({
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search visions..."
+            placeholder={tr('Search visions...')}
             className="pl-9 rounded-2xl bg-muted/40 border-none focus-visible:ring-1"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -284,7 +279,7 @@ export function VisionListView({
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              {status}
+              {tr(status)}
             </button>
           ))}
         </div>
@@ -293,7 +288,7 @@ export function VisionListView({
       {processedVisions.some(v => v.expected !== null && v.pace !== 'achieved' && v.pace !== 'overdue' && !v.is_archived) && (
         <p className="-mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
           <span className="inline-block h-3 w-0.5 shrink-0 rounded-full bg-foreground/60" />
-          The line on each bar marks where an even pace would put you today.
+          {tr('The line on each bar marks where an even pace would put you today.')}
           <HelpTip topic="goals.pace" align="left" className="-my-1.5" />
         </p>
       )}
@@ -303,8 +298,8 @@ export function VisionListView({
         {processedVisions.length === 0 && (
           <div className="col-span-full rounded-[24px] border border-dashed border-muted-foreground/30 p-12 text-center">
             <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-3 text-3xl">🔭</div>
-            <p className="text-sm font-semibold text-muted-foreground">No visions found</p>
-            <p className="text-xs text-muted-foreground mt-1">Create your first vision to get started</p>
+            <p className="text-sm font-semibold text-muted-foreground">{tr('No visions found')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{tr('Create your first vision to get started')}</p>
           </div>
         )}
         {processedVisions.map(v => (
@@ -330,14 +325,12 @@ export function VisionListView({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {v.target_date
-                      ? parseDateKey(v.target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-                      : 'Open-ended'}
+                    {v.target_date ? parseDateKey(v.target_date).toLocaleDateString(appLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : tr('Open-ended')}
                   </p>
-                  <h4 className="text-base font-black text-foreground leading-tight truncate">{v.title}</h4>
+                  <h4 className="text-base font-black text-foreground leading-tight truncate">{tr(v.title)}</h4>
                   {!v.is_archived && (
                     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', PACE_STYLE[v.pace])}>{PACE_LABEL[v.pace]}</span>
+                      <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', PACE_STYLE[v.pace])}>{tr(PACE_LABEL[v.pace])}</span>
                       {daysLeftLabel(v.daysLeft) && v.pace !== 'achieved' && (
                         <span className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
                           <Clock className="h-3 w-3" /> {daysLeftLabel(v.daysLeft)}
@@ -348,7 +341,7 @@ export function VisionListView({
                 </div>
                 <button
                   type="button"
-                  aria-label={`Actions for ${v.title}`}
+                  aria-label={tr('Actions for {title}', { title: v.title })}
                   onPointerDown={e => e.stopPropagation()}
                   onClick={e => { e.stopPropagation(); setContextMenuVision(v) }}
                   className="-mr-2 -mt-1 h-8 w-8 shrink-0 grid place-items-center rounded-full text-muted-foreground hover:bg-muted active:scale-90 transition"
@@ -359,20 +352,20 @@ export function VisionListView({
 
               {/* Description */}
               {v.description && (
-                <p className="text-xs text-muted-foreground line-clamp-2">{v.description}</p>
+                <p className="text-xs text-muted-foreground line-clamp-2">{tr(v.description)}</p>
               )}
 
               {/* A vision with no goals is only a wish: point to the next step */}
               {v.totalGoals === 0 && !v.is_archived && (
                 <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                  No goals yet. Add one so this vision has a path.
+                  {tr('No goals yet. Add one so this vision has a path.')}
                 </p>
               )}
 
               {/* Progress bar */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Progress</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{tr('Progress')}</p>
                   <p className="text-xs font-black tabular-nums text-foreground">{v.avgProgress}%</p>
                 </div>
                 <div className="relative h-2 w-full bg-secondary dark:bg-zinc-800 rounded-full">
@@ -384,7 +377,7 @@ export function VisionListView({
                     <span
                       className="absolute -top-1 h-4 w-0.5 rounded-full bg-foreground/60"
                       style={{ left: `calc(${v.expected}% - 1px)` }}
-                      title={`Where you'd be on an even pace: ${v.expected}%`}
+                      title={tr('Where you\'d be on an even pace: {expected}%', { expected: v.expected })}
                     />
                   )}
                 </div>
@@ -394,11 +387,11 @@ export function VisionListView({
               <div className="flex items-center justify-between pt-1">
                 <div className="flex gap-5">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Goals</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{tr('Goals')}</p>
                     <p className="text-xl font-black text-foreground">{v.totalGoals}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Done</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{tr('Done')}</p>
                     <p className="text-xl font-black text-foreground">{v.completedGoals}</p>
                   </div>
                 </div>
@@ -410,13 +403,13 @@ export function VisionListView({
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition active:scale-95"
                           style={{ backgroundColor: solidFor(v.color) }}
                         >
-                          <Plus className="w-3.5 h-3.5" /> Add Goal
+                          <Plus className="w-3.5 h-3.5" />{' '}{tr('Add Goal')}
                         </button>
                       </DialogTrigger>
                       <DialogContent className="w-[95vw] max-w-xl">
                         <DialogHeader>
-                          <DialogTitle className="font-black">New Goal for {v.title}</DialogTitle>
-                          <DialogDescription className="sr-only">Add a goal to this vision</DialogDescription>
+                          <DialogTitle className="font-black">{tr('New Goal for {title}', { title: v.title })}</DialogTitle>
+                          <DialogDescription className="sr-only">{tr('Add a goal to this vision')}</DialogDescription>
                         </DialogHeader>
                         <NewGoalForm
                           categories={categories}
@@ -439,8 +432,8 @@ export function VisionListView({
       <Dialog open={!!contextMenuVision} onOpenChange={(open) => !open && setContextMenuVision(null)}>
         <DialogContent className="w-[92vw] max-w-[340px] rounded-[28px] p-0 overflow-hidden">
           <DialogHeader className="sr-only">
-            <DialogTitle>Vision Actions</DialogTitle>
-            <DialogDescription>Actions for {contextMenuVision?.title}</DialogDescription>
+            <DialogTitle>{tr('Vision Actions')}</DialogTitle>
+            <DialogDescription>{tr('Actions for {title}', { title: contextMenuVision?.title })}</DialogDescription>
           </DialogHeader>
           {contextMenuVision && (
             <div>
@@ -449,8 +442,8 @@ export function VisionListView({
                   {contextMenuVision.emoji}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Vision</p>
-                  <p className="text-sm font-black truncate">{contextMenuVision.title}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{tr('Vision')}</p>
+                  <p className="text-sm font-black truncate">{tr(contextMenuVision.title)}</p>
                 </div>
               </div>
               <div className="p-2 space-y-0.5">
@@ -458,22 +451,22 @@ export function VisionListView({
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-muted transition-colors text-left"
                   onClick={() => { setEditingVision(contextMenuVision); setContextMenuVision(null) }}
                 >
-                  <Pencil className="w-4 h-4 text-muted-foreground" /> Edit
+                  <Pencil className="w-4 h-4 text-muted-foreground" />{' '}{tr('Edit')}
                 </button>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-muted transition-colors text-left"
                   onClick={() => { toggleArchive(contextMenuVision.id, contextMenuVision.is_archived); setContextMenuVision(null) }}
                 >
                   {contextMenuVision.is_archived
-                    ? <><RotateCcw className="w-4 h-4 text-muted-foreground" />Restore</>
-                    : <><Archive className="w-4 h-4 text-muted-foreground" />Archive</>}
+                    ? <><RotateCcw className="w-4 h-4 text-muted-foreground" />{tr('Restore')}</>
+                    : <><Archive className="w-4 h-4 text-muted-foreground" />{tr('Archive')}</>}
                 </button>
                 <div className="h-px bg-border/50 mx-2 my-1" />
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-semibold hover:bg-red-500/10 transition-colors text-left text-destructive"
                   onClick={() => { setDeletingId(contextMenuVision.id); setContextMenuVision(null) }}
                 >
-                  <Trash2 className="w-4 h-4" /> Delete
+                  <Trash2 className="w-4 h-4" />{' '}{tr('Delete')}
                 </button>
               </div>
             </div>
@@ -493,17 +486,16 @@ export function VisionListView({
       <Dialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
         <DialogContent className="w-[90vw] max-w-[350px] rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="text-lg font-black uppercase italic">Delete Permanently?</DialogTitle>
+            <DialogTitle className="text-lg font-black uppercase italic">{tr('Delete Permanently?')}</DialogTitle>
             <DialogDescription>
               {linkedGoalCount > 0
-                ? `${linkedGoalCount} goal${linkedGoalCount !== 1 ? 's are' : ' is'} linked to this vision. ${linkedGoalCount !== 1 ? 'They' : 'It'} will be kept as standalone goals.`
-                : 'This vision has no goals.'}
-              {' '}Archiving keeps it out of the way without deleting it.
+                ? tr('{n} {n:goal is|goals are} linked to this vision. {n:It|They} will be kept as standalone goals. Archiving keeps it out of the way without deleting it.', { n: linkedGoalCount })
+                : tr('This vision has no goals. Archiving keeps it out of the way without deleting it.')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="flex-1 font-bold h-12" onClick={() => setDeletingId(null)}>CANCEL</Button>
-            <Button variant="destructive" className="flex-1 font-bold h-12" onClick={handleDelete}>DELETE</Button>
+            <Button variant="outline" className="flex-1 font-bold h-12" onClick={() => setDeletingId(null)}>{tr('CANCEL')}</Button>
+            <Button variant="destructive" className="flex-1 font-bold h-12" onClick={handleDelete}>{tr('DELETE')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -512,8 +504,8 @@ export function VisionListView({
       <Dialog open={!!editingGoal} onOpenChange={(open) => !open && setEditingGoal(null)}>
         <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-black uppercase italic">Edit Goal</DialogTitle>
-            <DialogDescription className="sr-only">Update this goal</DialogDescription>
+            <DialogTitle className="font-black uppercase italic">{tr('Edit Goal')}</DialogTitle>
+            <DialogDescription className="sr-only">{tr('Update this goal')}</DialogDescription>
           </DialogHeader>
           {editingGoal && (
             <NewGoalForm
@@ -539,30 +531,28 @@ export function VisionListView({
                 <DialogHeader className="text-left">
   {selectedVision.created_at && (
     <div className="flex items-center gap-1.5 mb-2 text-white/75 text-[10px] font-bold uppercase tracking-widest">
-      <Calendar className="w-3 h-3" /> Cast {new Date(selectedVision.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+      <Calendar className="w-3 h-3" />{' '}{tr('Cast')}{' '}{new Date(selectedVision.created_at).toLocaleDateString(appLocale(), { day: 'numeric', month: 'short', year: 'numeric' })}
     </div>
   )}
 
   <DialogTitle className="text-3xl font-black leading-tight tracking-tight mb-5 pr-16 text-white">
-    {selectedVision.title}
+    {tr(selectedVision.title)}
   </DialogTitle>
 
   {/* sr-only keeps this hidden from sight but satisfies the accessibility error */}
   <DialogDescription className="sr-only">
-    Viewing details and goals for {selectedVision.title}
+    {tr('Viewing details and goals for {title}', { title: selectedVision.title })}
   </DialogDescription>
 </DialogHeader>
                 <div className="flex gap-8">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">Progress</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">{tr('Progress')}</p>
                     <p className="text-2xl font-black">{selectedVision.avgProgress}%</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">Target</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">{tr('Target')}</p>
                     <p className="text-2xl font-black">
-                      {selectedVision.target_date
-                        ? parseDateKey(selectedVision.target_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
-                        : 'Open'}
+                      {selectedVision.target_date ? parseDateKey(selectedVision.target_date).toLocaleDateString(appLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : tr('Open')}
                     </p>
                   </div>
                 </div>
@@ -573,14 +563,14 @@ export function VisionListView({
                   )}
                 </div>
                 <div className="mt-5 flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{PACE_LABEL[selectedVision.pace as keyof typeof PACE_LABEL]}</span>
+                  <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{tr(PACE_LABEL[selectedVision.pace as keyof typeof PACE_LABEL])}</span>
                   {daysLeftLabel(selectedVision.daysLeft) && (
                     <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold flex items-center gap-1">
                       <Clock className="h-3 w-3" /> {daysLeftLabel(selectedVision.daysLeft)}
                     </span>
                   )}
                   {selectedVision.expected !== null && selectedVision.pace !== 'achieved' && selectedVision.pace !== 'overdue' && (
-                    <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{selectedVision.expected}% expected by today</span>
+                    <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">{tr('{expected}% expected by today', { expected: selectedVision.expected })}</span>
                   )}
                 </div>
               </div>
@@ -589,15 +579,15 @@ export function VisionListView({
               <div className="p-6 space-y-6 bg-background">
                 {selectedVision.description && (
                   <div className="p-4 bg-muted/40 rounded-2xl border-l-4 text-sm text-muted-foreground leading-relaxed" style={{ borderColor: selectedVision.color }}>
-                    {selectedVision.description}
+                    {tr(selectedVision.description)}
                   </div>
                 )}
 
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-sm font-black flex items-center gap-2">
-                      <Target className="w-4 h-4 text-muted-foreground" /> Goals
-                      <span className="text-xs font-bold text-muted-foreground">{selectedVision.completedGoals}/{selectedVision.totalGoals} done</span>
+                      <Target className="w-4 h-4 text-muted-foreground" />{' '}{tr('Goals')}
+                      <span className="text-xs font-bold text-muted-foreground">{tr('{completedGoals}/{totalGoals} done', { completedGoals: selectedVision.completedGoals, totalGoals: selectedVision.totalGoals })}</span>
                     </h3>
 
                     {/* Internal Add Goal Trigger */}
@@ -607,13 +597,13 @@ export function VisionListView({
                           className="flex items-center gap-1 h-8 px-3 rounded-xl text-xs font-bold text-white active:scale-95 transition"
                           style={{ backgroundColor: solidFor(selectedVision.color) }}
                         >
-                          <Plus className="w-3.5 h-3.5" /> New Goal
+                          <Plus className="w-3.5 h-3.5" />{' '}{tr('New Goal')}
                         </button>
                       </DialogTrigger>
                       <DialogContent className="max-w-xl">
                         <DialogHeader>
-                          <DialogTitle className="font-black">Add Goal to {selectedVision.title}</DialogTitle>
-                          <DialogDescription className="sr-only">Add a goal to this vision</DialogDescription>
+                          <DialogTitle className="font-black">{tr('Add Goal to {title}', { title: selectedVision.title })}</DialogTitle>
+                          <DialogDescription className="sr-only">{tr('Add a goal to this vision')}</DialogDescription>
                         </DialogHeader>
                         <NewGoalForm
                           categories={categories}
@@ -633,7 +623,7 @@ export function VisionListView({
                           <button
                             onClick={() => {
                               if (goal.owner_id && goal.owner_id !== currentUserId) {
-                                toast('This goal is shared by your partner; only they can edit it')
+                                toast(tr('This goal is shared by your partner; only they can edit it'))
                                 return
                               }
                               setEditingGoal(goal)
@@ -645,7 +635,7 @@ export function VisionListView({
                                 'h-2 w-2 rounded-full shrink-0',
                                 goal.status === 'done' ? 'bg-emerald-500' : goal.due_date && goal.due_date.slice(0, 10) < toLocalDateKey(new Date()) ? 'bg-rose-500' : goal.status === 'doing' ? 'bg-violet-500' : 'bg-muted-foreground/40'
                               )} />
-                              <span className={cn('text-sm font-bold truncate', goal.status === 'done' && 'line-through text-muted-foreground')}>{goal.title}</span>
+                              <span className={cn('text-sm font-bold truncate', goal.status === 'done' && 'line-through text-muted-foreground')}>{tr(goal.title)}</span>
                             </div>
                             <div className="mt-2 flex items-center gap-2">
                               <div className="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
@@ -654,17 +644,17 @@ export function VisionListView({
                               <span className="text-[10px] font-black tabular-nums text-muted-foreground w-8 text-right">{goal.status === 'done' ? 100 : goal.progress ?? 0}%</span>
                             </div>
                             {goal.due_date && (
-                              <p className="mt-1 text-[10px] text-muted-foreground">Due {parseDateKey(goal.due_date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</p>
+                              <p className="mt-1 text-[10px] text-muted-foreground">{tr('Due {value}', { value: parseDateKey(goal.due_date).toLocaleDateString(appLocale(), { day: 'numeric', month: 'short' }) })}</p>
                             )}
                           </button>
-                          <Link href={`/protected/goals/${goal.id}`} aria-label={`Open ${goal.title}`} className="p-2 rounded-lg text-muted-foreground hover:bg-muted">
+                          <Link href={`/protected/goals/${goal.id}`} aria-label={tr('Open {title}', { title: goal.title })} className="p-2 rounded-lg text-muted-foreground hover:bg-muted">
                             <ChevronRight className="h-4 w-4" />
                           </Link>
                         </div>
                       ))
                     ) : (
                       <div className="text-center py-10 border border-dashed rounded-2xl text-sm text-muted-foreground">
-                        No goals in this vision yet. Add the first step.
+                        {tr('No goals in this vision yet. Add the first step.')}
                       </div>
                     )}
                   </div>

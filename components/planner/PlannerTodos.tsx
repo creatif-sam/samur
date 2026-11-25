@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -25,6 +26,7 @@ interface Props {
 // To-dos without a time yet. "Schedule" opens the event editor at the next free
 // slot; once saved, the to-do is removed from this list.
 export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }: Props) {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [todos, setTodos] = useState<PlannerTodo[]>([])
   const [text, setText] = useState('')
@@ -60,7 +62,7 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
       .single()
     if (error) {
       setText(value)
-      toast.error("Couldn't add the to-do. Check your connection.")
+      toast.error(tr('Couldn\'t add the to-do. Check your connection.'))
       return
     }
     setTodos(t => [...t, data as PlannerTodo])
@@ -71,12 +73,12 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
     const { error } = await supabase.from('planner_todos').delete().eq('id', todo.id)
     if (error) {
       setTodos(t => [...t, todo].sort((a, b) => a.created_at.localeCompare(b.created_at)))
-      toast.error("Couldn't delete the to-do.")
+      toast.error(tr('Couldn\'t delete the to-do.'))
       return
     }
-    toast.success('To-do removed', {
+    toast.success(tr('To-do removed'), {
       action: {
-        label: 'Undo',
+        label: tr('Undo'),
         onClick: async () => {
           const { data } = await supabase
             .from('planner_todos')
@@ -96,7 +98,7 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
       <div className="flex items-center gap-1">
       <button onClick={() => setOpen(o => !o)} className="flex flex-1 items-center justify-between">
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-          <ListTodo className="w-3.5 h-3.5" /> To-do{todos.length > 0 && ` · ${todos.length}`}
+          <ListTodo className="w-3.5 h-3.5" />{' '}{tr('To-do')}{todos.length > 0 && ` · ${todos.length}`}
         </span>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -112,13 +114,13 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
             <input
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Something to do, no time yet…"
+              placeholder={tr('Something to do, no time yet…')}
               className="flex-1 min-w-0 rounded-2xl bg-slate-100/80 dark:bg-slate-900/60 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-violet-400 dark:text-white"
             />
             <button
               type="submit"
               disabled={!text.trim()}
-              aria-label="Add to-do"
+              aria-label={tr('Add to-do')}
               className="shrink-0 w-11 h-11 rounded-2xl bg-violet-600 text-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all"
             >
               <Plus className="w-5 h-5" />
@@ -126,7 +128,7 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
           </form>
 
           {todos.length === 0 ? (
-            <p className="text-xs text-slate-400 px-1">Jot things down here, then schedule them into a free slot.</p>
+            <p className="text-xs text-slate-400 px-1">{tr('Jot things down here, then schedule them into a free slot.')}</p>
           ) : (
             <ul className="divide-y divide-slate-200/60 dark:divide-slate-700/60">
               {todos.map(todo => {
@@ -135,17 +137,17 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
                   <li key={todo.id} className="flex items-center gap-2 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 break-words">{todo.text}</p>
-                      {vision && <p className="text-[10px] text-slate-400">{vision.emoji} {vision.title}</p>}
+                      {vision && <p className="text-[10px] text-slate-400">{vision.emoji} {tr(vision.title)}</p>}
                     </div>
                     <button
                       onClick={() => onSchedule(todo)}
                       className="shrink-0 flex items-center gap-1 rounded-xl bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-2.5 py-1.5 text-xs font-bold active:scale-95"
                     >
-                      <CalendarPlus className="w-3.5 h-3.5" /> Schedule
+                      <CalendarPlus className="w-3.5 h-3.5" />{' '}{tr('Schedule')}
                     </button>
                     <button
                       onClick={() => remove(todo)}
-                      aria-label="Delete to-do"
+                      aria-label={tr('Delete to-do')}
                       className="shrink-0 p-1.5 text-slate-400 active:text-red-500"
                     >
                       <Trash2 className="w-4 h-4" />

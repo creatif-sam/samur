@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Loader2 } from 'lucide-react'
 import { BellIcon } from './BellIcon'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { formatDistanceToNow } from 'date-fns'
+import { dateFnsLocale } from '@/lib/i18n/dateFns'
 import { useRouter } from 'next/navigation'
 import { notificationIcon, notificationUrl } from '@/lib/notifications/categories'
 
@@ -33,6 +35,7 @@ interface Props {
 }
 
 export function NotificationCenter({ notifications, unreadCount, loading, onMarkRead, onMarkAllRead }: Props) {
+  const { tr } = useTranslation()
   const router = useRouter()
 
   return (
@@ -41,7 +44,7 @@ export function NotificationCenter({ notifications, unreadCount, loading, onMark
         <Button
           variant="ghost"
           size="icon"
-          aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+          aria-label={unreadCount > 0 ? tr('{unreadCount} unread notifications', { unreadCount: unreadCount }) : tr('Notifications')}
           className="relative h-10 w-10 rounded-full bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white active:scale-95"
         >
           {/* Solid bell that gives a little shake when something is waiting, an outline when caught up */}
@@ -65,11 +68,11 @@ export function NotificationCenter({ notifications, unreadCount, loading, onMark
       <DropdownMenuContent align="end" className="w-[min(20rem,calc(100vw-2rem))] mt-2 rounded-2xl p-2 shadow-2xl border-muted/20">
         <div className="flex justify-between items-center px-2 py-2">
           <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-            Notifications{unreadCount > 0 && ` · ${unreadCount} new`}
+            {tr('Notifications{value}', { value: unreadCount > 0 && tr(' · {unreadCount} new', { unreadCount: unreadCount }) })}
           </span>
           {unreadCount > 0 && (
             <button onClick={onMarkAllRead} className="text-[10px] font-bold text-primary hover:underline uppercase">
-              Mark all read
+              {tr('Mark all read')}
             </button>
           )}
         </div>
@@ -77,10 +80,10 @@ export function NotificationCenter({ notifications, unreadCount, loading, onMark
         <div className="max-h-[400px] overflow-y-auto">
           {loading ? (
             <div className="px-2 py-8 text-center text-sm text-slate-400 italic">
-              <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" /> Syncing...
+              <Loader2 className="w-4 h-4 animate-spin mx-auto mb-2" />{' '}{tr('Syncing...')}
             </div>
           ) : notifications.length === 0 ? (
-            <div className="px-2 py-10 text-center text-sm text-slate-400">No new updates.</div>
+            <div className="px-2 py-10 text-center text-sm text-slate-400">{tr('No new updates.')}</div>
           ) : (
             notifications.map((n) => (
               <DropdownMenuItem
@@ -95,9 +98,9 @@ export function NotificationCenter({ notifications, unreadCount, loading, onMark
                   <span className="text-xl shrink-0">{notificationIcon(n.type)}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start">
-                      <p className={`text-sm ${!n.read ? 'font-bold' : 'font-medium'} truncate text-foreground flex-1`}>{n.title}</p>
+                      <p className={`text-sm ${!n.read ? 'font-bold' : 'font-medium'} truncate text-foreground flex-1`}>{tr(n.title)}</p>
                       <span className="text-[10px] text-slate-400 ml-2 shrink-0">
-                        {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: dateFnsLocale() })}
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{n.body}</p>
@@ -112,7 +115,7 @@ export function NotificationCenter({ notifications, unreadCount, loading, onMark
           onClick={() => router.push('/protected/notifications')}
           className="justify-center rounded-xl py-2.5 text-xs font-bold text-primary cursor-pointer"
         >
-          See all notifications
+          {tr('See all notifications')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

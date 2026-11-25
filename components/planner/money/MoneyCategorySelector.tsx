@@ -25,7 +25,7 @@ export default function MoneyCategorySelector({
   onChange: (id: string | null) => void
 }) {
   const supabase = createClient()
-  const { t } = useTranslation()
+  const { t, tr } = useTranslation()
   const [categories, setCategories] = useState<Category[]>([])
   const [newName, setNewName] = useState('')
   const [newIcon, setNewIcon] = useState('💰')
@@ -227,7 +227,7 @@ export default function MoneyCategorySelector({
             className="flex items-center gap-1"
           >
             <span>{c.icon}</span>
-            <span>{c.name}</span>
+            <span>{tr(c.name)}</span>
           </Button>
         ))}
       </div>
@@ -275,7 +275,7 @@ export default function MoneyCategorySelector({
               <>
                 <div className="text-sm flex items-center gap-2">
                   <span>{c.icon}</span>
-                  <span>{c.name}</span>
+                  <span>{tr(c.name)}</span>
                 </div>
 
                 <div className="flex items-center gap-1">

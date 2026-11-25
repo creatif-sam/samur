@@ -1,10 +1,12 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { notificationIcon, notificationUrl } from '@/lib/notifications/categories'
 
 export function NotificationToast({ notification, onClose }: any) {
+  const { tr } = useTranslation()
   const router = useRouter()
   if (!notification) return null
 
@@ -18,8 +20,8 @@ export function NotificationToast({ notification, onClose }: any) {
     >
       <span className="text-xl shrink-0">{notificationIcon(notification.type)}</span>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-bold text-[#7c3aed] uppercase tracking-tighter">Just Now</p>
-        <p className="text-sm text-slate-700 dark:text-slate-200 line-clamp-1 font-bold">{notification.title}</p>
+        <p className="text-[10px] font-bold text-[#7c3aed] uppercase tracking-tighter">{tr('Just Now')}</p>
+        <p className="text-sm text-slate-700 dark:text-slate-200 line-clamp-1 font-bold">{tr(notification.title)}</p>
         <p className="text-xs text-slate-500 line-clamp-1">{notification.body}</p>
       </div>
       <button 

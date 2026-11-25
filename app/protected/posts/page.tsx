@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Loader2, HandHeart, BookOpen, NotebookPen } from 'lucide-react'
@@ -20,6 +21,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 const TAB_HELP: Record<Tab, HelpTopic> = { meditations: 'spirit.meditations', prayer: 'spirit.prayer', posts: 'spirit.posts' }
 
 function FeedPageContent() {
+  const { tr } = useTranslation()
   // ?tab=prayer etc. lets notifications open a specific tab
   const requestedTab = useSearchParams().get('tab')
   const [activeTab, setActiveTab] = useState<Tab>(
@@ -36,7 +38,7 @@ function FeedPageContent() {
 
       {/* Header */}
       <div className="flex items-center justify-between gap-2 mb-5">
-        <h1 className="text-xl font-bold tracking-tight text-foreground">Feed</h1>
+        <h1 className="text-xl font-bold tracking-tight text-foreground">{tr('Feed')}</h1>
         {/* key resets the bubble when you switch tabs */}
         <HelpTip key={activeTab} topic={TAB_HELP[activeTab]} />
       </div>
@@ -54,7 +56,7 @@ function FeedPageContent() {
             }`}
           >
             {tab.icon}
-            {tab.label}
+            {tr(tab.label)}
           </button>
         ))}
       </div>

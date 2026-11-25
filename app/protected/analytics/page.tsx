@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -16,6 +17,7 @@ import AnalyticsStatCards from '@/components/analytics/AnalyticsStatCards'
 import AnalyticsGoalSection from '@/components/analytics/AnalyticsGoalSection'
 
 export default function AnalyticsPage() {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [userId, setUserId]         = useState<string | null>(null)
   const [goals, setGoals]           = useState<Goal[]>([])
@@ -80,16 +82,16 @@ export default function AnalyticsPage() {
           className="inline-flex items-center gap-1 mb-3 pl-2 pr-3 h-8 rounded-full bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground active:scale-95 transition-all"
         >
           <ChevronLeft className="w-4 h-4" />
-          Planner
+          {tr('Planner')}
         </Link>
-        <p className="text-sm text-muted-foreground font-medium">Your growth</p>
+        <p className="text-sm text-muted-foreground font-medium">{tr('Your growth')}</p>
         <div className="flex items-center gap-1">
           <h1 className="text-3xl font-black tracking-tight leading-none">
-            Analytics <span className="text-violet-500">Lab</span>
+            {tr('Analytics')}{' '}<span className="text-violet-500">{tr('Lab')}</span>
           </h1>
           <HelpTip topic="analytics.page" align="left" />
         </div>
-        <p className="text-xs text-muted-foreground mt-1">Track what matters. Improve what counts.</p>
+        <p className="text-xs text-muted-foreground mt-1">{tr('Track what matters. Improve what counts.')}</p>
       </div>
 
       <AnalyticsHero

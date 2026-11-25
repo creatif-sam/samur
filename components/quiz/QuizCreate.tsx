@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ interface QuestionDraft {
 }
 
 export default function QuizCreate(): JSX.Element {
+  const { tr } = useTranslation()
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<QuestionDraft[]>([]);
@@ -39,7 +41,7 @@ export default function QuizCreate(): JSX.Element {
 
   const createQuiz = async (): Promise<void> => {
     if (questions.length < 3) {
-      alert('A quiz must have at least 3 questions');
+      alert(tr('A quiz must have at least 3 questions'));
       return;
     }
 
@@ -76,19 +78,19 @@ export default function QuizCreate(): JSX.Element {
     setDescription('');
     setQuestions([]);
     setLoading(false);
-    alert('Quiz created successfully');
+    alert(tr('Quiz created successfully'));
   };
 
   return (
     <div className="p-4 space-y-4">
       <Input
-        placeholder="Quiz title"
+        placeholder={tr('Quiz title')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
 
       <Textarea
-        placeholder="Description or scripture foundation"
+        placeholder={tr('Description or scripture foundation')}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
@@ -100,7 +102,7 @@ export default function QuizCreate(): JSX.Element {
             className="border rounded-xl p-3 space-y-2"
           >
             <Input
-              placeholder="Scripture reference"
+              placeholder={tr('Scripture reference')}
               value={q.scripture}
               onChange={(e) =>
                 updateQuestion(i, 'scripture', e.target.value)
@@ -108,7 +110,7 @@ export default function QuizCreate(): JSX.Element {
             />
 
             <Textarea
-              placeholder="Reflective question"
+              placeholder={tr('Reflective question')}
               value={q.question}
               onChange={(e) =>
                 updateQuestion(i, 'question', e.target.value)
@@ -126,7 +128,7 @@ export default function QuizCreate(): JSX.Element {
                   updateQuestion(i, 'correct_answer', true)
                 }
               >
-                Yes is correct
+                {tr('Yes is correct')}
               </Button>
 
               <Button
@@ -139,7 +141,7 @@ export default function QuizCreate(): JSX.Element {
                   updateQuestion(i, 'correct_answer', false)
                 }
               >
-                No is correct
+                {tr('No is correct')}
               </Button>
             </div>
           </div>
@@ -152,14 +154,14 @@ export default function QuizCreate(): JSX.Element {
           disabled={questions.length >= 12}
           onClick={addQuestion}
         >
-          Add Question
+          {tr('Add Question')}
         </Button>
 
         <Button
           disabled={loading || !title.trim()}
           onClick={createQuiz}
         >
-          Create Quiz
+          {tr('Create Quiz')}
         </Button>
       </div>
     </div>

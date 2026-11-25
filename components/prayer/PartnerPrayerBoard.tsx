@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
@@ -22,6 +23,7 @@ type BoardData = {
 }
 
 export default function PartnerPrayerBoard({ refreshKey }: { refreshKey?: number }) {
+  const { tr } = useTranslation()
   const [data, setData] = useState<BoardData | null>(null)
 
   useEffect(() => {
@@ -101,7 +103,7 @@ export default function PartnerPrayerBoard({ refreshKey }: { refreshKey?: number
     <div className="rounded-2xl border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2">
         <Users className="w-4 h-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium text-muted-foreground">Partnership Prayer Streaks</h3>
+        <h3 className="text-sm font-medium text-muted-foreground">{tr('Partnership Prayer Streaks')}</h3>
         <HelpTip topic="prayer.partnerStreaks" align="left" className="-my-1" />
       </div>
 
@@ -111,9 +113,9 @@ export default function PartnerPrayerBoard({ refreshKey }: { refreshKey?: number
       </div>
 
       <div className="flex items-center justify-between rounded-xl bg-gradient-to-r from-violet-600/10 to-amber-500/10 px-3 py-2.5">
-        <span className="text-xs font-semibold text-muted-foreground">🙏 Prayed together</span>
+        <span className="text-xs font-semibold text-muted-foreground">{tr('🙏 Prayed together')}</span>
         <span className="text-sm font-bold">
-          {data.togetherStreak} {data.togetherStreak === 1 ? 'day' : 'days'} in a row
+          {tr('{togetherStreak} {value} in a row', { togetherStreak: data.togetherStreak, value: data.togetherStreak === 1 ? tr('day') : tr('days') })}
         </span>
       </div>
     </div>
@@ -121,6 +123,7 @@ export default function PartnerPrayerBoard({ refreshKey }: { refreshKey?: number
 }
 
 function PersonCard({ person, isMe }: { person: Person; isMe: boolean }) {
+  const { tr } = useTranslation()
   const prayedToday = person.minutesToday > 0
 
   return (
@@ -128,8 +131,8 @@ function PersonCard({ person, isMe }: { person: Person; isMe: boolean }) {
       <div className="flex items-center gap-2">
         <Avatar name={person.name} avatar={person.avatar} />
         <div className="flex flex-col min-w-0 flex-1">
-          <h3 className="font-semibold text-sm truncate">{person.name}</h3>
-          {isMe && <span className="text-[10px] text-muted-foreground uppercase font-bold">You</span>}
+          <h3 className="font-semibold text-sm truncate">{tr(person.name)}</h3>
+          {isMe && <span className="text-[10px] text-muted-foreground uppercase font-bold">{tr('You')}</span>}
         </div>
       </div>
 
@@ -146,8 +149,8 @@ function PersonCard({ person, isMe }: { person: Person; isMe: boolean }) {
           <span className="text-lg">{person.streak > 0 ? '🔥' : '💤'}</span>
         )}
         <div className="flex flex-col">
-          <span className="text-sm font-bold">{person.streak} days</span>
-          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wide">Current Streak</span>
+          <span className="text-sm font-bold">{tr('{streak} days', { streak: person.streak })}</span>
+          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wide">{tr('Current Streak')}</span>
         </div>
       </div>
 
@@ -157,7 +160,7 @@ function PersonCard({ person, isMe }: { person: Person; isMe: boolean }) {
         }`}
       />
       <p className="text-[10px] text-muted-foreground font-medium">
-        {prayedToday ? `Prayed today · ${person.minutesToday} min` : 'Not yet today'}
+        {prayedToday ? tr('Prayed today · {minutesToday} min', { minutesToday: person.minutesToday }) : tr('Not yet today')}
       </p>
     </div>
   )

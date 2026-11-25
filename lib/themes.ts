@@ -1,3 +1,4 @@
+import { appLocale } from '@/lib/i18n'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { daysBetween, parseDateKey, toLocalDateKey } from '@/lib/dates'
 
@@ -117,7 +118,7 @@ export function themeSpan(themeYear: number | null, themeStart: string | null, t
 }
 
 export function formatThemeDate(key: string) {
-  return parseDateKey(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  return parseDateKey(key).toLocaleDateString(appLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 export const monthKey = (todayKey = toLocalDateKey(new Date())) => todayKey.slice(0, 7)

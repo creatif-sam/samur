@@ -1,5 +1,6 @@
-﻿'use client'
+'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { X, BookOpen, Loader2, Plus, Trash2 } from 'lucide-react'
@@ -140,6 +141,7 @@ const INPUT_CLS =
 const LABEL_CLS = 'block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1'
 
 export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
+  const { tr } = useTranslation()
   const today = new Date()
 
   const [isSaving, setIsSaving] = useState(false)
@@ -161,7 +163,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
     setTasks(draft.tasks); setEveningConnections(draft.eveningConnections)
     setEveningMeals(draft.eveningMeals); setLearned(draft.learned)
     setWins(draft.wins); setCarryForward(draft.carryForward)
-    toast('Draft restored')
+    toast(tr('Draft restored'))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => {
@@ -182,7 +184,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { toast.error('Not logged in'); return }
+      if (!user) { toast.error(tr('Not logged in')); return }
 
       const monthTitle = getMonthSectionTitle(today)
       const pageTitle = getPageTitle(today)
@@ -228,10 +230,10 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
       if (pageErr) throw pageErr
 
       clearDraft(draftKey)
-      toast.success('Journal entry saved to Daily Journaling!')
+      toast.success(tr('Journal entry saved to Daily Journaling!'))
       onClose()
     } catch (err: any) {
-      toast.error(err.message || 'Failed to save journal entry')
+      toast.error(err.message || tr('Failed to save journal entry'))
     } finally {
       setIsSaving(false)
     }
@@ -247,14 +249,14 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
         <button
           onClick={onClose}
           className="flex items-center justify-center w-9 h-9 rounded-xl hover:bg-muted transition-colors shrink-0"
-          aria-label="Close"
+          aria-label={tr('Close')}
         >
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex items-center gap-1.5 min-w-0">
           <BookOpen className="w-4 h-4 text-violet-500 shrink-0" />
-          <h2 className="text-sm font-black uppercase tracking-wider truncate">Journal My Day</h2>
+          <h2 className="text-sm font-black uppercase tracking-wider truncate">{tr('Journal My Day')}</h2>
         </div>
 
         <Button
@@ -263,7 +265,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
           disabled={isSaving}
           className="rounded-full px-4 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white border-0 shrink-0 h-9"
         >
-          {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
+          {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : tr('Save')}
         </Button>
       </div>
 
@@ -282,19 +284,19 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
         <div className="w-full max-w-lg mx-auto px-4 divide-y divide-border">
 
           {/* MORNING */}
-          <JSection emoji="🌅" title="MORNING">
-            <label className={LABEL_CLS}>Time</label>
+          <JSection emoji="🌅" title={tr('MORNING')}>
+            <label className={LABEL_CLS}>{tr('Time')}</label>
             <input
               type="time"
               value={morningTime}
               onChange={e => setMorningTime(e.target.value)}
               className={INPUT_CLS + ' mb-4'}
             />
-            <label className={LABEL_CLS}>Notes</label>
+            <label className={LABEL_CLS}>{tr('Notes')}</label>
             <textarea
               value={morningNotes}
               onChange={e => setMorningNotes(e.target.value)}
-              placeholder="How did your morning start?"
+              placeholder={tr('How did your morning start?')}
               rows={3}
               className={
                 'w-full rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-base leading-snug resize-none ' +
@@ -304,8 +306,8 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
           </JSection>
 
           {/* WORK & RESPONSIBILITIES */}
-          <JSection emoji="💼" title="WORK & RESPONSIBILITIES">
-            <label className={LABEL_CLS}>Tasks &amp; Outcomes</label>
+          <JSection emoji="💼" title={tr('WORK & RESPONSIBILITIES')}>
+            <label className={LABEL_CLS}>{tr('Tasks & Outcomes')}</label>
             <div className="space-y-2">
               {tasks.map((task, i) => (
                 <div key={i} className="flex items-center gap-2 min-w-0">
@@ -316,7 +318,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                     onChange={e => {
                       const next = [...tasks]; next[i] = e.target.value; setTasks(next)
                     }}
-                    placeholder={`Task ${i + 1}`}
+                    placeholder={tr('Task {value}', { value: i + 1 })}
                     className={INPUT_CLS + ' min-w-0'}
                   />
                   {tasks.length > 1 && (
@@ -330,32 +332,32 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                 </div>
               ))}
             </div>
-            <AddButton onClick={() => setTasks([...tasks, ''])} label="Add task" />
+            <AddButton onClick={() => setTasks([...tasks, ''])} label={tr('Add task')} />
           </JSection>
 
           {/* EVENING */}
-          <JSection emoji="🌇" title="EVENING">
-            <label className={LABEL_CLS}>Connections</label>
+          <JSection emoji="🌇" title={tr('EVENING')}>
+            <label className={LABEL_CLS}>{tr('Connections')}</label>
             <input
               type="text"
               value={eveningConnections}
               onChange={e => setEveningConnections(e.target.value)}
-              placeholder="Who did you connect with?"
+              placeholder={tr('Who did you connect with?')}
               className={INPUT_CLS + ' mb-4'}
             />
-            <label className={LABEL_CLS}>Meals</label>
+            <label className={LABEL_CLS}>{tr('Meals')}</label>
             <input
               type="text"
               value={eveningMeals}
               onChange={e => setEveningMeals(e.target.value)}
-              placeholder="What did you eat?"
+              placeholder={tr('What did you eat?')}
               className={INPUT_CLS}
             />
           </JSection>
 
           {/* WHAT I LEARNED TODAY */}
-          <JSection emoji="📖" title="WHAT I LEARNED TODAY">
-            <label className={LABEL_CLS}>Source → Takeaway</label>
+          <JSection emoji="📖" title={tr('WHAT I LEARNED TODAY')}>
+            <label className={LABEL_CLS}>{tr('Source → Takeaway')}</label>
             <div className="space-y-3">
               {learned.map((item, i) => (
                 <div key={i} className="flex items-start gap-2 min-w-0">
@@ -366,7 +368,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                       onChange={e => {
                         const next = [...learned]; next[i] = { ...next[i], source: e.target.value }; setLearned(next)
                       }}
-                      placeholder="Source"
+                      placeholder={tr('Source')}
                       className={INPUT_CLS}
                     />
                     <div className="flex items-center gap-1.5 min-w-0">
@@ -377,7 +379,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                         onChange={e => {
                           const next = [...learned]; next[i] = { ...next[i], takeaway: e.target.value }; setLearned(next)
                         }}
-                        placeholder="Takeaway"
+                        placeholder={tr('Takeaway')}
                         className={INPUT_CLS + ' min-w-0'}
                       />
                     </div>
@@ -393,11 +395,11 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                 </div>
               ))}
             </div>
-            <AddButton onClick={() => setLearned([...learned, { source: '', takeaway: '' }])} label="Add lesson" />
+            <AddButton onClick={() => setLearned([...learned, { source: '', takeaway: '' }])} label={tr('Add lesson')} />
           </JSection>
 
           {/* WINS */}
-          <JSection emoji="✅" title="WINS (min. 3)">
+          <JSection emoji="✅" title={tr('WINS (min. 3)')}>
             {([0, 1, 2] as const).map(i => (
               <div key={i} className="flex items-center gap-2 min-w-0 mb-2">
                 <span className="text-sm font-bold text-violet-500 w-5 shrink-0 text-right">{i + 1}.</span>
@@ -407,7 +409,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                   onChange={e => {
                     const next = [...wins] as [string, string, string]; next[i] = e.target.value; setWins(next)
                   }}
-                  placeholder={`Win #${i + 1}`}
+                  placeholder={tr('Win #{value}', { value: i + 1 })}
                   className={INPUT_CLS + ' min-w-0'}
                 />
               </div>
@@ -415,7 +417,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
           </JSection>
 
           {/* CARRY FORWARD */}
-          <JSection emoji="🔁" title="CARRY FORWARD">
+          <JSection emoji="🔁" title={tr('CARRY FORWARD')}>
             <div className="space-y-2">
               {carryForward.map((item, i) => (
                 <div key={i} className="flex items-center gap-2 min-w-0">
@@ -426,7 +428,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                     onChange={e => {
                       const next = [...carryForward]; next[i] = e.target.value; setCarryForward(next)
                     }}
-                    placeholder={`Item ${i + 1}`}
+                    placeholder={tr('Item {value}', { value: i + 1 })}
                     className={INPUT_CLS + ' min-w-0'}
                   />
                   {carryForward.length > 1 && (
@@ -440,7 +442,7 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
                 </div>
               ))}
             </div>
-            <AddButton onClick={() => setCarryForward([...carryForward, ''])} label="Add item" />
+            <AddButton onClick={() => setCarryForward([...carryForward, ''])} label={tr('Add item')} />
           </JSection>
 
         </div>
@@ -450,11 +452,12 @@ export default function DailyJournalModal({ onClose }: DailyJournalModalProps) {
 }
 
 function JSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+  const { tr } = useTranslation()
   return (
     <div className="py-5">
       <div className="flex items-center gap-2 mb-4 min-w-0">
         <span className="text-lg shrink-0">{emoji}</span>
-        <h3 className="text-xs font-black uppercase tracking-widest text-foreground truncate">{title}</h3>
+        <h3 className="text-xs font-black uppercase tracking-widest text-foreground truncate">{tr(title)}</h3>
         <div className="flex-1 h-px bg-border" style={{ minWidth: 8 }} />
       </div>
       {children}
@@ -463,6 +466,7 @@ function JSection({ emoji, title, children }: { emoji: string; title: string; ch
 }
 
 function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
+  const { tr } = useTranslation()
   return (
     <button
       type="button"
@@ -470,7 +474,7 @@ function AddButton({ onClick, label }: { onClick: () => void; label: string }) {
       className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-violet-500 active:text-violet-700 transition-colors py-1"
     >
       <Plus className="w-3.5 h-3.5" />
-      {label}
+      {tr(label)}
     </button>
   )
 }

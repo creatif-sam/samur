@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Flame, Brain, Target, CheckCircle2, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -61,6 +62,7 @@ export default function AnalyticsStatCards({
   completedGoalsCount,
   booksRead,
 }: Props) {
+  const { tr } = useTranslation()
   const values: Record<string, number> = {
     streak: meditationStreak,
     sessions: totalSessions,
@@ -72,7 +74,7 @@ export default function AnalyticsStatCards({
   return (
     <div className="mt-4">
       <div className="px-4 mb-3">
-        <h3 className="text-base font-black tracking-tight">Your Stats</h3>
+        <h3 className="text-base font-black tracking-tight">{tr('Your Stats')}</h3>
       </div>
       <div className="flex gap-3 px-4 overflow-x-auto pb-2 no-scrollbar">
         {CARDS.map(({ key, label, unit, icon: Icon, gradient, shadow }) => (
@@ -88,8 +90,8 @@ export default function AnalyticsStatCards({
               <Icon className="w-4 h-4 text-white" />
             </div>
             <p className="text-3xl font-black text-white leading-none">{values[key]}</p>
-            <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">{unit}</p>
-            <p className="text-xs font-semibold text-white/80 mt-2 leading-tight">{label}</p>
+            <p className="text-[10px] font-bold text-white/55 uppercase tracking-wide mt-0.5">{tr(unit)}</p>
+            <p className="text-xs font-semibold text-white/80 mt-2 leading-tight">{tr(label)}</p>
           </div>
         ))}
       </div>

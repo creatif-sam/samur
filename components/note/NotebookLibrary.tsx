@@ -1,3 +1,7 @@
+'use client'
+
+import { trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { Search, Book, Grid, List, X, Pin, PinOff, Pencil, Trash2, Users, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -31,6 +35,7 @@ function noteCount(nb: Notebook) {
 }
 
 export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename, onTogglePin, onSelectPage, onQuickAdd, onLongPressPage, sharedWithMe = [], partnerName, onOpenShared }: NotebookLibraryProps) {
+  const { tr } = useTranslation()
   const [query, setQuery] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid')
   const [searchQuery, setSearchQuery] = useState('')
@@ -145,7 +150,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
     return searchHits.map(page => {
       const owner = sectionIndex.get(page.section_id)
       const preview = (page.preview ?? '').trim()
-      return { page, owner, matchedText: preview || 'Empty note' }
+      return { page, owner, matchedText: preview || trNow('Empty note') }
     })
   }, [searchHits, sectionIndex])
 
@@ -161,7 +166,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
     <>
       <header className="px-6 pt-12 pb-6 sticky top-0 bg-white/90 dark:bg-[#0f172a]/90 backdrop-blur-xl z-20 border-b border-slate-50 dark:border-slate-800">
         <div className="mb-4 flex items-center justify-center gap-1">
-          <h2 className="text-3xl font-semibold tracking-tight text-[#7719aa] dark:text-[#a78bfa] uppercase text-center">Library</h2>
+          <h2 className="text-3xl font-semibold tracking-tight text-[#7719aa] dark:text-[#a78bfa] uppercase text-center">{tr('Library')}</h2>
           <HelpTip topic="notes.library" align="left" />
         </div>
 
@@ -170,7 +175,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search all notes..."
+            placeholder={tr('Search all notes...')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-10 h-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 dark:text-white"
@@ -196,7 +201,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                 className={`flex-1 gap-2 ${viewMode === 'grid' ? 'bg-[#7719aa] dark:bg-[#7c3aed]' : ''}`}
               >
                 <Grid className="w-4 h-4" />
-                <span className="text-xs font-semibold">Recent Pages</span>
+                <span className="text-xs font-semibold">{tr('Recent Pages')}</span>
               </Button>
               <Button
                 variant={viewMode === 'table' ? 'default' : 'outline'}
@@ -205,14 +210,14 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                 className={`flex-1 gap-2 ${viewMode === 'table' ? 'bg-[#7719aa] dark:bg-[#7c3aed]' : ''}`}
               >
                 <List className="w-4 h-4" />
-                <span className="text-xs font-semibold">Notebooks</span>
+                <span className="text-xs font-semibold">{tr('Notebooks')}</span>
               </Button>
             </div>
 
             {viewMode === 'table' && (
               <div className="relative">
                 <Search className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input placeholder="FILTER..." className="w-full pl-7 h-10 bg-transparent border-0 border-b border-slate-100 dark:border-slate-800 text-[11px] font-semibold tracking-widest uppercase focus:outline-none dark:text-white" value={query} onChange={(e) => setQuery(e.target.value)} />
+                <input placeholder={tr('FILTER...')} className="w-full pl-7 h-10 bg-transparent border-0 border-b border-slate-100 dark:border-slate-800 text-[11px] font-semibold tracking-widest uppercase focus:outline-none dark:text-white" value={query} onChange={(e) => setQuery(e.target.value)} />
               </div>
             )}
           </>
@@ -223,13 +228,13 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           // Search Results View
           <div className="px-4 py-4">
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-              {searching ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching…</> : `${searchResults.length} result${searchResults.length !== 1 ? 's' : ''} found`}
+              {searching ? <><Loader2 className="w-3.5 h-3.5 animate-spin" />{' '}{tr('Searching…')}</> : tr('{searchResultsCount} {searchResultsCount:result|results} found', { searchResultsCount: searchResults.length })}
             </p>
 
             {!searching && searchResults.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-600">
                 <Search className="w-12 h-12 mb-3 opacity-30" />
-                <p className="text-sm font-medium">No matching notes</p>
+                <p className="text-sm font-medium">{tr('No matching notes')}</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -245,12 +250,12 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                         style={{ backgroundColor: owner?.notebook.color || '#94a3b8' }}
                       />
                       <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
-                        {owner ? `${owner.notebook.title} / ${owner.section.title}` : <><Users className="w-3 h-3" /> Shared by {partnerName || 'partner'}</>}
+                        {owner ? `${owner.notebook.title} / ${owner.section.title}` : <><Users className="w-3 h-3" />{' '}{tr('Shared by')}{' '}{partnerName || tr('partner')}</>}
                       </span>
                     </div>
 
                     <h4 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">
-                      {page.title || 'Untitled'}
+                      {page.title || tr('Untitled')}
                     </h4>
 
                     <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">
@@ -266,7 +271,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           {pinnedNotes.length > 0 && (
             <div className="px-4 pt-4">
               <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
-                <Pin className="w-3 h-3" /> Pinned notes
+                <Pin className="w-3 h-3" />{' '}{tr('Pinned notes')}
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 {pinnedNotes.map(({ page, section, notebook }) => (
@@ -275,7 +280,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                     onClick={() => onSelectPage(page, section, notebook)}
                     className="shrink-0 w-40 text-left rounded-2xl border border-violet-200 dark:border-violet-900/50 bg-violet-50/60 dark:bg-violet-950/20 p-3"
                   >
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{page.title || 'Untitled'}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{page.title || tr('Untitled')}</p>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{page.preview?.trim() || notebook.title}</p>
                   </button>
                 ))}
@@ -285,7 +290,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           {sharedWithMe.length > 0 && (
             <div className="px-4 pt-4">
               <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
-                <Users className="w-3 h-3" /> Shared with you{partnerName ? ` by ${partnerName}` : ''}
+                <Users className="w-3 h-3" />{' '}{tr('Shared with you')}{partnerName ? tr(' by {partnerName}', { partnerName: partnerName }) : ''}
               </p>
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 {sharedWithMe.map(page => (
@@ -294,8 +299,8 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                     onClick={() => onOpenShared?.(page)}
                     className="shrink-0 w-40 text-left rounded-2xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/60 dark:bg-rose-950/20 p-3"
                   >
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{page.title || 'Untitled'}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{page.preview?.trim() || 'Open to read'}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{page.title || tr('Untitled')}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">{page.preview?.trim() || tr('Open to read')}</p>
                   </button>
                 ))}
               </div>
@@ -311,7 +316,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
           <>
             <div className="px-4 pt-2 pb-1">
               <p className="text-[10px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500">
-                Long press a notebook for actions
+                {tr('Long press a notebook for actions')}
               </p>
             </div>
 
@@ -335,12 +340,12 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
                 <div className="w-12 h-12 shrink-0 rounded-2xl flex items-center justify-center text-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">{nb.emoji || '📓'}</div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-[15px] text-slate-800 dark:text-slate-100 uppercase truncate flex items-center gap-2">
-                    <span className="truncate">{nb.title}</span>
+                    <span className="truncate">{tr(nb.title)}</span>
                     {isPinned && (
                       <Pin className="w-3.5 h-3.5 text-violet-500 shrink-0" />
                     )}
                   </h3>
-                  <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-widest">{nb.sections?.length || 0} sections · {noteCount(nb)} notes</p>
+                  <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mt-1 tracking-widest">{tr('{value} sections · {noteCount} notes', { value: nb.sections?.length || 0, noteCount: noteCount(nb) })}</p>
                 </div>
               </div>
             )})}
@@ -350,7 +355,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
       <div className="fixed bottom-32 right-6 z-50 flex flex-col gap-3 items-end">
         <Button
           onClick={onQuickAdd}
-          title="Quick note"
+          title={tr('Quick note')}
           className="h-12 w-12 rounded-2xl bg-violet-500 dark:bg-violet-600 shadow-xl active:scale-95 border-none"
         >
           <Pencil className="w-5 h-5 text-white" />
@@ -362,7 +367,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
         <DialogContent className="max-w-[320px] rounded-3xl p-6">
           <DialogHeader>
             <DialogTitle className="text-center">
-              {actionNotebook?.title}
+              {tr(actionNotebook?.title ?? '')}
             </DialogTitle>
           </DialogHeader>
 
@@ -374,11 +379,11 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
             >
               {actionNotebook?.pinned ? (
                 <>
-                  <PinOff className="w-4 h-4" /> Unpin
+                  <PinOff className="w-4 h-4" />{' '}{tr('Unpin')}
                 </>
               ) : (
                 <>
-                  <Pin className="w-4 h-4" /> Pin notebook
+                  <Pin className="w-4 h-4" />{' '}{tr('Pin notebook')}
                 </>
               )}
             </Button>
@@ -388,7 +393,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
               className="w-full justify-start gap-2"
               onClick={handleRenameFromActions}
             >
-              <Pencil className="w-4 h-4" /> Rename
+              <Pencil className="w-4 h-4" />{' '}{tr('Rename')}
             </Button>
 
             <Button
@@ -396,7 +401,7 @@ export function NotebookLibrary({ notebooks, onSelect, onAdd, onDelete, onRename
               className="w-full justify-start gap-2 text-red-600 hover:text-red-700"
               onClick={handleDeleteFromActions}
             >
-              <Trash2 className="w-4 h-4" /> Delete
+              <Trash2 className="w-4 h-4" />{' '}{tr('Delete')}
             </Button>
           </div>
         </DialogContent>

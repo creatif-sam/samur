@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import Link from 'next/link'
 import { Target, CheckCircle2, ChevronRight } from 'lucide-react'
 import { Goal } from '@/lib/types'
@@ -9,6 +10,7 @@ interface Props {
 }
 
 export default function AnalyticsGoalSection({ goals }: Props) {
+  const { tr } = useTranslation()
   const done   = goals.filter(g => g.status === 'done')
   const active = goals.filter(g => g.status !== 'done')
   const total  = goals.length
@@ -18,9 +20,9 @@ export default function AnalyticsGoalSection({ goals }: Props) {
   return (
     <div className="px-4 mt-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-black tracking-tight">Goals Breakdown</h3>
+        <h3 className="text-base font-black tracking-tight">{tr('Goals Breakdown')}</h3>
         <Link href="/protected/goals" className="text-xs font-bold text-violet-500">
-          See all →
+          {tr('See all →')}
         </Link>
       </div>
 
@@ -31,13 +33,13 @@ export default function AnalyticsGoalSection({ goals }: Props) {
             <div className="w-7 h-7 rounded-lg bg-emerald-500/20 flex items-center justify-center">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
             </div>
-            <span className="text-sm font-bold">{done.length} done</span>
+            <span className="text-sm font-bold">{tr('{doneCount} done', { doneCount: done.length })}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-violet-500/20 flex items-center justify-center">
               <Target className="w-3.5 h-3.5 text-violet-500" />
             </div>
-            <span className="text-sm font-bold">{active.length} active</span>
+            <span className="text-sm font-bold">{tr('{activeCount} active', { activeCount: active.length })}</span>
           </div>
           <span className="text-xl font-black text-violet-500">{rate}%</span>
         </div>
@@ -51,8 +53,8 @@ export default function AnalyticsGoalSection({ goals }: Props) {
           <div className="bg-violet-500/30 h-full flex-1" />
         </div>
         <div className="flex justify-between mt-1.5">
-          <span className="text-[10px] text-muted-foreground font-medium">Completion rate</span>
-          <span className="text-[10px] text-muted-foreground font-medium">{total} total goals</span>
+          <span className="text-[10px] text-muted-foreground font-medium">{tr('Completion rate')}</span>
+          <span className="text-[10px] text-muted-foreground font-medium">{tr('{total} total goals', { total: total })}</span>
         </div>
       </div>
 
@@ -66,7 +68,7 @@ export default function AnalyticsGoalSection({ goals }: Props) {
                   <Target className="w-4 h-4 text-violet-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold truncate">{goal.title}</p>
+                  <p className="text-sm font-bold truncate">{tr(goal.title)}</p>
                   <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full bg-violet-500 rounded-full transition-all"
@@ -87,8 +89,8 @@ export default function AnalyticsGoalSection({ goals }: Props) {
       {total === 0 && (
         <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
           <Target className="w-10 h-10 text-muted-foreground/40" />
-          <p className="text-sm font-semibold text-muted-foreground">No goals yet.</p>
-          <Link href="/protected/goals" className="text-xs font-bold text-violet-500">Add your first goal →</Link>
+          <p className="text-sm font-semibold text-muted-foreground">{tr('No goals yet.')}</p>
+          <Link href="/protected/goals" className="text-xs font-bold text-violet-500">{tr('Add your first goal →')}</Link>
         </div>
       )}
     </div>

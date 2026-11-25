@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -45,6 +47,7 @@ export function computeStreaks(days: Record<string, unknown>) {
 
 // The last 7 days at a glance: top half = morning, bottom half = evening
 export default function MeditationStreakBoard({ meditations, ownerId, accountCreatedAt }: Props) {
+  const { tr } = useTranslation()
   const [showCalendar, setShowCalendar] = useState(false)
   const [activeDay, setActiveDay] = useState<string | null>(null)
 
@@ -67,12 +70,10 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
           </div>
           <div className="min-w-0">
             <p className="text-lg font-black leading-tight">
-              {current} day{current !== 1 ? 's' : ''} <span className="text-sm font-bold text-muted-foreground">streak</span>
+              {current}{' '}{tr('day')}{current !== 1 ? 's' : ''} <span className="text-sm font-bold text-muted-foreground">{tr('streak')}</span>
             </p>
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-              {best > current
-                ? <><Trophy className="h-3 w-3 text-amber-500" /> Best: {best} days</>
-                : current > 0 ? 'Your best streak yet' : 'Write today to start a streak'}
+              {best > current ? <><Trophy className="h-3 w-3 text-amber-500" />{' '}{tr('Best:')}{' '}{best}{' '}{tr('days')}</> : current > 0 ? tr('Your best streak yet') : tr('Write today to start a streak')}
             </p>
           </div>
           <HelpTip topic="spirit.streak" align="left" />
@@ -81,7 +82,7 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
           onClick={() => setShowCalendar(true)}
           className="shrink-0 flex items-center gap-1.5 rounded-xl bg-muted px-3 py-2 text-xs font-bold text-foreground active:scale-95 transition"
         >
-          <CalendarDays className="h-3.5 w-3.5" /> Calendar
+          <CalendarDays className="h-3.5 w-3.5" />{' '}{tr('Calendar')}
         </button>
       </div>
 
@@ -98,10 +99,10 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
               key={key}
               onClick={() => setActiveDay(d => (d === key ? null : key))}
               className="flex flex-col items-center gap-1.5"
-              aria-label={`${date.toLocaleDateString(undefined, { weekday: 'long' })}: ${entries.length ? `${entries.length} meditation${entries.length > 1 ? 's' : ''}` : 'none'}`}
+              aria-label={`${date.toLocaleDateString(appLocale(), { weekday: 'long' })}: ${entries.length ? `${entries.length} meditation${entries.length > 1 ? 's' : ''}` : 'none'}`}
             >
               <span className={`text-[10px] font-bold uppercase ${isToday ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`}>
-                {date.toLocaleDateString(undefined, { weekday: 'narrow' })}
+                {date.toLocaleDateString(appLocale(), { weekday: 'narrow' })}
               </span>
               <span
                 className={`relative h-10 w-10 rounded-full overflow-hidden grid place-items-center bg-muted transition ${
@@ -126,23 +127,23 @@ export default function MeditationStreakBoard({ meditations, ownerId, accountCre
       {activeDay && (
         <div className="rounded-2xl bg-muted/50 px-3 py-2.5 space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-            {new Date(activeDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}
+            {new Date(activeDay + 'T12:00:00').toLocaleDateString(appLocale(), { weekday: 'long', month: 'short', day: 'numeric' })}
           </p>
           {activeEntries.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No meditation this day.</p>
+            <p className="text-xs text-muted-foreground">{tr('No meditation this day.')}</p>
           ) : activeEntries.map(m => (
             <Link key={m.id} href={`/protected/meditations/${m.id}`} className="flex items-center gap-2 text-sm font-semibold">
               {m.period === 'morning' ? <Sun className="h-3.5 w-3.5 text-amber-500 shrink-0" /> : <Moon className="h-3.5 w-3.5 text-indigo-500 shrink-0" />}
-              <span className="truncate">{m.title || 'Untitled'}</span>
+              <span className="truncate">{m.title || tr('Untitled')}</span>
             </Link>
           ))}
         </div>
       )}
 
       <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-violet-500" /> Morning</span>
-        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" /> Evening</span>
-        <span className="flex items-center gap-1.5"><span className="text-xs leading-none">😈</span> Missed</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-violet-500" />{' '}{tr('Morning')}</span>
+        <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />{' '}{tr('Evening')}</span>
+        <span className="flex items-center gap-1.5"><span className="text-xs leading-none">😈</span>{' '}{tr('Missed')}</span>
       </div>
 
       <StreakCalendarModal

@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale, trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion' // Added for the Glide effect
 import { createClient } from '@/lib/supabase/client'
@@ -33,6 +35,7 @@ import Link from '@tiptap/extension-link'
 import { useVisualViewport } from '@/lib/useVisualViewport'
 
 export default function MeditationComposer({ meditation, onClose, onCreated }: any) {
+  const { tr } = useTranslation()
   const [title, setTitle] = useState('')
   const [scripture, setScripture] = useState('')
   const [application, setApplication] = useState('')
@@ -78,7 +81,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
           class: 'text-[#7c3aed] dark:text-[#a78bfa] underline font-semibold cursor-pointer',
         },
       }),
-      Placeholder.configure({ placeholder: 'What is the Holy Spirit revealing to you?' }),
+      Placeholder.configure({ placeholder: trNow('What is the Holy Spirit revealing to you?') }),
     ],
     content: meditation?.lesson || '',
     immediatelyRender: false,
@@ -107,8 +110,8 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     setApplication(draft.application); setPrayer(draft.prayer)
     setVerseRef(draft.verseRef); setVerseText(draft.verseText)
     editor.commands.setContent(draft.lesson)
-    toast('Draft restored', {
-      action: { label: 'Discard', onClick: () => { clearDraft(draftKey); onClose() } },
+    toast(tr('Draft restored'), {
+      action: { label: tr('Discard'), onClick: () => { clearDraft(draftKey); onClose() } },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor])
@@ -154,7 +157,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
       setVerseRef(found.reference)
       setVerseText(found.text)
     } catch {
-      toast.error("Couldn't find that verse. Check the reference, e.g. John 3:16, or type the text yourself.")
+      toast.error(tr('Couldn\'t find that verse. Check the reference, e.g. John 3:16, or type the text yourself.'))
     } finally {
       setLookingUp(false)
     }
@@ -166,7 +169,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     const text = verseText.trim()
     if (!reference && !text) return true
     if (!reference || !text) {
-      toast.error('Add both the reference and the text of your memory verse')
+      toast.error(tr('Add both the reference and the text of your memory verse'))
       return false
     }
     if (storedVerse && storedVerse.reference === reference && storedVerse.text === text) return true
@@ -188,7 +191,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
       .single()
     if (error) {
       console.error('Failed to save memory verse', error)
-      toast.error("Meditation saved, but the memory verse couldn't be saved.")
+      toast.error(tr('Meditation saved, but the memory verse couldn\'t be saved.'))
       return false
     }
     setStoredVerse(data as MemoryVerse)
@@ -197,7 +200,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
   const setBibleLink = () => {
     const previousUrl = editor?.getAttributes('link').href
-    const url = window.prompt('Enter Bible Reference:', previousUrl)
+    const url = window.prompt(tr('Enter Bible Reference:'), previousUrl)
     if (!url) return
     const finalUrl = url.includes('http') ? url : `https://www.biblegateway.com/passage/?search=${encodeURIComponent(url)}&version=NIV`
     editor?.chain().focus().extendMarkRange('link').setLink({ href: finalUrl }).run()
@@ -207,12 +210,12 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
     const lessonContent = editor?.getHTML() || ''
 
     // Validate all required fields
-    if (!title.trim()) return toast.error("Title is required ✍️")
-    if (!scripture.trim()) return toast.error("Scripture reference is required 📖")
-    if (!lessonContent.trim() || lessonContent === '<p></p>') return toast.error("Revelation/Lesson is required 💡")
-    if (!application.trim()) return toast.error("Application is required 🚶")
-    if (!prayer.trim()) return toast.error("Prayer is required 🙏")
-    if (!!verseRef.trim() !== !!verseText.trim()) return toast.error("Add both the reference and the text of your memory verse 🧠")
+    if (!title.trim()) return toast.error(tr('Title is required ✍️'))
+    if (!scripture.trim()) return toast.error(tr('Scripture reference is required 📖'))
+    if (!lessonContent.trim() || lessonContent === '<p></p>') return toast.error(tr('Revelation/Lesson is required 💡'))
+    if (!application.trim()) return toast.error(tr('Application is required 🚶'))
+    if (!prayer.trim()) return toast.error(tr('Prayer is required 🙏'))
+    if (!!verseRef.trim() !== !!verseText.trim()) return toast.error(tr('Add both the reference and the text of your memory verse 🧠'))
 
     setSaving(true)
     const { data: { user } } = await supabase.auth.getUser()
@@ -227,7 +230,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
       if (user?.id) await saveMemoryVerse(user.id)
 
-      toast.success("Journal synced! 🤍")
+      toast.success(tr('Journal synced! 🤍'))
 
       // Notify partner if meditation is shared
       if (visibility === 'shared' && user?.id) {
@@ -295,9 +298,9 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         {/* Header */}
         <div className="bg-[#7c3aed] p-5 md:p-6 text-white flex justify-between items-center shrink-0">
           <div className="min-w-0">
-            <h2 className="text-xl md:text-2xl font-semibold tracking-tight leading-none uppercase">Daily Bread</h2>
+            <h2 className="text-xl md:text-2xl font-semibold tracking-tight leading-none uppercase">{tr('Daily Bread')}</h2>
             <p className="text-[10px] uppercase font-semibold tracking-widest opacity-80 mt-2">
-              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              {new Date().toLocaleDateString(appLocale() ?? 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             </p>
           </div>
           <button onClick={handleClose} className="bg-white/10 p-2.5 rounded-full hover:bg-white/20 transition-all active:scale-90">
@@ -310,17 +313,17 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             <div className="space-y-2">
-               <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Focus</label>
-               <Input placeholder="Title..." value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 h-12 font-semibold text-slate-900 dark:text-white w-full" />
+               <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tr('Focus')}</label>
+               <Input placeholder={tr('Title...')} value={title} onChange={(e) => setTitle(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 h-12 font-semibold text-slate-900 dark:text-white w-full" />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Scripture</label>
-              <Input placeholder="e.g. Matthew 6:33" value={scripture} onChange={(e) => setScripture(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 h-12 text-slate-900 dark:text-white w-full" />
+              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tr('Scripture')}</label>
+              <Input placeholder={tr('e.g. Matthew 6:33')} value={scripture} onChange={(e) => setScripture(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 h-12 text-slate-900 dark:text-white w-full" />
             </div>
           </div>
 
           <div className="space-y-2">
-             <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Revelation</label>
+             <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tr('Revelation')}</label>
              <div className="border-2 border-violet-50 dark:border-slate-800 rounded-[28px] overflow-hidden bg-white dark:bg-slate-900 w-full">
                 <div className="flex items-center gap-1 p-3 border-b border-violet-50 dark:border-slate-800 bg-violet-50/20 dark:bg-slate-800/50 sticky top-0 z-10">
                   <RichButton icon={<Bold size={18}/>} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} />
@@ -336,16 +339,16 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Application</label>
+              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tr('Application')}</label>
               <DictationButton className="w-8 h-8" onText={text => setApplication(a => appendDictation(a, text))} />
             </div>
-            <Textarea placeholder="Walk this out..." value={application} onChange={(e) => setApplication(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
+            <Textarea placeholder={tr('Walk this out...')} value={application} onChange={(e) => setApplication(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                <Brain size={12} className="text-[#7c3aed]" /> Memory Verse <span className="normal-case tracking-normal font-medium">(optional)</span>
+                <Brain size={12} className="text-[#7c3aed]" />{' '}{tr('Memory Verse')}{' '}<span className="normal-case tracking-normal font-medium">{tr('(optional)')}</span>
               </label>
               {scripture.trim() && verseRef.trim() !== scripture.trim() && (
                 <button
@@ -353,14 +356,14 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
                   onClick={() => { setVerseRef(scripture); lookUpMemoryVerse(scripture) }}
                   className="text-[11px] font-semibold text-[#7c3aed] dark:text-violet-300 hover:underline"
                 >
-                  Use my scripture
+                  {tr('Use my scripture')}
                 </button>
               )}
             </div>
             <div className="rounded-[24px] border-2 border-violet-50 dark:border-slate-800 bg-violet-50/30 dark:bg-slate-900/50 p-3 space-y-2">
               <div className="flex gap-2">
                 <Input
-                  placeholder="Verse to remember today, e.g. Psalm 119:11"
+                  placeholder={tr('Verse to remember today, e.g. Psalm 119:11')}
                   value={verseRef}
                   onChange={(e) => setVerseRef(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); lookUpMemoryVerse() } }}
@@ -369,23 +372,23 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
                 <select
                   value={verseTranslation}
                   onChange={(e) => setVerseTranslation(e.target.value)}
-                  aria-label="Translation"
+                  aria-label={tr('Translation')}
                   className="rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold px-2 text-slate-700 dark:text-slate-200"
                 >
-                  {LOOKUP_TRANSLATIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  {LOOKUP_TRANSLATIONS.map(t => <option key={t.id} value={t.id}>{tr(t.label)}</option>)}
                 </select>
                 <button
                   type="button"
                   onClick={() => lookUpMemoryVerse()}
                   disabled={lookingUp || !verseRef.trim()}
-                  title="Look up verse"
+                  title={tr('Look up verse')}
                   className="shrink-0 w-11 h-11 rounded-2xl bg-[#7c3aed] text-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all"
                 >
                   {lookingUp ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
                 </button>
               </div>
               <Textarea
-                placeholder="Verse text (look it up or type it)"
+                placeholder={tr('Verse text (look it up or type it)')}
                 value={verseText}
                 onChange={(e) => setVerseText(e.target.value)}
                 className="rounded-2xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white min-h-[70px] w-full italic"
@@ -395,10 +398,10 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Prayer</label>
+              <label className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tr('Prayer')}</label>
               <DictationButton className="w-8 h-8" onText={text => setPrayer(p => appendDictation(p, text))} />
             </div>
-            <Textarea placeholder="Seal in prayer..." value={prayer} onChange={(e) => setPrayer(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
+            <Textarea placeholder={tr('Seal in prayer...')} value={prayer} onChange={(e) => setPrayer(e.target.value)} className="rounded-2xl border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 text-slate-900 dark:text-white min-h-[110px] w-full" />
           </div>
         </div>
 
@@ -409,8 +412,8 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="z-[110] rounded-2xl shadow-xl border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-              <SelectItem value="private">🔒 Private</SelectItem>
-              <SelectItem value="shared">❤️ Shared</SelectItem>
+              <SelectItem value="private">{tr('🔒 Private')}</SelectItem>
+              <SelectItem value="shared">{tr('❤️ Shared')}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -419,7 +422,7 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
             disabled={saving}
             className="w-full sm:flex-1 md:flex-none rounded-full bg-[#7c3aed] px-10 h-12 font-semibold text-md shadow-lg shadow-violet-200 dark:shadow-none active:scale-95 transition-all"
           >
-            {saving ? <Loader2 className="animate-spin h-5 w-5"/> : 'Amen'}
+            {saving ? <Loader2 className="animate-spin h-5 w-5"/> : tr('Amen')}
           </Button>
         </div>
 
@@ -430,20 +433,20 @@ export default function MeditationComposer({ meditation, onClose, onCreated }: a
         <div className="absolute inset-0 z-[110] flex items-end justify-center bg-black/50 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-white dark:bg-zinc-900 rounded-t-3xl shadow-2xl p-5 pb-10 space-y-4 animate-in slide-in-from-bottom duration-200">
             <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700 mx-auto" />
-            <h3 className="text-base font-bold text-center text-foreground">Discard meditation?</h3>
-            <p className="text-sm text-center text-muted-foreground">Your unsaved changes will be lost.</p>
+            <h3 className="text-base font-bold text-center text-foreground">{tr('Discard meditation?')}</h3>
+            <p className="text-sm text-center text-muted-foreground">{tr('Your unsaved changes will be lost.')}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowCloseConfirm(false)}
                 className="flex-1 h-12 rounded-2xl border border-border bg-muted text-sm font-semibold text-foreground"
               >
-                Keep editing
+                {tr('Keep editing')}
               </button>
               <button
                 onClick={() => { setShowCloseConfirm(false); clearDraft(draftKey); onClose() }}
                 className="flex-1 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold"
               >
-                Discard
+                {tr('Discard')}
               </button>
             </div>
           </div>

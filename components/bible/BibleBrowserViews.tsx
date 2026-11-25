@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { ChevronRight, Check, Globe, Search, BookMarked, X, Loader2, BookOpen, Brain, CheckCircle2, CalendarCheck, History } from 'lucide-react'
 import { BOOK_GROUPS, groupOf, isOldTestamentBook } from './bookGroups'
@@ -66,6 +67,7 @@ export function BibleSearchView({
   searching, searchQuery, searchResults, searchMode, searchError, searchNotice, searchScope, setSearchScope,
   wholeBibleReady, searchesOtherTranslation, selectedBook, translation, openPassage,
 }: SearchProps) {
+  const { tr } = useTranslation()
   const isWords = searchMode === 'words'
   const [testament, setTestament] = useState<'all' | 'ot' | 'nt'>('all')
   const [visible, setVisible] = useState(PAGE_SIZE)
@@ -86,8 +88,8 @@ export function BibleSearchView({
     <div className="px-4 pt-4 space-y-2">
       {!searchQuery.trim() && (
         <div className="text-center text-muted-foreground py-10 text-sm space-y-1">
-          <p>Type a reference like <span className="font-semibold text-foreground">John 3:16</span> or <span className="font-semibold text-foreground">Psalm 23</span>,</p>
-          <p>or words like <span className="font-semibold text-foreground">shepherd</span> to search the text.</p>
+          <p>{tr('Type a reference like')}{' '}<span className="font-semibold text-foreground">{tr('John 3:16')}</span>{' '}{tr('or')}{' '}<span className="font-semibold text-foreground">{tr('Psalm 23')}</span>,</p>
+          <p>{tr('or words like')}{' '}<span className="font-semibold text-foreground">{tr('shepherd')}</span>{' '}{tr('to search the text.')}</p>
         </div>
       )}
 
@@ -100,15 +102,15 @@ export function BibleSearchView({
                 onClick={() => setSearchScope(scope)}
                 className={`flex-1 py-2 rounded-xl text-xs font-bold transition ${searchScope === scope ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground'}`}
               >
-                {scope === 'book' ? `In ${displayBook(selectedBook, translation)}` : 'Whole Bible'}
+                {scope === 'book' ? tr('In {displayBook}', { displayBook: displayBook(selectedBook, translation) }) : tr('Whole Bible')}
               </button>
             ))}
           </div>
           {searchScope === 'bible' && !wholeBibleReady && (
-            <p className="text-[11px] text-muted-foreground px-1">The first whole-Bible search downloads the full text once (about 9 MB), then works offline.</p>
+            <p className="text-[11px] text-muted-foreground px-1">{tr('The first whole-Bible search downloads the full text once (about 9 MB), then works offline.')}</p>
           )}
           {searchesOtherTranslation && (
-            <p className="text-[11px] text-muted-foreground px-1">Word search uses the KJV text for this version.</p>
+            <p className="text-[11px] text-muted-foreground px-1">{tr('Word search uses the KJV text for this version.')}</p>
           )}
         </div>
       )}
@@ -117,25 +119,25 @@ export function BibleSearchView({
         <div className="flex flex-col items-center gap-2 py-10">
           <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
           {isWords && searchScope === 'bible' && !wholeBibleReady && (
-            <p className="text-xs text-muted-foreground">Getting the Bible text ready for search (first time only)…</p>
+            <p className="text-xs text-muted-foreground">{tr('Getting the Bible text ready for search (first time only)…')}</p>
           )}
         </div>
       )}
       {!searching && searchNotice && (
-        <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-xl px-3 py-2">{searchNotice}</p>
+        <p className="text-[11px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-xl px-3 py-2">{tr(searchNotice)}</p>
       )}
       {!searching && searchError && (
-        <p className="text-center text-destructive py-10 text-sm">{searchError}</p>
+        <p className="text-center text-destructive py-10 text-sm">{tr(searchError)}</p>
       )}
       {!searching && !searchError && searchQuery.trim() && searchResults.length === 0 && (
         <p className="text-center text-muted-foreground py-10 text-sm">
-          {isWords && searchQuery.trim().length < 3 ? 'Type at least 3 letters.' : 'No results.'}
+          {isWords && searchQuery.trim().length < 3 ? tr('Type at least 3 letters.') : tr('No results.')}
         </p>
       )}
       {!searching && isWords && searchResults.length > 0 && (
         <div className="flex items-center justify-between gap-2 px-1">
           <p className="text-[11px] text-muted-foreground shrink-0">
-            {filtered.length.toLocaleString()} verse{filtered.length !== 1 ? 's' : ''}
+            {tr('{value} {filteredCount:verse|verses}', { value: filtered.length.toLocaleString(), filteredCount: filtered.length })}
           </p>
           {showTestaments && (
             <div className="flex gap-1 overflow-x-auto no-scrollbar">
@@ -147,7 +149,7 @@ export function BibleSearchView({
                     testament === value ? 'bg-violet-600 text-white' : 'bg-muted text-muted-foreground'
                   }`}
                 >
-                  {label}
+                  {tr(label)}
                 </button>
               ))}
             </div>
@@ -171,7 +173,7 @@ export function BibleSearchView({
           onClick={() => setVisible(n => n + PAGE_SIZE)}
           className="w-full py-3 rounded-2xl border border-border text-sm font-bold text-violet-600 dark:text-violet-400 active:bg-muted/60"
         >
-          Show more ({(filtered.length - visible).toLocaleString()} left)
+          {tr('Show more ({value} left)', { value: (filtered.length - visible).toLocaleString() })}
         </button>
       )}
     </div>
@@ -187,13 +189,14 @@ interface SavedProps {
 }
 
 export function BibleSavedView({ savedVerses, translation, openPassage, setAsMemoryVerse }: SavedProps) {
+  const { tr } = useTranslation()
   return (
     <div className="px-4 pt-4 space-y-3">
       {savedVerses.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
           <BookMarked className="w-12 h-12 opacity-30" />
-          <p className="text-sm font-medium">No saved verses yet</p>
-          <p className="text-xs">Tap the bookmark on any verse to save it</p>
+          <p className="text-sm font-medium">{tr('No saved verses yet')}</p>
+          <p className="text-xs">{tr('Tap the bookmark on any verse to save it')}</p>
         </div>
       )}
       {savedVerses.map(v => (
@@ -206,10 +209,10 @@ export function BibleSavedView({ savedVerses, translation, openPassage, setAsMem
           </button>
           <div className="flex gap-2">
             <button onClick={() => openPassage(v.book, v.chapter)} className="flex items-center gap-1 rounded-xl bg-muted px-3 py-1.5 text-xs font-bold text-muted-foreground active:scale-95">
-              <BookOpen className="w-3.5 h-3.5" /> Read chapter
+              <BookOpen className="w-3.5 h-3.5" />{' '}{tr('Read chapter')}
             </button>
             <button onClick={() => setAsMemoryVerse(v)} className="flex items-center gap-1 rounded-xl bg-violet-100 dark:bg-violet-900/40 px-3 py-1.5 text-xs font-bold text-violet-700 dark:text-violet-300 active:scale-95">
-              <Brain className="w-3.5 h-3.5" /> Memory verse
+              <Brain className="w-3.5 h-3.5" />{' '}{tr('Memory verse')}
             </button>
           </div>
         </div>
@@ -228,6 +231,7 @@ interface VersionProps {
 }
 
 export function BibleVersionPicker({ versionLang, setVersionLang, translation, setTranslation, setView }: VersionProps) {
+  const { tr } = useTranslation()
   return (
     <div className="pb-10">
       <div className="px-4 pt-3 pb-4">
@@ -236,14 +240,14 @@ export function BibleVersionPicker({ versionLang, setVersionLang, translation, s
           className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-muted active:bg-muted/70 transition"
         >
           <Globe className="w-5 h-5 text-muted-foreground shrink-0" />
-          <span className="flex-1 text-left text-base font-medium">Language</span>
+          <span className="flex-1 text-left text-base font-medium">{tr('Language')}</span>
           <span className="text-sm text-muted-foreground font-medium">
-            {versionLang === 'fr' ? 'Français' : versionLang === 'en' ? 'English' : 'All'}
+            {versionLang === 'fr' ? tr('Français') : versionLang === 'en' ? tr('English') : tr('All')}
           </span>
           <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
         </button>
       </div>
-      <p className="px-4 text-[13px] font-bold text-foreground mb-1">Available</p>
+      <p className="px-4 text-[13px] font-bold text-foreground mb-1">{tr('Available')}</p>
       <div className="divide-y divide-border">
         {TRANSLATIONS
           .filter(t =>
@@ -258,8 +262,8 @@ export function BibleVersionPicker({ versionLang, setVersionLang, translation, s
               className="w-full flex items-center gap-3 px-6 py-4 text-left active:bg-muted/60 transition-colors"
             >
               <div className="flex-1 min-w-0">
-                <p className="font-black text-[15px] leading-snug">{t.label}</p>
-                <p className="text-sm text-muted-foreground mt-0.5 leading-snug">{t.name}</p>
+                <p className="font-black text-[15px] leading-snug">{tr(t.label)}</p>
+                <p className="text-sm text-muted-foreground mt-0.5 leading-snug">{tr(t.name)}</p>
               </div>
               {translation === t.id
                 ? <Check className="w-5 h-5 text-violet-600 dark:text-violet-400 shrink-0" />
@@ -297,6 +301,7 @@ export function BibleBookBrowser({
   bookSearch, setBookSearch, showRecent, setShowRecent, bookSort, setBookSort,
   displayedBooks, openBook, translation, savedCount, setView,
 }: BookBrowserProps) {
+  const { tr } = useTranslation()
   const [testament, setTestament] = useState<Testament>('all')
   const fr = isFrench(translation)
   const versionLabel = TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'
@@ -334,15 +339,13 @@ export function BibleBookBrowser({
           <BookOpen className="absolute right-5 bottom-4 h-16 w-16 text-white/10" aria-hidden />
           <div className="relative">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
-              {lastRead ? (fr ? 'Reprendre la lecture' : 'Continue reading') : (fr ? 'Commencer' : 'Start reading')}
+              {lastRead ? (fr ? tr('Reprendre la lecture') : tr('Continue reading')) : (fr ? tr('Commencer') : tr('Start reading'))}
             </p>
             <p className="mt-1 text-2xl font-black tracking-tight">
               {lastRead ? `${displayBook(lastRead.book, translation)} ${lastRead.chapter}` : displayBook('John', translation)}
             </p>
             <p className="text-xs text-white/70 mt-0.5">
-              {lastRead
-                ? `${groupOf(lastRead.book)[fr ? 'fr' : 'en']} · ${versionLabel}`
-                : (fr ? 'Un bon début : l’Évangile de Jean' : 'A good place to begin: the Gospel of John')}
+              {lastRead ? `${groupOf(lastRead.book)[fr ? 'fr' : 'en']} · ${versionLabel}` : (fr ? tr('Un bon début : l’Évangile de Jean') : tr('A good place to begin: the Gospel of John'))}
             </p>
             {continueProgress && continueProgress.read > 0 && (
               <div className="mt-4 max-w-[75%]">
@@ -350,12 +353,12 @@ export function BibleBookBrowser({
                   <div className="h-full rounded-full bg-white" style={{ width: `${Math.round((continueProgress.read / continueProgress.total) * 100)}%` }} />
                 </div>
                 <p className="mt-1.5 text-[11px] font-semibold text-white/80">
-                  {continueProgress.read} / {continueProgress.total} {fr ? 'chapitres lus' : 'chapters read'}
+                  {continueProgress.read} / {continueProgress.total} {fr ? tr('chapitres lus') : tr('chapters read')}
                 </p>
               </div>
             )}
             <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-black text-violet-700">
-              {fr ? 'Lire' : 'Read'} <ChevronRight className="h-4 w-4" />
+              {fr ? tr('Lire') : tr('Read')} <ChevronRight className="h-4 w-4" />
             </span>
           </div>
         </button>
@@ -366,7 +369,7 @@ export function BibleBookBrowser({
         {tiles.map(({ icon: Icon, label, onClick, tone, badge }) => (
           <button key={label} onClick={onClick} className="relative flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card py-3 active:scale-95 transition">
             <span className={`h-9 w-9 rounded-xl grid place-items-center ${tone}`}><Icon className="h-[18px] w-[18px]" /></span>
-            <span className="text-[11px] font-bold truncate max-w-full px-1">{label}</span>
+            <span className="text-[11px] font-bold truncate max-w-full px-1">{tr(label)}</span>
             {badge !== undefined && (
               <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black grid place-items-center">{badge > 99 ? '99+' : badge}</span>
             )}
@@ -381,21 +384,21 @@ export function BibleBookBrowser({
           <input
             value={bookSearch}
             onChange={e => setBookSearch(e.target.value)}
-            placeholder={fr ? 'Trouver un livre' : 'Find a book'}
+            placeholder={fr ? tr('Trouver un livre') : tr('Find a book')}
             className="w-full rounded-2xl bg-muted/60 pl-10 pr-10 py-3 text-[15px] outline-none focus:ring-2 focus:ring-violet-500"
           />
           {bookSearch && (
-            <button onClick={() => setBookSearch('')} aria-label="Clear" className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground">
+            <button onClick={() => setBookSearch('')} aria-label={tr('Clear')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground">
               <X className="w-4 h-4" />
             </button>
           )}
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar -mx-4 px-4">
-          <button onClick={() => { setTestament('all'); setShowRecent(false) }} className={chip(testament === 'all' && !showRecent)}>{fr ? 'Tous' : 'All'}</button>
-          <button onClick={() => { setTestament('ot'); setShowRecent(false) }} className={chip(testament === 'ot' && !showRecent)}>{fr ? 'Ancien Testament' : 'Old Testament'}</button>
-          <button onClick={() => { setTestament('nt'); setShowRecent(false) }} className={chip(testament === 'nt' && !showRecent)}>{fr ? 'Nouveau Testament' : 'New Testament'}</button>
+          <button onClick={() => { setTestament('all'); setShowRecent(false) }} className={chip(testament === 'all' && !showRecent)}>{fr ? tr('Tous') : tr('All')}</button>
+          <button onClick={() => { setTestament('ot'); setShowRecent(false) }} className={chip(testament === 'ot' && !showRecent)}>{fr ? tr('Ancien Testament') : tr('Old Testament')}</button>
+          <button onClick={() => { setTestament('nt'); setShowRecent(false) }} className={chip(testament === 'nt' && !showRecent)}>{fr ? tr('Nouveau Testament') : tr('New Testament')}</button>
           <button onClick={() => { setShowRecent(v => !v); setTestament('all') }} className={`${chip(showRecent)} flex items-center gap-1`}>
-            <History className="h-3.5 w-3.5" /> {fr ? 'Récents' : 'Recent'}
+            <History className="h-3.5 w-3.5" /> {fr ? tr('Récents') : tr('Recent')}
           </button>
           <button onClick={() => setBookSort(s => (s === 'canonical' ? 'alpha' : 'canonical'))} className={chip(bookSort === 'alpha')}>A–Z</button>
         </div>
@@ -404,14 +407,14 @@ export function BibleBookBrowser({
       {/* Books */}
       {books.length === 0 ? (
         <p className="text-center text-muted-foreground text-sm py-10">
-          {showRecent ? (fr ? 'Aucun livre récent' : 'No recent books yet') : (fr ? 'Aucun livre trouvé' : 'No books found')}
+          {showRecent ? (fr ? tr('Aucun livre récent') : tr('No recent books yet')) : (fr ? tr('Aucun livre trouvé') : tr('No books found'))}
         </p>
       ) : sections.map(({ group, books: list }) => (
         <section key={group?.id ?? 'flat'} className="space-y-2">
           {group && (
             <div className="flex items-center gap-2 px-1 pt-1">
               <span className={`h-2 w-2 rounded-full ${group.dot}`} />
-              <h3 className="text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground">{group[fr ? 'fr' : 'en']}</h3>
+              <h3 className="text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground">{tr(group[fr ? 'fr' : 'en'])}</h3>
               <span className="text-[11px] font-semibold text-muted-foreground/60">{list.length}</span>
             </div>
           )}
@@ -433,10 +436,10 @@ export function BibleBookBrowser({
                   <div className="pl-1.5">
                     <div className="flex items-start justify-between gap-1">
                       <p className="text-[15px] font-bold leading-tight truncate">{displayBook(book, translation)}</p>
-                      {done && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" aria-label="Book read" />}
+                      {done && <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" aria-label={tr('Book read')} />}
                     </div>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {read > 0 && !done ? `${read}/${total}` : total} {total === 1 ? (fr ? 'chapitre' : 'chapter') : (fr ? 'chapitres' : 'chapters')}
+                      {read > 0 && !done ? `${read}/${total}` : total} {total === 1 ? (fr ? tr('chapitre') : tr('chapter')) : (fr ? tr('chapitres') : tr('chapters'))}
                     </p>
                     <div className="mt-2 h-1 rounded-full bg-muted overflow-hidden">
                       <div className={`h-full rounded-full ${done ? 'bg-emerald-500' : g.bar}`} style={{ width: `${total ? Math.round((read / total) * 100) : 0}%` }} />
@@ -462,6 +465,7 @@ interface ChapterBrowserProps {
 }
 
 export function BibleChapterBrowser({ readChapters, selectedBook, selectedChapter, openChapter, translation }: ChapterBrowserProps) {
+  const { tr } = useTranslation()
   const fr = isFrench(translation)
   const chapters = chapterArray(selectedBook)
   const g = groupOf(selectedBook)
@@ -475,7 +479,7 @@ export function BibleChapterBrowser({ readChapters, selectedBook, selectedChapte
     <div className="px-4 pt-4 pb-8 space-y-5">
       <div className={`rounded-[28px] p-5 ${g.soft}`}>
         <p className={`text-[11px] font-black uppercase tracking-[0.16em] ${g.text}`}>
-          {g[fr ? 'fr' : 'en']} · {isOldTestamentBook(selectedBook) ? (fr ? 'Ancien Testament' : 'Old Testament') : (fr ? 'Nouveau Testament' : 'New Testament')}
+          {g[fr ? 'fr' : 'en']} · {isOldTestamentBook(selectedBook) ? (fr ? tr('Ancien Testament') : tr('Old Testament')) : (fr ? tr('Nouveau Testament') : tr('New Testament'))}
         </p>
         <h2 className="mt-1 text-3xl font-black tracking-tight">{displayBook(selectedBook, translation)}</h2>
         <div className="mt-4 flex items-center gap-3">
@@ -489,16 +493,13 @@ export function BibleChapterBrowser({ readChapters, selectedBook, selectedChapte
           className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-black text-background active:scale-95 transition"
         >
           <BookOpen className="h-4 w-4" />
-          {readCount === 0
-            ? (fr ? 'Commencer au chapitre 1' : 'Start at chapter 1')
-            : pct === 100 ? (fr ? 'Relire depuis le début' : 'Read again from the start')
-            : `${fr ? 'Continuer au chapitre' : 'Continue at chapter'} ${next}`}
+          {readCount === 0 ? (fr ? tr('Commencer au chapitre 1') : tr('Start at chapter 1')) : pct === 100 ? (fr ? tr('Relire depuis le début') : tr('Read again from the start')) : `${fr ? 'Continuer au chapitre' : 'Continue at chapter'} ${next}`}
         </button>
       </div>
 
       <div>
         <p className="px-1 mb-2.5 text-[11px] font-black uppercase tracking-[0.16em] text-muted-foreground">
-          {fr ? 'Chapitres' : 'Chapters'}
+          {fr ? tr('Chapitres') : tr('Chapters')}
         </p>
         <div className="grid grid-cols-5 gap-2">
           {chapters.map(ch => {
@@ -508,7 +509,7 @@ export function BibleChapterBrowser({ readChapters, selectedBook, selectedChapte
               <button
                 key={ch}
                 onClick={() => openChapter(ch)}
-                aria-label={read ? `Chapter ${ch}, read` : `Chapter ${ch}`}
+                aria-label={read ? tr('Chapter {ch}, read', { ch: ch }) : tr('Chapter {ch}', { ch: ch })}
                 className={`relative aspect-square rounded-2xl text-[15px] font-bold grid place-items-center transition active:scale-90 ${
                   current
                     ? 'bg-violet-600 text-white shadow-md shadow-violet-500/30'
@@ -524,8 +525,8 @@ export function BibleChapterBrowser({ readChapters, selectedBook, selectedChapte
           })}
         </div>
         <div className="mt-4 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-violet-600" /> {fr ? 'Actuel' : 'Current'}</span>
-          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-emerald-200 dark:bg-emerald-500/30" /> {fr ? 'Lu' : 'Read'}</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-violet-600" /> {fr ? tr('Actuel') : tr('Current')}</span>
+          <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded bg-emerald-200 dark:bg-emerald-500/30" /> {fr ? tr('Lu') : tr('Read')}</span>
         </div>
       </div>
     </div>

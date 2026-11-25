@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { JSX, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export default function AddReading({ onCreated, reading }: Props): JSX.Element {
+  const { tr } = useTranslation()
   const [title, setTitle] = useState(reading?.title ?? '')
   const [author, setAuthor] = useState(reading?.author ?? '')
   const [source, setSource] = useState(reading?.source ?? '')
@@ -45,9 +47,9 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
 
   const saveEdit = async (book: Reading): Promise<void> => {
     const pages = Number(totalPages)
-    if (!title.trim()) { toast.error('Please enter a book title'); return }
-    if (!pages || pages <= 0) { toast.error('Please enter a valid number of pages'); return }
-    if (pages < pagesRead) { toast.error(`You've already read ${pagesRead} pages; total can't be lower`); return }
+    if (!title.trim()) { toast.error(tr('Please enter a book title')); return }
+    if (!pages || pages <= 0) { toast.error(tr('Please enter a valid number of pages')); return }
+    if (pages < pagesRead) { toast.error(tr('You\'ve already read {pagesRead} pages; total can\'t be lower', { pagesRead: pagesRead })); return }
 
     setLoading(true)
     const supabase = createClient()
@@ -65,7 +67,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
       .eq('id', book.id)
 
     if (error) {
-      toast.error('Failed to save changes')
+      toast.error(tr('Failed to save changes'))
       setLoading(false)
       return
     }
@@ -73,7 +75,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) await renameBookSection(supabase, user.id, book.title, title.trim())
 
-    toast.success('Book updated')
+    toast.success(tr('Book updated'))
     setLoading(false)
     onCreated()
   }
@@ -81,12 +83,12 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
   const createReading = async (): Promise<void> => {
     if (reading) return saveEdit(reading)
     if (!title.trim()) {
-      toast.error('Please enter a book title')
+      toast.error(tr('Please enter a book title'))
       return
     }
     const pages = Number(totalPages)
     if (!pages || pages <= 0) {
-      toast.error('Please enter a valid number of pages')
+      toast.error(tr('Please enter a valid number of pages'))
       return
     }
 
@@ -96,7 +98,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (!user || authError) {
-      toast.error('Please sign in to add books')
+      toast.error(tr('Please sign in to add books'))
       setLoading(false)
       return
     }
@@ -114,7 +116,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
     })
 
     if (error) {
-      toast.error('Failed to add book')
+      toast.error(tr('Failed to add book'))
       setLoading(false)
       return
     }
@@ -127,7 +129,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
       // Non-blocking — journal sync failure shouldn't stop the flow
     }
 
-    toast.success('Book added to shelf! 📚')
+    toast.success(tr('Book added to shelf! 📚'))
     setTitle('')
     setAuthor('')
     setSource('')
@@ -144,10 +146,10 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
         {/* Main Title Input */}
         <div className="space-y-1.5">
           <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-            Book Information
+            {tr('Book Information')}
           </label>
           <Input
-            placeholder="Book or article title"
+            placeholder={tr('Book or article title')}
             value={title}
             onChange={e => setTitle(e.target.value)}
             className="rounded-xl bg-muted/50 border-none focus-visible:ring-violet-500 h-12"
@@ -156,7 +158,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
 
         <div className="grid grid-cols-2 gap-3">
           <Input
-            placeholder="Author (optional)"
+            placeholder={tr('Author (optional)')}
             value={author}
             onChange={e => setAuthor(e.target.value)}
             className="rounded-xl bg-muted/50 border-none focus-visible:ring-violet-500 h-12"
@@ -165,7 +167,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
             type="number"
             inputMode="numeric"
             min={Math.max(1, pagesRead)}
-            placeholder="Total pages"
+            placeholder={tr('Total pages')}
             value={totalPages}
             onChange={e => setTotalPages(e.target.value)}
             className="rounded-xl bg-muted/50 border-none focus-visible:ring-violet-500 h-12"
@@ -173,7 +175,7 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
         </div>
 
         <Input
-          placeholder="Source (e.g. Kindle, Bible, Library)"
+          placeholder={tr('Source (e.g. Kindle, Bible, Library)')}
           value={source}
           onChange={e => setSource(e.target.value)}
           className="rounded-xl bg-muted/50 border-none focus-visible:ring-violet-500 h-12"
@@ -183,11 +185,11 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-              Category
+              {tr('Category')}
             </label>
             <Select value={category} onValueChange={v => setCategory(v as ReadingCategory)}>
               <SelectTrigger className="rounded-xl bg-muted/50 border-none h-12 focus:ring-violet-500 text-foreground">
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder={tr('Category')} />
               </SelectTrigger>
               {/* Added position="popper" and high z-index for the dropdown */}
               <SelectContent 
@@ -195,21 +197,21 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
                 sideOffset={4} 
                 className="rounded-xl border-border z-[10000] bg-popover text-popover-foreground shadow-xl"
               >
-                <SelectItem value="faith">Faith</SelectItem>
-                <SelectItem value="self_development">Self Development</SelectItem>
-                <SelectItem value="skill">Skill</SelectItem>
-                <SelectItem value="philosophy">Philosophy</SelectItem>
-                <SelectItem value="psychology">Psychology</SelectItem>
-                <SelectItem value="leadership">Leadership</SelectItem>
-                <SelectItem value="productivity">Productivity</SelectItem>
-                <SelectItem value="miscellaneous">Miscellaneous</SelectItem>
+                <SelectItem value="faith">{tr('Faith')}</SelectItem>
+                <SelectItem value="self_development">{tr('Self Development')}</SelectItem>
+                <SelectItem value="skill">{tr('Skill')}</SelectItem>
+                <SelectItem value="philosophy">{tr('Philosophy')}</SelectItem>
+                <SelectItem value="psychology">{tr('Psychology')}</SelectItem>
+                <SelectItem value="leadership">{tr('Leadership')}</SelectItem>
+                <SelectItem value="productivity">{tr('Productivity')}</SelectItem>
+                <SelectItem value="miscellaneous">{tr('Miscellaneous')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">
-              Privacy
+              {tr('Privacy')}
             </label>
             <Select value={visibility} onValueChange={v => setVisibility(v as 'private' | 'shared')}>
               <SelectTrigger className="rounded-xl bg-muted/50 border-none h-12 focus:ring-violet-500 text-foreground">
@@ -220,8 +222,8 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
                 sideOffset={4} 
                 className="rounded-xl border-border z-[10000] bg-popover text-popover-foreground shadow-xl"
               >
-                <SelectItem value="private">Private</SelectItem>
-                <SelectItem value="shared">Shared</SelectItem>
+                <SelectItem value="private">{tr('Private')}</SelectItem>
+                <SelectItem value="shared">{tr('Shared')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -238,12 +240,12 @@ export default function AddReading({ onCreated, reading }: Props): JSX.Element {
         ) : reading ? (
           <>
             <Save className="mr-2 h-5 w-5" />
-            Save Changes
+            {tr('Save Changes')}
           </>
         ) : (
           <>
             <BookPlus className="mr-2 h-5 w-5" />
-            Add to Shelf
+            {tr('Add to Shelf')}
           </>
         )}
       </Button>

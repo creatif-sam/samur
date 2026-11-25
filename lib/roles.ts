@@ -1,3 +1,4 @@
+import { appLanguage, appLocale, trNow } from '@/lib/i18n'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Goal } from '@/lib/types'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
@@ -114,14 +115,22 @@ export function weekStart(todayKey = toLocalDateKey(new Date())) {
   return addDays(todayKey, -parseDateKey(todayKey).getDay())
 }
 
-// "Nov 23 – 29" or "Nov 30 – Dec 6"
+// "Nov 22 to 28" or "Nov 29 to Dec 5"; in French "du 22 au 28 nov." or "du 29 nov. au 5 déc."
 export function weekLabel(startKey: string) {
   const start = parseDateKey(startKey)
   const end = parseDateKey(addDays(startKey, 6))
-  const month = (d: Date) => d.toLocaleDateString(undefined, { month: 'short' })
-  return start.getMonth() === end.getMonth()
-    ? `${month(start)} ${start.getDate()} to ${end.getDate()}`
-    : `${month(start)} ${start.getDate()} to ${month(end)} ${end.getDate()}`
+  const month = (d: Date) => d.toLocaleDateString(appLocale(), { month: 'short' })
+  const sameMonth = start.getMonth() === end.getMonth()
+  if (appLanguage() === 'fr') {
+    return trNow('{start} to {end}', {
+      start: sameMonth ? `${start.getDate()}` : `${start.getDate()} ${month(start)}`,
+      end: `${end.getDate()} ${month(end)}`,
+    })
+  }
+  return trNow('{start} to {end}', {
+    start: `${month(start)} ${start.getDate()}`,
+    end: sameMonth ? `${end.getDate()}` : `${month(end)} ${end.getDate()}`,
+  })
 }
 
 // ── Grouping goals ──

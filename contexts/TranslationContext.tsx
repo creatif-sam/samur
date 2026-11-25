@@ -1,13 +1,18 @@
-﻿'use client'
+'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import { localeFor, setAppLanguage, translate, type Language, type Vars } from '@/lib/i18n'
 
-export type Language = 'en' | 'fr'
+export type { Language }
 
 interface TranslationContextType {
   language: Language
   setLanguage: (lang: Language) => void
   t: typeof translations.en
+  // Translate by the English text: tr('Save'), tr('{n} goals', { n })
+  tr: (text: string, vars?: Vars) => string
+  // For dates and numbers: 'fr-FR' in French, the device's own in English
+  locale: string | undefined
 }
 
 const TranslationContext = createContext<TranslationContextType | undefined>(undefined)
@@ -286,7 +291,7 @@ export const translations = {
     nav: {
       home: 'Accueil',
       goals: 'Boussole',
-      planner: 'Planify',
+      planner: 'Agenda',
       posts: 'Esprit',
       readApp: 'Lecture',
       profile: 'Profil',
@@ -314,15 +319,15 @@ export const translations = {
       saveNewPassword: 'Enregistrer le nouveau mot de passe',
       
       // Messages
-      loginPrompt: 'Entrez votre e-mail ci-dessous pour vous connecter',
+      loginPrompt: 'Saisis ton e-mail ci-dessous pour te connecter',
       signUpPrompt: 'Créer un nouveau compte',
-      resetPrompt: 'Entrez votre e-mail et nous vous enverrons un lien',
-      newPasswordPrompt: 'Veuillez entrer votre nouveau mot de passe ci-dessous.',
-      checkEmail: 'Vérifiez votre e-mail',
+      resetPrompt: "Saisis ton e-mail et nous t'enverrons un lien",
+      newPasswordPrompt: 'Saisis ton nouveau mot de passe ci-dessous.',
+      checkEmail: 'Vérifie tes e-mails',
       resetSent: 'Instructions de réinitialisation envoyées',
       passwordsNoMatch: 'Les mots de passe ne correspondent pas',
-      dontHaveAccount: 'Vous n\'avez pas de compte?',
-      alreadyHaveAccount: 'Vous avez déjà un compte?',
+      dontHaveAccount: "Tu n'as pas de compte ?",
+      alreadyHaveAccount: 'Tu as déjà un compte ?',
       greeting: 'Salut, {email}!',
     },
     
@@ -387,7 +392,7 @@ export const translations = {
       create: 'Créer',
       bookInfo: 'Informations sur le livre',
       bookTitle: 'Titre du livre ou de l\'article',
-      enterTitle: 'Veuillez entrer un titre de livre',
+      enterTitle: 'Saisis le titre du livre',
       author: 'Auteur (optionnel)',
       totalPages: 'Pages totales',
       source: 'Source (ex: Kindle, Bible, Bibliothèque)',
@@ -423,7 +428,7 @@ export const translations = {
       answered: 'Exaucee',
       remove: 'Supprimer',
       newRequest: 'Nouvelle intention de priere',
-      requestPlaceholder: 'Qu\'apportez-vous devant Dieu?',
+      requestPlaceholder: "Qu'apportes-tu devant Dieu ?",
       detailsPlaceholder: 'Plus de details (optionnel)',
       category: 'Categorie',
       sharePartner: 'Partager avec le partenaire',
@@ -481,8 +486,8 @@ export const translations = {
       deleteSuccess: 'Entrée supprimée avec succès',
       addSuccess: '{type} ajouté avec succès',
       updateSuccess: 'Entrée mise à jour avec succès',
-      fillAllFields: 'Veuillez remplir tous les champs',
-      invalidAmount: 'Saisissez un montant supérieur à 0',
+      fillAllFields: 'Remplis tous les champs',
+      invalidAmount: 'Saisis un montant supérieur à 0',
 
       // Log / charts
       uncategorized: 'Sans catégorie',
@@ -533,16 +538,26 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     }
   }, [])
 
-  const setLanguage = (lang: Language) => {
+  const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang)
-    localStorage.setItem('app_language', lang)
-  }
+    try { localStorage.setItem('app_language', lang) } catch {}
+  }, [])
 
-  const value: TranslationContextType = {
+  // Plain functions in lib (date labels and the like) follow the same language
+  setAppLanguage(language)
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
+
+  const tr = useCallback((text: string, vars?: Vars) => translate(language, text, vars), [language])
+
+  const value: TranslationContextType = useMemo(() => ({
     language,
     setLanguage,
     t: translations[language],
-  }
+    tr,
+    locale: localeFor(language),
+  }), [language, setLanguage, tr])
 
   return (
     <TranslationContext.Provider value={value}>

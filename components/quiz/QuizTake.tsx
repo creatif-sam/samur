@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import QuizResult from './QuizResult';
@@ -20,6 +21,7 @@ export default function QuizTake({
   quiz: { id: string; title: string };
   onExit: () => void;
 }): JSX.Element {
+  const { tr } = useTranslation()
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState(false);
@@ -68,14 +70,14 @@ export default function QuizTake({
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="text-lg font-semibold">{quiz.title}</h2>
+      <h2 className="text-lg font-semibold">{tr(quiz.title)}</h2>
 
       {questions.map((q) => (
         <div key={q.id} className="border rounded-xl p-3 space-y-2">
           <p className="text-xs text-muted-foreground">
             {q.scripture}
           </p>
-          <p>{q.question}</p>
+          <p>{tr(q.question)}</p>
 
           <div className="flex gap-2">
             <Button
@@ -84,7 +86,7 @@ export default function QuizTake({
                 setAnswers((a) => ({ ...a, [q.id]: true }))
               }
             >
-              Yes
+              {tr('Yes')}
             </Button>
             <Button
               variant={answers[q.id] === false ? 'default' : 'outline'}
@@ -92,13 +94,13 @@ export default function QuizTake({
                 setAnswers((a) => ({ ...a, [q.id]: false }))
               }
             >
-              No
+              {tr('No')}
             </Button>
           </div>
         </div>
       ))}
 
-      <Button onClick={submit}>Submit</Button>
+      <Button onClick={submit}>{tr('Submit')}</Button>
     </div>
   );
 }

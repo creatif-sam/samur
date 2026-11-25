@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Button } from '@/components/ui/button'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -11,6 +12,7 @@ import Image from 'next/image'
 import { User } from 'lucide-react'
 
 export function Topbar() {
+  const { tr } = useTranslation()
   const [mounted, setMounted] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -144,7 +146,7 @@ export function Topbar() {
             {avatarUrl ? (
               <Image
                 src={avatarUrl}
-                alt="Profile"
+                alt={tr('Profile')}
                 width={32}
                 height={32}
                 className="rounded-full object-cover ring-2 ring-white/60 hover:ring-white transition-all"
@@ -155,7 +157,7 @@ export function Topbar() {
               </div>
             )}
           </Link>
-          <Link href="/protected" aria-label="Go to home" className="rounded-lg active:opacity-70 transition-opacity">
+          <Link href="/protected" aria-label={tr('Go to home')} className="rounded-lg active:opacity-70 transition-opacity">
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-1">Mastery</h1>
           </Link>
         </div>

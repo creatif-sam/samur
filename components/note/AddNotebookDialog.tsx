@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
@@ -31,6 +32,7 @@ export function AddNotebookDialog({
   userId: string | null,
   onCreated: () => Promise<void> 
 }) {
+  const { tr } = useTranslation()
   const [title, setTitle] = useState('')
   const [selectedEmoji, setSelectedEmoji] = useState('📓')
   const [selectedColor, setSelectedColor] = useState('#7719AA')
@@ -41,7 +43,7 @@ export function AddNotebookDialog({
   async function handleCreate() {
     if (!userId) return
     if (!title.trim()) {
-      toast.error("Please enter a notebook name")
+      toast.error(tr('Please enter a notebook name'))
       return
     }
     
@@ -70,14 +72,14 @@ export function AddNotebookDialog({
       }
 
       // 3. FINAL SUCCESS & CLEANUP
-      toast.success(`"${title}" created! 🤍`)
+      toast.success(tr('"{title}" created! 🤍', { title: title }))
       setTitle('')
       onOpenChange(false)
 
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       console.error("❌ Creation Error:", message)
-      toast.error(message || "Failed to create notebook")
+      toast.error(message || tr('Failed to create notebook'))
     } finally {
       setLoading(false)
     }
@@ -93,20 +95,20 @@ export function AddNotebookDialog({
               <BookPlus className="w-5 h-5 text-[#7719AA] dark:text-[#a78bfa]" />
             </div>
             <DialogTitle className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-slate-100">
-              New Notebook
+              {tr('New Notebook')}
             </DialogTitle>
           </div>
           <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
-            Create a new space for your revelations.
+            {tr('Create a new space for your revelations.')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-6">
           {/* TITLE INPUT */}
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Notebook Name</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">{tr('Notebook Name')}</Label>
             <Input 
-              placeholder="e.g. Sermon Notes" 
+              placeholder={tr('e.g. Sermon Notes')} 
               value={title} 
               onChange={(e) => setTitle(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
@@ -116,7 +118,7 @@ export function AddNotebookDialog({
 
           {/* EMOJI SELECTOR */}
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Cover Icon</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">{tr('Cover Icon')}</Label>
             <div className="grid grid-cols-6 gap-2 bg-slate-50/50 dark:bg-slate-900/30 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
               {EMOJIS.map(e => (
                 <button
@@ -137,7 +139,7 @@ export function AddNotebookDialog({
 
           {/* COLOR SELECTOR */}
           <div className="space-y-2">
-            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">Accent Color</Label>
+            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">{tr('Accent Color')}</Label>
             <div className="flex justify-between px-2 py-1">
               {COLORS.map(c => (
                 <button
@@ -150,7 +152,7 @@ export function AddNotebookDialog({
                     : 'border-transparent'
                   }`}
                   style={{ backgroundColor: c.value }}
-                  title={c.name}
+                  title={tr(c.name)}
                 />
               ))}
             </div>
@@ -163,14 +165,14 @@ export function AddNotebookDialog({
             onClick={() => onOpenChange(false)}
             className="flex-1 rounded-2xl text-slate-500 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-900 h-12"
           >
-            Cancel
+            {tr('Cancel')}
           </Button>
           <Button 
             onClick={handleCreate} 
             disabled={loading}
             className="flex-1 bg-[#7719AA] hover:bg-[#5F1488] text-white rounded-2xl font-bold h-12 shadow-lg shadow-purple-500/20 active:scale-95 transition-all"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Create'}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : tr('Create')}
           </Button>
         </DialogFooter>
       </DialogContent>

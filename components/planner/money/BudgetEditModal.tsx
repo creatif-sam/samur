@@ -22,7 +22,7 @@ export default function BudgetEditModal({
   onClose: () => void
 }) {
   const [saving, setSaving] = useState(false)
-  const { t } = useTranslation()
+  const { t, tr } = useTranslation()
 
   if (!open) return null
 
@@ -49,7 +49,7 @@ export default function BudgetEditModal({
 
         {/* TITLE */}
         <div className="text-sm font-semibold text-center">
-          {title}
+          {tr(title)}
         </div>
 
         {/* AMOUNT */}

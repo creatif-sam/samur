@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, ArrowRight, Check, Plus } from 'lucide-react'
 import type { PlannerTask } from './DailyPlanner'
@@ -31,6 +33,7 @@ export default function MonthCalendar({
   completedTaskIds = [],
   visionsMap = {},
 }: MonthCalendarProps) {
+  const { tr } = useTranslation()
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear())
   const [viewMonth, setViewMonth] = useState(selectedDate.getMonth())
 
@@ -78,7 +81,7 @@ export default function MonthCalendar({
     onMonthChange?.(today.getFullYear(), today.getMonth())
   }
 
-  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', {
+  const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString(appLocale() ?? 'en-US', {
     month: 'long',
     year: 'numeric',
   })
@@ -163,7 +166,7 @@ export default function MonthCalendar({
           onClick={jumpToToday}
           className="mt-4 w-full text-[12px] font-bold text-violet-500 dark:text-violet-400 py-2 active:opacity-70 transition-all"
         >
-          Jump to today
+          {tr('Jump to today')}
         </button>
       )}
 
@@ -172,17 +175,17 @@ export default function MonthCalendar({
         {/* Day header — full width */}
         <div className="mb-4">
           <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">
-            {sameDay(selectedDate, today) ? 'Today' : selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
+            {sameDay(selectedDate, today) ? tr('Today') : selectedDate.toLocaleDateString(appLocale() ?? 'en-US', { weekday: 'long' })}
           </p>
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-black text-slate-900 dark:text-white tabular-nums leading-none">
               {selectedDate.getDate()}
             </span>
             <span className="text-[13px] text-slate-400 dark:text-slate-500 font-semibold">
-              {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long' })}
+              {selectedDate.toLocaleDateString(appLocale() ?? 'en-US', { weekday: 'long', month: 'long' })}
             </span>
             <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500 font-medium">
-              {tasks.length} event{tasks.length !== 1 ? 's' : ''}
+              {tr('{tasksCount} {tasksCount:event|events}', { tasksCount: tasks.length })}
             </span>
           </div>
         </div>
@@ -195,14 +198,14 @@ export default function MonthCalendar({
               className="flex-1 flex items-center justify-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-[13px] font-bold px-4 py-2.5 rounded-2xl active:scale-95 transition-all shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              Add event
+              {tr('Add event')}
             </button>
           )}
           <button
             onClick={onClose}
             className="flex-1 flex items-center justify-center gap-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-[13px] font-bold px-4 py-2.5 rounded-2xl active:scale-95 transition-all shadow-sm"
           >
-            Open plan
+            {tr('Open plan')}
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -210,7 +213,7 @@ export default function MonthCalendar({
         {/* Task list */}
         {tasks.length === 0 ? (
           <p className="text-center text-[13px] text-slate-400 dark:text-slate-500 py-6 font-medium">
-            No events scheduled
+            {tr('No events scheduled')}
           </p>
         ) : (
           <div className="space-y-2 pb-4">
@@ -242,7 +245,7 @@ export default function MonthCalendar({
                       {vision && (
                         <div className="flex items-center gap-1 mt-0.5">
                           <span className="text-[9px]">{vision.emoji}</span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{vision.title}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{tr(vision.title)}</span>
                         </div>
                       )}
                     </div>

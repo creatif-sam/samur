@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Sparkles, ChevronRight } from 'lucide-react'
@@ -22,6 +23,7 @@ export function TaskBasics({
   text?: string
   onTextChange?: (v: string) => void
 }) {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [visions, setVisions] = useState<Vision[]>([])
 
@@ -49,12 +51,12 @@ export function TaskBasics({
       {!hideTitle && onTextChange && (
         <div>
           <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-2 block">
-            Title
+            {tr('Title')}
           </label>
           <input
             value={text}
             onChange={(e) => onTextChange(e.target.value)}
-            placeholder="What are you doing?"
+            placeholder={tr('What are you doing?')}
             className="w-full bg-slate-50 border-none rounded-[22px] p-5 text-[16px] focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-300"
           />
         </div>
@@ -63,7 +65,7 @@ export function TaskBasics({
       {/* Vision Link Section */}
       <div>
         <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest px-2 mb-3 block">
-          Link to Vision <span className="normal-case tracking-normal font-medium">(optional)</span>
+          {tr('Link to Vision')}{' '}<span className="normal-case tracking-normal font-medium">{tr('(optional)')}</span>
         </label>
         
         <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[22px] overflow-hidden border border-slate-100/50 dark:border-slate-700 hover:bg-slate-100/50 dark:hover:bg-slate-800/60 transition-colors">
@@ -78,10 +80,10 @@ export function TaskBasics({
                 onChange={(e) => onVisionChange(e.target.value === '' ? null : e.target.value)}
                 className="w-full bg-transparent border-none text-[16px] font-semibold focus:ring-0 cursor-pointer appearance-none outline-none pr-8 dark:text-white"
               >
-                <option value="">{visions.length ? 'No vision' : 'No visions yet'}</option>
+                <option value="">{visions.length ? tr('No vision') : tr('No visions yet')}</option>
                 {visions.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.title}
+                    {tr(v.title)}
                   </option>
                 ))}
               </select>
@@ -96,7 +98,7 @@ export function TaskBasics({
         {visionId && (
           <p className="mt-3 px-3 text-[12px] text-indigo-500 font-medium italic flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
             <span className="w-1 h-1 bg-indigo-500 rounded-full" />
-            This aligns with your long-term vision.
+            {tr('This aligns with your long-term vision.')}
           </p>
         )}
       </div>

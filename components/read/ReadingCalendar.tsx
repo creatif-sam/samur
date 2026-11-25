@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import clsx from 'clsx'
@@ -25,6 +27,7 @@ interface CalendarDay {
 }
 
 export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
+  const { tr } = useTranslation()
   const supabase = createClient()
 
   const [days, setDays] = useState<CalendarDay[]>([])
@@ -141,16 +144,16 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
         <div className="flex items-center justify-between mb-6">
           <div className="space-y-1">
             <h2 className="text-xl font-black tracking-tighter text-foreground">
-              {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              {viewDate.toLocaleString(appLocale(), { month: 'long', year: 'numeric' })}
             </h2>
             <div className="flex items-center gap-1.5 text-orange-500 dark:text-orange-400">
               <Flame size={14} className="fill-current" />
               <span className="text-xs font-bold uppercase tracking-widest">
-                {streak} Day Streak
+                {tr('{streak} Day Streak', { streak: streak })}
               </span>
             </div>
             {streak > 0 && !readToday && (
-              <p className="text-[11px] text-muted-foreground">Read today to keep it going</p>
+              <p className="text-[11px] text-muted-foreground">{tr('Read today to keep it going')}</p>
             )}
           </div>
 
@@ -208,9 +211,9 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
           <div className="bg-card border border-border w-full max-w-md rounded-[32px] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-6">
               <div className="space-y-1">
-                <p className="text-[10px] font-black uppercase tracking-widest text-violet-500">Reading Log</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-violet-500">{tr('Reading Log')}</p>
                 <h3 className="text-xl font-bold">
-                  {selectedDay.date.toLocaleDateString(undefined, { dateStyle: 'full' })}
+                  {selectedDay.date.toLocaleDateString(appLocale(), { dateStyle: 'full' })}
                 </h3>
               </div>
               <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setSelectedDay(null)}>
@@ -223,7 +226,7 @@ export default function ReadingCalendar({ readings }: ReadingCalendarProps) {
                 <div key={idx} className="bg-muted/50 rounded-2xl p-4 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
                     <BookOpen size={16} className="text-violet-500" />
-                    <span className="font-bold text-sm">{log.pages_read} Pages Read</span>
+                    <span className="font-bold text-sm">{tr('{pages_read} Pages Read', { pages_read: log.pages_read })}</span>
                   </div>
                   {log.note && (
                     <p className="text-sm text-muted-foreground italic leading-relaxed">

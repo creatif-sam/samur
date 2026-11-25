@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Flame, Trophy } from 'lucide-react'
 
 interface Props {
@@ -15,6 +16,7 @@ export default function AnalyticsHero({
   totalGoals,
   completedGoals,
 }: Props) {
+  const { tr } = useTranslation()
   const circumference = 2 * Math.PI * 32
   const dashOffset = circumference * (1 - goalCompletionRate / 100)
 
@@ -24,25 +26,25 @@ export default function AnalyticsHero({
         <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-white/5" />
         <div className="absolute right-14 -top-8 w-28 h-28 rounded-full bg-white/5" />
 
-        <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">Growth Overview</p>
+        <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">{tr('Growth Overview')}</p>
 
         <div className="flex items-center justify-between relative z-10">
           <div className="space-y-4">
             <div>
               <div className="flex items-center gap-2 mb-0.5">
                 <Flame className="w-3.5 h-3.5 text-orange-400" />
-                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Meditation Streak</span>
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{tr('Meditation Streak')}</span>
               </div>
               <p className="text-5xl font-black text-white leading-none">
                 {meditationStreak}
-                <span className="text-xl font-semibold text-white/50 ml-1">days</span>
+                <span className="text-xl font-semibold text-white/50 ml-1">{tr('days')}</span>
               </p>
             </div>
 
             <div>
               <div className="flex items-center gap-2 mb-0.5">
                 <Trophy className="w-3.5 h-3.5 text-yellow-400" />
-                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Goals Completed</span>
+                <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest">{tr('Goals Completed')}</span>
               </div>
               <p className="text-3xl font-black text-white leading-none">
                 {completedGoals}
@@ -74,10 +76,10 @@ export default function AnalyticsHero({
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <p className="text-xl font-black text-white leading-none">{goalCompletionRate}%</p>
-                <p className="text-[8px] font-bold text-white/50 uppercase tracking-wide">Done</p>
+                <p className="text-[8px] font-bold text-white/50 uppercase tracking-wide">{tr('Done')}</p>
               </div>
             </div>
-            <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider text-center">Goal Rate</span>
+            <span className="text-[9px] font-bold text-white/40 uppercase tracking-wider text-center">{tr('Goal Rate')}</span>
           </div>
         </div>
       </div>

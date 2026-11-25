@@ -1,11 +1,13 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react';
 import { PostComment } from '@/lib/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
+import { dateFnsLocale } from '@/lib/i18n/dateFns'
 import { Reply, Edit, Trash2, CornerDownRight } from 'lucide-react';
 import { FormattedContent } from './FormattedContent';
 
@@ -31,6 +33,7 @@ export function CommentItem({
   loading,
   depth = 0,
 }: CommentItemProps) {
+  const { tr } = useTranslation()
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
@@ -64,10 +67,10 @@ export function CommentItem({
           <div className="bg-muted/40 rounded-2xl px-4 py-2 inline-block max-w-full">
             <div className="flex items-center space-x-2 mb-0.5">
               <span className="font-bold text-xs text-foreground">
-                {comment.profiles?.name || 'Anonymous'}
+                {comment.profiles?.name || tr('Anonymous')}
               </span>
               <span className="text-[10px] text-muted-foreground">
-                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: dateFnsLocale() })}
               </span>
             </div>
 
@@ -81,10 +84,10 @@ export function CommentItem({
                 <div className="flex gap-2">
                   {/* Updated size to "xs" to match button variants */}
                   <Button size="xs" onClick={handleSaveEdit} disabled={loading}>
-                    Save
+                    {tr('Save')}
                   </Button>
                   <Button size="xs" variant="ghost" onClick={() => setIsEditing(false)}>
-                    Cancel
+                    {tr('Cancel')}
                   </Button>
                 </div>
               </div>
@@ -101,7 +104,7 @@ export function CommentItem({
                 onClick={() => setShowReplyInput(!showReplyInput)}
                 className="text-[11px] font-bold text-muted-foreground hover:text-primary flex items-center gap-1"
               >
-                <Reply className="w-3 h-3" /> Reply
+                <Reply className="w-3 h-3" />{' '}{tr('Reply')}
               </button>
 
               {canManage && (
@@ -110,16 +113,16 @@ export function CommentItem({
                     onClick={() => setIsEditing(true)}
                     className="text-[11px] font-bold text-muted-foreground hover:text-foreground flex items-center gap-1"
                   >
-                    <Edit className="w-3 h-3" /> Edit
+                    <Edit className="w-3 h-3" />{' '}{tr('Edit')}
                   </button>
                   <button
                     onClick={() => {
                       const hasReplies = (comment.replies?.length ?? 0) > 0
-                      if (window.confirm(hasReplies ? 'Delete this comment and its replies?' : 'Delete this comment?')) onDelete(comment.id)
+                      if (window.confirm(hasReplies ? tr('Delete this comment and its replies?') : tr('Delete this comment?'))) onDelete(comment.id)
                     }}
                     className="text-[11px] font-bold text-red-400 hover:text-red-600 flex items-center gap-1"
                   >
-                    <Trash2 className="w-3 h-3" /> Delete
+                    <Trash2 className="w-3 h-3" />{' '}{tr('Delete')}
                   </button>
                 </>
               )}
@@ -133,7 +136,7 @@ export function CommentItem({
           <CornerDownRight className="w-4 h-4 text-muted-foreground mt-2" />
           <div className="flex-1 space-y-2">
             <Textarea
-              placeholder="Write a reply..."
+              placeholder={tr('Write a reply...')}
               value={replyContent}
               onChange={(e) => setReplyContent(e.target.value)}
               className="text-sm min-h-[40px] bg-muted/20"
@@ -142,10 +145,10 @@ export function CommentItem({
             <div className="flex gap-2">
               {/* Updated size to "xs" */}
               <Button size="xs" onClick={handleReplySubmit} disabled={!replyContent.trim() || loading}>
-                Post Reply
+                {tr('Post Reply')}
               </Button>
               <Button size="xs" variant="ghost" onClick={() => setShowReplyInput(false)}>
-                Cancel
+                {tr('Cancel')}
               </Button>
             </div>
           </div>

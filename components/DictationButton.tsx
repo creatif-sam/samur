@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useRef, useState } from 'react'
 import { Mic, MicOff } from 'lucide-react'
 import { toast } from 'sonner'
@@ -28,6 +29,7 @@ export default function DictationButton({ onText, className = '', lang }: {
   className?: string
   lang?: string
 }) {
+  const { tr } = useTranslation()
   const [supported, setSupported] = useState(false)
   const [listening, setListening] = useState(false)
   const recRef = useRef<Recognition | null>(null)
@@ -59,8 +61,8 @@ export default function DictationButton({ onText, className = '', lang }: {
       }
     }
     rec.onerror = e => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast.error('Allow microphone access to use voice input')
-      else if (e.error !== 'no-speech' && e.error !== 'aborted') toast.error('Voice input stopped')
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast.error(tr('Allow microphone access to use voice input'))
+      else if (e.error !== 'no-speech' && e.error !== 'aborted') toast.error(tr('Voice input stopped'))
     }
     rec.onend = () => setListening(false)
     recRef.current = rec
@@ -76,7 +78,7 @@ export default function DictationButton({ onText, className = '', lang }: {
     <button
       type="button"
       onClick={toggle}
-      aria-label={listening ? 'Stop voice input' : 'Speak to type'}
+      aria-label={listening ? tr('Stop voice input') : tr('Speak to type')}
       aria-pressed={listening}
       className={`inline-flex items-center justify-center rounded-full transition ${listening ? 'bg-rose-500 text-white animate-pulse' : 'text-muted-foreground hover:bg-muted'} ${className}`}
     >

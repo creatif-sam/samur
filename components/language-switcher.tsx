@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Languages } from 'lucide-react';
@@ -18,6 +19,7 @@ interface LanguageSwitcherProps {
 }
 
 export function LanguageSwitcher({ currentLanguage, onLanguageChange }: LanguageSwitcherProps) {
+  const { tr } = useTranslation()
   const languages = [
     { code: 'en' as Language, name: 'English', flag: '🇬🇧' },
     { code: 'fr' as Language, name: 'Français', flag: '🇫🇷' },
@@ -30,7 +32,7 @@ export function LanguageSwitcher({ currentLanguage, onLanguageChange }: Language
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2">
           <Languages className="h-4 w-4" />
-          <span className="hidden sm:inline">{currentLang?.flag} {currentLang?.name}</span>
+          <span className="hidden sm:inline">{currentLang?.flag} {tr(currentLang?.name ?? '')}</span>
           <span className="sm:hidden">{currentLang?.flag}</span>
         </Button>
       </DropdownMenuTrigger>
@@ -42,7 +44,7 @@ export function LanguageSwitcher({ currentLanguage, onLanguageChange }: Language
             className={currentLanguage === lang.code ? 'bg-violet-50 dark:bg-violet-950' : ''}
           >
             <span className="mr-2">{lang.flag}</span>
-            {lang.name}
+            {tr(lang.name)}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

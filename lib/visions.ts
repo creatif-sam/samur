@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 import { daysBetween, toLocalDateKey } from '@/lib/dates'
 
 export type VisionPace = 'achieved' | 'overdue' | 'ahead' | 'on_track' | 'behind' | 'open'
@@ -55,11 +56,11 @@ export const PACE_STYLE: Record<VisionPace, string> = {
 
 export function daysLeftLabel(daysLeft: number | null) {
   if (daysLeft === null) return null
-  if (daysLeft < 0) return `${-daysLeft} day${daysLeft === -1 ? '' : 's'} past`
-  if (daysLeft === 0) return 'Due today'
-  if (daysLeft < 60) return `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
+  if (daysLeft < 0) return trNow('{n} {n:day|days} past', { n: -daysLeft })
+  if (daysLeft === 0) return trNow('Due today')
+  if (daysLeft < 60) return trNow('{n} {n:day|days} left', { n: daysLeft })
   const months = Math.round(daysLeft / 30.4)
-  return `${months} month${months === 1 ? '' : 's'} left`
+  return trNow('{n} {n:month|months} left', { n: months })
 }
 
 // Vision colours are user-picked hex values; these keep text on them readable

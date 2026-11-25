@@ -1,5 +1,6 @@
 'use client'
 
+import { trNow } from '@/lib/i18n'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
 
@@ -31,7 +32,7 @@ export default function AppFreshness() {
     try {
       if (sessionStorage.getItem(UPDATED_FLAG)) {
         sessionStorage.removeItem(UPDATED_FLAG)
-        setTimeout(() => toast.success('Updated to the latest version'), 600) // after the Toaster mounts
+        setTimeout(() => toast.success(trNow('Updated to the latest version')), 600) // after the Toaster mounts
       }
     } catch { /* ignore */ }
 

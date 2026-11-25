@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
@@ -10,6 +11,7 @@ import QRCode from 'react-qr-code'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
 export default function BusinessCardEditor() {
+  const { tr } = useTranslation()
   const supabase = createClient()
 
   const [name, setName] = useState('')
@@ -69,30 +71,30 @@ export default function BusinessCardEditor() {
   return (
     <div className="grid md:grid-cols-2 gap-8">
       <Card className="p-6 space-y-4">
-        <h2 className="text-xl font-semibold">Edit Business Card</h2>
+        <h2 className="text-xl font-semibold">{tr('Edit Business Card')}</h2>
 
-        <Label>Name</Label>
+        <Label>{tr('Name')}</Label>
         <Input value={name} onChange={e => setName(e.target.value)} />
 
-        <Label>Title</Label>
+        <Label>{tr('Title')}</Label>
         <Input value={title} onChange={e => setTitle(e.target.value)} />
 
-        <Label>Email</Label>
+        <Label>{tr('Email')}</Label>
         <Input value={email} onChange={e => setEmail(e.target.value)} />
 
-        <Label>Mobile</Label>
+        <Label>{tr('Mobile')}</Label>
         <Input value={phone} onChange={e => setPhone(e.target.value)} />
 
-        <Label>LinkedIn</Label>
+        <Label>{tr('LinkedIn')}</Label>
         <Input value={linkedin} onChange={e => setLinkedin(e.target.value)} />
 
         <Button onClick={save} className="w-full">
-          Save Card
+          {tr('Save Card')}
         </Button>
       </Card>
 
       <Card className="p-6 space-y-4 text-center">
-        <h3 className="text-lg font-semibold">Preview</h3>
+        <h3 className="text-lg font-semibold">{tr('Preview')}</h3>
 
         <div className="rounded-xl bg-gradient-to-br from-primary to-primary/70 p-6 text-white space-y-3">
           <div className="flex justify-center">
@@ -105,8 +107,8 @@ export default function BusinessCardEditor() {
           </div>
 
           <div>
-            <p className="text-lg font-bold">{name}</p>
-            <p className="text-sm opacity-90">{title}</p>
+            <p className="text-lg font-bold">{tr(name)}</p>
+            <p className="text-sm opacity-90">{tr(title)}</p>
           </div>
 
           <div className="text-sm opacity-90 space-y-1">
@@ -123,7 +125,7 @@ export default function BusinessCardEditor() {
         )}
 
         <p className="text-sm text-muted-foreground">
-          Scan to get contact details
+          {tr('Scan to get contact details')}
         </p>
       </Card>
     </div>

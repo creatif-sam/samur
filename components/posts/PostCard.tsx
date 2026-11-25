@@ -1,5 +1,7 @@
 'use client';
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { createClient } from '@/lib/supabase/client';
@@ -62,6 +64,7 @@ function descendantIds(flat: PostComment[], id: string): string[] {
 }
 
 export default function PostCard({ post, currentUserId, initialReactions, initialComments, onUpdate, onDelete, isNew, highlight = '', partnerName, onToggleAnswered }: PostCardProps) {
+  const { tr } = useTranslation()
   const [reactions, setReactions] = useState<PostReaction[]>(initialReactions);
   const [comments, setComments] = useState<PostComment[]>(initialComments);
   const [showComments, setShowComments] = useState(false);
@@ -93,9 +96,9 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
   const copyText = async () => {
     try {
       await navigator.clipboard.writeText(body);
-      toast.success('Copied');
+      toast.success(tr('Copied'));
     } catch {
-      toast.error("Couldn't copy");
+      toast.error(tr('Couldn\'t copy'));
     }
   };
 
@@ -111,13 +114,13 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
       });
       const result = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(result.error || "Couldn't post your comment");
+        toast.error(result.error || tr('Couldn\'t post your comment'));
         return false;
       }
       setComments(prev => [...prev, result.comment]);
       return true;
     } catch {
-      toast.error("Couldn't post your comment. Check your connection.");
+      toast.error(tr('Couldn\'t post your comment. Check your connection.'));
       return false;
     } finally {
       setLoading(false);
@@ -136,7 +139,7 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
     const { error } = await createClient().from('post_comments').update({ content: content.trim() }).eq('id', commentId);
     setLoading(false);
     if (error) {
-      toast.error(error.message || "Couldn't save the comment");
+      toast.error(error.message || tr('Couldn\'t save the comment'));
       return false;
     }
     setComments(prev => prev.map(c => (c.id === commentId ? { ...c, content: content.trim() } : c)));
@@ -151,7 +154,7 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
     const { error } = await createClient().from('post_comments').delete().in('id', ids);
     if (error) {
       setComments(before);
-      toast.error(error.message || "Couldn't delete the comment");
+      toast.error(error.message || tr('Couldn\'t delete the comment'));
     }
   };
 
@@ -163,14 +166,14 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
 
     if (userReaction) {
       const { error } = await supabase.from('post_reactions').delete().eq('id', userReaction.id);
-      if (error) toast.error(error.message || "Couldn't remove your like");
+      if (error) toast.error(error.message || tr('Couldn\'t remove your like'));
       else setReactions(prev => prev.filter(r => r.id !== userReaction.id));
     } else {
       const { data, error } = await supabase.from('post_reactions').insert({
         post_id: post.id, user_id: currentUserId, reaction: 'like'
       }).select().single();
       if (error || !data) {
-        toast.error(error?.message || "Couldn't like the post");
+        toast.error(error?.message || tr('Couldn\'t like the post'));
       } else {
         setReactions(prev => [...prev, data]);
 
@@ -245,9 +248,9 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
               disabled={savingEdit}
             />
             <div className="flex justify-end gap-2">
-              <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={savingEdit}>Cancel</Button>
+              <Button size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={savingEdit}>{tr('Cancel')}</Button>
               <Button size="sm" onClick={saveEdit} disabled={savingEdit || (!editText.trim() && !photos.length)}>
-                {savingEdit ? 'Saving…' : 'Save'}
+                {savingEdit ? tr('Saving…') : tr('Save')}
               </Button>
             </div>
           </div>
@@ -255,11 +258,11 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
           <>
             {answered ? (
               <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
-                🙌 Prayer answered · {new Date(post.answered_at!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {tr('🙌 Prayer answered · {value}', { value: new Date(post.answered_at!).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) })}
               </span>
             ) : kindMeta && (
               <span className={cn('mb-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold', kindMeta.pill)}>
-                {kindMeta.emoji} {kindMeta.label}
+                {kindMeta.emoji} {tr(kindMeta.label)}
               </span>
             )}
             {body && <p
@@ -272,7 +275,7 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
             </p>}
             {isLong && !highlight && (
               <button onClick={() => setExpanded(e => !e)} className="mt-1 text-xs font-bold text-violet-600 dark:text-violet-400">
-                {expanded ? 'Show less' : 'Read more'}
+                {expanded ? tr('Show less') : tr('Read more')}
               </button>
             )}
             {photos.length > 0 && <div className={body ? 'mt-3' : ''}><PostPhotos urls={photos} /></div>}
@@ -309,13 +312,13 @@ export default function PostCard({ post, currentUserId, initialReactions, initia
       <Dialog open={confirmDelete} onOpenChange={open => !deleting && setConfirmDelete(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete this post?</DialogTitle>
-            <DialogDescription>Its likes and comments will be deleted too. This can&apos;t be undone.</DialogDescription>
+            <DialogTitle>{tr('Delete this post?')}</DialogTitle>
+            <DialogDescription>{tr('Its likes and comments will be deleted too. This can\'t be undone.')}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancel</Button>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleting}>{tr('Cancel')}</Button>
             <Button variant="destructive" onClick={confirmDeletePost} disabled={deleting}>
-              {deleting ? 'Deleting…' : 'Delete'}
+              {deleting ? tr('Deleting…') : tr('Delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

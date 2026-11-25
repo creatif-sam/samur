@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { BookOpen, BarChart2, ClipboardList, HandHeart, LucideIcon } from 'lucide-react'
@@ -20,6 +21,7 @@ const quickLinks: QuickLink[] = [
 ]
 
 export default function HomeQuickNav() {
+  const { tr } = useTranslation()
   return (
     <div className="mt-5 px-4">
       <div className="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
@@ -30,7 +32,7 @@ export default function HomeQuickNav() {
                 <Icon className="w-5 h-5 text-white" />
               </div>
               <span className="text-[10px] font-bold text-muted-foreground text-center leading-tight">
-                {label}
+                {tr(label)}
               </span>
             </div>
           </Link>

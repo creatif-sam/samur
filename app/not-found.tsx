@@ -1,10 +1,12 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Home, ArrowLeft, WifiOff, Search } from 'lucide-react'
 
 export default function NotFound() {
+  const { tr } = useTranslation()
   const router = useRouter()
 
   return (
@@ -49,15 +51,15 @@ export default function NotFound() {
         </p>
 
         <h1 className="text-xl font-black uppercase tracking-widest text-foreground mb-3">
-          Page Not Found
+          {tr('Page Not Found')}
         </h1>
 
         <p className="text-sm text-muted-foreground leading-relaxed mb-2 max-w-[260px]">
-          The page you're looking for doesn't exist or has been moved.
+          {tr('The page you\'re looking for doesn\'t exist or has been moved.')}
         </p>
 
         <p className="text-xs text-muted-foreground/60 mb-10 max-w-[260px]">
-          If you're offline, check your connection and try again.
+          {tr('If you\'re offline, check your connection and try again.')}
         </p>
 
         {/* Actions */}
@@ -68,7 +70,7 @@ export default function NotFound() {
             style={{ background: 'linear-gradient(90deg, #7c3aed, #a21caf)' }}
           >
             <Home className="w-4 h-4" />
-            Go to Home
+            {tr('Go to Home')}
           </Link>
 
           <button
@@ -76,13 +78,13 @@ export default function NotFound() {
             className="flex items-center justify-center gap-2 w-full rounded-2xl py-3.5 text-sm font-bold text-foreground border border-border bg-muted/40 hover:bg-muted transition-all active:scale-95"
           >
             <ArrowLeft className="w-4 h-4" />
-            Go Back
+            {tr('Go Back')}
           </button>
         </div>
 
         {/* Bottom hint */}
         <p className="mt-8 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
-          Mastery &bull; PWA
+          {tr('Mastery • PWA')}
         </p>
       </div>
     </div>

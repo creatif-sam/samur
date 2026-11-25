@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
@@ -19,6 +20,7 @@ export default function ScheduleGoalDialog({ goal, open, onOpenChange }: {
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const { tr } = useTranslation()
   const router = useRouter()
   const now = new Date()
   const [day, setDay] = useState(toLocalDateKey(now))
@@ -44,11 +46,11 @@ export default function ScheduleGoalDialog({ goal, open, onOpenChange }: {
         owner_id: user.id,
       })
       onOpenChange(false)
-      toast.success('Time booked in your planner', {
-        action: { label: 'Open planner', onClick: () => router.push('/protected/planner') },
+      toast.success(tr('Time booked in your planner'), {
+        action: { label: tr('Open planner'), onClick: () => router.push('/protected/planner') },
       })
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't add it to your planner")
+      toast.error(err instanceof Error ? err.message : tr('Couldn\'t add it to your planner'))
     } finally {
       setSaving(false)
     }
@@ -58,22 +60,22 @@ export default function ScheduleGoalDialog({ goal, open, onOpenChange }: {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm rounded-3xl">
         <DialogHeader>
-          <DialogTitle className="font-black">Schedule time</DialogTitle>
-          <DialogDescription className="truncate">{goal.title}</DialogDescription>
+          <DialogTitle className="font-black">{tr('Schedule time')}</DialogTitle>
+          <DialogDescription className="truncate">{tr(goal.title)}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <label className="space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Day</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{tr('Day')}</span>
               <input type="date" value={day} onChange={e => e.target.value && setDay(e.target.value)} className="w-full rounded-xl border bg-background px-2 py-2 text-sm" />
             </label>
             <label className="space-y-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Start</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{tr('Start')}</span>
               <input type="time" value={start} onChange={e => e.target.value && setStart(e.target.value)} className="w-full rounded-xl border bg-background px-2 py-2 text-sm" />
             </label>
           </div>
           <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">How long</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{tr('How long')}</span>
             <div className="flex gap-1.5">
               {DURATIONS.map(d => (
                 <button
@@ -92,7 +94,7 @@ export default function ScheduleGoalDialog({ goal, open, onOpenChange }: {
             disabled={saving}
             className="w-full rounded-2xl bg-violet-600 text-white py-3 text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {saving && <Loader2 className="w-4 h-4 animate-spin" />} Add to planner
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}{' '}{tr('Add to planner')}
           </button>
         </div>
       </DialogContent>

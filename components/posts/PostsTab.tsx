@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -37,6 +38,7 @@ function group<T extends { post_id: string }>(rows: T[]) {
 }
 
 export default function PostsTab() {
+  const { tr } = useTranslation()
   const [posts, setPosts] = useState<PostWithProfile[]>([])
   const [feed, setFeed] = useState<FeedData>({ reactions: {}, comments: {} })
   const [loading, setLoading] = useState(true)
@@ -152,7 +154,7 @@ export default function PostsTab() {
       setPosts(prev => (offset === 0 ? page : [...prev, ...page]))
     } catch (err) {
       console.error('Failed to load posts', err)
-      toast.error("Couldn't load posts. Check your connection.")
+      toast.error(tr('Couldn\'t load posts. Check your connection.'))
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -194,7 +196,7 @@ export default function PostsTab() {
     if (!files?.length || !userId) return
     const room = MAX_POST_PHOTOS - photos.length
     const picked = Array.from(files).slice(0, Math.max(0, room))
-    if (files.length > room) toast.message(`Up to ${MAX_POST_PHOTOS} photos per post`)
+    if (files.length > room) toast.message(tr('Up to {MAX_POST_PHOTOS} photos per post', { MAX_POST_PHOTOS: MAX_POST_PHOTOS }))
     const added = picked.map(file => ({ file, photo: { id: crypto.randomUUID(), preview: URL.createObjectURL(file), url: null } as ComposerPhoto }))
     setPhotos(prev => [...prev, ...added.map(a => a.photo)])
     const supabase = createClient()
@@ -211,9 +213,7 @@ export default function PostsTab() {
         setPhotos(prev => prev.filter(p => p.id !== photo.id))
         if (removedWhileUploading.current.delete(photo.id)) return
         const msg = err instanceof Error ? err.message : ''
-        toast.error(/bucket|not found|policy|row-level/i.test(msg)
-          ? 'Photos need a quick database update first (the post photos migration).'
-          : msg || "Couldn't add that photo")
+        toast.error(/bucket|not found|policy|row-level/i.test(msg) ? tr('Photos need a quick database update first (the post photos migration).') : msg || tr('Couldn\'t add that photo'))
       }
     }))
   }
@@ -237,13 +237,13 @@ export default function PostsTab() {
         body: JSON.stringify({ content: content.trim() ? composePost(kind, content) : '', visibility, image_urls: uploadedUrls }),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) { toast.error(result.error || 'Failed to publish post'); return }
-      toast.success(visibility === 'shared' ? `Shared with ${partnerName || 'your partner'}` : 'Saved privately')
+      if (!res.ok) { toast.error(result.error || tr('Failed to publish post')); return }
+      toast.success(visibility === 'shared' ? tr('Shared with {value}', { value: partnerName || tr('your partner') }) : tr('Saved privately'))
       resetComposer()
       await loadPage(userId, partnerId, 0)
     } catch (err) {
       console.error('Network error while posting:', err)
-      toast.error("Couldn't post. Your text is kept as a draft; try again when you're online.")
+      toast.error(tr('Couldn\'t post. Your text is kept as a draft; try again when you\'re online.'))
     } finally {
       setIsSubmitting(false)
     }
@@ -252,11 +252,11 @@ export default function PostsTab() {
   async function updatePost(id: string, updated: string) {
     const { error } = await createClient().from('posts').update({ content: updated }).eq('id', id)
     if (error) {
-      toast.error(error.message || "Couldn't save the post")
+      toast.error(error.message || tr('Couldn\'t save the post'))
       return false
     }
     setPosts(prev => prev.map(p => p.id === id ? { ...p, content: updated } : p))
-    toast.success('Post updated')
+    toast.success(tr('Post updated'))
     return true
   }
 
@@ -265,14 +265,12 @@ export default function PostsTab() {
     const answeredAt = answered ? new Date().toISOString() : null
     const { error } = await createClient().from('posts').update({ answered_at: answeredAt }).eq('id', id)
     if (error) {
-      toast.error(/answered_at/.test(error.message)
-        ? 'Answered prayers need the latest database update first'
-        : error.message || "Couldn't update the prayer request")
+      toast.error(/answered_at/.test(error.message) ? tr('Answered prayers need the latest database update first') : error.message || tr('Couldn\'t update the prayer request'))
       return false
     }
     const post = posts.find(p => p.id === id)
     setPosts(prev => prev.map(p => (p.id === id ? { ...p, answered_at: answeredAt } : p)))
-    toast.success(answered ? 'Praise God! Marked as answered 🙌' : 'Marked as not answered yet')
+    toast.success(answered ? tr('Praise God! Marked as answered 🙌') : tr('Marked as not answered yet'))
     if (answered && post?.visibility === 'shared' && partnerId) {
       const words = parsePost(post.content).body
       fetch('/api/notifications', {
@@ -295,12 +293,12 @@ export default function PostsTab() {
     const photosOf = posts.find(p => p.id === id)?.image_urls
     const { error } = await supabase.from('posts').delete().eq('id', id)
     if (error) {
-      toast.error(error.message || "Couldn't delete the post")
+      toast.error(error.message || tr('Couldn\'t delete the post'))
       return false
     }
     void deletePostImages(supabase, photosOf)
     setPosts(prev => prev.filter(p => p.id !== id))
-    toast.success('Post deleted')
+    toast.success(tr('Post deleted'))
     return true
   }
 
@@ -371,7 +369,7 @@ export default function PostsTab() {
               <AvatarImage src={me.avatar ?? undefined} />
               <AvatarFallback className="bg-violet-600 text-white text-sm font-bold">{initials}</AvatarFallback>
             </Avatar>
-            <span className="flex-1 rounded-full bg-muted/60 px-4 py-2.5 text-sm text-muted-foreground">What&apos;s on your heart?</span>
+            <span className="flex-1 rounded-full bg-muted/60 px-4 py-2.5 text-sm text-muted-foreground">{tr('What\'s on your heart?')}</span>
           </button>
           <div className="mt-3 flex gap-1.5 overflow-x-auto no-scrollbar">
             {POST_KINDS.map(k => (
@@ -380,14 +378,14 @@ export default function PostsTab() {
                 onClick={() => openComposer(k.id)}
                 className="shrink-0 rounded-full border border-border/70 px-3 py-1.5 text-xs font-semibold text-foreground/80 transition hover:bg-muted active:scale-95"
               >
-                {k.emoji} {k.label}
+                {k.emoji} {tr(k.label)}
               </button>
             ))}
             <button
               onClick={() => setShowJournalModal(true)}
               className="shrink-0 flex items-center gap-1.5 rounded-full bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 active:scale-95 dark:bg-violet-500/15 dark:text-violet-300"
             >
-              <BookMarked className="h-3.5 w-3.5" /> Journal my day
+              <BookMarked className="h-3.5 w-3.5" />{' '}{tr('Journal my day')}
             </button>
           </div>
         </div>
@@ -399,7 +397,7 @@ export default function PostsTab() {
               <AvatarFallback className="bg-violet-600 text-white text-sm font-bold">{initials}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold leading-none">{me.name}</p>
+              <p className="text-sm font-semibold leading-none">{tr(me.name)}</p>
               <div className="mt-1.5 flex items-center gap-1">
                 <button
                   onClick={() => setVisibility('shared')}
@@ -411,7 +409,7 @@ export default function PostsTab() {
                       : 'text-muted-foreground hover:bg-muted'
                   )}
                 >
-                  <Users className="w-3 h-3" /> {partnerName ? `With ${partnerName}` : 'Shared'}
+                  <Users className="w-3 h-3" /> {partnerName ? tr('With {partnerName}', { partnerName: partnerName }) : tr('Shared')}
                 </button>
                 <button
                   onClick={() => setVisibility('private')}
@@ -422,11 +420,11 @@ export default function PostsTab() {
                       : 'text-muted-foreground hover:bg-muted'
                   )}
                 >
-                  <Lock className="w-3 h-3" /> Only me
+                  <Lock className="w-3 h-3" />{' '}{tr('Only me')}
                 </button>
               </div>
             </div>
-            <button onClick={closeComposer} aria-label="Close" className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted" disabled={isSubmitting}>
+            <button onClick={closeComposer} aria-label={tr('Close')} className="grid h-8 w-8 place-items-center rounded-full text-muted-foreground hover:bg-muted" disabled={isSubmitting}>
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -442,7 +440,7 @@ export default function PostsTab() {
                   kind === k.id ? k.pill : 'bg-muted/60 text-muted-foreground hover:text-foreground',
                 )}
               >
-                {k.emoji} {k.label}
+                {k.emoji} {tr(k.label)}
               </button>
             ))}
           </div>
@@ -450,7 +448,7 @@ export default function PostsTab() {
           <Textarea
             ref={composerRef}
             autoFocus
-            placeholder={activeKind?.prompt ?? 'Share a thought, prayer, or reflection…'}
+            placeholder={activeKind?.prompt ?? tr('Share a thought, prayer, or reflection…')}
             className="min-h-[120px] border-none focus-visible:ring-0 resize-none px-4 py-3 text-[15px] leading-relaxed placeholder:text-muted-foreground/50 bg-transparent"
             value={content}
             onChange={e => setContent(e.target.value)}
@@ -467,7 +465,7 @@ export default function PostsTab() {
                   {!p.url && <Loader2 className="absolute inset-0 m-auto h-5 w-5 animate-spin text-white drop-shadow" />}
                   <button
                     onClick={() => removePhoto(p.id)}
-                    aria-label="Remove photo"
+                    aria-label={tr('Remove photo')}
                     disabled={isSubmitting}
                     className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/60 text-white"
                   >
@@ -480,7 +478,7 @@ export default function PostsTab() {
 
           <div className="flex items-center gap-2 px-4 py-3 border-t border-border bg-muted/30">
             <p className="text-[11px] text-muted-foreground">
-              {uploading ? 'Adding photos…' : content.trim() || uploadedUrls.length ? 'Draft saved on this device' : visibility === 'shared' && partnerName ? `${partnerName} will be notified` : ''}
+              {uploading ? tr('Adding photos…') : content.trim() || uploadedUrls.length ? tr('Draft saved on this device') : visibility === 'shared' && partnerName ? tr('{partnerName} will be notified', { partnerName: partnerName }) : ''}
             </p>
             <input
               ref={photoInputRef}
@@ -494,7 +492,7 @@ export default function PostsTab() {
               type="button"
               onClick={() => photoInputRef.current?.click()}
               disabled={isSubmitting || photos.length >= MAX_POST_PHOTOS}
-              aria-label="Add photos"
+              aria-label={tr('Add photos')}
               className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
             >
               <ImagePlus className="h-[18px] w-[18px]" />
@@ -507,10 +505,10 @@ export default function PostsTab() {
               className="rounded-full px-5 text-xs font-semibold bg-violet-600 hover:bg-violet-700 text-white border-0"
             >
               {isSubmitting
-                ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Sharing…</>
+                ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />{tr('Sharing…')}</>
                 : visibility === 'shared'
-                  ? <><Send className="w-3.5 h-3.5 mr-1.5" />Share</>
-                  : <><Lock className="w-3.5 h-3.5 mr-1.5" />Save</>}
+                  ? <><Send className="w-3.5 h-3.5 mr-1.5" />{tr('Share')}</>
+                  : <><Lock className="w-3.5 h-3.5 mr-1.5" />{tr('Save')}</>}
             </Button>
           </div>
         </div>
@@ -524,7 +522,7 @@ export default function PostsTab() {
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
           </span>
           <p className="flex-1 text-sm font-semibold">
-            {newCount} new post{newCount === 1 ? '' : 's'} from {partnerName || 'your partner'} since your last visit
+            {tr('{newCount} new {newCount:post|posts} from {value2} since your last visit', { newCount: newCount, value2: partnerName || tr('your partner') })}
           </p>
         </div>
       )}
@@ -545,7 +543,7 @@ export default function PostsTab() {
                     filter === c.id ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {c.label} <span className="ml-0.5 tabular-nums opacity-60">{n}</span>
+                  {tr(c.label)} <span className="ml-0.5 tabular-nums opacity-60">{n}</span>
                 </button>
               )
             })}
@@ -553,12 +551,12 @@ export default function PostsTab() {
           <HelpTip topic="posts.feed" className="-mx-1" />
           <button
             onClick={() => { setShowSearch(s => !s); if (showSearch) setQuery('') }}
-            aria-label="Search posts"
+            aria-label={tr('Search posts')}
             className={cn('grid h-8 w-8 shrink-0 place-items-center rounded-full transition', showSearch ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground')}
           >
             <Search className="h-4 w-4" />
           </button>
-          <button onClick={refresh} aria-label="Refresh" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
+          <button onClick={refresh} aria-label={tr('Refresh')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
             <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
           </button>
         </div>
@@ -569,11 +567,11 @@ export default function PostsTab() {
               autoFocus
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search posts"
+              placeholder={tr('Search posts')}
               className="h-10 w-full rounded-2xl bg-muted/60 pl-9 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
             {query && (
-              <button onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted">
+              <button onClick={() => setQuery('')} aria-label={tr('Clear search')} className="absolute right-2 top-1/2 -translate-y-1/2 grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-muted">
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
@@ -586,7 +584,7 @@ export default function PostsTab() {
         {sections.map(section => (
           <div key={section.label} className="space-y-3">
             <div className="flex items-center gap-3">
-              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">{section.label}</p>
+              <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">{tr(section.label)}</p>
               <div className="h-px flex-1 bg-border/60" />
             </div>
             {section.items.map(post => (
@@ -613,7 +611,7 @@ export default function PostsTab() {
             disabled={loadingMore}
             className="w-full py-3 rounded-2xl border border-border text-sm font-semibold text-muted-foreground disabled:opacity-60"
           >
-            {loadingMore ? 'Loading…' : (filter !== 'all' || query) ? 'Load older posts to find more' : 'Load older posts'}
+            {loadingMore ? tr('Loading…') : (filter !== 'all' || query) ? tr('Load older posts to find more') : tr('Load older posts')}
           </button>
         )}
 
@@ -624,13 +622,13 @@ export default function PostsTab() {
             </div>
             {posts.length === 0 ? (
               <>
-                <p className="text-sm font-medium">No posts yet</p>
-                <p className="text-xs text-muted-foreground mt-1">Share a prayer request or something you&apos;re grateful for.</p>
+                <p className="text-sm font-medium">{tr('No posts yet')}</p>
+                <p className="text-xs text-muted-foreground mt-1">{tr('Share a prayer request or something you\'re grateful for.')}</p>
               </>
             ) : (
               <>
-                <p className="text-sm font-medium">Nothing matches</p>
-                <button onClick={() => { setFilter('all'); setQuery('') }} className="mt-2 text-xs font-bold text-violet-600 dark:text-violet-400">Show all posts</button>
+                <p className="text-sm font-medium">{tr('Nothing matches')}</p>
+                <button onClick={() => { setFilter('all'); setQuery('') }} className="mt-2 text-xs font-bold text-violet-600 dark:text-violet-400">{tr('Show all posts')}</button>
               </>
             )}
           </div>

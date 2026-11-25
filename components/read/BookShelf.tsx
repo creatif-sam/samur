@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { JSX, useState } from 'react'
 import {
   ChevronDown,
@@ -190,6 +191,7 @@ function BookMiniCard({
   onLogged: () => void
   onEdit: (reading: Reading) => void
 }): JSX.Element {
+  const { tr } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
   const pagesRead = book.total_pages > 0 ? book.total_pages - book.pages_remaining : 0
@@ -221,7 +223,7 @@ function BookMiniCard({
         {/* Book info */}
         <div className="flex-1 min-w-0">
           <h4 className="font-black text-sm text-foreground leading-tight truncate">
-            {book.title}
+            {tr(book.title)}
           </h4>
           {book.author && (
             <p className="text-xs text-muted-foreground truncate mt-0.5">{book.author}</p>
@@ -229,7 +231,7 @@ function BookMiniCard({
           <div className={`flex items-center gap-1 mt-1.5 ${statusInfo.color}`}>
             {statusInfo.icon}
             <span className="text-[10px] font-bold uppercase tracking-wider">
-              {statusInfo.label}
+              {tr(statusInfo.label)}
             </span>
           </div>
         </div>
@@ -239,7 +241,7 @@ function BookMiniCard({
           <span className="text-[10px] font-bold text-muted-foreground">
             {pagesRead}/{book.total_pages}
           </span>
-          <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">pages</span>
+          <span className="text-[9px] text-muted-foreground/60 uppercase tracking-wider">{tr('pages')}</span>
           <ChevronDown
             className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-300 mt-1 ${
               expanded ? 'rotate-180' : ''
@@ -259,6 +261,7 @@ function BookMiniCard({
 }
 
 export default function BookShelf({ category, books, onLogged, onEdit, defaultOpen = false }: BookShelfProps): JSX.Element {
+  const { tr } = useTranslation()
   const [open, setOpen] = useState(defaultOpen)
 
   const meta = categoryMeta[category]
@@ -293,21 +296,21 @@ export default function BookShelf({ category, books, onLogged, onEdit, defaultOp
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
             <h3 className={`font-black text-base uppercase tracking-tight ${meta.color}`}>
-              {meta.label}
+              {tr(meta.label)}
             </h3>
           </div>
           <div className="flex items-center gap-3 mt-1">
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              {totalBooks} {totalBooks === 1 ? 'book' : 'books'}
+              {totalBooks} {totalBooks === 1 ? tr('book') : tr('books')}
             </span>
             {doneBooks > 0 && (
               <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">
-                {doneBooks} done
+                {tr('{doneBooks} done', { doneBooks: doneBooks })}
               </span>
             )}
             {readingBooks > 0 && (
               <span className="text-[10px] font-bold text-orange-500 uppercase tracking-widest">
-                {readingBooks} reading
+                {tr('{readingBooks} reading', { readingBooks: readingBooks })}
               </span>
             )}
           </div>

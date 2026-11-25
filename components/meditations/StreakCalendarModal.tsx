@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -23,6 +25,7 @@ const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth()
 const fromKey = (key: string) => new Date(`${key}T12:00:00`)
 
 export default function StreakCalendarModal({ open, onClose, groupedByDay, accountCreatedAt }: Props) {
+  const { tr } = useTranslation()
   const [mounted, setMounted] = useState(false)
   const [activeMonth, setActiveMonth] = useState(() => startOfMonth(new Date()))
   const [selected, setSelected] = useState<string | null>(null)
@@ -101,7 +104,7 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label="Meditation calendar">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={tr('Meditation calendar')}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -129,11 +132,11 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
                   <CalendarDays className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Meditation</p>
-                  <p className="text-sm font-black leading-tight">Your journey</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{tr('Meditation')}</p>
+                  <p className="text-sm font-black leading-tight">{tr('Your journey')}</p>
                 </div>
               </div>
-              <button onClick={onClose} aria-label="Close" className="h-9 w-9 rounded-full bg-muted grid place-items-center active:scale-90 transition">
+              <button onClick={onClose} aria-label={tr('Close')} className="h-9 w-9 rounded-full bg-muted grid place-items-center active:scale-90 transition">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -144,25 +147,25 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
                 <button
                   onClick={() => changeMonth(-1)}
                   disabled={!canGoPrev}
-                  aria-label="Previous month"
+                  aria-label={tr('Previous month')}
                   className="h-10 w-10 rounded-full grid place-items-center hover:bg-muted disabled:opacity-25 transition"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <div className="text-center">
                   <p className="text-lg font-black tracking-tight">
-                    {activeMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                    {activeMonth.toLocaleDateString(appLocale(), { month: 'long', year: 'numeric' })}
                   </p>
                   {monthKey(activeMonth) !== monthKey(currentMonth) && (
                     <button onClick={() => { setActiveMonth(currentMonth); setSelected(null) }} className="text-[11px] font-bold text-violet-600 dark:text-violet-400">
-                      Back to this month
+                      {tr('Back to this month')}
                     </button>
                   )}
                 </div>
                 <button
                   onClick={() => changeMonth(1)}
                   disabled={!canGoNext}
-                  aria-label="Next month"
+                  aria-label={tr('Next month')}
                   className="h-10 w-10 rounded-full grid place-items-center hover:bg-muted disabled:opacity-25 transition"
                 >
                   <ChevronRight className="h-5 w-5" />
@@ -171,9 +174,9 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
 
               {/* Month stats */}
               <div className="grid grid-cols-3 gap-2 mb-4">
-                <Stat label="Days" value={`${stats.meditated}`} sub={stats.counted ? `of ${stats.counted}` : '—'} />
-                <Stat label="Entries" value={`${stats.entries}`} sub="this month" />
-                <Stat label="Best run" value={`${stats.best}`} sub={stats.best === 1 ? 'day' : 'days'} />
+                <Stat label={tr('Days')} value={`${stats.meditated}`} sub={stats.counted ? `of ${stats.counted}` : '—'} />
+                <Stat label={tr('Entries')} value={`${stats.entries}`} sub="this month" />
+                <Stat label={tr('Best run')} value={`${stats.best}`} sub={stats.best === 1 ? 'day' : 'days'} />
               </div>
 
               {/* Weekdays */}
@@ -200,7 +203,7 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
                       <button
                         onClick={() => !future && setSelected(s => (s === key ? null : key))}
                         disabled={future}
-                        aria-label={`${fromKey(key).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}: ${done ? `${entries.length} meditation${entries.length > 1 ? 's' : ''}` : future ? 'upcoming' : 'none'}`}
+                        aria-label={`${fromKey(key).toLocaleDateString(appLocale(), { weekday: 'long', month: 'long', day: 'numeric' })}: ${done ? `${entries.length} meditation${entries.length > 1 ? 's' : ''}` : future ? 'upcoming' : 'none'}`}
                         className={`relative h-10 w-10 rounded-full overflow-hidden grid place-items-center transition ${
                           future || beforeStart ? 'bg-transparent' : missed ? 'bg-muted/60' : 'bg-muted'
                         } ${isToday ? 'ring-2 ring-violet-500 ring-offset-2 ring-offset-background' : ''} ${
@@ -228,10 +231,10 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
               {selected && (
                 <div className="mt-4 rounded-2xl bg-muted/50 p-3 space-y-2 animate-in fade-in slide-in-from-top-1 duration-200">
                   <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    {fromKey(selected).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
+                    {fromKey(selected).toLocaleDateString(appLocale(), { weekday: 'long', month: 'long', day: 'numeric' })}
                   </p>
                   {selectedEntries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{selected === todayKey ? 'Nothing yet today. There’s still time.' : 'No meditation this day.'}</p>
+                    <p className="text-sm text-muted-foreground">{selected === todayKey ? tr('Nothing yet today. There’s still time.') : tr('No meditation this day.')}</p>
                   ) : selectedEntries.map(m => (
                     <Link
                       key={m.id}
@@ -242,7 +245,7 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
                       {m.period === 'morning'
                         ? <Sun className="h-4 w-4 text-amber-500 shrink-0" />
                         : <Moon className="h-4 w-4 text-indigo-500 shrink-0" />}
-                      <span className="text-sm font-semibold truncate flex-1">{m.title || 'Untitled'}</span>
+                      <span className="text-sm font-semibold truncate flex-1">{m.title || tr('Untitled')}</span>
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                     </Link>
                   ))}
@@ -251,23 +254,23 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
 
               {/* Legend */}
               <div className="mt-5 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] text-muted-foreground">
-                <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-violet-500" /> Morning</span>
-                <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-indigo-600" /> Evening</span>
+                <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-violet-500" />{' '}{tr('Morning')}</span>
+                <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-indigo-600" />{' '}{tr('Evening')}</span>
                 <span className="flex items-center gap-1.5">
                   <span className="h-3 w-3 rounded-full overflow-hidden flex flex-col"><span className="flex-1 bg-violet-500" /><span className="flex-1 bg-indigo-600" /></span>
-                  Both
+                  {tr('Both')}
                 </span>
-                <span className="flex items-center gap-1.5"><span className="text-sm leading-none">😈</span> Missed</span>
+                <span className="flex items-center gap-1.5"><span className="text-sm leading-none">😈</span>{' '}{tr('Missed')}</span>
               </div>
 
               {/* Footer summary */}
               <div className="mt-4 mb-1 flex items-center justify-center gap-4 rounded-2xl bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-500/10 dark:to-indigo-500/10 py-3 text-xs font-semibold">
                 <span className="flex items-center gap-1.5">
                   <Flame className={`h-4 w-4 ${streak ? 'text-orange-500 fill-orange-500' : 'text-muted-foreground'}`} />
-                  {streak} day streak
+                  {streak}{' '}{tr('day streak')}
                 </span>
                 <span className="h-4 w-px bg-border" />
-                <span>{stats.yearDays} day{stats.yearDays !== 1 ? 's' : ''} in {stats.year}</span>
+                <span>{tr('{yearDays} {yearDays:day|days} in {year}', { yearDays: stats.yearDays, year: stats.year })}</span>
               </div>
             </div>
           </motion.div>
@@ -279,11 +282,12 @@ export default function StreakCalendarModal({ open, onClose, groupedByDay, accou
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  const { tr } = useTranslation()
   return (
     <div className="rounded-2xl bg-muted/50 px-3 py-2.5 text-center">
-      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+      <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{tr(label)}</p>
       <p className="text-xl font-black leading-tight">{value}</p>
-      <p className="text-[10px] text-muted-foreground">{sub}</p>
+      <p className="text-[10px] text-muted-foreground">{tr(sub)}</p>
     </div>
   )
 }

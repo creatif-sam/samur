@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 import {
   Card,
   CardContent,
@@ -14,14 +15,13 @@ export default function Page() {
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">
-                Thank you for signing up!
+                {trNow('Thank you for signing up!')}
               </CardTitle>
-              <CardDescription>Check your email to confirm</CardDescription>
+              <CardDescription>{trNow('Check your email to confirm')}</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                You&apos;ve successfully signed up. Please check your email to
-                confirm your account before signing in.
+                {trNow('You\'ve successfully signed up. Please check your email to confirm your account before signing in.')}
               </p>
             </CardContent>
           </Card>

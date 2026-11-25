@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { getPartnerMeditations } from '@/lib/meditations/getPartnerMeditations'
@@ -10,6 +11,7 @@ import { Users } from 'lucide-react'
 import { toLocalDateKey } from '@/lib/dates'
 
 export default function PartnerMeditationBoard() {
+  const { tr } = useTranslation()
   const [data, setData] = useState<any>(null)
 
   async function load() {
@@ -52,7 +54,7 @@ export default function PartnerMeditationBoard() {
     <div className="rounded-3xl border border-border bg-card p-4 space-y-3">
       <div className="flex items-center gap-2 mb-1">
         <Users className="w-4 h-4 text-muted-foreground" />
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Partnership Streaks</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{tr('Partnership Streaks')}</h3>
         <HelpTip topic="spirit.partnerStreaks" align="left" className="-my-1" />
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -64,6 +66,7 @@ export default function PartnerMeditationBoard() {
 }
 
 function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
+  const { tr } = useTranslation()
   const doneToday = data?.today
   const streak = data.streak
 
@@ -72,8 +75,8 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
       <div className="flex items-center gap-2">
         <Avatar name={data.name} avatar={data.avatar} />
         <div className="flex flex-col min-w-0 flex-1">
-          <h3 className="font-semibold text-sm truncate">{data.name}</h3>
-          {isMe && <span className="text-[10px] text-muted-foreground uppercase font-bold">You</span>}
+          <h3 className="font-semibold text-sm truncate">{tr(data.name)}</h3>
+          {isMe && <span className="text-[10px] text-muted-foreground uppercase font-bold">{tr('You')}</span>}
         </div>
       </div>
 
@@ -90,8 +93,8 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
           <span className="text-lg">{streak > 0 ? '🔥' : '💤'}</span>
         )}
         <div className="flex flex-col">
-          <span className="text-sm font-bold">{streak} days</span>
-          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wide">Current Streak</span>
+          <span className="text-sm font-bold">{tr('{streak} days', { streak: streak })}</span>
+          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wide">{tr('Current Streak')}</span>
         </div>
       </div>
 
@@ -101,7 +104,7 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
             className={`w-full h-2 rounded-full transition-colors ${
               doneToday?.morning ? 'bg-amber-400 shadow-sm shadow-amber-400/50' : 'bg-muted'
             }`}
-            title="Morning"
+            title={tr('Morning')}
           />
           {doneToday?.morning && (
             <span className="text-[8px] text-muted-foreground">
@@ -114,7 +117,7 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
             className={`w-full h-2 rounded-full transition-colors ${
               doneToday?.evening ? 'bg-violet-500 shadow-sm shadow-violet-500/50' : 'bg-muted'
             }`}
-            title="Evening"
+            title={tr('Evening')}
           />
           {doneToday?.evening && (
             <span className="text-[8px] text-muted-foreground">
@@ -125,8 +128,8 @@ function PersonCard({ data, isMe }: { data: any; isMe: boolean }) {
       </div>
       
       <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
-        <span>🌅 Morning</span>
-        <span>🌙 Evening</span>
+        <span>{tr('🌅 Morning')}</span>
+        <span>{tr('🌙 Evening')}</span>
       </div>
     </div>
   )
@@ -139,11 +142,12 @@ export function Avatar({
   name: string
   avatar?: string | null
 }) {
+  const { tr } = useTranslation()
   if (avatar) {
     return (
       <Image
         src={avatar}
-        alt={name}
+        alt={tr(name)}
         width={40}
         height={40}
         className="rounded-full object-cover ring-2 ring-border"

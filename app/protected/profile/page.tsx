@@ -1,5 +1,6 @@
-﻿'use client'
+'use client'
 
+import { trNow } from '@/lib/i18n'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -59,7 +60,7 @@ export default function ProfilePage() {
 
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
-  const { language, setLanguage, t } = useTranslation()
+  const { language, setLanguage, t, tr } = useTranslation()
 
   useEffect(() => {
     fetchProfile()
@@ -118,14 +119,14 @@ export default function ProfilePage() {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        toast.error(data.error || 'Something went wrong')
+        toast.error(data.error || tr('Something went wrong'))
         return false
       }
       toast.success(success)
       await Promise.all([loadPartnerState(), fetchProfile()])
       return true
     } catch {
-      toast.error("You're offline. This will work when you reconnect.")
+      toast.error(tr('You\'re offline. This will work when you reconnect.'))
       return false
     } finally {
       setPartnerBusy(false)
@@ -152,24 +153,24 @@ export default function ProfilePage() {
     }
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSavingTheme(false); toast.error('Please sign in again'); return false }
+    if (!user) { setSavingTheme(false); toast.error(tr('Please sign in again')); return false }
     const result = await saveThemes(supabase, user.id, clean)
     setSavingTheme(false)
-    if (result === 'error') { toast.error("Couldn't save your themes. Try again."); return false }
+    if (result === 'error') { toast.error(tr('Couldn\'t save your themes. Try again.')); return false }
     if (result === 'no-month') {
       // Year and start date saved; the month needs the newest migration
       setThemes({ ...clean, themeMonth: null })
-      toast.success('Themes saved')
+      toast.success(tr('Themes saved'))
       return true
     }
     if (result === 'no-dates') {
       // Only the words saved; the year and start date need the year_theme_start migration
       setThemes({ ...clean, themeYear: themes.themeYear, themeStart: themes.themeStart, themeMonth: null })
-      toast.warning('Themes saved, but the start date needs a database update first')
+      toast.warning(tr('Themes saved, but the start date needs a database update first'))
       return true
     }
     setThemes(clean)
-    toast.success('Themes saved')
+    toast.success(tr('Themes saved'))
     return true
   }
 
@@ -179,7 +180,7 @@ export default function ProfilePage() {
     if (!user) return
     await supabase.from('user_preferences').upsert({ user_id: user.id, currency: code })
     setSelectedCurrency(code)
-    toast.success('Currency updated')
+    toast.success(tr('Currency updated'))
   }
 
   /* ── mutations ── */
@@ -208,16 +209,16 @@ export default function ProfilePage() {
 
   const sendPartnerInvite = async () => {
     if (!inviteEmail.trim()) return
-    if (await partnerAction({ action: 'invite', email: inviteEmail.trim() }, 'Invite sent!')) setInviteEmail('')
+    if (await partnerAction({ action: 'invite', email: inviteEmail.trim() }, trNow('Invite sent!'))) setInviteEmail('')
   }
 
-  const acceptInvite = (requestId: string) => partnerAction({ action: 'accept', requestId }, 'Partner connected! 🎉')
-  const declineInvite = (requestId: string) => partnerAction({ action: 'decline', requestId }, 'Invite declined')
-  const cancelOutgoingInvite = (requestId: string) => partnerAction({ action: 'cancel', requestId }, 'Invite cancelled')
+  const acceptInvite = (requestId: string) => partnerAction({ action: 'accept', requestId }, trNow('Partner connected! 🎉'))
+  const declineInvite = (requestId: string) => partnerAction({ action: 'decline', requestId }, trNow('Invite declined'))
+  const cancelOutgoingInvite = (requestId: string) => partnerAction({ action: 'cancel', requestId }, trNow('Invite cancelled'))
 
   const removePartner = async () => {
-    if (!window.confirm(`Disconnect from ${partnerState.partner?.name || 'your partner'}? Shared goals and posts will stop being shared.`)) return
-    await partnerAction({ action: 'disconnect' }, 'Partner disconnected')
+    if (!window.confirm(tr('Disconnect from {value}? Shared goals and posts will stop being shared.', { value: partnerState.partner?.name || tr('your partner') }))) return
+    await partnerAction({ action: 'disconnect' }, trNow('Partner disconnected'))
   }
 
   const handleLogout = async () => {
@@ -236,7 +237,9 @@ export default function ProfilePage() {
   const completionPct = goalStats.total === 0 ? 0 : Math.round((goalStats.completed / goalStats.total) * 100)
 
   /* ── partner section content ── */
-  const PartnerContent = () => (
+  const PartnerContent = () => {
+  const { tr } = useTranslation()
+  return ((
     <div className="px-5 pb-4 pt-1 space-y-3">
       {partnerState.partner ? (
         <div className="flex items-center justify-between gap-3">
@@ -244,16 +247,16 @@ export default function ProfilePage() {
             <Avatar className="w-9 h-9">
               <AvatarImage src={partnerState.partner.avatar_url ?? undefined} />
               <AvatarFallback className="bg-violet-100 dark:bg-violet-900/40 text-violet-600 font-bold text-sm">
-                {partnerState.partner.name[0]?.toUpperCase()}
+                {tr(partnerState.partner.name[0]?.toUpperCase())}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">{partnerState.partner.name}</p>
-              <p className="text-xs text-muted-foreground">Connected ✓</p>
+              <p className="text-sm font-semibold truncate">{tr(partnerState.partner.name)}</p>
+              <p className="text-xs text-muted-foreground">{tr('Connected ✓')}</p>
             </div>
           </div>
           <Button size="sm" variant="outline" className="text-destructive border-destructive/30 gap-1 text-xs shrink-0" onClick={removePartner} disabled={partnerBusy}>
-            <Link2Off className="w-3 h-3" /> Disconnect
+            <Link2Off className="w-3 h-3" />{' '}{tr('Disconnect')}
           </Button>
         </div>
       ) : (
@@ -262,16 +265,16 @@ export default function ProfilePage() {
             <div key={req.id} className="rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/40 p-3 space-y-2">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-violet-200 dark:bg-violet-800 flex items-center justify-center text-violet-700 font-bold text-xs">
-                  {req.from.name[0]?.toUpperCase()}
+                  {tr(req.from.name[0]?.toUpperCase())}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold">{req.from.name}</p>
-                  <p className="text-xs text-muted-foreground">Wants to be your partner</p>
+                  <p className="text-sm font-semibold">{tr(req.from.name)}</p>
+                  <p className="text-xs text-muted-foreground">{tr('Wants to be your partner')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" className="flex-1 gap-1 bg-violet-600 hover:bg-violet-700 h-8 text-xs" onClick={() => acceptInvite(req.id)} disabled={partnerBusy}><Check className="w-3 h-3" /> Accept</Button>
-                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => declineInvite(req.id)} disabled={partnerBusy}><X className="w-3 h-3" /> Decline</Button>
+                <Button size="sm" className="flex-1 gap-1 bg-violet-600 hover:bg-violet-700 h-8 text-xs" onClick={() => acceptInvite(req.id)} disabled={partnerBusy}><Check className="w-3 h-3" />{' '}{tr('Accept')}</Button>
+                <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => declineInvite(req.id)} disabled={partnerBusy}><X className="w-3 h-3" />{' '}{tr('Decline')}</Button>
               </div>
             </div>
           ))}
@@ -281,35 +284,36 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400">
                 <Clock className="w-3.5 h-3.5" />
                 <div>
-                  <p className="text-xs font-semibold">Invite sent to {req.to.name}</p>
-                  <p className="text-[10px] opacity-70">Waiting for acceptance…</p>
+                  <p className="text-xs font-semibold">{tr('Invite sent to {name}', { name: req.to.name })}</p>
+                  <p className="text-[10px] opacity-70">{tr('Waiting for acceptance…')}</p>
                 </div>
               </div>
-              <Button size="sm" variant="ghost" className="text-xs" onClick={() => cancelOutgoingInvite(req.id)} disabled={partnerBusy}>Cancel</Button>
+              <Button size="sm" variant="ghost" className="text-xs" onClick={() => cancelOutgoingInvite(req.id)} disabled={partnerBusy}>{tr('Cancel')}</Button>
             </div>
           ))}
 
           {partnerState.outgoing.length === 0 && (
             <form onSubmit={e => { e.preventDefault(); sendPartnerInvite() }} className="space-y-2">
-              <p className="text-xs text-muted-foreground">Invite your accountability partner with the email they signed up with.</p>
+              <p className="text-xs text-muted-foreground">{tr('Invite your accountability partner with the email they signed up with.')}</p>
               <Input
                 type="email"
                 inputMode="email"
                 autoComplete="off"
-                placeholder="partner@example.com"
+                placeholder={tr('partner@example.com')}
                 value={inviteEmail}
                 onChange={e => setInviteEmail(e.target.value)}
                 className="h-9 text-sm"
               />
               <Button type="submit" size="sm" className="w-full gap-1 bg-violet-600 hover:bg-violet-700 h-9 text-sm" disabled={!inviteEmail.trim() || partnerBusy}>
-                <UserPlus className="w-3.5 h-3.5" /> {partnerBusy ? 'Sending…' : 'Send Invite'}
+                <UserPlus className="w-3.5 h-3.5" /> {partnerBusy ? tr('Sending…') : tr('Send Invite')}
               </Button>
             </form>
           )}
         </>
       )}
     </div>
-  )
+  ))
+}
 
   return (
     <div className="min-h-screen bg-muted/40 pb-28">
@@ -357,7 +361,7 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black tracking-tight">{name || 'Unnamed User'}</h1>
+                <h1 className="text-2xl font-black tracking-tight">{name || tr('Unnamed User')}</h1>
                 <button onClick={() => setEditing(true)} className="w-7 h-7 rounded-full bg-muted flex items-center justify-center">
                   <Pencil className="w-3 h-3 text-muted-foreground" />
                 </button>
@@ -374,25 +378,25 @@ export default function ProfilePage() {
           <StatCard2
             icon={<Target className="w-4 h-4 text-violet-600 dark:text-violet-400" />}
             iconBg="bg-violet-50 dark:bg-violet-950/30"
-            label="Goals"
+            label={tr('Goals')}
             value={goalStats.total}
           />
           <StatCard2
             icon={<Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
             iconBg="bg-emerald-50 dark:bg-emerald-950/30"
-            label="Completed"
+            label={tr('Completed')}
             value={`${completionPct}%`}
           />
           <StatCard2
             icon={<BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />}
             iconBg="bg-blue-50 dark:bg-blue-950/30"
-            label="Meditations"
+            label={tr('Meditations')}
             value={meditationCount}
           />
           <StatCard2
             icon={<Eye className="w-4 h-4 text-amber-500 dark:text-amber-400" />}
             iconBg="bg-amber-50 dark:bg-amber-950/30"
-            label="Visions"
+            label={tr('Visions')}
             value={visionCount}
           />
         </div>
@@ -401,9 +405,9 @@ export default function ProfilePage() {
           {/* Partner */}
           <SettingsRow
             icon={<Users className="w-4 h-4" />}
-            label="Accountability Partner"
+            label={tr('Accountability Partner')}
             help="profile.partner"
-            sublabel={partnerState.partner ? partnerName || 'Connected' : partnerState.incoming.length ? `${partnerState.incoming.length} invite${partnerState.incoming.length > 1 ? 's' : ''} pending` : partnerState.outgoing.length ? 'Invite sent' : 'None'}
+            sublabel={partnerState.partner ? partnerName || tr('Connected') : partnerState.incoming.length ? tr('{incomingCount} {incomingCount:invite|invites} pending', { incomingCount: partnerState.incoming.length }) : partnerState.outgoing.length ? tr('Invite sent') : tr('None')}
             expanded={expanded === 'partner'}
             onTap={() => toggle('partner')}
           />
@@ -414,8 +418,8 @@ export default function ProfilePage() {
           {/* Language */}
           <SettingsRow
             icon={<Globe className="w-4 h-4" />}
-            label="Language"
-            sublabel={language === 'en' ? 'English' : 'Français'}
+            label={tr('Language')}
+            sublabel={language === 'en' ? tr('English') : tr('Français')}
             expanded={expanded === 'language'}
             onTap={() => toggle('language')}
           />
@@ -430,7 +434,7 @@ export default function ProfilePage() {
           {/* Currency */}
           <SettingsRow
             icon={<DollarSign className="w-4 h-4" />}
-            label="Currency"
+            label={tr('Currency')}
             help="profile.currency"
             sublabel={currencies.find(c => c.code === selectedCurrency)?.label || selectedCurrency}
             expanded={expanded === 'currency'}
@@ -462,7 +466,7 @@ export default function ProfilePage() {
           {/* Business Card */}
           <SettingsRow
             icon={<CreditCard className="w-4 h-4" />}
-            label="Business Card"
+            label={tr('Business Card')}
             help="profile.businessCard"
             expanded={expanded === 'bizcard'}
             onTap={() => toggle('bizcard')}
@@ -478,7 +482,7 @@ export default function ProfilePage() {
           {/* Notifications */}
           <SettingsRow
             icon={<BellIcon className="w-4 h-4" />}
-            label="Push Notifications"
+            label={tr('Push Notifications')}
             help="profile.notifications"
             expanded={expanded === 'notifications'}
             onTap={() => toggle('notifications')}
@@ -494,7 +498,7 @@ export default function ProfilePage() {
         <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4 border border-destructive/20">
           <SettingsRow
             icon={<Shield className="w-4 h-4 text-orange-500" />}
-            label="Delete Specific Data"
+            label={tr('Delete Specific Data')}
             help="profile.deleteData"
             labelClass="text-orange-600 dark:text-orange-400"
             onTap={() => { setDeleteType('data'); setShowDeleteDialog(true) }}
@@ -502,7 +506,7 @@ export default function ProfilePage() {
           <div className="h-px bg-border/50 mx-5" />
           <SettingsRow
             icon={<Trash2 className="w-4 h-4 text-destructive" />}
-            label="Delete Account"
+            label={tr('Delete Account')}
             labelClass="text-destructive"
             onTap={() => { setDeleteType('account'); setShowDeleteDialog(true) }}
           />
@@ -512,7 +516,7 @@ export default function ProfilePage() {
         {isAdminUser && <div className="bg-background rounded-3xl shadow-sm overflow-hidden mb-4">
           <SettingsRow
             icon={<Users className="w-4 h-4" />}
-            label="All Users"
+            label={tr('All Users')}
             expanded={expanded === 'allusers'}
             onTap={() => toggle('allusers')}
           />
@@ -528,7 +532,7 @@ export default function ProfilePage() {
           onClick={handleLogout}
           className="w-full h-12 rounded-2xl border border-border text-sm font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors flex items-center justify-center gap-2 mb-4"
         >
-          <LogOut className="w-4 h-4" /> Sign Out
+          <LogOut className="w-4 h-4" />{' '}{tr('Sign Out')}
         </button>
 
         <p className="text-center text-[10px] text-muted-foreground/50 pb-2">
@@ -542,24 +546,24 @@ export default function ProfilePage() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              {deleteType === 'account' ? 'Delete Account' : 'Delete Specific Data'}
+              {deleteType === 'account' ? tr('Delete Account') : tr('Delete Specific Data')}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {deleteType === 'account' ? (
                 <>
-                  You are about to permanently delete your entire account.
-                  <p className="mt-2 font-semibold">Do you want to continue?</p>
+                  {tr('You are about to permanently delete your entire account.')}
+                  <p className="mt-2 font-semibold">{tr('Do you want to continue?')}</p>
                 </>
               ) : (
                 <>
-                  Select specific types of data to delete while keeping your account active.
-                  <p className="mt-2 font-semibold">Do you want to continue?</p>
+                  {tr('Select specific types of data to delete while keeping your account active.')}
+                  <p className="mt-2 font-semibold">{tr('Do you want to continue?')}</p>
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteType(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setDeleteType(null)}>{tr('Cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setShowDeleteDialog(false)
@@ -568,7 +572,7 @@ export default function ProfilePage() {
               }}
               className={deleteType === 'account' ? 'bg-destructive hover:bg-destructive/90' : ''}
             >
-              Continue
+              {tr('Continue')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -585,11 +589,12 @@ function StatCard2({
   label: string
   value: string | number
 }) {
+  const { tr } = useTranslation()
   return (
     <div className="bg-background rounded-2xl p-4 flex flex-col gap-2 shadow-sm">
       <div className="flex items-center gap-2">
         <div className={`p-2 rounded-xl ${iconBg}`}>{icon}</div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-tight">{label}</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground leading-tight">{tr(label)}</span>
       </div>
       <div className="text-2xl font-black text-foreground">{value}</div>
     </div>
@@ -607,6 +612,7 @@ function SettingsRow({
   labelClass?: string
   help?: HelpTopic
 }) {
+  const { tr } = useTranslation()
   return (
     <div className="flex items-center transition-colors hover:bg-muted/40">
     <button onClick={onTap} className="flex min-w-0 flex-1 items-center gap-4 px-5 py-4">
@@ -614,8 +620,8 @@ function SettingsRow({
         {icon}
       </div>
       <div className="flex-1 text-left min-w-0">
-        <p className={cn('text-sm font-semibold', labelClass)}>{label}</p>
-        {sublabel && <p className="text-[11px] text-muted-foreground truncate">{sublabel}</p>}
+        <p className={cn('text-sm font-semibold', labelClass)}>{tr(label)}</p>
+        {sublabel && <p className="text-[11px] text-muted-foreground truncate">{tr(sublabel)}</p>}
       </div>
       <ChevronRight className={cn('w-4 h-4 text-muted-foreground/50 transition-transform shrink-0', expanded && 'rotate-90')} />
     </button>

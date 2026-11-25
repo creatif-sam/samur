@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { PlannerTask } from './DailyPlanner'
 import { ListChecks, Clock, Trophy, CheckCircle2, Lightbulb } from 'lucide-react'
 import { busyMinutes as countBusyMinutes, taskDuration } from '@/lib/planner/tasks'
@@ -14,6 +15,7 @@ interface DaySummaryProps {
 }
 
 export default function DaySummary({ tasks, completedTaskIds, visions }: DaySummaryProps) {
+  const { tr } = useTranslation()
   const totalDayMinutes = (HOURS_END - HOURS_START) * 60
 
   const taskDurations = tasks.map((task) => ({
@@ -55,7 +57,7 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
           <CheckCircle2 className="text-blue-500 opacity-80 mb-1 sm:mb-0" size={18} />
           <div className="text-center sm:text-left">
             <div className="text-sm sm:text-lg font-bold tracking-tight">{completionRate}%</div>
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight sm:tracking-widest">Done</div>
+            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight sm:tracking-widest">{tr('Done')}</div>
           </div>
         </div>
 
@@ -63,7 +65,7 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
           <ListChecks className="text-slate-400 opacity-70 mb-1 sm:mb-0" size={18} />
           <div className="text-center sm:text-left">
             <div className="text-sm sm:text-lg font-bold tracking-tight">{tasks.length}</div>
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight sm:tracking-widest">Events</div>
+            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight sm:tracking-widest">{tr('Events')}</div>
           </div>
         </div>
 
@@ -71,7 +73,7 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
           <Clock className="text-slate-400 opacity-70 mb-1 sm:mb-0" size={18} />
           <div className="text-center sm:text-left">
             <div className="text-sm sm:text-lg font-bold tracking-tight">{freeHours}h</div>
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight sm:tracking-widest">Free</div>
+            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tight sm:tracking-widest">{tr('Free')}</div>
           </div>
         </div>
       </div>
@@ -88,9 +90,9 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
       <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/30 rounded-2xl p-3 flex items-start gap-3">
         <Lightbulb className="text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" size={16} />
         <div className="min-w-0">
-          <p className="text-[9px] font-bold text-blue-600/60 uppercase tracking-widest mb-0.5">Suggestion</p>
+          <p className="text-[9px] font-bold text-blue-600/60 uppercase tracking-widest mb-0.5">{tr('Suggestion')}</p>
           <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">
-            {getSuggestion()}
+            {tr(getSuggestion())}
           </p>
         </div>
       </div>
@@ -99,7 +101,7 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
       <div className="pt-3 border-t border-slate-50 dark:border-slate-800/50 flex items-start gap-3 w-full">
         <Trophy className="text-amber-400 shrink-0 mt-0.5" size={16} />
         <div className="flex flex-col min-w-0 w-full">
-          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Major Focus</span>
+          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{tr('Major Focus')}</span>
           {longestTask ? (
             <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate block">
@@ -110,7 +112,7 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
               </span>
             </div>
           ) : (
-            <span className="text-xs text-slate-400 font-medium">No active focus</span>
+            <span className="text-xs text-slate-400 font-medium">{tr('No active focus')}</span>
           )}
         </div>
       </div>

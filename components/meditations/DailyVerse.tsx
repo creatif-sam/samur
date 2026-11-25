@@ -1,10 +1,12 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { Sparkles, Copy, Check } from 'lucide-react'
 
 export default function DailyVerseCard() {
+  const { tr } = useTranslation()
   const [verse, setVerse] = useState({ text: "...", ref: "..." })
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -53,15 +55,15 @@ export default function DailyVerseCard() {
               <Sparkles size={16} className="text-violet-100 animate-pulse" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-100/80">Daily Bread</span>
-              {copied && <span className="text-[9px] font-bold text-green-300 animate-in fade-in slide-in-from-left-1">Copied!</span>}
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-100/80">{tr('Daily Bread')}</span>
+              {copied && <span className="text-[9px] font-bold text-green-300 animate-in fade-in slide-in-from-left-1">{tr('Copied!')}</span>}
             </div>
             <HelpTip topic="home.dailyVerse" tone="onDark" align="left" />
           </div>
           
           <button 
             onClick={copyToClipboard}
-            aria-label="Copy Scripture"
+            aria-label={tr('Copy Scripture')}
             className="bg-white/10 p-2.5 rounded-xl hover:bg-white/20 transition-all active:scale-90 border border-white/5"
           >
             {copied ? (

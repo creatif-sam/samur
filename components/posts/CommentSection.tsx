@@ -1,3 +1,6 @@
+'use client'
+
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Send } from 'lucide-react';
@@ -19,17 +22,18 @@ interface CommentSectionProps {
 export function CommentSection({
   comments, newComment, setNewComment, onComment, onReply, onEdit, onDelete, currentUserId, loading,
 }: CommentSectionProps) {
+  const { tr } = useTranslation()
   return (
     <div className="border-t pt-3 space-y-3 px-4 pb-4">
       <div className="flex space-x-2">
         <Textarea
-          placeholder="Write a comment..."
+          placeholder={tr('Write a comment...')}
           value={newComment}
           onChange={(e) => setNewComment(e.target.value)}
           className="flex-1 text-sm min-h-[40px]"
           rows={1}
         />
-        <Button size="sm" onClick={onComment} disabled={!newComment.trim() || loading} className="self-end" aria-label="Post comment">
+        <Button size="sm" onClick={onComment} disabled={!newComment.trim() || loading} className="self-end" aria-label={tr('Post comment')}>
           <Send className="h-4 w-4" />
         </Button>
       </div>

@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -17,6 +19,7 @@ import type { Page } from './types'
 // Read-only view of a note your partner shared. Rendering through the editor
 // (not innerHTML) keeps only known, safe content.
 export function SharedNoteViewer({ page, partnerName, onClose }: { page: Page; partnerName: string; onClose: () => void }) {
+  const { tr } = useTranslation()
   const [content, setContent] = useState<string | null>(page.content ?? null)
   const [loading, setLoading] = useState(page.content === undefined)
 
@@ -52,16 +55,16 @@ export function SharedNoteViewer({ page, partnerName, onClose }: { page: Page; p
     <div className="fixed inset-0 z-[60] bg-white dark:bg-[#0f172a] flex flex-col">
       <header className="flex items-center gap-2 px-3 h-14 bg-[#7719aa] dark:bg-[#581c87] text-white shrink-0" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <button onClick={onClose} className="flex items-center text-[11px] font-medium uppercase tracking-widest px-2 py-1 rounded-lg hover:bg-white/10">
-          <ChevronLeft className="w-5 h-5 mr-0.5" /> Back
+          <ChevronLeft className="w-5 h-5 mr-0.5" />{' '}{tr('Back')}
         </button>
         <span className="ml-auto flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest opacity-80">
-          <Users className="w-3.5 h-3.5" /> Shared by {partnerName}
+          <Users className="w-3.5 h-3.5" />{' '}{tr('Shared by')}{' '}{partnerName}
         </span>
       </header>
       <main className="flex-1 overflow-y-auto px-6 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-[#7719aa] dark:text-[#a78bfa]">{page.title || 'Untitled'}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-[#7719aa] dark:text-[#a78bfa]">{page.title || tr('Untitled')}</h1>
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest mt-2 mb-6">
-          {new Date(page.updated_at ?? page.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })} · read only
+          {tr('{value} · read only', { value: new Date(page.updated_at ?? page.created_at).toLocaleDateString(appLocale(), { dateStyle: 'medium' }) })}
         </p>
         {loading ? <Loader2 className="w-5 h-5 animate-spin text-violet-500" /> : <EditorContent editor={editor} />}
       </main>

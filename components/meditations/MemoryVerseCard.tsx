@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -24,7 +26,7 @@ const NEXT_LEVEL: Record<PracticeLevel, PracticeLevel> = { full: 'hints', hints:
 const HISTORY_LIMIT = 30
 
 function formatDay(key: string) {
-  return parseDateKey(key).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+  return parseDateKey(key).toLocaleDateString(appLocale(), { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 function PracticeText({ text, level }: { text: string; level: PracticeLevel }) {
@@ -44,6 +46,7 @@ function PracticeText({ text, level }: { text: string; level: PracticeLevel }) {
 }
 
 export default function MemoryVerseCard() {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const today = toLocalDateKey(new Date())
 
@@ -132,7 +135,7 @@ export default function MemoryVerseCard() {
       setText(found.text)
       setReference(found.reference)
     } catch {
-      toast.error("Couldn't find that verse. Check the reference, e.g. John 3:16, or type the text yourself.")
+      toast.error(tr('Couldn\'t find that verse. Check the reference, e.g. John 3:16, or type the text yourself.'))
     } finally {
       setLookingUp(false)
     }
@@ -147,7 +150,7 @@ export default function MemoryVerseCard() {
       visibility: shared ? 'shared' as const : 'private' as const,
     }
     if (!payload.reference || !payload.text) {
-      toast.error('Add a reference and the verse text')
+      toast.error(tr('Add a reference and the verse text'))
       return
     }
 
@@ -168,13 +171,13 @@ export default function MemoryVerseCard() {
 
     if (error) {
       console.error('Failed to save memory verse', error)
-      toast.error("Couldn't save your verse. Check your connection.")
+      toast.error(tr('Couldn\'t save your verse. Check your connection.'))
       return
     }
     setVerse(data as MemoryVerse)
     setEditing(false)
     setLevel('full')
-    toast.success("Today's verse is set")
+    toast.success(tr('Today\'s verse is set'))
   }
 
   async function toggleMemorized(target: MemoryVerse) {
@@ -188,12 +191,12 @@ export default function MemoryVerseCard() {
       .update({ memorized, updated_at: new Date().toISOString() })
       .eq('id', target.id)
     if (error) {
-      toast.error("Couldn't update. Check your connection.")
+      toast.error(tr('Couldn\'t update. Check your connection.'))
       const revert = (v: MemoryVerse) => (v.id === target.id ? { ...v, memorized: target.memorized } : v)
       setVerse(v => (v ? revert(v) : v))
       setHistory(h => h.map(revert))
     } else if (memorized) {
-      toast.success('Hidden in your heart 🙏')
+      toast.success(tr('Hidden in your heart 🙏'))
     }
   }
 
@@ -206,21 +209,21 @@ export default function MemoryVerseCard() {
       .update({ ...update, updated_at: new Date().toISOString() })
       .eq('id', target.id)
     if (error) {
-      toast.error("Couldn't save your review. Check your connection.")
+      toast.error(tr('Couldn\'t save your review. Check your connection.'))
       setReviewQueue(q => [target, ...q])
       return
     }
     if ('memorized' in update) {
       setHistory(h => h.map(v => (v.id === target.id ? { ...v, ...update } : v)))
-      toast.success(`${target.reference} is memorized 🙏`)
+      toast.success(tr('{reference} is memorized 🙏', { reference: target.reference }))
     } else if (!remembered) {
-      toast('It will come back tomorrow')
+      toast(tr('It will come back tomorrow'))
     }
   }
 
   function copy(v: MemoryVerse) {
     navigator.clipboard.writeText(`"${v.text}" — ${v.reference}`)
-    toast.success('Verse copied')
+    toast.success(tr('Verse copied'))
   }
 
   const lastVerse = history[0]
@@ -236,12 +239,12 @@ export default function MemoryVerseCard() {
         <div className="flex items-center gap-0.5">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Brain className="h-3.5 w-3.5 text-violet-500" />
-            Memory Verse
+            {tr('Memory Verse')}
           </p>
           <HelpTip topic="spirit.memoryVerse" align="left" className="-my-1" />
         </div>
         {memorizedCount > 0 && (
-          <span className="text-[11px] text-muted-foreground">{memorizedCount} memorized</span>
+          <span className="text-[11px] text-muted-foreground">{tr('{memorizedCount} memorized', { memorizedCount: memorizedCount })}</span>
         )}
       </div>
 
@@ -249,7 +252,7 @@ export default function MemoryVerseCard() {
         <div className="space-y-3">
           <div className="flex gap-2">
             <Input
-              placeholder="Reference, e.g. Psalm 119:11"
+              placeholder={tr('Reference, e.g. Psalm 119:11')}
               value={reference}
               onChange={(e) => setReference(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); lookUp() } }}
@@ -260,11 +263,11 @@ export default function MemoryVerseCard() {
               value={translation}
               onChange={(e) => setTranslation(e.target.value)}
               className="border rounded-md px-2 text-sm bg-background"
-              aria-label="Translation"
+              aria-label={tr('Translation')}
             >
-              {LOOKUP_TRANSLATIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              {LOOKUP_TRANSLATIONS.map(t => <option key={t.id} value={t.id}>{tr(t.label)}</option>)}
             </select>
-            <Button size="icon" variant="outline" onClick={lookUp} disabled={lookingUp || !reference.trim()} title="Look up verse">
+            <Button size="icon" variant="outline" onClick={lookUp} disabled={lookingUp || !reference.trim()} title={tr('Look up verse')}>
               {lookingUp ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>
@@ -272,20 +275,20 @@ export default function MemoryVerseCard() {
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Verse text (look it up or type it)"
+            placeholder={tr('Verse text (look it up or type it)')}
             className="w-full min-h-[90px] rounded-md border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus:ring-1 focus:ring-violet-500"
           />
 
           <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
             <input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} className="accent-violet-600" />
-            Share with my partner
+            {tr('Share with my partner')}
           </label>
 
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>{tr('Cancel')}</Button>
             <Button size="sm" onClick={() => save()} disabled={saving || !reference.trim() || !text.trim()}>
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Save verse
+              {tr('Save verse')}
             </Button>
           </div>
         </div>
@@ -294,7 +297,7 @@ export default function MemoryVerseCard() {
           <button
             onClick={() => setLevel(l => NEXT_LEVEL[l])}
             className="w-full text-left rounded-md bg-violet-500/10 px-4 py-3"
-            title="Tap to practise"
+            title={tr('Tap to practise')}
           >
             <p className="text-base leading-relaxed font-medium italic">
               <PracticeText text={verse.text} level={level} />
@@ -305,7 +308,7 @@ export default function MemoryVerseCard() {
             </p>
           </button>
           <p className="text-[11px] text-muted-foreground">
-            {level === 'full' ? 'Tap the verse to practise: first letters, then blanks.' : level === 'hints' ? 'First letters only. Tap again to hide all.' : 'Say it from memory, then tap to check.'}
+            {level === 'full' ? tr('Tap the verse to practise: first letters, then blanks.') : level === 'hints' ? tr('First letters only. Tap again to hide all.') : tr('Say it from memory, then tap to check.')}
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -316,30 +319,30 @@ export default function MemoryVerseCard() {
               className="gap-1.5"
             >
               <Check className="h-4 w-4" />
-              {verse.memorized ? 'Memorized' : 'I know it'}
+              {verse.memorized ? tr('Memorized') : tr('I know it')}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setLevel(level === 'full' ? 'hidden' : 'full')} className="gap-1.5">
               {level === 'full' ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              {level === 'full' ? 'Hide' : 'Show'}
+              {level === 'full' ? tr('Hide') : tr('Show')}
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => copy(verse)} title="Copy">
+            <Button size="icon" variant="ghost" onClick={() => copy(verse)} title={tr('Copy')}>
               <Copy className="h-4 w-4" />
             </Button>
-            <Button size="icon" variant="ghost" onClick={() => startEditing(verse)} title="Change verse">
+            <Button size="icon" variant="ghost" onClick={() => startEditing(verse)} title={tr('Change verse')}>
               <Pencil className="h-4 w-4" />
             </Button>
             {verse.visibility === 'shared' && (
               <span className="ml-auto text-[11px] text-muted-foreground flex items-center gap-1">
-                <Users className="h-3 w-3" /> Shared
+                <Users className="h-3 w-3" />{' '}{tr('Shared')}
               </span>
             )}
           </div>
         </div>
       ) : (
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">Choose a verse to carry with you today.</p>
+          <p className="text-sm text-muted-foreground">{tr('Choose a verse to carry with you today.')}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => startEditing()}>Choose today&apos;s verse</Button>
+            <Button size="sm" onClick={() => startEditing()}>{tr('Choose today\'s verse')}</Button>
             {partnerVerse && (
               <Button size="sm" variant="outline" onClick={() => save({
                 reference: partnerVerse.reference,
@@ -347,7 +350,7 @@ export default function MemoryVerseCard() {
                 translation: partnerVerse.translation,
                 visibility: 'shared',
               })} disabled={saving}>
-                Use {partnerName}&apos;s verse
+                {tr('Use {partnerName}\'s verse', { partnerName: partnerName })}
               </Button>
             )}
             {lastVerse && !lastVerse.memorized && (
@@ -357,7 +360,7 @@ export default function MemoryVerseCard() {
                 translation: lastVerse.translation,
                 visibility: lastVerse.visibility,
               })} disabled={saving}>
-                Keep {lastVerse.reference}
+                {tr('Keep {reference}', { reference: lastVerse.reference })}
               </Button>
             )}
           </div>
@@ -370,23 +373,23 @@ export default function MemoryVerseCard() {
           <div className="rounded-md border border-amber-200/70 dark:border-amber-800/40 bg-amber-50/60 dark:bg-amber-900/10 px-3 py-3 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300 flex items-center gap-1">
-                <RotateCcw className="h-3 w-3" /> Review{reviewQueue.length > 1 ? ` · ${reviewQueue.length} due` : ''}
+                <RotateCcw className="h-3 w-3" />{' '}{tr('Review')}{reviewQueue.length > 1 ? tr(' · {reviewQueueCount} due', { reviewQueueCount: reviewQueue.length }) : ''}
               </p>
-              <span className="text-[11px] text-muted-foreground">from {formatDay(due.day)}</span>
+              <span className="text-[11px] text-muted-foreground">{tr('from {value}', { value: formatDay(due.day) })}</span>
             </div>
             <p className="text-sm font-semibold">{due.reference}</p>
-            <button onClick={() => setReviewLevel(l => NEXT_LEVEL[l])} className="w-full text-left" title="Tap for hints">
+            <button onClick={() => setReviewLevel(l => NEXT_LEVEL[l])} className="w-full text-left" title={tr('Tap for hints')}>
               <p className="text-sm italic leading-relaxed">
                 <PracticeText text={due.text} level={reviewLevel} />
               </p>
               <p className="text-[11px] text-muted-foreground mt-1">
-                {reviewLevel === 'full' ? 'How did you do?' : 'Say it from memory. Tap for hints, then to check.'}
+                {reviewLevel === 'full' ? tr('How did you do?') : tr('Say it from memory. Tap for hints, then to check.')}
               </p>
             </button>
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => review(due, false)} className="flex-1">Practice again</Button>
+              <Button size="sm" variant="outline" onClick={() => review(due, false)} className="flex-1">{tr('Practice again')}</Button>
               <Button size="sm" onClick={() => review(due, true)} className="flex-1 gap-1.5">
-                <Check className="h-4 w-4" /> I remembered
+                <Check className="h-4 w-4" />{' '}{tr('I remembered')}
               </Button>
             </div>
           </div>
@@ -396,7 +399,7 @@ export default function MemoryVerseCard() {
       {partnerVerse && (
         <div className="rounded-md bg-muted/40 px-3 py-2">
           <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-            <Users className="h-3 w-3" /> {partnerName}&apos;s verse today
+            <Users className="h-3 w-3" /> {partnerName}{tr('\'s verse today')}
             {partnerVerse.memorized && <Check className="h-3 w-3 text-emerald-500 ml-1" />}
           </p>
           <p className="text-sm mt-1 italic line-clamp-3">&ldquo;{partnerVerse.text}&rdquo;</p>
@@ -411,7 +414,7 @@ export default function MemoryVerseCard() {
             className="text-xs text-muted-foreground flex items-center gap-1 hover:text-foreground"
           >
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showHistory ? 'rotate-180' : ''}`} />
-            Past verses ({history.length})
+            {tr('Past verses (')}{history.length})
           </button>
           {showHistory && (
             <ul className="mt-2 divide-y border rounded-md">
@@ -424,7 +427,7 @@ export default function MemoryVerseCard() {
                   <button
                     onClick={() => toggleMemorized(v)}
                     className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${v.memorized ? 'bg-emerald-500 border-emerald-500' : 'border-muted-foreground/40'}`}
-                    title={v.memorized ? 'Memorized' : 'Mark as memorized'}
+                    title={v.memorized ? tr('Memorized') : tr('Mark as memorized')}
                   >
                     {v.memorized && <Check className="h-3 w-3 text-white" />}
                   </button>

@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState, useEffect } from 'react'
 
@@ -11,6 +12,7 @@ const PHRASES = [
 ]
 
 export default function SplashLoader() {
+  const { tr } = useTranslation()
   const [phraseIndex, setPhraseIndex] = useState(0)
 
   useEffect(() => {
@@ -94,7 +96,7 @@ export default function SplashLoader() {
             transition={{ duration: 0.9, delay: 0.2, ease: 'easeOut' }}
             className="text-5xl font-black text-white tracking-tighter"
           >
-            MASTERY<span className="text-violet-400">.</span>
+            {tr('MASTERY')}<span className="text-violet-400">.</span>
           </motion.h1>
 
           <motion.p
@@ -103,7 +105,7 @@ export default function SplashLoader() {
             transition={{ delay: 0.5, duration: 0.6 }}
             className="text-violet-300/70 text-xs font-semibold tracking-[0.25em] uppercase mt-1"
           >
-            Grow · Reflect · Thrive
+            {tr('Grow · Reflect · Thrive')}
           </motion.p>
         </div>
       </motion.div>
@@ -119,7 +121,7 @@ export default function SplashLoader() {
             transition={{ duration: 0.4 }}
             className="text-violet-300/50 text-xs font-medium tracking-wide"
           >
-            {PHRASES[phraseIndex]}
+            {tr(PHRASES[phraseIndex])}
           </motion.p>
         </AnimatePresence>
       </div>

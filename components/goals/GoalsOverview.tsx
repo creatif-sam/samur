@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -49,12 +51,13 @@ function Ring({ pct, size = 104 }: { pct: number; size?: number }) {
 }
 
 function SectionTitle({ eyebrow, title, right, help }: { eyebrow: string; title: string; right?: React.ReactNode; help?: HelpTopic }) {
+  const { tr } = useTranslation()
   return (
     <div className="flex items-end justify-between gap-3 mb-4">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{eyebrow}</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{tr(eyebrow)}</p>
         <div className="flex items-center gap-0.5">
-          <h3 className="text-base font-black tracking-tight">{title}</h3>
+          <h3 className="text-base font-black tracking-tight">{tr(title)}</h3>
           {help && <HelpTip topic={help} align="left" className="-my-1" />}
         </div>
       </div>
@@ -66,6 +69,7 @@ function SectionTitle({ eyebrow, title, right, help }: { eyebrow: string; title:
 const card = 'rounded-3xl bg-card border border-border/60 shadow-sm p-5'
 
 export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Props) {
+  const { tr } = useTranslation()
   const [scope, setScope] = useState<Scope>('month')
   // Only ever rendered on the client after goals load, so reading the clock here is safe
   const [todayKey] = useState<string | null>(() => toLocalDateKey(new Date()))
@@ -90,7 +94,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
         const d = daysBetween(due!, todayKey)
         items.push({ goal: g, kind: 'overdue', note: `${d} day${d === 1 ? '' : 's'} late` })
       } else if (g.status === 'blocked') {
-        items.push({ goal: g, kind: 'blocked', note: due ? `Due ${parseDateKey(due).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'Blocked' })
+        items.push({ goal: g, kind: 'blocked', note: due ? `Due ${parseDateKey(due).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' })}` : 'Blocked' })
       } else if (due && due <= soon) {
         const d = daysBetween(todayKey, due)
         items.push({ goal: g, kind: 'soon', note: d === 0 ? 'Due today' : d === 1 ? 'Due tomorrow' : `Due in ${d} days` })
@@ -121,7 +125,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
       const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
       return Array.from({ length: 7 }, (_, i) => {
         const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
-        return bucket(day.toLocaleDateString(undefined, { weekday: 'narrow' }), d => d.getTime() === day.getTime(), day.getTime() === now.getTime())
+        return bucket(day.toLocaleDateString(appLocale(), { weekday: 'narrow' }), d => d.getTime() === day.getTime(), day.getTime() === now.getTime())
       })
     }
     if (scope === 'month') {
@@ -133,7 +137,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
     }
     const months = scope === 'quarter' ? [0, 1, 2].map(i => Math.floor(now.getMonth() / 3) * 3 + i) : Array.from({ length: 12 }, (_, i) => i)
     return months.map(m =>
-      bucket(new Date(now.getFullYear(), m, 1).toLocaleDateString(undefined, { month: scope === 'year' ? 'narrow' : 'short' }), d => d.getMonth() === m, now.getMonth() === m),
+      bucket(new Date(now.getFullYear(), m, 1).toLocaleDateString(appLocale(), { month: scope === 'year' ? 'narrow' : 'short' }), d => d.getMonth() === m, now.getMonth() === m),
     )
   }, [scoped, scope, todayKey])
 
@@ -183,17 +187,17 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
             <div className="absolute inset-0 grid place-items-center">
               <div className="text-center leading-none">
                 <p className="text-2xl font-black">{avgProgress}%</p>
-                <p className="text-[9px] font-bold uppercase tracking-wider text-white/70 mt-1">avg progress</p>
+                <p className="text-[9px] font-bold uppercase tracking-wider text-white/70 mt-1">{tr('avg progress')}</p>
               </div>
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">Overall</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">{tr('Overall')}</p>
             <p className="text-3xl font-black leading-tight">
               {counts.done}<span className="text-white/60 text-xl"> / {total}</span>
             </p>
-            <p className="text-xs font-semibold text-white/80">goals completed</p>
-            <p className="mt-2 text-xs text-white/90 leading-snug">{headline}</p>
+            <p className="text-xs font-semibold text-white/80">{tr('goals completed')}</p>
+            <p className="mt-2 text-xs text-white/90 leading-snug">{tr(headline)}</p>
           </div>
         </div>
 
@@ -210,7 +214,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
                   <p className="text-lg font-black leading-none">{counts[s.key]}</p>
                   <p className="mt-1 flex items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wide text-white/75">
                     <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} />
-                    {s.label}
+                    {tr(s.label)}
                   </p>
                 </div>
               ))}
@@ -223,15 +227,15 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
       {total > 0 && (
         <section className={card}>
           <SectionTitle
-            eyebrow="Focus"
-            title="Needs attention"
+            eyebrow={tr('Focus')}
+            title={tr('Needs attention')}
             help="goals.attention"
             right={attention.length > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-black text-rose-700 dark:bg-rose-500/15 dark:text-rose-300">{attention.length}</span>}
           />
           {attention.length === 0 ? (
             <div className="flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 dark:bg-emerald-500/10">
               <PartyPopper className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">Nothing overdue, blocked or due this week. You&apos;re on top of it.</p>
+              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">{tr('Nothing overdue, blocked or due this week. You\'re on top of it.')}</p>
             </div>
           ) : (
             <ul className="-mx-2">
@@ -249,7 +253,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
                         <Icon className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-bold">{goal.title}</span>
+                        <span className="block truncate text-sm font-bold">{tr(goal.title)}</span>
                         <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
                           <span className="font-semibold">{note}</span>
                           {(goal.progress ?? 0) > 0 && <span>· {goal.progress}%</span>}
@@ -262,7 +266,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
               })}
             </ul>
           )}
-          {attention.length > 6 && <p className="mt-2 text-center text-[11px] font-semibold text-muted-foreground">+{attention.length - 6} more in the Goals tab</p>}
+          {attention.length > 6 && <p className="mt-2 text-center text-[11px] font-semibold text-muted-foreground">{tr('+{value} more in the Goals tab', { value: attention.length - 6 })}</p>}
         </section>
       )}
 
@@ -285,7 +289,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {/* ── Momentum ── */}
         <section className={card}>
-          <SectionTitle eyebrow={SCOPE_LABEL[scope]} title="Momentum" help="goals.momentum" />
+          <SectionTitle eyebrow={tr(SCOPE_LABEL[scope])} title={tr('Momentum')} help="goals.momentum" />
           <div className="mb-4 grid grid-cols-3 gap-2">
             {[
               { label: 'Due', value: scoped.length },
@@ -293,13 +297,13 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
               { label: 'Rate', value: `${scopedRate}%` },
             ].map(s => (
               <div key={s.label} className="rounded-2xl bg-muted/50 px-3 py-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{tr(s.label)}</p>
                 <p className="text-xl font-black leading-tight">{s.value}</p>
               </div>
             ))}
           </div>
           {scoped.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">No goals due {SCOPE_LABEL[scope].toLowerCase()}.</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{tr('No goals due {toLowerCase}.', { toLowerCase: tr(SCOPE_LABEL[scope]).toLowerCase() })}</p>
           ) : (
             <>
               <div className="h-44">
@@ -317,8 +321,8 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
                 </ResponsiveContainer>
               </div>
               <div className="mt-2 flex justify-center gap-4 text-[11px] font-semibold text-muted-foreground">
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />Done</span>
-                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-violet-500" />Open</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500" />{tr('Done')}</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-violet-500" />{tr('Open')}</span>
               </div>
             </>
           )}
@@ -326,9 +330,9 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
 
         {/* ── Categories ── */}
         <section className={card}>
-          <SectionTitle eyebrow={SCOPE_LABEL[scope]} title="By category" help="goals.categories" />
+          <SectionTitle eyebrow={tr(SCOPE_LABEL[scope])} title={tr('By category')} help="goals.categories" />
           {categoryRows.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">No goals due {SCOPE_LABEL[scope].toLowerCase()}.</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">{tr('No goals due {toLowerCase}.', { toLowerCase: tr(SCOPE_LABEL[scope]).toLowerCase() })}</p>
           ) : (
             <ul className="space-y-3.5">
               {categoryRows.map(r => (
@@ -336,9 +340,9 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
                   <div className="mb-1.5 flex items-center justify-between gap-2 text-sm">
                     <span className="flex min-w-0 items-center gap-2 font-bold">
                       <span>{r.emoji}</span>
-                      <span className="truncate">{r.name}</span>
+                      <span className="truncate">{tr(r.name)}</span>
                     </span>
-                    <span className="shrink-0 text-xs font-semibold text-muted-foreground">{r.done}/{r.total} done</span>
+                    <span className="shrink-0 text-xs font-semibold text-muted-foreground">{tr('{done}/{total} done', { done: r.done, total: r.total })}</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                     <div className="relative h-full rounded-full" style={{ width: `${(r.total / maxCat) * 100}%`, backgroundColor: `${r.color}40` }}>
@@ -355,19 +359,19 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
       {/* ── Visions ── */}
       <section className={card}>
         <SectionTitle
-          eyebrow="Long term"
-          title="Visions"
+          eyebrow={tr('Long term')}
+          title={tr('Visions')}
           help="goals.overviewVisions"
           right={visionRows.length > 0 && (
             <button onClick={onOpenVisions} className="flex items-center gap-0.5 text-xs font-bold text-violet-600 dark:text-violet-400">
-              See all <ChevronRight className="h-3.5 w-3.5" />
+              {tr('See all')}{' '}<ChevronRight className="h-3.5 w-3.5" />
             </button>
           )}
         />
         {visionRows.length === 0 ? (
           <button onClick={onOpenVisions} className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-left transition hover:bg-muted/50">
             <Rocket className="h-5 w-5 shrink-0 text-violet-500" />
-            <span className="text-sm font-semibold text-muted-foreground">Cast a vision to give your goals a direction.</span>
+            <span className="text-sm font-semibold text-muted-foreground">{tr('Cast a vision to give your goals a direction.')}</span>
           </button>
         ) : (
           <ul className="space-y-4">
@@ -380,18 +384,18 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-bold">{v.title}</p>
+                        <p className="truncate text-sm font-bold">{tr(v.title)}</p>
                         <span className="shrink-0 text-sm font-black">{progress}%</span>
                       </div>
                       <div className="relative mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
                         <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progress}%`, backgroundColor: v.color }} />
                         {expected !== null && pace !== 'achieved' && pace !== 'overdue' && (
-                          <div className="absolute inset-y-0 w-0.5 bg-foreground/50" style={{ left: `${expected}%` }} title={`Expected by today: ${expected}%`} />
+                          <div className="absolute inset-y-0 w-0.5 bg-foreground/50" style={{ left: `${expected}%` }} title={tr('Expected by today: {expected}%', { expected: expected })} />
                         )}
                       </div>
                       <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', PACE_STYLE[pace])}>{PACE_LABEL[pace]}</span>
-                        <span>{count} goal{count === 1 ? '' : 's'}</span>
+                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', PACE_STYLE[pace])}>{tr(PACE_LABEL[pace])}</span>
+                        <span>{tr('{count} {count:goal|goals}', { count: count })}</span>
                         {daysLeftLabel(daysLeft) && <span>· {daysLeftLabel(daysLeft)}</span>}
                       </div>
                     </div>

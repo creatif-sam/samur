@@ -1,3 +1,4 @@
+import { appLocale, trNow } from '@/lib/i18n'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
 import { currentStreak } from '@/lib/habits'
 
@@ -155,10 +156,10 @@ export function recentActivities(logs: CreativeLog[], limit = 6) {
 }
 
 export function dayLabel(dayKey: string, todayKey: string) {
-  if (dayKey === todayKey) return 'Today'
-  if (dayKey === addDays(todayKey, -1)) return 'Yesterday'
+  if (dayKey === todayKey) return trNow('Today')
+  if (dayKey === addDays(todayKey, -1)) return trNow('Yesterday')
   const d = parseDateKey(dayKey)
-  return d.toLocaleDateString('en-US', {
+  return d.toLocaleDateString(appLocale() ?? 'en-US', {
     weekday: 'short', month: 'short', day: 'numeric',
     year: d.getFullYear() === parseDateKey(todayKey).getFullYear() ? undefined : 'numeric',
   })

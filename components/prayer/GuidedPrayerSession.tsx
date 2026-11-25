@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
+import { trNow } from '@/lib/i18n'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, ChevronLeft, ChevronRight, Pause, Play, Volume2, VolumeX, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -30,6 +32,7 @@ type Phase = 'praying' | 'saving' | 'summary'
 type WakeLockNav = Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }
 
 export default function GuidedPrayerSession({ state, userId, onState, onSaved, onAddToDiary, onClose }: Props) {
+  const { tr } = useTranslation()
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<Phase>('praying')
   const [muted, setMuted] = useState(false)
@@ -94,7 +97,7 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
     const p = positionAt(state.segments, elapsedMs(state, end) / 1000)
     const prayed = reached(p, all)
     if (seconds < MIN_SAVE_SECONDS) {
-      if (!window.confirm('End now? Sessions under 30 seconds are not saved.')) return
+      if (!window.confirm(trNow('End now? Sessions under 30 seconds are not saved.'))) return
       finishing.current = true
       onClose()
       return
@@ -120,7 +123,7 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
         body: JSON.stringify({ date: state.date }),
       }).catch(() => {})
     } else {
-      toast.error("Couldn't save this session to your calendar.")
+      toast.error(trNow('Couldn\'t save this session to your calendar.'))
     }
     playChime()
     setResult({ seconds, prayed, saved: !error })
@@ -152,7 +155,7 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
       className="fixed inset-0 z-[90] flex flex-col bg-gradient-to-b from-[#24123f] via-[#170c2b] to-[#0b0716] text-white"
       style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
       role="dialog"
-      aria-label="Prayer session"
+      aria-label={tr('Prayer session')}
     >
       {phase !== 'summary' ? (
         <>
@@ -160,15 +163,15 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
           <div className="flex items-center justify-between gap-2 px-4 pt-4">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-300">
-                Card {pos.index + 1} of {state.items.length}
+                {tr('Card {value} of {itemsCount}', { value: pos.index + 1, itemsCount: state.items.length })}
               </p>
-              <p className="text-xs font-semibold text-white/60 tabular-nums">{formatClock(left)} left in all</p>
+              <p className="text-xs font-semibold text-white/60 tabular-nums">{tr('{value} left in all', { value: formatClock(left) })}</p>
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={toggleMute} aria-label={muted ? 'Turn the chime on' : 'Turn the chime off'} className="grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/10">
+              <button onClick={toggleMute} aria-label={muted ? tr('Turn the chime on') : tr('Turn the chime off')} className="grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/10">
                 {muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
               </button>
-              <button onClick={() => void finish(false)} aria-label="End session" className="grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/10">
+              <button onClick={() => void finish(false)} aria-label={tr('End session')} className="grid h-10 w-10 place-items-center rounded-full text-white/70 hover:bg-white/10">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -191,58 +194,56 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
             <div key={pos.index} className="w-full max-w-md animate-in fade-in slide-in-from-right-8 duration-500">
               {item.category && (
                 <span className="inline-block rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-violet-200">
-                  {CATEGORY_LABEL[item.category] ?? item.category}
+                  {tr(CATEGORY_LABEL[item.category] ?? item.category)}
                 </span>
               )}
-              <h2 className="mt-4 font-serif text-3xl font-bold leading-tight">{item.title}</h2>
-              {item.description && <p className="mx-auto mt-3 max-w-sm whitespace-pre-wrap text-sm leading-relaxed text-white/75">{item.description}</p>}
+              <h2 className="mt-4 font-serif text-3xl font-bold leading-tight">{tr(item.title)}</h2>
+              {item.description && <p className="mx-auto mt-3 max-w-sm whitespace-pre-wrap text-sm leading-relaxed text-white/75">{tr(item.description)}</p>}
             </div>
 
             <p className="mt-10 font-mono text-6xl font-bold tabular-nums tracking-tight">{formatClock(pos.remaining)}</p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-white/50">{paused ? 'Paused' : 'for this request'}</p>
+            <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-white/50">{paused ? tr('Paused') : tr('for this request')}</p>
 
             {pos.index + 1 < state.items.length && (
-              <p className="mt-6 max-w-xs truncate text-xs text-white/50">Up next: {state.items[pos.index + 1].title}</p>
+              <p className="mt-6 max-w-xs truncate text-xs text-white/50">{tr('Up next: {title}', { title: state.items[pos.index + 1].title })}</p>
             )}
           </div>
 
           {/* Controls */}
           <div className="flex items-center justify-center gap-5 px-6 pb-8">
-            <button onClick={() => go(pos.index - 1 < 0 ? 0 : pos.index - 1)} aria-label="Previous request" className="grid h-14 w-14 place-items-center rounded-full bg-white/10 transition active:scale-90">
+            <button onClick={() => go(pos.index - 1 < 0 ? 0 : pos.index - 1)} aria-label={tr('Previous request')} className="grid h-14 w-14 place-items-center rounded-full bg-white/10 transition active:scale-90">
               <ChevronLeft className="h-6 w-6" />
             </button>
             <button
               onClick={togglePause}
               disabled={phase === 'saving'}
-              aria-label={paused ? 'Resume' : 'Pause'}
+              aria-label={paused ? tr('Resume') : tr('Pause')}
               className="grid h-20 w-20 place-items-center rounded-full bg-amber-300 text-amber-950 shadow-2xl shadow-amber-500/30 transition active:scale-90 disabled:opacity-50"
             >
               {paused ? <Play className="h-8 w-8 fill-current" /> : <Pause className="h-8 w-8 fill-current" />}
             </button>
-            <button onClick={() => go(pos.index + 1)} aria-label="Next request" className="grid h-14 w-14 place-items-center rounded-full bg-white/10 transition active:scale-90">
+            <button onClick={() => go(pos.index + 1)} aria-label={tr('Next request')} className="grid h-14 w-14 place-items-center rounded-full bg-white/10 transition active:scale-90">
               <ChevronRight className="h-6 w-6" />
             </button>
           </div>
-          {phase === 'saving' && <p className="pb-6 text-center text-xs font-bold uppercase tracking-widest text-violet-300">Saving…</p>}
+          {phase === 'saving' && <p className="pb-6 text-center text-xs font-bold uppercase tracking-widest text-violet-300">{tr('Saving…')}</p>}
         </>
       ) : (
         result && (
           <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
             <p className="text-5xl">🙏</p>
-            <h2 className="mt-4 font-serif text-4xl font-bold">Amen</h2>
+            <h2 className="mt-4 font-serif text-4xl font-bold">{tr('Amen')}</h2>
             <p className="mt-2 text-sm text-white/75">
-              {result.prayed.length
-                ? `You prayed for ${result.prayed.length} request${result.prayed.length === 1 ? '' : 's'} · ${formatClock(result.seconds)}`
-                : `You prayed for ${formatClock(result.seconds)}`}
+              {result.prayed.length ? tr('You prayed for {prayedCount} {prayedCount:request|requests} · {value2}', { prayedCount: result.prayed.length, value2: formatClock(result.seconds) }) : tr('You prayed for {value}', { value: formatClock(result.seconds) })}
             </p>
             <p className={cn('mt-1 text-xs font-semibold', result.saved ? 'text-emerald-300' : 'text-amber-300')}>
-              {result.saved ? 'Saved to your prayer calendar' : 'Not saved to your calendar'}
+              {result.saved ? tr('Saved to your prayer calendar') : tr('Not saved to your calendar')}
             </p>
             {result.prayed.length > 0 && (
               <ul className="mt-6 w-full max-w-sm space-y-1.5 text-left">
                 {result.prayed.map(i => (
                   <li key={i.id} className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-300" /> <span className="truncate">{i.title}</span>
+                    <Check className="h-4 w-4 shrink-0 text-emerald-300" /> <span className="truncate">{tr(i.title)}</span>
                   </li>
                 ))}
               </ul>
@@ -250,11 +251,11 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
             <div className="mt-8 flex w-full max-w-sm flex-col gap-2">
               {result.prayed.length > 0 && (
                 <button onClick={() => onAddToDiary(result.prayed)} className="h-12 rounded-2xl bg-white/10 text-sm font-bold transition active:scale-[0.98]">
-                  Add to Prayer Diary
+                  {tr('Add to Prayer Diary')}
                 </button>
               )}
               <button onClick={onClose} className="h-12 rounded-2xl bg-amber-300 text-sm font-bold text-amber-950 transition active:scale-[0.98]">
-                Done
+                {tr('Done')}
               </button>
             </div>
           </div>

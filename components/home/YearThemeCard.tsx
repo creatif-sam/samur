@@ -1,4 +1,6 @@
 'use client'
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Crown, Sparkles } from 'lucide-react'
@@ -16,6 +18,7 @@ function elapsedSince(startKey: string) {
 }
 
 export default function YearThemeCard() {
+  const { tr } = useTranslation()
   const [themes, setThemes] = useState<Themes>(EMPTY_THEMES)
   const [, setTick] = useState(0)
 
@@ -38,7 +41,7 @@ export default function YearThemeCard() {
 
   const span = themeSpan(themes.themeYear, themes.themeStart, toLocalDateKey(new Date()))
   const elapsed = elapsedSince(span.start)
-  const currentMonth = new Date().toLocaleDateString(undefined, { month: 'long' })
+  const currentMonth = new Date().toLocaleDateString(appLocale(), { month: 'long' })
 
   return (
     <div className="mx-4 mt-4 space-y-3">
@@ -56,16 +59,12 @@ export default function YearThemeCard() {
                   <Crown className="w-3.5 h-3.5 text-amber-300" />
                 </div>
                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 truncate">
-                  Theme of the Year &middot; {span.year}
+                  {tr('Theme of the Year · {year}', { year: span.year })}
                 </span>
               </div>
               <div className="flex items-center gap-1 bg-black/20 backdrop-blur-sm rounded-xl px-2.5 py-1 shrink-0">
                 <span className="text-[9px] font-black text-white/70 tabular-nums tracking-wide">
-                  {span.status === 'upcoming'
-                    ? `in ${span.daysUntil}d`
-                    : span.status === 'ended'
-                      ? 'completed'
-                      : `${elapsed.days}d ${String(elapsed.hours).padStart(2, '0')}h ${String(elapsed.minutes).padStart(2, '0')}m`}
+                  {span.status === 'upcoming' ? tr('in {daysUntil}d', { daysUntil: span.daysUntil }) : span.status === 'ended' ? tr('completed') : `${elapsed.days}d ${String(elapsed.hours).padStart(2, '0')}h ${String(elapsed.minutes).padStart(2, '0')}m`}
                 </span>
               </div>
             </div>
@@ -78,7 +77,7 @@ export default function YearThemeCard() {
             )}
             {span.earlyStart && span.status === 'active' && (
               <p className="mt-2 text-[10px] font-bold text-amber-200/90">
-                Given early · since {parseDateKey(span.start).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                {tr('Given early · since {value}', { value: parseDateKey(span.start).toLocaleDateString(appLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) })}
               </p>
             )}
           </div>
@@ -97,7 +96,7 @@ export default function YearThemeCard() {
                 <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
               </div>
               <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">
-                Theme of the Month &middot; {currentMonth}
+                {tr('Theme of the Month · {currentMonth}', { currentMonth: currentMonth })}
               </span>
             </div>
             <p className="text-white font-black text-xl leading-tight uppercase tracking-wide">

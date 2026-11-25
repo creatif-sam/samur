@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { FileText, Pencil, Trash2, Search, X, Pin, PinOff, FolderInput, Users, MoreVertical, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -26,10 +28,11 @@ type PageListProps = {
 function formatWhen(page: PageItem) {
   const d = new Date(page.updated_at ?? page.created_at)
   const sameYear = d.getFullYear() === new Date().getFullYear()
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
+  return d.toLocaleDateString(appLocale(), { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) })
 }
 
 export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMovePage }: PageListProps) {
+  const { tr } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
   const [textMatches, setTextMatches] = useState<Set<string> | null>(null)
   const [searching, setSearching] = useState(false)
@@ -123,7 +126,7 @@ export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMoveP
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
-            placeholder="Search titles and text…"
+            placeholder={tr('Search titles and text…')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 pr-9 h-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-none text-[13px] font-medium text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-[#7719aa]"
@@ -133,7 +136,7 @@ export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMoveP
           ) : searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              aria-label="Clear search"
+              aria-label={tr('Clear search')}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800"
             >
               <X className="w-3 h-3 text-slate-400" />
@@ -142,15 +145,15 @@ export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMoveP
         </div>
         <div className="flex items-center justify-between">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
-            {filteredPages.length} note{filteredPages.length !== 1 ? 's' : ''}
+            {tr('{filteredPagesCount} {filteredPagesCount:note|notes}', { filteredPagesCount: filteredPages.length })}
           </p>
           <select
             value={sort}
             onChange={e => chooseSort(e.target.value as SortMode)}
-            aria-label="Sort notes"
+            aria-label={tr('Sort notes')}
             className="bg-transparent text-[11px] font-semibold text-slate-500 dark:text-slate-400 focus:outline-none"
           >
-            {(Object.keys(SORT_LABELS) as SortMode[]).map(m => <option key={m} value={m}>{SORT_LABELS[m]}</option>)}
+            {(Object.keys(SORT_LABELS) as SortMode[]).map(m => <option key={m} value={m}>{tr(SORT_LABELS[m])}</option>)}
           </select>
         </div>
       </div>
@@ -173,9 +176,9 @@ export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMoveP
                 <div className="flex items-center gap-1.5">
                   {p.pinned && <Pin className="w-3 h-3 text-[#7719aa] dark:text-[#a78bfa] shrink-0" />}
                   <span className="text-[14px] font-medium text-slate-700 dark:text-slate-200 truncate tracking-tight">
-                    {p.title || 'Untitled'}
+                    {p.title || tr('Untitled')}
                   </span>
-                  {p.shared && <Users className="w-3 h-3 text-slate-400 shrink-0" aria-label="Shared with partner" />}
+                  {p.shared && <Users className="w-3 h-3 text-slate-400 shrink-0" aria-label={tr('Shared with partner')} />}
                 </div>
                 {p.preview?.trim() && (
                   <p className="text-[12px] text-slate-400 dark:text-slate-500 line-clamp-2 leading-snug mt-0.5">{p.preview}</p>
@@ -186,7 +189,7 @@ export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMoveP
                 onPointerDown={e => e.stopPropagation()}
                 onPointerUp={e => e.stopPropagation()}
                 onClick={e => { e.stopPropagation(); setActionPage(p) }}
-                aria-label="Note actions"
+                aria-label={tr('Note actions')}
                 className="p-1.5 -mr-1 rounded-full text-slate-300 hover:text-slate-500 dark:text-slate-600"
               >
                 <MoreVertical className="w-4 h-4" />
@@ -196,7 +199,7 @@ export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMoveP
         ) : (
           <div className="py-20 text-center">
             <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
-              {searchQuery ? (searching ? 'Searching…' : 'No results found') : 'No pages in this section'}
+              {searchQuery ? (searching ? tr('Searching…') : tr('No results found')) : tr('No pages in this section')}
             </p>
           </div>
         )}
@@ -205,21 +208,21 @@ export function PageList({ section, onSelect, onDeletePage, onTogglePin, onMoveP
       <Dialog open={!!actionPage} onOpenChange={() => setActionPage(null)}>
         <DialogContent className="max-w-[320px] rounded-3xl p-6">
           <DialogHeader>
-            <DialogTitle className="text-center truncate">{actionPage?.title || 'Untitled'}</DialogTitle>
+            <DialogTitle className="text-center truncate">{actionPage?.title || tr('Untitled')}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             <Button variant="outline" className="w-full justify-start gap-2" onClick={() => act(onSelect)}>
-              <Pencil className="w-4 h-4" /> Open note
+              <Pencil className="w-4 h-4" />{' '}{tr('Open note')}
             </Button>
             <Button variant="outline" className="w-full justify-start gap-2" onClick={() => act(onTogglePin)}>
               {actionPage?.pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />}
-              {actionPage?.pinned ? 'Unpin' : 'Pin to top'}
+              {actionPage?.pinned ? tr('Unpin') : tr('Pin to top')}
             </Button>
             <Button variant="outline" className="w-full justify-start gap-2" onClick={() => act(onMovePage)}>
-              <FolderInput className="w-4 h-4" /> Move to…
+              <FolderInput className="w-4 h-4" />{' '}{tr('Move to…')}
             </Button>
             <Button variant="outline" className="w-full justify-start gap-2 text-red-600 hover:text-red-700" onClick={() => act(onDeletePage)}>
-              <Trash2 className="w-4 h-4" /> Delete note
+              <Trash2 className="w-4 h-4" />{' '}{tr('Delete note')}
             </Button>
           </div>
         </DialogContent>

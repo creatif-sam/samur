@@ -1,5 +1,6 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { currencies } from '@/lib/currencies'
@@ -31,7 +32,7 @@ export function useMoneyFormat() {
     (amount: number) => {
       const rounded = Math.round(amount * 100) / 100
       const digits = Number.isInteger(rounded) ? 0 : 2
-      const value = Math.abs(rounded).toLocaleString(undefined, {
+      const value = Math.abs(rounded).toLocaleString(appLocale(), {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
       })

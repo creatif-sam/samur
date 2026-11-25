@@ -21,7 +21,7 @@ export default function MoneyEditModal({
   onUpdated: () => void
 }) {
   const supabase = createClient()
-  const { t } = useTranslation()
+  const { t, tr } = useTranslation()
 
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
@@ -132,7 +132,7 @@ export default function MoneyEditModal({
 
         {/* TITLE */}
         <Input
-          placeholder={t.money.title}
+          placeholder={tr(t.money.title)}
           value={title}
           onChange={e => setTitle(e.target.value)}
         />

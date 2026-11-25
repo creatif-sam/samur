@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale, trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { JSX, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -88,9 +90,8 @@ function todayISO() {
 function daysAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
   const days = Math.floor(diff / 86_400_000)
-  if (days === 0) return 'today'
-  if (days === 1) return '1 day ago'
-  return `${days} days ago`
+  if (days === 0) return trNow('today')
+  return trNow('{days} {days:day|days} ago', { days })
 }
 
 function calcStreak(entries: PrayerEntry[]): number {
@@ -109,6 +110,7 @@ function calcStreak(entries: PrayerEntry[]): number {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function AddRequestModal({ onClose, onSave }: { onClose: () => void; onSave: (r: Omit<PrayerRequest, 'id' | 'created_at' | 'answered_at' | 'answer_note'>) => Promise<void> }) {
+  const { tr } = useTranslation()
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<Category>('personal')
@@ -127,25 +129,25 @@ function AddRequestModal({ onClose, onSave }: { onClose: () => void; onSave: (r:
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
       <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-5 mb-20 sm:mb-0">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-base">New Prayer Request</h3>
+          <h3 className="font-semibold text-base">{tr('New Prayer Request')}</h3>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition"><X className="w-4 h-4" /></button>
         </div>
         <input
           autoFocus
-          placeholder="What are you bringing before God?"
+          placeholder={tr('What are you bringing before God?')}
           value={title}
           onChange={e => setTitle(e.target.value)}
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         <textarea
-          placeholder="More details (optional)"
+          placeholder={tr('More details (optional)')}
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={3}
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         <div>
-          <p className="text-xs text-muted-foreground mb-2 font-medium">Category</p>
+          <p className="text-xs text-muted-foreground mb-2 font-medium">{tr('Category')}</p>
           <div className="flex flex-wrap gap-2">
             {(Object.keys(CATEGORY_LABELS) as Category[]).map(cat => (
               <button
@@ -157,7 +159,7 @@ function AddRequestModal({ onClose, onSave }: { onClose: () => void; onSave: (r:
                     : 'bg-muted text-muted-foreground hover:bg-muted/70'
                 }`}
               >
-                {CATEGORY_LABELS[cat]}
+                {tr(CATEGORY_LABELS[cat])}
               </button>
             ))}
           </div>
@@ -169,16 +171,16 @@ function AddRequestModal({ onClose, onSave }: { onClose: () => void; onSave: (r:
           >
             <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isShared ? 'translate-x-5' : ''}`} />
           </div>
-          <span className="text-sm">Share with partner</span>
+          <span className="text-sm">{tr('Share with partner')}</span>
         </label>
         <div className="flex gap-2 pt-1">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">{tr('Cancel')}</button>
           <button
             onClick={submit}
             disabled={saving || !title.trim()}
             className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Add Request'}
+            {saving ? tr('Saving...') : tr('Add Request')}
           </button>
         </div>
       </div>
@@ -187,6 +189,7 @@ function AddRequestModal({ onClose, onSave }: { onClose: () => void; onSave: (r:
 }
 
 function MarkAnsweredModal({ request, onClose, onSave }: { request: PrayerRequest; onClose: () => void; onSave: (note: string) => Promise<void> }) {
+  const { tr } = useTranslation()
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
@@ -201,26 +204,26 @@ function MarkAnsweredModal({ request, onClose, onSave }: { request: PrayerReques
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
       <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-4 mb-20 sm:mb-0">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-base">Prayer Answered!</h3>
+          <h3 className="font-semibold text-base">{tr('Prayer Answered!')}</h3>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition"><X className="w-4 h-4" /></button>
         </div>
-        <p className="text-sm text-muted-foreground">&ldquo;{request.title}&rdquo;</p>
+        <p className="text-sm text-muted-foreground">&ldquo;{tr(request.title)}&rdquo;</p>
         <textarea
           autoFocus
-          placeholder="How was it answered? (optional)"
+          placeholder={tr('How was it answered? (optional)')}
           value={note}
           onChange={e => setNote(e.target.value)}
           rows={4}
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">{tr('Cancel')}</button>
           <button
             onClick={submit}
             disabled={saving}
             className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition"
           >
-            {saving ? 'Saving...' : 'Mark Answered'}
+            {saving ? tr('Saving...') : tr('Mark Answered')}
           </button>
         </div>
       </div>
@@ -234,6 +237,7 @@ function RequestCard({ req, onMarkAnswered, onDelete, onPray }: {
   onDelete: (id: string) => void
   onPray: (r: PrayerRequest) => void
 }) {
+  const { tr } = useTranslation()
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -246,37 +250,37 @@ function RequestCard({ req, onMarkAnswered, onDelete, onPray }: {
           {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium leading-snug">{req.title}</p>
+          <p className="text-sm font-medium leading-snug">{tr(req.title)}</p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[req.category]}`}>
-              {CATEGORY_LABELS[req.category]}
+              {tr(CATEGORY_LABELS[req.category])}
             </span>
             <span className="text-[10px] text-muted-foreground">{daysAgo(req.created_at)}</span>
-            {req.is_shared && <span className="text-[10px] text-violet-500 font-medium">shared</span>}
+            {req.is_shared && <span className="text-[10px] text-violet-500 font-medium">{tr('shared')}</span>}
           </div>
         </div>
       </button>
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t pt-3">
-          {req.description && <p className="text-sm text-muted-foreground">{req.description}</p>}
+          {req.description && <p className="text-sm text-muted-foreground">{tr(req.description)}</p>}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onPray(req)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition"
             >
-              <Play className="w-3.5 h-3.5 fill-current" /> Pray for this
+              <Play className="w-3.5 h-3.5 fill-current" />{' '}{tr('Pray for this')}
             </button>
             <button
               onClick={() => onMarkAnswered(req)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
             >
-              <Check className="w-3.5 h-3.5" /> Answered
+              <Check className="w-3.5 h-3.5" />{' '}{tr('Answered')}
             </button>
             <button
               onClick={() => onDelete(req.id)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive text-xs font-medium transition"
             >
-              <X className="w-3.5 h-3.5" /> Remove
+              <X className="w-3.5 h-3.5" />{' '}{tr('Remove')}
             </button>
           </div>
         </div>
@@ -295,7 +299,8 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
   initialTitle?: string
   initialPoints?: { text: string; checked: boolean }[]
 }) {
-  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const { tr } = useTranslation()
+  const today = new Date().toLocaleDateString(appLocale(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
   const [title, setTitle] = useState(initialTitle ?? today)
   const [content, setContent] = useState('')
   // Prayer points become a checklist you can tick here and in Notes
@@ -346,12 +351,12 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-violet-600" />
-            <h3 className="font-semibold text-base">Prayer Diary</h3>
+            <h3 className="font-semibold text-base">{tr('Prayer Diary')}</h3>
           </div>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition"><X className="w-4 h-4" /></button>
         </div>
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Category</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">{tr('Category')}</p>
           {sections.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-2">
               {sections.map(s => (
@@ -364,14 +369,14 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
                       : 'bg-muted text-muted-foreground hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-950/40'
                   }`}
                 >
-                  {s.title}
+                  {tr(s.title)}
                 </button>
               ))}
               <button
                 onClick={() => setShowNewCategory(v => !v)}
                 className="px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground hover:bg-muted/80 transition flex items-center gap-1"
               >
-                <Plus className="w-3 h-3" /> New
+                <Plus className="w-3 h-3" />{' '}{tr('New')}
               </button>
             </div>
           )}
@@ -382,7 +387,7 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
                 value={newCategoryTitle}
                 onChange={e => setNewCategoryTitle(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleCreateCategory()}
-                placeholder="Category name..."
+                placeholder={tr('Category name...')}
                 className="flex-1 rounded-xl border bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               />
               <button
@@ -390,29 +395,29 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
                 disabled={creatingCategory || !newCategoryTitle.trim()}
                 className="px-3 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition disabled:opacity-50"
               >
-                {creatingCategory ? '...' : 'Create'}
+                {creatingCategory ? '...' : tr('Create')}
               </button>
             </div>
           )}
           {sections.length === 0 && !showNewCategory && (
-            <p className="text-xs text-muted-foreground">Create a category above to organise your entries.</p>
+            <p className="text-xs text-muted-foreground">{tr('Create a category above to organise your entries.')}</p>
           )}
         </div>
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
-          placeholder="Entry title..."
+          placeholder={tr('Entry title...')}
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         <textarea
-          placeholder="What's on your heart today?"
+          placeholder={tr('What\'s on your heart today?')}
           value={content}
           onChange={e => setContent(e.target.value)}
           rows={4}
           className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Prayer points <span className="normal-case tracking-normal font-medium">(optional)</span></p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{tr('Prayer points')}{' '}<span className="normal-case tracking-normal font-medium">{tr('(optional)')}</span></p>
           {points.length > 0 && (
             <ul className="space-y-1.5">
               {points.map((pt, i) => (
@@ -421,7 +426,7 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
                     {pt.checked && <Check className="h-3 w-3" strokeWidth={3} />}
                   </span>
                   <span className="min-w-0 flex-1 break-words">{pt.text}</span>
-                  <button type="button" onClick={() => setPoints(prev => prev.filter((_, j) => j !== i))} aria-label={`Remove ${pt.text}`} className="p-1 rounded-full text-muted-foreground hover:bg-muted">
+                  <button type="button" onClick={() => setPoints(prev => prev.filter((_, j) => j !== i))} aria-label={tr('Remove {text}', { text: pt.text })} className="p-1 rounded-full text-muted-foreground hover:bg-muted">
                     <X className="h-3.5 w-3.5" />
                   </button>
                 </li>
@@ -433,23 +438,23 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
               value={pointDraft}
               onChange={e => setPointDraft(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPoint() } }}
-              placeholder="Add a point, e.g. Healing for Mum"
+              placeholder={tr('Add a point, e.g. Healing for Mum')}
               className="min-w-0 flex-1 rounded-xl border bg-muted/30 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
             />
             <button type="button" onClick={addPoint} disabled={!pointDraft.trim()} className="px-3 py-2 rounded-xl bg-muted text-xs font-semibold disabled:opacity-50">
-              Add
+              {tr('Add')}
             </button>
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground">Saved to your Prayer Diary notebook in Notes. Tick points off on this tab or in Notes.</p>
+        <p className="text-[10px] text-muted-foreground">{tr('Saved to your Prayer Diary notebook in Notes. Tick points off on this tab or in Notes.')}</p>
         <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">Cancel</button>
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">{tr('Cancel')}</button>
           <button
             onClick={submit}
             disabled={saving || !title.trim() || !selectedSectionId}
             className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition disabled:opacity-50"
           >
-            {saving ? 'Saving...' : 'Save Entry'}
+            {saving ? tr('Saving...') : tr('Save Entry')}
           </button>
         </div>
       </div>
@@ -460,6 +465,7 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PrayerTab(): JSX.Element {
+  const { tr } = useTranslation()
   const router = useRouter()
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -594,7 +600,7 @@ export default function PrayerTab(): JSX.Element {
       if (error || !data?.length) {
         diaryPagesRef.current = diaryPagesRef.current.map(p => (p.id === pageId && p.content === after ? { ...p, content: before } : p))
         setDiaryPages(diaryPagesRef.current)
-        toast.error("Couldn't save that tick. Check your connection.")
+        toast.error(tr('Couldn\'t save that tick. Check your connection.'))
         return
       }
       const key = `note:${pageId}`
@@ -629,7 +635,7 @@ export default function PrayerTab(): JSX.Element {
   }
   function guidedToDiary(prayed: GuidedItem[]) {
     closeGuided()
-    const day = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+    const day = new Date().toLocaleDateString(appLocale(), { weekday: 'long', month: 'long', day: 'numeric' })
     setDiaryPrefill({ title: `Prayer session · ${day}`, points: prayed.map(i => ({ text: i.title, checked: true })) })
     setShowDiaryModal(true)
   }
@@ -653,8 +659,8 @@ export default function PrayerTab(): JSX.Element {
           <BookOpen className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0 text-left">
-          <p className="font-black uppercase tracking-wide text-sm">Holy Bible</p>
-          <p className="text-xs text-white/75 mt-0.5">Read KJV · Save verses · Search passages</p>
+          <p className="font-black uppercase tracking-wide text-sm">{tr('Holy Bible')}</p>
+          <p className="text-xs text-white/75 mt-0.5">{tr('Read KJV · Save verses · Search passages')}</p>
         </div>
         <ChevronRight className="w-5 h-5 text-white/60 shrink-0" />
       </button>
@@ -679,7 +685,7 @@ export default function PrayerTab(): JSX.Element {
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-0.5">
-            <p className="text-sm font-semibold text-foreground">Prayer Requests</p>
+            <p className="text-sm font-semibold text-foreground">{tr('Prayer Requests')}</p>
             <HelpTip topic="prayer.requests" align="left" className="-my-1" />
           </div>
           <div className="flex items-center gap-3">
@@ -688,21 +694,21 @@ export default function PrayerTab(): JSX.Element {
                 onClick={() => openGuidedSetup(null)}
                 className="flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700 active:scale-95"
               >
-                <Play className="w-3 h-3 fill-current" /> Pray through
+                <Play className="w-3 h-3 fill-current" />{' '}{tr('Pray through')}
               </button>
             )}
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
             >
-              <Plus className="w-3.5 h-3.5" /> Add
+              <Plus className="w-3.5 h-3.5" />{' '}{tr('Add')}
             </button>
           </div>
         </div>
         {active.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-muted-foreground/30 p-8 text-center">
-            <p className="text-sm text-muted-foreground">No active prayer requests.</p>
-            <button onClick={() => setShowAddModal(true)} className="mt-2 text-sm text-violet-600 hover:underline font-medium">Add your first one</button>
+            <p className="text-sm text-muted-foreground">{tr('No active prayer requests.')}</p>
+            <button onClick={() => setShowAddModal(true)} className="mt-2 text-sm text-violet-600 hover:underline font-medium">{tr('Add your first one')}</button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -726,7 +732,7 @@ export default function PrayerTab(): JSX.Element {
             onClick={() => setShowAnswered(v => !v)}
             className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3 w-full"
           >
-            <span className="flex-1 text-left">Answered Prayers ({answered.length})</span>
+            <span className="flex-1 text-left">{tr('Answered Prayers ({answeredCount})', { answeredCount: answered.length })}</span>
             {showAnswered ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
           </button>
           {showAnswered && (
@@ -736,9 +742,9 @@ export default function PrayerTab(): JSX.Element {
                   <div className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{req.title}</p>
+                      <p className="text-sm font-medium">{tr(req.title)}</p>
                       {req.answer_note && <p className="text-xs text-muted-foreground mt-1 italic">{req.answer_note}</p>}
-                      <p className="text-[10px] text-muted-foreground mt-1">Answered {req.answered_at ? daysAgo(req.answered_at) : ''}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">{tr('Answered {value}', { value: req.answered_at ? daysAgo(req.answered_at) : '' })}</p>
                     </div>
                   </div>
                 </div>
@@ -755,20 +761,20 @@ export default function PrayerTab(): JSX.Element {
             <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-950/40 flex items-center justify-center">
               <BookOpen className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
             </div>
-            <p className="text-sm font-semibold">Prayer Diary</p>
+            <p className="text-sm font-semibold">{tr('Prayer Diary')}</p>
             <HelpTip topic="prayer.diary" align="left" className="-my-1" />
           </div>
           <button
             onClick={() => setShowDiaryModal(true)}
             className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700 transition"
           >
-            <Plus className="w-3.5 h-3.5" /> Add entry
+            <Plus className="w-3.5 h-3.5" />{' '}{tr('Add entry')}
           </button>
         </div>
         {diaryPages.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-muted-foreground/30 p-8 text-center">
-            <p className="text-sm text-muted-foreground">No diary entries yet.</p>
-            <button onClick={() => setShowDiaryModal(true)} className="mt-2 text-sm text-violet-600 hover:underline font-medium">Write your first one</button>
+            <p className="text-sm text-muted-foreground">{tr('No diary entries yet.')}</p>
+            <button onClick={() => setShowDiaryModal(true)} className="mt-2 text-sm text-violet-600 hover:underline font-medium">{tr('Write your first one')}</button>
           </div>
         ) : (
           <div className="space-y-2">
@@ -811,7 +817,7 @@ export default function PrayerTab(): JSX.Element {
         <GuidedPrayerSetup
           requests={active.map(r => ({ id: r.id, title: r.title, description: r.description, category: r.category }))}
           initialTopicId={guidedSetup.topicId}
-          blockedReason={classicTimerRunning() ? 'Your prayer timer is running. Finish or stop it first.' : null}
+          blockedReason={classicTimerRunning() ? tr('Your prayer timer is running. Finish or stop it first.') : null}
           onStart={beginGuided}
           onClose={() => setGuidedSetup(null)}
         />

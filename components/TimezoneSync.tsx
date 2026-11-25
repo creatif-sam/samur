@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { Clock, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -11,6 +12,7 @@ import { CLOCK_NOTICE_KEY, clockIsOff, describeSkew, measureSkew } from '@/lib/c
 // time zone (and a hand-set clock) must not overwrite the zone the other devices
 // sent, and gets a notice explaining how to fix it.
 export default function TimezoneSync() {
+  const { tr } = useTranslation()
   const [skewMs, setSkewMs] = useState<number | null>(null)
 
   useEffect(() => {
@@ -60,12 +62,12 @@ export default function TimezoneSync() {
       <div className="flex items-start gap-3">
         <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="min-w-0 flex-1 text-sm">
-          <p className="font-bold">This phone&apos;s clock is {describeSkew(skewMs)}</p>
+          <p className="font-bold">{tr('This phone\'s clock is {describeSkew}', { describeSkew: describeSkew(skewMs) })}</p>
           <p className="mt-1 leading-snug text-amber-900/80 dark:text-amber-100/80">
-            Times, morning or evening, and streaks will be wrong here. Open your phone&apos;s Settings, then Date &amp; time, and turn on both automatic time and automatic time zone.
+            {tr('Times, morning or evening, and streaks will be wrong here. Open your phone\'s Settings, then Date & time, and turn on both automatic time and automatic time zone.')}
           </p>
         </div>
-        <button onClick={hide} aria-label="Hide for today" className="-m-1 grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-amber-200/60 dark:hover:bg-amber-800/60">
+        <button onClick={hide} aria-label={tr('Hide for today')} className="-m-1 grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-amber-200/60 dark:hover:bg-amber-800/60">
           <X className="h-4 w-4" />
         </button>
       </div>

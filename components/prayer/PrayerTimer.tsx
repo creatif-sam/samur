@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
+import { trNow, appLocale } from '@/lib/i18n'
 import { HelpTip } from '@/components/ui/help-tip'
 import { JSX, useCallback, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -61,6 +63,7 @@ function DonutRing({ progress, size = 220 }: { progress: number; size?: number }
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.Element {
+  const { tr } = useTranslation()
   const [timerState, setTimerState] = useState<TimerState>('idle')
   const [selectedMinutes, setSelectedMinutes] = useState(5)
   const [customMinutes, setCustomMinutes] = useState('')
@@ -131,7 +134,9 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
     }).catch(() => {})
     const count = inspirationsRef.current.length
     toast.success(
-      `Prayer complete! 🙏${count > 0 ? ` ${count} inspiration${count > 1 ? 's' : ''} saved ✨` : ''}`
+      count === 0 ? trNow('Prayer complete! 🙏')
+        : count === 1 ? trNow('Prayer complete! 🙏 1 inspiration saved ✨')
+        : trNow('Prayer complete! 🙏 {count} inspirations saved ✨', { count })
     )
     resetAll()
   }, [saveSession, onSessionComplete, resetAll])
@@ -204,7 +209,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
     const mins = customMinutes ? Number(customMinutes) : selectedMinutes
     if (!mins || mins <= 0) return
     // One prayer clock at a time, so the same minutes are never counted twice
-    if (guidedRunning()) { toast.error('A prayer session is running. Finish it first.'); return }
+    if (guidedRunning()) { toast.error(tr('A prayer session is running. Finish it first.')); return }
     hasCompletedRef.current = false
     inspirationsRef.current = []
     const secs = mins * 60
@@ -254,7 +259,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
       const nb = { id: await ensureSystemNotebook(supabase, userId, 'prayer_inspirations') }
 
       if (nb) {
-        const dateLabel = new Date().toLocaleDateString(undefined, {
+        const dateLabel = new Date().toLocaleDateString(appLocale(), {
           weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
         })
         let { data: sec } = await supabase
@@ -274,7 +279,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
         }
 
         if (sec) {
-          const timeLabel = new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+          const timeLabel = new Date().toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' })
           const { data: pg } = await supabase
             .from('pages')
             .insert({
@@ -296,14 +301,14 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
 
     const entry: Inspiration = {
       content: text,
-      savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      savedAt: new Date().toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' }),
     }
     inspirationsRef.current = [...inspirationsRef.current, entry]
     setInspirations(prev => [...prev, entry])
     setInspireText('')
     setSavingInspire(false)
     setShowInspire(false)
-    toast.success('Inspiration saved to Notes ✨')
+    toast.success(tr('Inspiration saved to Notes ✨'))
   }
 
   // ── Idle UI: duration picker ───────────────────────────────────────────────
@@ -312,10 +317,10 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
       <div className="rounded-3xl bg-gradient-to-br from-violet-950/90 to-indigo-950/80 border border-violet-700/30 p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Flame className="w-5 h-5 text-amber-400 fill-amber-400" />
-          <h3 className="font-black text-white uppercase tracking-tight text-sm">Prayer Timer</h3>
+          <h3 className="font-black text-white uppercase tracking-tight text-sm">{tr('Prayer Timer')}</h3>
           <HelpTip topic="prayer.timer" tone="onDark" align="left" className="-my-1" />
         </div>
-        <p className="text-violet-300 text-xs font-medium">Set your prayer duration then press Start</p>
+        <p className="text-violet-300 text-xs font-medium">{tr('Set your prayer duration then press Start')}</p>
 
         {/* Preset minutes */}
         <div className="flex flex-wrap gap-2">
@@ -340,7 +345,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
             type="number"
             min="1"
             max="180"
-            placeholder="Custom minutes"
+            placeholder={tr('Custom minutes')}
             value={customMinutes}
             onChange={e => { setCustomMinutes(e.target.value); setSelectedMinutes(0) }}
             className="flex-1 rounded-xl bg-white/10 border border-white/20 text-white placeholder:text-violet-400 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
@@ -349,7 +354,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
             onClick={startTimer}
             className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-sm transition-all active:scale-95 shadow-lg shadow-amber-500/30"
           >
-            <Play className="w-4 h-4" /> Start
+            <Play className="w-4 h-4" />{' '}{tr('Start')}
           </button>
         </div>
       </div>
@@ -364,11 +369,11 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-amber-400 fill-amber-400 animate-pulse" />
-            <span className="font-black text-white text-sm uppercase tracking-tight">In Prayer</span>
+            <span className="font-black text-white text-sm uppercase tracking-tight">{tr('In Prayer')}</span>
           </div>
           <div className="flex items-center gap-3">
             {savingSession && (
-              <span className="text-[10px] font-bold text-violet-300 animate-pulse uppercase tracking-widest">Saving…</span>
+              <span className="text-[10px] font-bold text-violet-300 animate-pulse uppercase tracking-widest">{tr('Saving…')}</span>
             )}
             {inspirations.length > 0 && (
               <span className="text-[10px] font-bold text-amber-300 uppercase tracking-widest">
@@ -386,7 +391,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
               {fmt(secondsLeft)}
             </span>
             <span className="text-[10px] font-bold text-violet-300 uppercase tracking-widest mt-1">
-              {timerState === 'paused' ? '⏸ Paused' : 'remaining'}
+              {timerState === 'paused' ? tr('⏸ Paused') : tr('remaining')}
             </span>
 
             {/* Plus button — capture inspiration */}
@@ -411,7 +416,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition"
             >
-              <Pause className="w-4 h-4" /> Pause
+              <Pause className="w-4 h-4" />{' '}{tr('Pause')}
             </button>
           ) : (
             <button
@@ -423,21 +428,21 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-amber-950 font-bold text-sm transition"
             >
-              <Play className="w-4 h-4" /> Resume
+              <Play className="w-4 h-4" />{' '}{tr('Resume')}
             </button>
           )}
           <button
             onClick={resetAll}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-red-500/20 text-white/70 hover:text-red-400 font-bold text-sm transition"
           >
-            <Square className="w-4 h-4" /> Stop
+            <Square className="w-4 h-4" />{' '}{tr('Stop')}
           </button>
           <button
             onClick={handleComplete}
             disabled={savingSession}
             className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-green-500/20 hover:bg-green-500/30 text-green-400 font-bold text-sm transition disabled:opacity-50"
           >
-            <Check className="w-4 h-4" /> Done
+            <Check className="w-4 h-4" />{' '}{tr('Done')}
           </button>
         </div>
 
@@ -445,7 +450,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
         {inspirations.length > 0 && (
           <div className="space-y-2">
             <p className="text-[10px] font-bold text-violet-300 uppercase tracking-widest px-1">
-              Inspirations this session
+              {tr('Inspirations this session')}
             </p>
             <div className="max-h-44 overflow-y-auto space-y-2">
               {inspirations.map((ins, i) => (
@@ -470,7 +475,7 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-xl">✨</span>
-                <h4 className="font-black text-foreground uppercase tracking-tight">Capture Inspiration</h4>
+                <h4 className="font-black text-foreground uppercase tracking-tight">{tr('Capture Inspiration')}</h4>
               </div>
               <button
                 onClick={() => setShowInspire(false)}
@@ -482,14 +487,14 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
 
             <textarea
               autoFocus
-              placeholder="What is God speaking to you right now?"
+              placeholder={tr('What is God speaking to you right now?')}
               value={inspireText}
               onChange={e => setInspireText(e.target.value)}
               rows={5}
               className="w-full rounded-2xl border bg-muted/30 px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             />
             <p className="text-[10px] text-muted-foreground">
-              Saved to your <strong>Prayer Inspirations</strong> notebook in Notes
+              {tr('Saved to your')}{' '}<strong>{tr('Prayer Inspirations')}</strong>{' '}{tr('notebook in Notes')}
             </p>
 
             <div className="flex gap-2">
@@ -497,14 +502,14 @@ export default function PrayerTimer({ userId, onSessionComplete }: Props): JSX.E
                 onClick={() => setShowInspire(false)}
                 className="flex-1 py-2.5 rounded-2xl border text-sm font-medium hover:bg-muted transition"
               >
-                Cancel
+                {tr('Cancel')}
               </button>
               <button
                 onClick={saveInspiration}
                 disabled={savingInspire || !inspireText.trim()}
                 className="flex-1 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold transition disabled:opacity-50"
               >
-                {savingInspire ? 'Saving…' : 'Save Inspiration ✨'}
+                {savingInspire ? tr('Saving…') : tr('Save Inspiration ✨')}
               </button>
             </div>
           </div>

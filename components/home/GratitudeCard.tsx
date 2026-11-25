@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -17,6 +19,7 @@ interface Entry {
 }
 
 export default function GratitudeCard() {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const todayStr = toLocalDateKey(new Date())
 
@@ -69,7 +72,7 @@ export default function GratitudeCard() {
     if (!error && data) {
       setEntry(data)
       setExpanded(false)
-      toast.success('Gratitude saved 🙏')
+      toast.success(tr('Gratitude saved 🙏'))
     }
     setSaving(false)
   }
@@ -109,11 +112,11 @@ export default function GratitudeCard() {
             <Sparkles className="w-4 h-4 text-amber-500" />
           </div>
           <div className="text-left">
-            <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Daily Gratitude</p>
+            <p className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">{tr('Daily Gratitude')}</p>
             {entry && !expanded ? (
               <p className="text-sm font-semibold text-foreground line-clamp-1">{entry.entry_1 || '—'}</p>
             ) : (
-              <p className="text-sm font-medium text-muted-foreground">3 things you're grateful for</p>
+              <p className="text-sm font-medium text-muted-foreground">{tr('3 things you\'re grateful for')}</p>
             )}
           </div>
         </div>
@@ -137,7 +140,7 @@ export default function GratitudeCard() {
                   next[i] = e.target.value
                   setDraft(next)
                 }}
-                placeholder={prompts[i]}
+                placeholder={tr(prompts[i])}
                 className="w-full text-sm bg-white/60 dark:bg-white/5 border border-amber-200 dark:border-amber-800/50 rounded-2xl px-4 py-2.5 outline-none focus:border-amber-400 placeholder:text-muted-foreground/50 transition-colors"
               />
             </div>
@@ -147,12 +150,12 @@ export default function GratitudeCard() {
             disabled={saving || draft.every(s => !s.trim())}
             className="w-full h-11 rounded-2xl bg-amber-400 hover:bg-amber-500 disabled:opacity-40 text-white font-bold text-sm transition-colors mt-1"
           >
-            {saving ? 'Saving…' : entry ? 'Update' : 'Save Gratitude 🙏'}
+            {saving ? tr('Saving…') : entry ? tr('Update') : tr('Save Gratitude 🙏')}
           </button>
 
           {!showHistory && (
             <button onClick={loadHistory} className="w-full text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-              View past entries
+              {tr('View past entries')}
             </button>
           )}
         </div>
@@ -161,11 +164,11 @@ export default function GratitudeCard() {
       {/* History */}
       {showHistory && expanded && history.length > 0 && (
         <div className="border-t border-amber-200/50 dark:border-amber-800/30 px-5 pb-5 pt-4 space-y-3">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Past entries</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{tr('Past entries')}</p>
           {history.map(h => (
             <div key={h.id} className="space-y-1">
               <p className="text-[10px] font-bold text-muted-foreground">
-                {new Date(h.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                {new Date(h.date).toLocaleDateString(appLocale() ?? 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
               </p>
               {[h.entry_1, h.entry_2, h.entry_3].filter(Boolean).map((e, i) => (
                 <p key={i} className={cn('text-[12px] text-foreground/80 pl-2 border-l-2 border-amber-300 dark:border-amber-700')}>

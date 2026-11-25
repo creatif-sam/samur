@@ -30,7 +30,7 @@ export function SignUpForm({
   const [showPassword, setShowPassword] = useState(false);
   const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, tr } = useTranslation();
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +55,7 @@ export function SignUpForm({
       if (error) throw error;
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+      setError(error instanceof Error ? error.message : tr('An error occurred'));
     } finally {
       setIsLoading(false);
     }
@@ -76,7 +76,7 @@ export function SignUpForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder={tr('m@example.com')}
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -126,7 +126,7 @@ export function SignUpForm({
                   </button>
                 </div>
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && <p className="text-sm text-red-500">{tr(error)}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? t.auth.creatingAccount : t.auth.signUp}
               </Button>

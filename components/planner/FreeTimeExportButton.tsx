@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react'
 import { Modal } from './tasks/Modal'
 import type { PlannerTask } from './DailyPlanner'
@@ -31,6 +33,7 @@ export default function FreeTimeExportButton({
   tasks,
   date,
 }: Props) {
+  const { tr } = useTranslation()
   const [freeBlocks, setFreeBlocks] = useState<FreeBlock[] | null>(null)
 
   function calculateFreeTime() {
@@ -68,7 +71,7 @@ export default function FreeTimeExportButton({
   const isToday = toLocalDateKey(date) === toLocalDateKey(new Date())
   const title = isToday
     ? 'My Free Time Today'
-    : `My Free Time on ${date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`
+    : `My Free Time on ${date.toLocaleDateString(appLocale() ?? 'en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`
 
   const message =
     freeBlocks &&
@@ -110,12 +113,12 @@ export default function FreeTimeExportButton({
           <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
           <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
         </svg>
-        Share Free Time
+        {tr('Share Free Time')}
       </button>
 
       {freeBlocks && message && (
         <Modal onClose={() => setFreeBlocks(null)}>
-          <h3 className="font-semibold mb-3">Share Your Free Time</h3>
+          <h3 className="font-semibold mb-3">{tr('Share Your Free Time')}</h3>
 
           <pre className="text-sm whitespace-pre-wrap bg-muted rounded-lg p-3 mb-4">
             {message}
@@ -130,14 +133,14 @@ export default function FreeTimeExportButton({
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
                 <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
-              Share
+              {tr('Share')}
             </button>
 
             <button
               onClick={() => setFreeBlocks(null)}
               className="px-4 py-2 rounded-xl border text-sm"
             >
-              Close
+              {tr('Close')}
             </button>
           </div>
         </Modal>

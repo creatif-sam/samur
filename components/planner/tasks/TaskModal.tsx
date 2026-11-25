@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import type { PlannerTask } from '../DailyPlanner'
 import { TaskBasics } from './TaskBasics'
@@ -49,6 +50,7 @@ export function TaskModal({
   onSave: (t: PlannerTask, scope: SaveScope) => void
   onDelete?: (scope: SaveScope) => void
 }) {
+  const { tr } = useTranslation()
   const [text, setText] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -151,7 +153,7 @@ export function TaskModal({
             <input
               autoFocus
               type="text"
-              placeholder="What's happening?"
+              placeholder={tr('What\'s happening?')}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
@@ -159,7 +161,7 @@ export function TaskModal({
               className="w-full text-xl md:text-3xl font-bold bg-transparent border-none outline-none placeholder:text-slate-200 dark:placeholder:text-slate-700 dark:text-white truncate disabled:opacity-60"
             />
             <p className="text-[9px] md:text-[11px] font-bold text-blue-500 uppercase tracking-widest mt-1">
-              {existingTask ? (canEdit ? 'Modify Schedule' : 'View Schedule') : 'New Plan'}
+              {existingTask ? (canEdit ? tr('Modify Schedule') : tr('View Schedule')) : tr('New Plan')}
               {dayLabel && <span className="text-slate-400"> · {dayLabel}</span>}
             </p>
           </div>
@@ -176,10 +178,10 @@ export function TaskModal({
             <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[20px] md:rounded-[24px] p-4 md:p-6 border border-slate-100 dark:border-slate-700">
               <div className="flex justify-between items-center mb-3">
                 <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                  <Clock size={12} /> Timeline
+                  <Clock size={12} />{' '}{tr('Timeline')}
                 </label>
                 <span className="text-[9px] md:text-[10px] font-bold bg-blue-100 text-blue-600 px-2 py-0.5 rounded">
-                  {getDurationLabel()}{overnight && ' · ends next day'}
+                  {tr(getDurationLabel())}{overnight && tr(' · ends next day')}
                 </span>
               </div>
 
@@ -214,15 +216,14 @@ export function TaskModal({
               </div>
 
               {startTime && startTime === endTime && (
-                <p className="text-[11px] text-red-500 font-semibold mt-2">Start and end can&apos;t be the same time.</p>
+                <p className="text-[11px] text-red-500 font-semibold mt-2">{tr('Start and end can\'t be the same time.')}</p>
               )}
 
               {canEdit && clashes.length > 0 && (
                 <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200/60 dark:border-amber-800/40 px-3 py-2">
                   <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
                   <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium leading-snug">
-                    Overlaps with {clashes.slice(0, 2).map(c => `“${c.text}” (${c.start}–${c.end})`).join(', ')}
-                    {clashes.length > 2 && ` and ${clashes.length - 2} more`}
+                    {tr('Overlaps with {value}{value2}', { value: clashes.slice(0, 2).map(c => `“${c.text}” (${c.start}–${c.end})`).join(', '), value2: clashes.length > 2 && tr(' and {value} more', { value: clashes.length - 2 }) })}
                   </p>
                 </div>
               )}
@@ -231,7 +232,7 @@ export function TaskModal({
             {canEdit && (
               <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[20px] md:rounded-[24px] p-4 md:p-6 border border-slate-100 dark:border-slate-700">
                 <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <Bell size={12} /> Reminder
+                  <Bell size={12} />{' '}{tr('Reminder')}
                 </label>
                 <div className="flex flex-wrap gap-1.5">
                   {REMINDER_OPTIONS.map(opt => (
@@ -245,7 +246,7 @@ export function TaskModal({
                           : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'
                       }`}
                     >
-                      {opt.label}
+                      {tr(opt.label)}
                     </button>
                   ))}
                 </div>
@@ -258,9 +259,9 @@ export function TaskModal({
                 >
                   <AlarmClock size={16} className={alarm ? 'text-rose-500' : 'text-slate-400'} />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-xs font-bold text-slate-700 dark:text-slate-200">Alarm</span>
+                    <span className="block text-xs font-bold text-slate-700 dark:text-slate-200">{tr('Alarm')}</span>
                     <span className="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                      {reminder === null ? 'Rings at the start' : 'Rings at the reminder time'}, stays until you dismiss it
+                      {tr('{value}, stays until you dismiss it', { value: reminder === null ? tr('Rings at the start') : tr('Rings at the reminder time') })}
                     </span>
                   </span>
                   <span className={`relative h-6 w-10 shrink-0 rounded-full transition-colors ${alarm ? 'bg-rose-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
@@ -282,7 +283,7 @@ export function TaskModal({
             {canEdit && (
               <div className="bg-slate-50 dark:bg-slate-800/40 rounded-[20px] md:rounded-[24px] p-4 md:p-6 border border-slate-100 dark:border-slate-700">
                 <label className="text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">
-                  Task Visibility
+                  {tr('Task Visibility')}
                 </label>
                 <div className="flex gap-2">
                   <button
@@ -294,7 +295,7 @@ export function TaskModal({
                     }`}
                   >
                     <EyeOff className="w-4 h-4 inline mr-1" />
-                    Private
+                    {tr('Private')}
                   </button>
                   <button
                     onClick={() => setVisibility('shared')}
@@ -305,11 +306,11 @@ export function TaskModal({
                     }`}
                   >
                     <Eye className="w-4 h-4 inline mr-1" />
-                    Shared
+                    {tr('Shared')}
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-400 mt-2">
-                  {visibility === 'shared' ? 'Your partner can see this task' : 'Only you can see this task'}
+                  {visibility === 'shared' ? tr('Your partner can see this task') : tr('Only you can see this task')}
                 </p>
               </div>
             )}
@@ -318,7 +319,7 @@ export function TaskModal({
           {/* RIGHT COLUMN: Recurrence */}
           <div className="lg:border-l lg:pl-10 lg:border-slate-100 lg:dark:border-slate-800">
             <div className="flex items-center gap-2 mb-4 text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              <CalendarIcon size={12} /> Recurrence Rules
+              <CalendarIcon size={12} />{' '}{tr('Recurrence Rules')}
             </div>
             <TaskRecurrence
               value={recurring}
@@ -332,32 +333,32 @@ export function TaskModal({
           {!canEdit ? (
             <>
               <div className="flex-1 text-sm text-slate-500 dark:text-slate-400 italic">
-                You can only view this task
+                {tr('You can only view this task')}
               </div>
               <button onClick={onClose} className="px-8 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white">
-                Close
+                {tr('Close')}
               </button>
             </>
           ) : confirm ? (
             <>
               <p className="text-xs md:text-sm font-semibold text-slate-600 dark:text-slate-300 min-w-0">
-                {confirm === 'delete' ? 'Delete which events?' : 'Apply changes to?'}
+                {confirm === 'delete' ? tr('Delete which events?') : tr('Apply changes to?')}
               </p>
               <div className="flex gap-2 shrink-0 ml-auto">
                 <button onClick={() => setConfirm(null)} className="px-3 py-2 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
-                  Back
+                  {tr('Back')}
                 </button>
                 <button
                   onClick={() => chooseScope('this')}
                   className="px-3 md:px-5 py-2 md:py-3 rounded-xl text-xs md:text-sm font-bold bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200"
                 >
-                  This event
+                  {tr('This event')}
                 </button>
                 <button
                   onClick={() => chooseScope('all')}
                   className={`px-3 md:px-5 py-2 md:py-3 rounded-xl text-xs md:text-sm font-bold text-white ${confirm === 'delete' ? 'bg-red-500' : 'bg-blue-600'}`}
                 >
-                  All events
+                  {tr('All events')}
                 </button>
               </div>
             </>
@@ -372,14 +373,14 @@ export function TaskModal({
                 </button>
               ) : (
                 <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
-                  Discard
+                  {tr('Discard')}
                 </button>
               )}
 
               <div className="flex gap-3">
                 {existingTask && (
                   <button onClick={onClose} className="px-4 md:px-8 py-2 md:py-3 text-xs md:text-sm font-bold text-slate-400 hover:text-slate-600">
-                    Cancel
+                    {tr('Cancel')}
                   </button>
                 )}
                 <button
@@ -387,7 +388,7 @@ export function TaskModal({
                   disabled={!canSave}
                   className={`flex-1 md:flex-none md:px-12 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-xs md:text-sm shadow-lg transition-all ${canSave ? 'bg-blue-600 text-white active:scale-95 shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
                 >
-                  {existingTask ? 'Save Changes' : 'Confirm'}
+                  {existingTask ? tr('Save Changes') : tr('Confirm')}
                 </button>
               </div>
             </>

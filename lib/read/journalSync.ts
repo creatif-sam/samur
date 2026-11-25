@@ -1,3 +1,4 @@
+import { appLocale } from '@/lib/i18n'
 import { SupabaseClient } from '@supabase/supabase-js'
 import { ensureSystemNotebook } from '@/lib/notes/data'
 
@@ -37,7 +38,7 @@ export async function createReadingLogPage(
   note: string | null
 ): Promise<void> {
   const today = new Date()
-  const dateLabel = today.toLocaleDateString(undefined, {
+  const dateLabel = today.toLocaleDateString(appLocale(), {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

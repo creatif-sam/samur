@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
+import { trNow } from '@/lib/i18n'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -43,6 +45,7 @@ function storageSet(key: string, value: string | null) {
 }
 
 export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: ThoughtBookProps) {
+  const { tr } = useTranslation()
   const [activeNotebookId, setActiveNotebookId] = useState<string | null>(null)
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
   const [editingPage, setEditingPage] = useState<Page | null>(null)
@@ -105,7 +108,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
     const notebook = notebooks.find(nb => (nb.sections ?? []).some(sec => (sec.pages ?? []).some(pg => pg.id === pageId)))
     const section = notebook?.sections?.find(sec => (sec.pages ?? []).some(pg => pg.id === pageId))
     const page = section?.pages?.find(pg => pg.id === pageId)
-    if (!notebook || !section || !page) { toast.error('That note no longer exists'); return }
+    if (!notebook || !section || !page) { toast.error(trNow('That note no longer exists')); return }
     setActiveNotebookId(notebook.id)
     setActiveSectionId(section.id)
     openPage(page, 'normal')
@@ -118,10 +121,10 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
     setOpening(true)
     try {
       const full = await fetchPage(supabase, page.id)
-      if (!full) { toast.error('That note no longer exists'); await onRefresh(); return }
+      if (!full) { toast.error(tr('That note no longer exists')); await onRefresh(); return }
       setEditingPage({ ...page, ...full })
     } catch {
-      toast.error("Couldn't open the note. Check your connection.")
+      toast.error(tr('Couldn\'t open the note. Check your connection.'))
     } finally {
       setOpening(false)
     }
@@ -131,8 +134,8 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
     const next = !page.pinned
     onPagePatched({ id: page.id, pinned: next })
     const { error } = await supabase.from('pages').update({ is_pinned: next }).eq('id', page.id)
-    if (error) { onPagePatched({ id: page.id, pinned: !next }); toast.error("Couldn't update the pin"); return }
-    toast.success(next ? 'Pinned to the top' : 'Unpinned')
+    if (error) { onPagePatched({ id: page.id, pinned: !next }); toast.error(tr('Couldn\'t update the pin')); return }
+    toast.success(next ? tr('Pinned to the top') : tr('Unpinned'))
   }
 
   // Open the "move to notebook" sheet for any note
@@ -228,14 +231,14 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
     hide(id)
     const timer = window.setTimeout(async () => {
       const { error } = await supabase.from(table).delete().eq('id', id)
-      if (error) toast.error(`Failed to delete ${label.toLowerCase()}`)
+      if (error) toast.error(tr('Failed to delete {toLowerCase}', { toLowerCase: label.toLowerCase() }))
       else await onRefresh()
       unhide(id)
     }, UNDO_WINDOW_MS)
-    toast(`${label} deleted`, {
+    toast(tr('{label} deleted', { label: label }), {
       duration: UNDO_WINDOW_MS,
       action: {
-        label: 'Undo',
+        label: tr('Undo'),
         onClick: () => {
           window.clearTimeout(timer)
           unhide(id)
@@ -254,9 +257,9 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       })
       if (error) throw error
       await onRefresh()
-      toast.success("Section created")
+      toast.success(tr('Section created'))
       setIsAddingSection(false); setNewTitle('')
-    } catch (err) { toast.error(err instanceof Error ? err.message : 'Failed to create section') }
+    } catch (err) { toast.error(err instanceof Error ? err.message : tr('Failed to create section')) }
     finally { setIsProcessing(false) }
   }
 
@@ -268,38 +271,38 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       const { error } = await supabase.from(table).update({ title: newTitle.trim() }).eq('id', itemToRename.id)
       if (error) throw error
       await onRefresh()
-      toast.success("Updated successfully")
+      toast.success(tr('Updated successfully'))
       setItemToRename(null); setNewTitle('')
-    } catch { toast.error("Update failed") }
+    } catch { toast.error(tr('Update failed')) }
     finally { setIsProcessing(false) }
   }
 
   const handleDeleteNotebook = () => {
     if (!notebookToDelete) return
-    deleteWithUndo('notebooks', notebookToDelete.id, 'Notebook')
+    deleteWithUndo('notebooks', notebookToDelete.id, trNow('Notebook'))
     setNotebookToDelete(null)
   }
 
   const handleDeleteSection = () => {
     if (!sectionToDelete) return
-    deleteWithUndo('sections', sectionToDelete.id, 'Section')
+    deleteWithUndo('sections', sectionToDelete.id, trNow('Section'))
     setSectionToDelete(null)
   }
 
   const handleDeleteRecentPage = () => {
     if (!recentPageAction) return
-    deleteWithUndo('pages', recentPageAction.page.id, 'Note')
+    deleteWithUndo('pages', recentPageAction.page.id, trNow('Note'))
     setRecentPageAction(null)
   }
 
   const handleTogglePin = async (nb: Notebook) => {
     const pinnedCount = notebooks.filter(n => n.pinned).length
     if (!nb.pinned && pinnedCount >= MAX_PINNED_NOTEBOOKS) {
-      toast.error(`You can pin up to ${MAX_PINNED_NOTEBOOKS} notebooks`)
+      toast.error(tr('You can pin up to {MAX_PINNED_NOTEBOOKS} notebooks', { MAX_PINNED_NOTEBOOKS: MAX_PINNED_NOTEBOOKS }))
       return
     }
     const { error } = await supabase.from('notebooks').update({ pinned: !nb.pinned }).eq('id', nb.id)
-    if (error) { toast.error('Failed to update pin'); return }
+    if (error) { toast.error(tr('Failed to update pin')); return }
     await onRefresh()
   }
 
@@ -312,13 +315,13 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
         .update({ section_id: targetSection.id })
         .eq('id', recentPageAction.page.id)
       if (error) throw error
-      toast.success(`Moved to "${moveTargetNotebook?.title} › ${targetSection.title}"`)
+      toast.success(tr('Moved to "{title} › {title2}"', { title: moveTargetNotebook?.title, title2: targetSection.title }))
       setRecentPageAction(null)
       setMoveStep(null)
       setMoveTargetNotebook(null)
       await onRefresh()
     } catch {
-      toast.error('Failed to move note')
+      toast.error(tr('Failed to move note'))
     } finally {
       setIsProcessing(false)
     }
@@ -365,7 +368,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       setEditingPage(newPage as Page)
       await onRefresh()
     } catch {
-      toast.error('Failed to create note')
+      toast.error(tr('Failed to create note'))
     } finally {
       setIsProcessing(false)
     }
@@ -383,7 +386,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
       setEditingPage(newPage as Page)
       await onRefresh()
     } catch {
-      toast.error("Failed to create page")
+      toast.error(tr('Failed to create page'))
     }
     finally { setIsProcessing(false) }
   }
@@ -470,7 +473,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
         <PageList
           section={activeSection}
           onSelect={(page) => void openPage(page, 'normal')}
-          onDeletePage={(page) => deleteWithUndo('pages', page.id, 'Note')}
+          onDeletePage={(page) => deleteWithUndo('pages', page.id, trNow('Note'))}
           onTogglePin={togglePagePin}
           onMovePage={startMove}
         />
@@ -492,7 +495,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
           <div className="w-full max-w-lg bg-white dark:bg-zinc-950 rounded-t-[32px] border-t border-border p-5 pb-10 space-y-3 animate-in slide-in-from-bottom duration-300" onClick={e => e.stopPropagation()}>
             <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-1" />
             <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center truncate px-4">
-              {recentPageAction.page.title || 'Untitled'}
+              {recentPageAction.page.title || tr('Untitled')}
             </p>
             <button
               onClick={() => { const pg = recentPageAction.page; setRecentPageAction(null); void togglePagePin(pg) }}
@@ -501,7 +504,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
               <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
                 {recentPageAction.page.pinned ? <PinOff className="w-4 h-4 text-violet-600 dark:text-violet-400" /> : <Pin className="w-4 h-4 text-violet-600 dark:text-violet-400" />}
               </div>
-              <span className="font-semibold text-sm text-slate-800 dark:text-white flex-1">{recentPageAction.page.pinned ? 'Unpin' : 'Pin to top'}</span>
+              <span className="font-semibold text-sm text-slate-800 dark:text-white flex-1">{recentPageAction.page.pinned ? tr('Unpin') : tr('Pin to top')}</span>
             </button>
             <button
               onClick={() => setMoveStep('pick-notebook')}
@@ -510,7 +513,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
               <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
                 <FolderInput className="w-4 h-4 text-violet-600 dark:text-violet-400" />
               </div>
-              <span className="font-semibold text-sm text-slate-800 dark:text-white flex-1">Move to notebook…</span>
+              <span className="font-semibold text-sm text-slate-800 dark:text-white flex-1">{tr('Move to notebook…')}</span>
               <ChevronRight className="w-4 h-4 text-slate-400" />
             </button>
             <button
@@ -520,10 +523,10 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
               <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
                 <Trash2 className="w-4 h-4 text-red-500" />
               </div>
-              <span className="font-semibold text-sm text-red-500 flex-1">Delete note</span>
+              <span className="font-semibold text-sm text-red-500 flex-1">{tr('Delete note')}</span>
             </button>
             <button onClick={() => setRecentPageAction(null)} className="w-full py-3 rounded-2xl text-sm font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors">
-              Cancel
+              {tr('Cancel')}
             </button>
           </div>
         </div>
@@ -538,7 +541,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
               <button onClick={() => setMoveStep(null)} className="p-1 rounded-full hover:bg-muted transition">
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Choose notebook</p>
+              <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tr('Choose notebook')}</p>
             </div>
             <div className="overflow-y-auto flex-1 space-y-1 pt-1">
               {visibleNotebooks.map(nb => (
@@ -548,7 +551,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-zinc-900 transition-colors text-left"
                 >
                   <span className="text-xl">{nb.emoji || '📓'}</span>
-                  <span className="flex-1 font-semibold text-sm text-slate-800 dark:text-white truncate">{nb.title}</span>
+                  <span className="flex-1 font-semibold text-sm text-slate-800 dark:text-white truncate">{tr(nb.title)}</span>
                   <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                 </button>
               ))}
@@ -567,12 +570,12 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>
               <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">
-                {moveTargetNotebook.emoji} {moveTargetNotebook.title} — pick section
+                {tr('{emoji} {title} — pick section', { emoji: moveTargetNotebook.emoji, title: moveTargetNotebook.title })}
               </p>
             </div>
             <div className="overflow-y-auto flex-1 space-y-1 pt-1">
               {(moveTargetNotebook.sections ?? []).length === 0 && (
-                <p className="text-sm text-center text-slate-400 py-8">No sections in this notebook.</p>
+                <p className="text-sm text-center text-slate-400 py-8">{tr('No sections in this notebook.')}</p>
               )}
               {(moveTargetNotebook.sections ?? []).map(sec => (
                 <button
@@ -582,7 +585,7 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
                   className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors text-left disabled:opacity-50"
                 >
                   <div className="w-2 h-2 rounded-full bg-violet-500 shrink-0" />
-                  <span className="flex-1 font-semibold text-sm text-slate-800 dark:text-white truncate">{sec.title}</span>
+                  <span className="flex-1 font-semibold text-sm text-slate-800 dark:text-white truncate">{tr(sec.title)}</span>
                   <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                 </button>
               ))}
@@ -596,11 +599,11 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
           <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="text-red-500 w-8 h-8" />
           </div>
-          <DialogTitle className="text-xl font-semibold dark:text-white">Delete Notebook?</DialogTitle>
-          <DialogDescription className="text-slate-500 mt-2">&quot;{notebookToDelete?.title}&quot; and everything in it will be deleted. You can undo for a few seconds.</DialogDescription>
+          <DialogTitle className="text-xl font-semibold dark:text-white">{tr('Delete Notebook?')}</DialogTitle>
+          <DialogDescription className="text-slate-500 mt-2">{tr('"{title}" and everything in it will be deleted. You can undo for a few seconds.', { title: notebookToDelete?.title })}</DialogDescription>
           <DialogFooter className="flex gap-2 mt-6 sm:justify-center">
-            <Button variant="ghost" onClick={() => setNotebookToDelete(null)} className="rounded-full flex-1">Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteNotebook} className="rounded-full flex-1">Delete</Button>
+            <Button variant="ghost" onClick={() => setNotebookToDelete(null)} className="rounded-full flex-1">{tr('Cancel')}</Button>
+            <Button variant="destructive" onClick={handleDeleteNotebook} className="rounded-full flex-1">{tr('Delete')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -610,31 +613,31 @@ export function ThoughtBook({ notebooks, onRefresh, onPagePatched, userId }: Tho
           <div className="w-16 h-16 bg-red-50 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
             <Trash2 className="text-red-500 w-8 h-8" />
           </div>
-          <DialogTitle className="text-xl font-semibold dark:text-white">Delete Section?</DialogTitle>
-          <DialogDescription className="text-slate-500 mt-2 text-xs">All pages inside will be deleted. You can undo for a few seconds.</DialogDescription>
+          <DialogTitle className="text-xl font-semibold dark:text-white">{tr('Delete Section?')}</DialogTitle>
+          <DialogDescription className="text-slate-500 mt-2 text-xs">{tr('All pages inside will be deleted. You can undo for a few seconds.')}</DialogDescription>
           <div className="flex gap-2 mt-6">
-            <Button variant="ghost" onClick={() => setSectionToDelete(null)} className="rounded-full flex-1">Cancel</Button>
-            <Button variant="destructive" onClick={handleDeleteSection} className="rounded-full flex-1">Delete</Button>
+            <Button variant="ghost" onClick={() => setSectionToDelete(null)} className="rounded-full flex-1">{tr('Cancel')}</Button>
+            <Button variant="destructive" onClick={handleDeleteSection} className="rounded-full flex-1">{tr('Delete')}</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!itemToRename} onOpenChange={() => setItemToRename(null)}>
         <DialogContent className="max-w-[340px] rounded-[32px] bg-white dark:bg-slate-950 p-8 border-none shadow-2xl">
-          <DialogHeader><DialogTitle className="text-xl font-semibold uppercase text-center dark:text-white tracking-tight">Rename</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xl font-semibold uppercase text-center dark:text-white tracking-tight">{tr('Rename')}</DialogTitle></DialogHeader>
           <div className="flex flex-col items-center space-y-6 pt-2">
             <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none text-center font-medium dark:text-white" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleUpdateItem()} />
-            <Button className="w-full rounded-full h-11 bg-[#7719aa] dark:bg-[#7c3aed]" onClick={handleUpdateItem} disabled={isProcessing}>Save Changes</Button>
+            <Button className="w-full rounded-full h-11 bg-[#7719aa] dark:bg-[#7c3aed]" onClick={handleUpdateItem} disabled={isProcessing}>{tr('Save Changes')}</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isAddingSection} onOpenChange={setIsAddingSection}>
         <DialogContent className="max-w-[340px] rounded-[32px] bg-white dark:bg-slate-950 p-8 border-none shadow-2xl">
-          <DialogHeader><DialogTitle className="text-xl font-semibold uppercase text-center dark:text-white tracking-tight">New Section</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="text-xl font-semibold uppercase text-center dark:text-white tracking-tight">{tr('New Section')}</DialogTitle></DialogHeader>
           <div className="flex flex-col items-center space-y-6 pt-2">
             <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="h-12 rounded-2xl bg-slate-50 dark:bg-slate-900 border-none text-center font-medium dark:text-white" autoFocus onKeyDown={(e) => e.key === 'Enter' && handleCreateSection()} />
-            <Button className="w-full rounded-full h-11 bg-[#7719aa] dark:bg-[#7c3aed]" onClick={handleCreateSection} disabled={isProcessing}>Create</Button>
+            <Button className="w-full rounded-full h-11 bg-[#7719aa] dark:bg-[#7c3aed]" onClick={handleCreateSection} disabled={isProcessing}>{tr('Create')}</Button>
           </div>
         </DialogContent>
       </Dialog>

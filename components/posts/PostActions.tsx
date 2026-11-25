@@ -1,3 +1,6 @@
+'use client'
+
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HandHeart, Heart, MessageCircle } from 'lucide-react'
 import type { PostReaction } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -16,6 +19,7 @@ interface PostActionsProps {
 }
 
 export function PostActions({ userReaction, likeCount, commentCount, likedBy, prayer, showComments, onReaction, onToggleComments, loading }: PostActionsProps) {
+  const { tr } = useTranslation()
   const Icon = prayer ? HandHeart : Heart
   const on = prayer
     ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-300'
@@ -38,7 +42,7 @@ export function PostActions({ userReaction, likeCount, commentCount, likedBy, pr
           )}
         >
           <Icon className={cn('h-4 w-4 transition-transform', userReaction && !prayer && 'fill-current', userReaction && 'scale-110')} />
-          {prayer ? (userReaction ? 'Prayed' : 'I prayed') : userReaction ? 'Liked' : 'Like'}
+          {prayer ? (userReaction ? tr('Prayed') : tr('I prayed')) : userReaction ? tr('Liked') : tr('Like')}
           {likeCount > 0 && <span className="tabular-nums opacity-70">{likeCount}</span>}
         </button>
         <button
@@ -50,7 +54,7 @@ export function PostActions({ userReaction, likeCount, commentCount, likedBy, pr
           )}
         >
           <MessageCircle className="h-4 w-4" />
-          {commentCount > 0 ? `${commentCount} comment${commentCount === 1 ? '' : 's'}` : 'Comment'}
+          {commentCount > 0 ? tr('{commentCount} {commentCount:comment|comments}', { commentCount: commentCount }) : tr('Comment')}
         </button>
       </div>
     </div>

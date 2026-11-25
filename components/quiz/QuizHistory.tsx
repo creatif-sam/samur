@@ -1,5 +1,7 @@
 'use client';
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { JSX } from 'react';
@@ -12,6 +14,7 @@ interface Attempt {
 }
 
 export default function QuizHistory(): JSX.Element {
+  const { tr } = useTranslation()
   const [attempts, setAttempts] = useState<Attempt[]>([]);
 
   useEffect(() => {
@@ -36,12 +39,12 @@ export default function QuizHistory(): JSX.Element {
     <div className="p-4 space-y-3">
       {attempts.map((a) => (
         <div key={a.id} className="border rounded-xl p-3">
-          <p className="font-medium">{a.verdict}</p>
+          <p className="font-medium">{tr(a.verdict)}</p>
           <p className="text-sm text-muted-foreground">
-            Wrong answers: {a.wrong_count}
+            {tr('Wrong answers: {wrong_count}', { wrong_count: a.wrong_count })}
           </p>
           <p className="text-xs text-muted-foreground">
-            {new Date(a.created_at).toLocaleDateString()}
+            {new Date(a.created_at).toLocaleDateString(appLocale())}
           </p>
         </div>
       ))}

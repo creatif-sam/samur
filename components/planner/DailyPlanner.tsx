@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale, trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -55,7 +57,7 @@ type StoredRow = {
 const TEXT_SAVE_DELAY = 700
 
 function formatDateKey(key: string) {
-  return parseDateKey(key).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+  return parseDateKey(key).toLocaleDateString(appLocale() ?? 'en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 function withException(task: PlannerTask, dateKey: string): PlannerTask {
@@ -66,6 +68,7 @@ function withException(task: PlannerTask, dateKey: string): PlannerTask {
 }
 
 export default function DailyPlanner() {
+  const { tr } = useTranslation()
   const supabase = createClient()
 
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -140,7 +143,7 @@ export default function DailyPlanner() {
   // Flush a pending text save when switching day, leaving the page or backgrounding the app
   useEffect(() => () => flushPendingSave(), [dateKey])
   useEffect(() => {
-    const onOnline = () => { enqueue(flushOutbox, "Couldn't sync offline changes.").then(() => loadDay()) }
+    const onOnline = () => { enqueue(flushOutbox, trNow("Couldn't sync offline changes.")).then(() => loadDay()) }
     window.addEventListener('online', onOnline)
     return () => window.removeEventListener('online', onOnline)
   }, [userId, partnerId])
@@ -191,7 +194,7 @@ export default function DailyPlanner() {
 
     // Let queued writes land first so we never read a row mid-update
     await writeChain.current
-    await enqueue(flushOutbox, "Couldn't sync offline changes.")
+    await enqueue(flushOutbox, trNow("Couldn't sync offline changes."))
 
     try {
       const ids = partnerId ? [userId, partnerId] : [userId]
@@ -285,13 +288,13 @@ export default function DailyPlanner() {
       if (error && isNetworkError(error)) {
         // Keep it on this device and sync when the connection is back
         queueDay(row)
-        toast("You're offline. Changes are saved on this device and will sync.", { id: 'planner-offline' })
+        toast(tr('You\'re offline. Changes are saved on this device and will sync.'), { id: 'planner-offline' })
         return
       }
       if (error) throw error
       dequeueDay(uid, row.day) // a newer save supersedes anything queued for this day
       window.dispatchEvent(new Event('planner:changed'))
-    }, "Couldn't save your planner. Check your connection.")
+    }, trNow("Couldn't save your planner. Check your connection."))
   }
 
   // Writes any saves made while offline; returns true if everything synced
@@ -306,7 +309,7 @@ export default function DailyPlanner() {
       if (error) { ok = false; continue }
       dequeueDay(uid, row.day)
     }
-    if (ok) toast.success('Offline changes synced', { id: 'planner-offline' })
+    if (ok) toast.success(tr('Offline changes synced'), { id: 'planner-offline' })
     return ok
   }
 
@@ -472,9 +475,9 @@ export default function DailyPlanner() {
     const updated = [...tasks, ...created]
     setTasks(updated)
     saveNow({ tasks: updated })
-    toast.success(`Added ${created.length} event${created.length !== 1 ? 's' : ''} from ${source}`, {
+    toast.success(tr('Added {createdCount} {createdCount:event|events} from {source}', { createdCount: created.length, source: source }), {
       action: {
-        label: 'Undo',
+        label: tr('Undo'),
         onClick: () => {
           const s = stateRef.current
           if (s.loadedDateKey !== s.dateKey) return
@@ -501,10 +504,10 @@ export default function DailyPlanner() {
         flushPendingSave()
         const ok = await enqueue(
           () => mutateRow(targetDay, row => ({ ...row, tasks: [...row.tasks, task] })).then(() => true),
-          "Couldn't schedule the event.",
+          trNow("Couldn't schedule the event."),
         )
         if (ok) {
-          toast.success(`Event scheduled for ${formatDateKey(targetDay)}`)
+          toast.success(tr('Event scheduled for {value}', { value: formatDateKey(targetDay) }))
           completeScheduledTodo(todo)
         }
         if (view === 'monthly') loadTaskDays(selectedDate.getFullYear(), selectedDate.getMonth())
@@ -540,11 +543,11 @@ export default function DailyPlanner() {
           tasks: [...row.tasks, detached],
           completed_task_ids: swapCompletion(row.completed_task_ids, original.id, detached.id),
         }))
-      }, "Couldn't update the event.")
+      }, trNow("Couldn't update the event."))
     } else if (task.recurring) {
       await enqueue(
         () => mutateSeries(original, () => ({ ...task, source_day: sourceDay })),
-        "Couldn't update the recurring event.",
+        trNow("Couldn't update the recurring event."),
       )
     } else if (dateKey > sourceDay) {
       // Repeat turned off: keep past occurrences, end the series yesterday, keep today as a one-off
@@ -556,11 +559,11 @@ export default function DailyPlanner() {
           tasks: [...row.tasks, oneOff],
           completed_task_ids: swapCompletion(row.completed_task_ids, original.id, oneOff.id),
         }))
-      }, "Couldn't update the event.")
+      }, trNow("Couldn't update the event."))
     } else {
       await enqueue(
         () => mutateSeries(original, () => ({ ...task, recurring: undefined, source_day: undefined })),
-        "Couldn't update the event.",
+        trNow("Couldn't update the event."),
       )
     }
     await loadDay()
@@ -574,9 +577,9 @@ export default function DailyPlanner() {
       const day = dateKey
       setTasks(updated)
       saveNow({ tasks: updated })
-      toast.success('Event deleted', {
+      toast.success(tr('Event deleted'), {
         action: {
-          label: 'Undo',
+          label: tr('Undo'),
           onClick: async () => {
             const s = stateRef.current
             if (s.dateKey === day && s.loadedDateKey === day) {
@@ -584,7 +587,7 @@ export default function DailyPlanner() {
               setTasks(restored)
               saveNow({ tasks: restored })
             } else {
-              await enqueue(() => mutateRow(day, row => ({ ...row, tasks: [...row.tasks, task] })), "Couldn't restore the event.")
+              await enqueue(() => mutateRow(day, row => ({ ...row, tasks: [...row.tasks, task] })), trNow("Couldn't restore the event."))
             }
           },
         },
@@ -594,11 +597,11 @@ export default function DailyPlanner() {
 
     flushPendingSave()
     if (scope === 'this') {
-      await enqueue(() => mutateSeries(task, t => withException(t, dateKey)), "Couldn't delete the event.")
-      toast.success('Event removed from this day')
+      await enqueue(() => mutateSeries(task, t => withException(t, dateKey)), trNow("Couldn't delete the event."))
+      toast.success(tr('Event removed from this day'))
     } else {
-      await enqueue(() => deleteSeriesEverywhere(task.id), "Couldn't delete the recurring event.")
-      toast.success('All recurring events deleted')
+      await enqueue(() => deleteSeriesEverywhere(task.id), trNow("Couldn't delete the recurring event."))
+      toast.success(tr('All recurring events deleted'))
     }
     await loadDay()
   }
@@ -620,12 +623,12 @@ export default function DailyPlanner() {
         ...row,
         tasks: [...row.tasks.filter(t => !movingIds.has(t.id)), ...moving],
       })).then(() => true),
-      "Couldn't move the events.",
+      trNow("Couldn't move the events."),
     )
     if (!ok) return
     setTasks(remaining)
     saveNow({ tasks: remaining })
-    toast.success(`${moving.length} event${moving.length !== 1 ? 's' : ''} moved to ${formatDateKey(tomorrow)}`)
+    toast.success(tr('{movingCount} {movingCount:event|events} moved to {value2}', { movingCount: moving.length, value2: formatDateKey(tomorrow) }))
   }
 
   const sortedTasks = sortByStart(tasks)
@@ -636,10 +639,10 @@ export default function DailyPlanner() {
       <header className={`sticky top-0 transition-colors duration-1000 z-30 px-6 pt-12 pb-4 ${theme.bg} backdrop-blur-md`}>
         <div className="flex justify-between items-end">
           <div>
-            <h1 className={`text-3xl font-light uppercase tracking-[0.2em] opacity-40 ${theme.text}`}>{selectedDate.toLocaleString('default', { month: 'short' })}</h1>
+            <h1 className={`text-3xl font-light uppercase tracking-[0.2em] opacity-40 ${theme.text}`}>{selectedDate.toLocaleString(appLocale(), { month: 'short' })}</h1>
             <div className="flex items-baseline gap-2 mt-1">
               <span className={`text-5xl font-bold tracking-tighter ${theme.text}`}>{selectedDate.getDate()}</span>
-              <span className={`text-lg font-semibold uppercase opacity-40 ${theme.text}`}>{selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+              <span className={`text-lg font-semibold uppercase opacity-40 ${theme.text}`}>{selectedDate.toLocaleDateString(appLocale() ?? 'en-US', { weekday: 'short' })}</span>
             </div>
           </div>
 
@@ -703,13 +706,13 @@ export default function DailyPlanner() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-3">
                 <Sun className="w-3.5 h-3.5 text-white/70" />
-                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Morning Intention</span>
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">{tr('Morning Intention')}</span>
                 <HelpTip topic="planner.intention" tone="onDark" align="left" className="-my-1" />
               </div>
               <textarea
                 value={morning}
                 disabled={loading}
-                placeholder="Focus of the day..."
+                placeholder={tr('Focus of the day...')}
                 onChange={(e) => { setMorning(e.target.value); saveDebounced({ morning: e.target.value }) }}
                 onBlur={flushPendingSave}
                 className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[70px] disabled:opacity-60"
@@ -720,12 +723,12 @@ export default function DailyPlanner() {
 
         <div className="flex items-center justify-between mb-3 px-1">
           <span className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-50 ${theme.text}`}>
-            {isToday ? 'Today’s Schedule' : 'Schedule'}
+            {isToday ? tr('Today’s Schedule') : tr('Schedule')}
           </span>
           <div className="flex items-center gap-3">
             {!loading && tasks.length > 0 && (
               <span className={`text-[10px] font-semibold opacity-40 ${theme.text}`}>
-                {tasks.length} event{tasks.length !== 1 ? 's' : ''}
+                {tr('{tasksCount} {tasksCount:event|events}', { tasksCount: tasks.length })}
               </span>
             )}
             <div className="flex rounded-xl bg-white/60 dark:bg-slate-800/60 p-0.5 border border-white/50 dark:border-slate-700/50">
@@ -733,7 +736,7 @@ export default function DailyPlanner() {
                 <button
                   key={value}
                   onClick={() => chooseLayout(value)}
-                  aria-label={`${label} view`}
+                  aria-label={tr('{label} view', { label: tr(label) })}
                   aria-pressed={layout === value}
                   className={`p-1.5 rounded-lg transition-all ${layout === value ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
                 >
@@ -747,9 +750,9 @@ export default function DailyPlanner() {
         <div className="space-y-3 relative mb-8">
           {loadError ? (
             <div className="rounded-3xl border-2 border-dashed border-red-200 dark:border-red-900/50 p-6 text-center">
-              <p className={`text-sm font-semibold opacity-70 ${theme.text}`}>Couldn&apos;t load this day</p>
+              <p className={`text-sm font-semibold opacity-70 ${theme.text}`}>{tr('Couldn\'t load this day')}</p>
               <button onClick={loadDay} className="mt-3 px-4 py-2 rounded-2xl bg-violet-600 text-white text-xs font-bold active:scale-95">
-                Try again
+                {tr('Try again')}
               </button>
             </div>
           ) : loading ? (
@@ -770,8 +773,8 @@ export default function DailyPlanner() {
             />
           ) : sortedTasks.length === 0 ? (
             <div className="rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-6 text-center">
-              <p className={`text-sm font-semibold opacity-60 ${theme.text}`}>Nothing planned yet</p>
-              <p className={`text-xs opacity-40 mt-1 ${theme.text}`}>Add an event to start shaping your day.</p>
+              <p className={`text-sm font-semibold opacity-60 ${theme.text}`}>{tr('Nothing planned yet')}</p>
+              <p className={`text-xs opacity-40 mt-1 ${theme.text}`}>{tr('Add an event to start shaping your day.')}</p>
             </div>
           ) : sortedTasks.map((task) => {
             const isPartnerTask = !!task.owner_id && task.owner_id !== userId
@@ -822,7 +825,7 @@ export default function DailyPlanner() {
                   {vision && (
                     <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
                       <span className="text-[10px]">{vision.emoji}</span>
-                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{vision.title}</span>
+                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{tr(vision.title)}</span>
                     </div>
                   )}
 
@@ -832,7 +835,7 @@ export default function DailyPlanner() {
                       {partner.avatar_url ? (
                         <img
                           src={partner.avatar_url}
-                          alt={partner.name || 'Partner'}
+                          alt={partner.name || tr('Partner')}
                           className="w-3.5 h-3.5 rounded-full"
                         />
                       ) : (
@@ -841,7 +844,7 @@ export default function DailyPlanner() {
                         </div>
                       )}
                       <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">
-                        {partner.name || 'Partner'}
+                        {partner.name || tr('Partner')}
                       </span>
                     </div>
                   )}
@@ -856,7 +859,7 @@ export default function DailyPlanner() {
             onClick={moveUnfinishedToTomorrow}
             className={`w-full mb-3 py-3 px-6 rounded-3xl border border-dashed border-slate-300 dark:border-slate-600 text-[13px] font-semibold flex justify-between items-center active:scale-[0.98] transition-all ${theme.text} opacity-80`}
           >
-            Move {unfinishedOneOffs.length} unfinished to tomorrow
+            {tr('Move')}{' '}{unfinishedOneOffs.length}{' '}{tr('unfinished to tomorrow')}
             <ArrowRight className="w-4 h-4" />
           </button>
         )}
@@ -876,7 +879,7 @@ export default function DailyPlanner() {
             disabled={loading}
             className="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white py-4 px-6 rounded-3xl font-bold text-[15px] flex justify-between items-center active:scale-[0.98] transition-all shadow-sm disabled:opacity-60"
           >
-            Add event on {selectedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            {tr('Add event on')}{' '}{selectedDate.toLocaleDateString(appLocale() ?? 'en-GB', { day: 'numeric', month: 'short' })}
             <Plus className="w-5 h-5" />
           </button>
 
@@ -899,7 +902,7 @@ export default function DailyPlanner() {
             onClick={() => advanceDateRef.current?.showPicker()}
             className="w-full border-2 border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 py-3 px-6 rounded-3xl font-semibold text-[14px] flex justify-between items-center active:scale-[0.98] transition-all"
           >
-            Schedule for another day
+            {tr('Schedule for another day')}
             <CalendarIcon className="w-4 h-4" />
           </button>
 
@@ -908,7 +911,7 @@ export default function DailyPlanner() {
             disabled={loading || !userId}
             className="w-full border-2 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 py-3 px-6 rounded-3xl font-semibold text-[14px] flex justify-between items-center active:scale-[0.98] transition-all disabled:opacity-60"
           >
-            Copy a day or use a template
+            {tr('Copy a day or use a template')}
             <LayoutTemplate className="w-4 h-4" />
           </button>
         </div>
@@ -919,13 +922,13 @@ export default function DailyPlanner() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-3">
                 <Moon className="w-3.5 h-3.5 text-white/70" />
-                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Evening Reflection</span>
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">{tr('Evening Reflection')}</span>
                 <HelpTip topic="planner.reflection" tone="onDark" align="left" className="-my-1" />
               </div>
               <textarea
                 value={reflection}
                 disabled={loading}
-                placeholder="How did you finish your day?"
+                placeholder={tr('How did you finish your day?')}
                 onChange={(e) => { setReflection(e.target.value); saveDebounced({ reflection: e.target.value }) }}
                 onBlur={flushPendingSave}
                 className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[100px] disabled:opacity-60"

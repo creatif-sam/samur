@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale, trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -69,6 +71,7 @@ type ThoughtEditorProps = {
 }
 
 export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = false, onMove }: ThoughtEditorProps) {
+  const { tr } = useTranslation()
   const [title, setTitle] = useState(page.title)
   const [status, setStatus] = useState<SaveStatus>('saved')
   const [showColorPicker, setShowColorPicker] = useState(false)
@@ -158,7 +161,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
           rel: 'noopener noreferrer',
         },
       }),
-      Placeholder.configure({ placeholder: 'Start writing…' }),
+      Placeholder.configure({ placeholder: trNow('Start writing…') }),
       Image.configure({ HTMLAttributes: { class: 'rounded-xl max-w-full h-auto my-3' } }),
     ],
     content: page.content || '',
@@ -186,7 +189,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
     latestRef.current = { title: draft.title, content: draft.content }
     setTitle(draft.title)
     editor.commands.setContent(draft.content, { emitUpdate: false })
-    toast('Restored changes that hadn\'t been saved yet')
+    toast(tr('Restored changes that hadn\'t been saved yet'))
     scheduleSave()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor])
@@ -248,18 +251,18 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
     const next = !pinned
     setPinned(next)
     const { error } = await supabase.from('pages').update({ is_pinned: next }).eq('id', page.id)
-    if (error) { setPinned(!next); toast.error("Couldn't update the pin"); return }
+    if (error) { setPinned(!next); toast.error(tr('Couldn\'t update the pin')); return }
     onSavedRef.current({ id: page.id, pinned: next })
-    toast.success(next ? 'Pinned to the top' : 'Unpinned')
+    toast.success(next ? tr('Pinned to the top') : tr('Unpinned'))
   }
 
   async function toggleShare() {
     const next = !shared
     setShared(next)
     const { error } = await supabase.from('pages').update({ shared: next }).eq('id', page.id)
-    if (error) { setShared(!next); toast.error("Couldn't change sharing"); return }
+    if (error) { setShared(!next); toast.error(tr('Couldn\'t change sharing')); return }
     onSavedRef.current({ id: page.id, shared: next })
-    toast.success(next ? 'Your partner can now read this note' : 'This note is private again')
+    toast.success(next ? tr('Your partner can now read this note') : tr('This note is private again'))
   }
 
   async function handleImageFile(file: File | undefined) {
@@ -267,11 +270,11 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
     setUploading(true)
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Sign in to add photos')
+      if (!user) throw new Error(trNow('Sign in to add photos'))
       const url = await uploadNoteImage(supabase, user.id, file)
       editor.chain().focus().setImage({ src: url, alt: file.name }).createParagraphNear().run()
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't add the photo")
+      toast.error(err instanceof Error ? err.message : tr('Couldn\'t add the photo'))
     } finally {
       setUploading(false)
       if (imageInputRef.current) imageInputRef.current.value = ''
@@ -290,17 +293,17 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
       }
       return true
     })
-    if (items.length === 0) { toast('No unchecked checklist items in this note'); return }
+    if (items.length === 0) { toast(tr('No unchecked checklist items in this note')); return }
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data: existing, error: readError } = await supabase.from('planner_todos').select('text').eq('user_id', user.id)
-    if (readError) { toast.error("Couldn't reach your to-do list"); return }
+    if (readError) { toast.error(tr('Couldn\'t reach your to-do list')); return }
     const have = new Set((existing ?? []).map((t: { text: string }) => t.text.trim().toLowerCase()))
     const fresh = [...new Set(items)].filter(t => !have.has(t.toLowerCase()))
-    if (fresh.length === 0) { toast('Those items are already in your to-do list'); return }
+    if (fresh.length === 0) { toast(tr('Those items are already in your to-do list')); return }
     const { error } = await supabase.from('planner_todos').insert(fresh.map(text => ({ user_id: user.id, text })))
-    if (error) { toast.error("Couldn't add the to-dos"); return }
-    toast.success(`Added ${fresh.length} to-do${fresh.length > 1 ? 's' : ''} to your planner`)
+    if (error) { toast.error(tr('Couldn\'t add the to-dos')); return }
+    toast.success(tr('Added {freshCount} {freshCount:to-do|to-dos} to your planner', { freshCount: fresh.length }))
   }
 
   function htmlToPlainText(html: string): string {
@@ -337,64 +340,64 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
       {/* MOBILE HEADER - VIOLET THEME */}
       <header className="flex items-center justify-between px-3 h-14 bg-[#7719aa] dark:bg-[#581c87] text-white shrink-0 shadow-lg">
         <Button variant="ghost" size="sm" onClick={handleBack} className="text-white font-medium uppercase text-[11px] tracking-widest hover:bg-white/10">
-          <ChevronLeft className="w-5 h-5 mr-0.5" /> Back
+          <ChevronLeft className="w-5 h-5 mr-0.5" />{' '}{tr('Back')}
         </Button>
         <div className="flex items-center gap-3">
           <span className={cn('text-[9px] font-bold uppercase tracking-widest', status === 'error' ? 'text-red-200' : status === 'offline' ? 'text-amber-200' : 'opacity-60')}>
-            {STATUS_LABEL[status]}
+            {tr(STATUS_LABEL[status])}
           </span>
-          {pinned && <Pin className="w-3.5 h-3.5 text-white/70" aria-label="Pinned" />}
-          {shared && <Users className="w-3.5 h-3.5 text-white/70" aria-label="Shared with partner" />}
+          {pinned && <Pin className="w-3.5 h-3.5 text-white/70" aria-label={tr('Pinned')} />}
+          {shared && <Users className="w-3.5 h-3.5 text-white/70" aria-label={tr('Shared with partner')} />}
           <HelpTip topic="notes.editor" tone="onDark" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-white/10" aria-label="Note options">
+              <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-white hover:bg-white/10" aria-label={tr('Note options')}>
                 <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-2xl">
               <DropdownMenuItem onClick={togglePin} className="gap-2">
-                {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />} {pinned ? 'Unpin' : 'Pin to top'}
+                {pinned ? <PinOff className="w-4 h-4" /> : <Pin className="w-4 h-4" />} {pinned ? tr('Unpin') : tr('Pin to top')}
               </DropdownMenuItem>
               {canShare && (
                 <DropdownMenuItem onClick={toggleShare} className="gap-2">
-                  <Users className="w-4 h-4" /> {shared ? 'Stop sharing with partner' : 'Share with partner'}
+                  <Users className="w-4 h-4" /> {shared ? tr('Stop sharing with partner') : tr('Share with partner')}
                 </DropdownMenuItem>
               )}
               {onMove && (
                 <DropdownMenuItem onClick={async () => { await flushSave(); onMove() }} className="gap-2">
-                  <FolderInput className="w-4 h-4" /> Move to…
+                  <FolderInput className="w-4 h-4" />{' '}{tr('Move to…')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={sendChecklistToTodos} className="gap-2">
-                <ListTodo className="w-4 h-4" /> Checklist → planner to-dos
+                <ListTodo className="w-4 h-4" />{' '}{tr('Checklist → planner to-dos')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => exportPdf({
                   title: latestRef.current.title || 'Untitled',
-                  subtitle: new Date(page.created_at).toLocaleDateString(undefined, { dateStyle: 'long' }),
+                  subtitle: new Date(page.created_at).toLocaleDateString(appLocale(), { dateStyle: 'long' }),
                   html: editor?.getHTML() ?? latestRef.current.content,
                 })}
                 className="gap-2"
               >
-                <FileDown className="w-4 h-4" /> Export PDF
+                <FileDown className="w-4 h-4" />{' '}{tr('Export PDF')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={shareAsText} className="gap-2">
-                <Share2 className="w-4 h-4" /> Share as text
+                <Share2 className="w-4 h-4" />{' '}{tr('Share as text')}
               </DropdownMenuItem>
               {onDeletePage && (
                 <>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => setShowDeleteConfirm(true)} className="gap-2 text-red-600 focus:text-red-600">
-                    <Trash2 className="w-4 h-4" /> Delete note
+                    <Trash2 className="w-4 h-4" />{' '}{tr('Delete note')}
                   </DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>
           </DropdownMenu>
           <Button size="sm" onClick={handleBack} className="h-8 px-4 bg-white text-[#7719aa] font-bold uppercase text-[10px] rounded-full shadow-sm active:scale-95">
-            Done
+            {tr('Done')}
           </Button>
         </div>
       </header>
@@ -406,12 +409,12 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
             type="text"
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="Title"
+            placeholder={tr('Title')}
             className="w-full text-2xl font-semibold tracking-tight bg-transparent border-none focus:ring-0 focus:outline-none p-0 text-[#7719aa] dark:text-[#a78bfa] placeholder:text-slate-300 dark:placeholder:text-slate-700"
           />
           <div className="flex items-center gap-4 text-[10px] font-semibold text-slate-400 dark:text-slate-600 uppercase tracking-widest">
-            <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" /> {new Date(page.created_at).toLocaleDateString()}</span>
-            <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(page.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="flex items-center gap-1.5"><Calendar className="w-3 h-3" /> {new Date(page.created_at).toLocaleDateString(appLocale())}</span>
+            <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(page.created_at).toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
         </div>
 
@@ -438,7 +441,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
               }}
               className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-700 shadow-md active:scale-90 transition-transform"
               style={{ backgroundColor: c.value }}
-              aria-label={c.label}
+              aria-label={tr(c.label)}
             />
           ))}
           {/* Remove highlight */}
@@ -449,7 +452,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
               setShowColorPicker(false)
             }}
             className="w-8 h-8 rounded-full border-2 border-gray-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 flex items-center justify-center text-gray-400 active:scale-90 transition-transform"
-            aria-label="Remove highlight"
+            aria-label={tr('Remove highlight')}
           >
             <X size={14} />
           </button>
@@ -460,7 +463,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
       <div className="flex items-center overflow-x-auto bg-white dark:bg-zinc-900 border-t border-gray-200 dark:border-zinc-700 shrink-0 [scrollbar-width:none]" style={{ paddingBottom: keyboardOpen ? 0 : 'env(safe-area-inset-bottom)' }}>
         <DictationButton className="shrink-0 w-11 h-11" onText={text => editor.chain().focus().insertContent(`${text} `).run()} />
         <ToolbarBtn
-          label="Add photo"
+          label={tr('Add photo')}
           onClick={() => imageInputRef.current?.click()}
           disabled={uploading}
           icon={uploading ? <Loader2 size={20} className="animate-spin" /> : <ImagePlus size={20} />}
@@ -472,20 +475,20 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
           className="hidden"
           onChange={e => handleImageFile(e.target.files?.[0])}
         />
-        <ToolbarBtn label="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} icon={<Undo2 size={20} />} />
-        <ToolbarBtn label="Redo" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} icon={<Redo2 size={20} />} />
-        <ToolbarBtn label="New line" onClick={() => editor.chain().focus().insertContent('<p></p>').run()} icon={<Plus size={20} />} />
-        <ToolbarBtn label="Heading" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} icon={<Heading2 size={20} />} />
-        <ToolbarBtn label="Checklist" onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} icon={<CheckSquare size={20} />} />
-        <ToolbarBtn label="Bullet list" onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} icon={<List size={20} />} />
-        <ToolbarBtn label="Numbered list" onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} icon={<ListOrdered size={20} />} />
-        <ToolbarBtn label="Quote" onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} icon={<Quote size={20} />} />
-        <ToolbarBtn label="Strikethrough" onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} icon={<Strikethrough size={20} />} />
-        <ToolbarBtn label="Bold" onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} icon={<Bold size={20} strokeWidth={2.5} />} />
-        <ToolbarBtn label="Italic" onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} icon={<Italic size={20} />} />
-        <ToolbarBtn label="Underline" onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} icon={<UnderlineIcon size={20} />} />
+        <ToolbarBtn label={tr('Undo')} onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()} icon={<Undo2 size={20} />} />
+        <ToolbarBtn label={tr('Redo')} onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()} icon={<Redo2 size={20} />} />
+        <ToolbarBtn label={tr('New line')} onClick={() => editor.chain().focus().insertContent('<p></p>').run()} icon={<Plus size={20} />} />
+        <ToolbarBtn label={tr('Heading')} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} icon={<Heading2 size={20} />} />
+        <ToolbarBtn label={tr('Checklist')} onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive('taskList')} icon={<CheckSquare size={20} />} />
+        <ToolbarBtn label={tr('Bullet list')} onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} icon={<List size={20} />} />
+        <ToolbarBtn label={tr('Numbered list')} onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} icon={<ListOrdered size={20} />} />
+        <ToolbarBtn label={tr('Quote')} onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')} icon={<Quote size={20} />} />
+        <ToolbarBtn label={tr('Strikethrough')} onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive('strike')} icon={<Strikethrough size={20} />} />
+        <ToolbarBtn label={tr('Bold')} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} icon={<Bold size={20} strokeWidth={2.5} />} />
+        <ToolbarBtn label={tr('Italic')} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} icon={<Italic size={20} />} />
+        <ToolbarBtn label={tr('Underline')} onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} icon={<UnderlineIcon size={20} />} />
         <ToolbarBtn
-          label="Highlight"
+          label={tr('Highlight')}
           onClick={() => setShowColorPicker(v => !v)}
           active={showColorPicker || editor.isActive('highlight')}
           icon={<Highlighter size={20} />}
@@ -500,20 +503,20 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
               <div className="w-10 h-1 rounded-full bg-gray-300 dark:bg-zinc-700" />
             </div>
             <div className="px-5 pt-3 pb-8 space-y-4">
-              <h3 className="font-bold text-base text-center text-foreground">Delete this page?</h3>
-              <p className="text-sm text-center text-muted-foreground">&quot;{title || 'Untitled'}&quot; will be deleted. You can undo for a few seconds.</p>
+              <h3 className="font-bold text-base text-center text-foreground">{tr('Delete this page?')}</h3>
+              <p className="text-sm text-center text-muted-foreground">{tr('"{value}" will be deleted. You can undo for a few seconds.', { value: title || tr('Untitled') })}</p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
                   className="flex-1 h-12 rounded-2xl border border-border bg-muted text-sm font-semibold text-foreground"
                 >
-                  Cancel
+                  {tr('Cancel')}
                 </button>
                 <button
                   onClick={handleDelete}
                   className="flex-1 h-12 rounded-2xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold"
                 >
-                  Delete
+                  {tr('Delete')}
                 </button>
               </div>
             </div>
@@ -531,7 +534,7 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
             </div>
             <div className="px-5 pt-3 pb-4">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-base text-foreground">{title || 'Untitled'}</h3>
+                <h3 className="font-bold text-base text-foreground">{title || tr('Untitled')}</h3>
                 <button
                   onClick={() => setShowShareModal(false)}
                   className="w-7 h-7 rounded-full bg-muted flex items-center justify-center"
@@ -540,19 +543,19 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
                 </button>
               </div>
               <pre className="text-sm whitespace-pre-wrap bg-slate-50 dark:bg-zinc-800 rounded-2xl p-4 max-h-44 overflow-y-auto text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
-                {shareText || '(empty note)'}
+                {shareText || tr('(empty note)')}
               </pre>
             </div>
             <div className="flex gap-3 px-5 pb-8">
               <button
                 onClick={async () => {
                   await navigator.clipboard.writeText(`${title}\n\n${shareText}`)
-                  toast.success('Copied to clipboard')
+                  toast.success(tr('Copied to clipboard'))
                   setShowShareModal(false)
                 }}
                 className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl border border-border bg-muted text-sm font-semibold text-foreground"
               >
-                <Copy className="w-4 h-4" /> Copy
+                <Copy className="w-4 h-4" />{' '}{tr('Copy')}
               </button>
               <button
                 onClick={async () => {
@@ -563,13 +566,13 @@ export function ThoughtEditor({ page, onBack, onSaved, onDeletePage, canShare = 
                     } catch { /* dismissed */ }
                   } else {
                     await navigator.clipboard.writeText(`${title}\n\n${shareText}`)
-                    toast.success('Copied to clipboard')
+                    toast.success(tr('Copied to clipboard'))
                     setShowShareModal(false)
                   }
                 }}
                 className="flex-1 flex items-center justify-center gap-2 h-12 rounded-2xl bg-[#7719aa] hover:bg-[#6a1799] text-white text-sm font-semibold"
               >
-                <Share2 className="w-4 h-4" /> Share
+                <Share2 className="w-4 h-4" />{' '}{tr('Share')}
               </button>
             </div>
           </div>
@@ -588,10 +591,11 @@ type ToolbarBtnProps = {
 }
 
 function ToolbarBtn({ label, onClick, active = false, icon, disabled }: ToolbarBtnProps) {
+  const { tr } = useTranslation()
   return (
     <button
-      aria-label={label}
-      title={label}
+      aria-label={tr(label)}
+      title={tr(label)}
       onMouseDown={e => { e.preventDefault(); if (!disabled) onClick() }}
       disabled={disabled}
       className={cn(

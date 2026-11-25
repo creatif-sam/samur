@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Flame } from 'lucide-react'
 import { HelpTip } from '@/components/ui/help-tip'
 import { cn } from '@/lib/utils'
@@ -8,6 +10,7 @@ import { parseDateKey } from '@/lib/dates'
 
 // This week at a glance: hours, how it compares with last week, and a bar for each day
 export default function CreateHero({ stats }: { stats: WeekStats }) {
+  const { tr } = useTranslation()
   const diff = Number((stats.hours - stats.prevHours).toFixed(2))
   const max = Math.max(1, ...stats.days.map(d => d.hours))
 
@@ -18,13 +21,13 @@ export default function CreateHero({ stats }: { stats: WeekStats }) {
       <div className="relative">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">
-            This week
+            {tr('This week')}
             <HelpTip topic="reading.create" tone="onDark" align="left" className="-my-1.5" />
           </span>
           {stats.streak > 0 && (
             <span className="flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-black">
               <Flame className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
-              {stats.streak} day{stats.streak === 1 ? '' : 's'}
+              {stats.streak}{' '}{tr('day')}{stats.streak === 1 ? '' : 's'}
             </span>
           )}
         </div>
@@ -32,14 +35,12 @@ export default function CreateHero({ stats }: { stats: WeekStats }) {
         <p className="mt-2 whitespace-nowrap font-serif text-5xl font-bold leading-none tracking-tight">{stats.hours > 0 ? formatDuration(stats.hours) : '0h'}</p>
         {stats.hours > 0 || stats.prevHours > 0 ? (
           <p className={cn('mt-2 text-xs font-bold', diff >= 0 ? 'text-emerald-300' : 'text-amber-300')}>
-            {diff === 0 ? 'Same as last week so far' : `${diff > 0 ? '▲' : '▼'} ${formatDuration(Math.abs(diff))} ${diff > 0 ? 'more' : 'less'} than this point last week`}
+            {diff === 0 ? tr('Same as last week so far') : tr('{value} {value2} {value3} than this point last week', { value: diff > 0 ? '▲' : '▼', value2: formatDuration(Math.abs(diff)), value3: diff > 0 ? tr('more') : tr('less') })}
           </p>
         ) : null}
 
         <p className="mt-1.5 text-xs text-white/75">
-          {stats.sessions === 0
-            ? 'No sessions yet this week. Start one below.'
-            : `${stats.sessions} session${stats.sessions === 1 ? '' : 's'}${stats.focusedPct !== null ? ` · ${stats.focusedPct}% focused` : ''}`}
+          {stats.sessions === 0 ? tr('No sessions yet this week. Start one below.') : tr('{sessions} {sessions:session|sessions}{value2}', { sessions: stats.sessions, value2: stats.focusedPct !== null ? tr(' · {focusedPct}% focused', { focusedPct: stats.focusedPct }) : '' })}
         </p>
 
         <div className="mt-5 grid grid-cols-7 gap-1.5">
@@ -53,7 +54,7 @@ export default function CreateHero({ stats }: { stats: WeekStats }) {
                 />
               </div>
               <span className={cn('text-[10px] font-bold', d.today ? 'text-white' : 'text-white/55')}>
-                {parseDateKey(d.day).toLocaleDateString('en-US', { weekday: 'narrow' })}
+                {parseDateKey(d.day).toLocaleDateString(appLocale() ?? 'en-US', { weekday: 'narrow' })}
               </span>
             </div>
           ))}

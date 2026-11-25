@@ -1,13 +1,14 @@
 'use client'
 
+import { trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { BookOpen, Check } from 'lucide-react'
 import { diaryPreview, extractPoints } from '@/lib/prayer/points'
 
 function daysAgo(iso: string) {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
-  if (days === 0) return 'today'
-  if (days === 1) return '1 day ago'
-  return `${days} days ago`
+  if (days === 0) return trNow('today')
+  return trNow('{days} {days:day|days} ago', { days })
 }
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
 
 // A Prayer Diary entry: tap the top to open the note, tick its prayer points below
 export default function DiaryEntryCard({ page, sectionTitle, onOpen, onToggle }: Props) {
+  const { tr } = useTranslation()
   const points = extractPoints(page.content ?? '')
   const done = points.filter(p => p.checked).length
   const preview = diaryPreview(page.content ?? '')
@@ -31,14 +33,14 @@ export default function DiaryEntryCard({ page, sectionTitle, onOpen, onToggle }:
             <BookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate">{page.title}</p>
+            <p className="text-sm font-semibold truncate">{tr(page.title)}</p>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
               {sectionTitle && (
                 <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400">{sectionTitle}</span>
               )}
               {points.length > 0 && (
                 <span className={`text-[10px] font-bold ${done === points.length ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
-                  {done} of {points.length} prayed
+                  {tr('{done} of {pointsCount} prayed', { done: done, pointsCount: points.length })}
                 </span>
               )}
             </div>

@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -37,6 +39,7 @@ interface VisionCreatorProps {
 }
 
 export function VisionCreator({ onCreated, initialData, open, onOpenChange, hideTrigger }: VisionCreatorProps) {
+  const { tr } = useTranslation()
   const supabase = createClient()
 
   const [internalOpen, setInternalOpen] = useState(false)
@@ -93,7 +96,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
     }
 
     if (error) {
-      toast.error("Couldn't save the vision. Check your connection and try again.")
+      toast.error(tr('Couldn\'t save the vision. Check your connection and try again.'))
     } else {
       // The first goal, with the due date the user saw on the chip
       const goalTitle = firstGoal.trim()
@@ -114,8 +117,8 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           goalNote = goalError ? 'failed' : 'ok'
         }
       }
-      if (goalNote === 'failed') toast.warning("Vision saved, but the first goal couldn't be added. Add it from the vision card.")
-      else toast.success(initialData ? 'Vision updated' : goalNote === 'ok' ? 'Vision cast, with its first goal 🔭' : 'Vision cast 🔭')
+      if (goalNote === 'failed') toast.warning(tr('Vision saved, but the first goal couldn\'t be added. Add it from the vision card.'))
+      else toast.success(initialData ? tr('Vision updated') : goalNote === 'ok' ? tr('Vision cast, with its first goal 🔭') : tr('Vision cast 🔭'))
       setIsOpen(false)
       if (!initialData) {
         setNewVision({ title: '', description: '', color: COLORS[0], emoji: EMOJIS[0], target_date: '' })
@@ -139,7 +142,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
             className="gap-2 bg-violet-600 hover:bg-violet-700 text-white active:scale-95 transition-transform font-bold"
           >
             <Eye className="w-4 h-4" />
-            Cast New Vision
+            {tr('Cast New Vision')}
           </Button>
         </DialogTrigger>
       )}
@@ -155,13 +158,13 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           </div>
           <DialogHeader className="text-left relative">
             <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">
-              {isEditing ? 'Refine the North Star' : 'Define the North Star'}
+              {isEditing ? tr('Refine the North Star') : tr('Define the North Star')}
             </p>
             <DialogTitle className="text-2xl font-black uppercase italic tracking-tighter text-white leading-tight">
-              {newVision.title || (isEditing ? 'Edit Vision' : 'New Vision')}
+              {newVision.title || (isEditing ? tr('Edit Vision') : tr('New Vision'))}
             </DialogTitle>
             <DialogDescription className="sr-only">
-              {isEditing ? 'Update your vision details' : 'Create a new long-term vision'}
+              {isEditing ? tr('Update your vision details') : tr('Create a new long-term vision')}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -171,18 +174,18 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           {/* What a vision is: new visions only */}
           {!isEditing && (
             <div className="rounded-2xl bg-muted/60 px-3.5 py-3 text-[12px] leading-relaxed">
-              <p className="font-bold text-foreground">A vision is the bigger picture your goals serve.</p>
-              <p className="text-muted-foreground">Describe it as if it is already true, then give it a first goal so it has a path.</p>
+              <p className="font-bold text-foreground">{tr('A vision is the bigger picture your goals serve.')}</p>
+              <p className="text-muted-foreground">{tr('Describe it as if it is already true, then give it a first goal so it has a path.')}</p>
             </div>
           )}
 
           {/* Title */}
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Name your vision <span className="text-rose-500">*</span>
+              {tr('Name your vision')}{' '}<span className="text-rose-500">*</span>
             </Label>
             <Input
-              placeholder="e.g. Financial Freedom"
+              placeholder={tr('e.g. Financial Freedom')}
               value={newVision.title}
               onChange={e => setNewVision({ ...newVision, title: e.target.value })}
               className="bg-muted/50 border-0 focus-visible:ring-primary font-bold h-11"
@@ -192,7 +195,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           {/* Target Date */}
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Target date <span className="font-medium normal-case tracking-normal">(optional)</span>
+              {tr('Target date')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span>
             </Label>
             <Input
               type="date"
@@ -223,7 +226,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
                   )}
                   style={newVision.target_date === p.value ? { backgroundColor: newVision.color } : undefined}
                 >
-                  {p.label}
+                  {tr(p.label)}
                 </button>
               ))}
             </div>
@@ -232,25 +235,25 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           {/* Description */}
           <div className="space-y-1.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Describe it as if it is already true
+              {tr('Describe it as if it is already true')}
             </Label>
             <Textarea
-              placeholder="I am… My days look like… This matters to me because…"
+              placeholder={tr('I am… My days look like… This matters to me because…')}
               value={newVision.description}
               onChange={e => setNewVision({ ...newVision, description: e.target.value })}
               className="bg-muted/50 border-0 focus-visible:ring-primary resize-none min-h-[104px] text-sm"
             />
-            <p className="text-[11px] text-muted-foreground">Who are you becoming, what has changed, and why does it matter?</p>
+            <p className="text-[11px] text-muted-foreground">{tr('Who are you becoming, what has changed, and why does it matter?')}</p>
           </div>
 
           {/* First goal: new visions only */}
           {!isEditing && (
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                First goal toward it <span className="font-medium normal-case tracking-normal">(optional)</span>
+                {tr('First goal toward it')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span>
               </Label>
               <Input
-                placeholder="e.g. Save one month of expenses"
+                placeholder={tr('e.g. Save one month of expenses')}
                 value={firstGoal}
                 onChange={e => setFirstGoal(e.target.value)}
                 className="bg-muted/50 border-0 focus-visible:ring-primary h-11"
@@ -269,7 +272,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
                         )}
                         style={horizon === d ? { backgroundColor: newVision.color } : undefined}
                       >
-                        {d} days
+                        {tr('{d} days', { d: d })}
                       </button>
                     ))}
                   </div>
@@ -278,14 +281,13 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
                     const due = firstGoalDue(horizon, today, newVision.target_date)
                     return (
                       <p className="text-[11px] font-semibold text-muted-foreground">
-                        Due {parseDateKey(due).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        {due !== addDays(today, horizon) ? ', the date your vision is due' : ''}
+                        {tr('Due {value}{value2}', { value: parseDateKey(due).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric', year: 'numeric' }), value2: due !== addDays(today, horizon) ? tr(', the date your vision is due') : '' })}
                       </p>
                     )
                   })()}
                 </div>
               ) : (
-                <p className="text-[11px] text-muted-foreground">A vision with no goals stays a wish. One small goal gives it a path.</p>
+                <p className="text-[11px] text-muted-foreground">{tr('A vision with no goals stays a wish. One small goal gives it a path.')}</p>
               )}
             </div>
           )}
@@ -296,13 +298,13 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
             aria-expanded={showLook}
             className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
           >
-            Customize color and icon <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showLook && 'rotate-180')} />
+            {tr('Customize color and icon')}{' '}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showLook && 'rotate-180')} />
           </button>
 
           {/* Color */}
           {showLook && <div className="space-y-2.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Identity Color
+              {tr('Identity Color')}
             </Label>
             <div className="flex gap-2.5 flex-wrap">
               {COLORS.map(c => (
@@ -325,7 +327,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
           {/* Icon */}
           {showLook && <div className="space-y-2.5">
             <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-              Icon
+              {tr('Icon')}
             </Label>
             <div className="grid grid-cols-6 gap-2">
               {EMOJIS.map(e => (
@@ -356,9 +358,7 @@ export function VisionCreator({ onCreated, initialData, open, onOpenChange, hide
             className="w-full h-13 font-black uppercase tracking-widest text-sm"
             style={{ backgroundColor: newVision.color, color: '#fff' }}
           >
-            {isCreating
-              ? <Loader2 className="w-5 h-5 animate-spin" />
-              : isEditing ? '👁 Update Vision' : '👁 Cast This Vision'}
+            {isCreating ? <Loader2 className="w-5 h-5 animate-spin" /> : isEditing ? tr('👁 Update Vision') : tr('👁 Cast This Vision')}
           </Button>
         </div>
       </DialogContent>

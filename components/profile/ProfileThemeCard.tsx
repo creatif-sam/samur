@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useState } from 'react'
 import { Crown, Pencil, Save, Sparkles, X } from 'lucide-react'
@@ -47,6 +49,7 @@ const chipCls = (on: boolean) => cn(
 )
 
 export function ProfileThemeCard({ themes, saving, onSave }: Props) {
+  const { tr } = useTranslation()
   const { yearTheme, yearScripture } = themes
   // A month theme from an earlier month no longer shows
   const month = currentMonthTheme(themes)
@@ -57,7 +60,7 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
   const todayKey = toLocalDateKey(new Date())
   const thisYear = Number(todayKey.slice(0, 4))
   const span = themeSpan(themes.themeYear, themes.themeStart, todayKey)
-  const monthName = new Date().toLocaleDateString(undefined, { month: 'long' })
+  const monthName = new Date().toLocaleDateString(appLocale(), { month: 'long' })
   const hasAny = !!(yearTheme || themes.monthTheme)
 
   // Draft year and start, with the defaults filled in so the editor always shows real values
@@ -97,17 +100,17 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
             <span className="grid h-8 w-8 place-items-center rounded-xl bg-amber-100 dark:bg-amber-500/15">
               <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
             </span>
-            <h2 className="text-base font-black">Your themes</h2>
+            <h2 className="text-base font-black">{tr('Your themes')}</h2>
           </div>
-          <button onClick={() => setEditing(false)} aria-label="Cancel" className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted">
+          <button onClick={() => setEditing(false)} aria-label={tr('Cancel')} className="grid h-8 w-8 place-items-center rounded-full hover:bg-muted">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="space-y-3">
-          <p className="text-xs font-black text-amber-600 dark:text-amber-400">Theme of the year</p>
+          <p className="text-xs font-black text-amber-600 dark:text-amber-400">{tr('Theme of the year')}</p>
           <div>
-            <p className={labelCls}>For the year</p>
+            <p className={labelCls}>{tr('For the year')}</p>
             <div className="flex flex-wrap gap-1.5">
               {yearOptions.map(y => (
                 <button key={y} type="button" onClick={() => setDraftYear(y)} className={chipCls(draftYear === y)}>{y}</button>
@@ -115,22 +118,22 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
             </div>
           </div>
           <div>
-            <p className={labelCls}>Theme</p>
-            <input value={draft.yearTheme} onChange={e => setDraft(d => ({ ...d, yearTheme: e.target.value }))} placeholder="e.g. Year of Excellence" className={inputCls} maxLength={80} />
+            <p className={labelCls}>{tr('Theme')}</p>
+            <input value={draft.yearTheme} onChange={e => setDraft(d => ({ ...d, yearTheme: e.target.value }))} placeholder={tr('e.g. Year of Excellence')} className={inputCls} maxLength={80} />
           </div>
           <div>
-            <p className={labelCls}>Scripture</p>
-            <Textarea value={draft.yearScripture} onChange={e => setDraft(d => ({ ...d, yearScripture: e.target.value }))} placeholder="Isaiah 43:19 — Behold, I am doing a new thing" className="text-sm resize-none rounded-xl" rows={2} />
+            <p className={labelCls}>{tr('Scripture')}</p>
+            <Textarea value={draft.yearScripture} onChange={e => setDraft(d => ({ ...d, yearScripture: e.target.value }))} placeholder={tr('Isaiah 43:19 — Behold, I am doing a new thing')} className="text-sm resize-none rounded-xl" rows={2} />
           </div>
           <div>
-            <p className={labelCls}>Walking in it since</p>
+            <p className={labelCls}>{tr('Walking in it since')}</p>
             <div className="mb-2 flex flex-wrap gap-1.5">
               <button type="button" onClick={() => setDraft(d => ({ ...d, themeStart: null }))} className={chipCls(draftStart === `${draftYear}-01-01`)}>
-                Jan 1, {draftYear}
+                {tr('Jan 1, {draftYear}', { draftYear: draftYear })}
               </button>
               {todayKey <= `${draftYear}-12-31` && todayKey !== `${draftYear}-01-01` && (
                 <button type="button" onClick={() => setDraft(d => ({ ...d, themeStart: todayKey }))} className={chipCls(draftStart === todayKey)}>
-                  Today
+                  {tr('Today')}
                 </button>
               )}
             </div>
@@ -142,27 +145,27 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
               className={inputCls}
             />
             <p className={cn('mt-1.5 text-[11px]', startProblem ? 'text-destructive font-semibold' : 'text-muted-foreground')}>
-              {startProblem ?? 'When the Spirit gives it early, start before January. The theme runs to Dec 31.'}
+              {startProblem ?? tr('When the Spirit gives it early, start before January. The theme runs to Dec 31.')}
             </p>
           </div>
 
           <div className="h-px bg-border/60 my-2" />
 
-          <p className="text-xs font-black text-cyan-600 dark:text-cyan-400">Theme of {monthName}</p>
+          <p className="text-xs font-black text-cyan-600 dark:text-cyan-400">{tr('Theme of {monthName}', { monthName: monthName })}</p>
           <div>
-            <p className={labelCls}>Theme</p>
-            <input value={draft.monthTheme} onChange={e => setDraft(d => ({ ...d, monthTheme: e.target.value }))} placeholder="e.g. Month of Deep Prayer" className={inputCls} maxLength={80} />
+            <p className={labelCls}>{tr('Theme')}</p>
+            <input value={draft.monthTheme} onChange={e => setDraft(d => ({ ...d, monthTheme: e.target.value }))} placeholder={tr('e.g. Month of Deep Prayer')} className={inputCls} maxLength={80} />
           </div>
           <div>
-            <p className={labelCls}>Scripture</p>
-            <Textarea value={draft.monthScripture} onChange={e => setDraft(d => ({ ...d, monthScripture: e.target.value }))} placeholder="Philippians 4:13 — I can do all things through Christ" className="text-sm resize-none rounded-xl" rows={2} />
+            <p className={labelCls}>{tr('Scripture')}</p>
+            <Textarea value={draft.monthScripture} onChange={e => setDraft(d => ({ ...d, monthScripture: e.target.value }))} placeholder={tr('Philippians 4:13 — I can do all things through Christ')} className="text-sm resize-none rounded-xl" rows={2} />
           </div>
-          <p className="text-[11px] text-muted-foreground">Write the reference, a dash, then the words, and they&apos;ll be laid out nicely.</p>
+          <p className="text-[11px] text-muted-foreground">{tr('Write the reference, a dash, then the words, and they\'ll be laid out nicely.')}</p>
 
           <div className="flex gap-2 pt-1">
-            <Button variant="outline" className="flex-1 h-10" onClick={() => setEditing(false)} disabled={saving}>Cancel</Button>
+            <Button variant="outline" className="flex-1 h-10" onClick={() => setEditing(false)} disabled={saving}>{tr('Cancel')}</Button>
             <Button className="flex-1 h-10 gap-1.5 bg-violet-600 hover:bg-violet-700" onClick={save} disabled={saving || !!startProblem}>
-              <Save className="h-3.5 w-3.5" /> {saving ? 'Saving…' : 'Save themes'}
+              <Save className="h-3.5 w-3.5" /> {saving ? tr('Saving…') : tr('Save themes')}
             </Button>
           </div>
         </div>
@@ -180,8 +183,8 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
           <Crown className="h-6 w-6 text-white" />
         </span>
         <span>
-          <span className="block text-base font-black">Declare your theme for the year</span>
-          <span className="block text-xs text-muted-foreground mt-0.5">A word and a scripture to carry you. Start whenever it&apos;s given, even before January.</span>
+          <span className="block text-base font-black">{tr('Declare your theme for the year')}</span>
+          <span className="block text-xs text-muted-foreground mt-0.5">{tr('A word and a scripture to carry you. Start whenever it\'s given, even before January.')}</span>
         </span>
       </button>
     )
@@ -197,10 +200,10 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
         <div className="relative">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/90">
-              <Crown className="h-3.5 w-3.5 text-amber-300" /> Theme of {span.year}
+              <Crown className="h-3.5 w-3.5 text-amber-300" />{' '}{tr('Theme of')}{' '}{span.year}
               <HelpTip topic="profile.themes" tone="onDark" align="left" className="-my-1.5" />
             </span>
-            <button onClick={startEdit} aria-label="Edit themes" className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-90 transition">
+            <button onClick={startEdit} aria-label={tr('Edit themes')} className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10 hover:bg-white/20 active:scale-90 transition">
               <Pencil className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -212,13 +215,13 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
             </>
           ) : (
             <button onClick={startEdit} className="mt-3 text-left text-lg font-bold text-white/70 underline decoration-dashed underline-offset-4">
-              Set your theme for the year
+              {tr('Set your theme for the year')}
             </button>
           )}
 
           {yearTheme && span.earlyStart && span.status === 'active' && (
             <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-amber-300/15 px-3 py-1 text-[11px] font-bold text-amber-200">
-              <Sparkles className="h-3 w-3" /> Given early · since {formatThemeDate(span.start)}
+              <Sparkles className="h-3 w-3" />{' '}{tr('Given early · since')}{' '}{formatThemeDate(span.start)}
             </p>
           )}
 
@@ -227,17 +230,17 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
             <div className="mt-4">
               {span.status === 'upcoming' ? (
                 <p className="text-xs font-semibold text-white/75">
-                  Begins {formatThemeDate(span.start)} · in {span.daysUntil} day{span.daysUntil === 1 ? '' : 's'}
+                  {tr('Begins {value} · in {daysUntil} {daysUntil:day|days}', { value: formatThemeDate(span.start), daysUntil: span.daysUntil })}
                 </p>
               ) : span.status === 'ended' ? (
                 <button onClick={startEdit} className="text-left text-xs font-semibold text-white/80">
-                  Completed on {formatThemeDate(span.end)}. <span className="underline underline-offset-2">Set your next theme</span>
+                  {tr('Completed on')}{' '}{formatThemeDate(span.end)}. <span className="underline underline-offset-2">{tr('Set your next theme')}</span>
                 </button>
               ) : (
                 <>
                   <div className="mb-1.5 flex justify-between text-[10px] font-bold uppercase tracking-wider text-white/60">
-                    <span>Day {span.day} of {span.totalDays}</span>
-                    <span>{span.daysLeft} days left</span>
+                    <span>{tr('Day {day} of {totalDays}', { day: span.day, totalDays: span.totalDays })}</span>
+                    <span>{tr('{daysLeft} days left', { daysLeft: span.daysLeft })}</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/15">
                     <div className="h-full rounded-full bg-gradient-to-r from-amber-200 to-amber-400" style={{ width: `${span.pct}%` }} />
@@ -252,7 +255,7 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
       {/* Month */}
       <div className="relative bg-gradient-to-br from-[#0e7490] to-[#0f766e] px-6 py-5 text-white">
         <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-100/90">
-          <Sparkles className="h-3.5 w-3.5 text-cyan-200" /> Theme of {monthName}
+          <Sparkles className="h-3.5 w-3.5 text-cyan-200" />{' '}{tr('Theme of')}{' '}{monthName}
         </span>
         {monthTheme ? (
           <>
@@ -262,9 +265,9 @@ export function ProfileThemeCard({ themes, saving, onSave }: Props) {
         ) : (
           <>
             <button onClick={startEdit} className="mt-2 block text-left text-sm font-bold text-white/85 underline decoration-dashed underline-offset-4">
-              Set a theme for {monthName}
+              {tr('Set a theme for {monthName}', { monthName: monthName })}
             </button>
-            {month.previous && <p className="mt-1.5 text-[11px] text-white/60">Last month: {month.previous}</p>}
+            {month.previous && <p className="mt-1.5 text-[11px] text-white/60">{tr('Last month: {previous}', { previous: month.previous })}</p>}
           </>
         )}
       </div>

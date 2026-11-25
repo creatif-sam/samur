@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import React, { useState, useMemo } from 'react'
 import { 
@@ -19,6 +20,7 @@ interface DashboardProps {
 }
 
 export default function VisionProgressDashboard({ allTasks, visionsMap }: DashboardProps) {
+  const { tr } = useTranslation()
   const [period, setPeriod] = useState<Period>('week')
 
   const stats = useMemo(() => {
@@ -59,10 +61,10 @@ export default function VisionProgressDashboard({ allTasks, visionsMap }: Dashbo
           </div>
           <div>
             <div className="flex items-center gap-0.5">
-              <h3 className="text-base font-black text-foreground tracking-tight">Vision Time</h3>
+              <h3 className="text-base font-black text-foreground tracking-tight">{tr('Vision Time')}</h3>
               <HelpTip topic="analytics.visionTime" align="left" className="-my-1" />
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Time spent per vision</p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{tr('Time spent per vision')}</p>
           </div>
         </div>
 
@@ -111,7 +113,7 @@ export default function VisionProgressDashboard({ allTasks, visionsMap }: Dashbo
 
       {/* Detail Grid */}
       {stats.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">No vision time logged yet.</p>
+        <p className="text-sm text-muted-foreground text-center py-4">{tr('No vision time logged yet.')}</p>
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {stats.map((item) => (
@@ -120,11 +122,11 @@ export default function VisionProgressDashboard({ allTasks, visionsMap }: Dashbo
                 <span className="text-xl">{Object.values(visionsMap).find(v => v.title === item.name)?.emoji}</span>
                 <p className="text-base font-black text-violet-500">{item.hours}h</p>
               </div>
-              <h4 className="text-xs font-bold text-foreground truncate mb-2">{item.name}</h4>
+              <h4 className="text-xs font-bold text-foreground truncate mb-2">{tr(item.name)}</h4>
               <div className="w-full bg-muted h-1 rounded-full overflow-hidden">
                 <div className="bg-violet-500 h-full" style={{ width: `${Math.min((item.hours / 20) * 100, 100)}%` }} />
               </div>
-              <p className="text-[10px] font-bold text-muted-foreground mt-1.5">{item.sessions} sessions</p>
+              <p className="text-[10px] font-bold text-muted-foreground mt-1.5">{tr('{sessions} sessions', { sessions: item.sessions })}</p>
             </div>
           ))}
         </div>

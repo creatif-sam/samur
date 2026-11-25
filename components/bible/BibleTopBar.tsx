@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import type { Dispatch, SetStateAction } from 'react'
 import {
@@ -34,6 +35,7 @@ export function BibleTopBar({
   fontSize, fontSizeNext, setFontSize,
   router,
 }: Props) {
+  const { tr } = useTranslation()
   return (
     <header className="sticky top-0 z-30 bg-background/85 backdrop-blur-xl border-b border-border/60 px-3 h-14 flex items-center gap-2">
       <button
@@ -44,7 +46,7 @@ export function BibleTopBar({
           else if (view === 'compare') setView('read')
           else router.back()
         }}
-        aria-label="Back"
+        aria-label={tr('Back')}
         className="h-9 w-9 grid place-items-center rounded-full hover:bg-muted active:scale-90 transition shrink-0"
       >
         <ChevronLeft className="w-5 h-5" />
@@ -53,9 +55,9 @@ export function BibleTopBar({
       <div className="flex-1 min-w-0">
         {view === 'books' && (
           <div className="leading-tight">
-            <h1 className="text-lg font-black tracking-tight">{isFrench(translation) ? 'Sainte Bible' : 'Holy Bible'}</h1>
+            <h1 className="text-lg font-black tracking-tight">{isFrench(translation) ? tr('Sainte Bible') : tr('Holy Bible')}</h1>
             <p className="text-[11px] font-semibold text-muted-foreground truncate">
-              {TRANSLATIONS.find(t => t.id === translation)?.name ?? 'King James Version'}
+              {TRANSLATIONS.find(t => t.id === translation)?.name ?? tr('King James Version')}
             </p>
           </div>
         )}
@@ -70,16 +72,16 @@ export function BibleTopBar({
             <span className="text-violet-500">{selectedChapter}</span>
           </p>
         )}
-        {view === 'versions' && <p className="text-base font-bold">Versions</p>}
-        {view === 'compare' && <p className="text-base font-bold">Compare Versions</p>}
-        {view === 'saved' && <p className="text-base font-black uppercase tracking-tight">Saved Verses</p>}
-        {view === 'plans' && <p className="text-base font-black uppercase tracking-tight">Reading Plans</p>}
+        {view === 'versions' && <p className="text-base font-bold">{tr('Versions')}</p>}
+        {view === 'compare' && <p className="text-base font-bold">{tr('Compare Versions')}</p>}
+        {view === 'saved' && <p className="text-base font-black uppercase tracking-tight">{tr('Saved Verses')}</p>}
+        {view === 'plans' && <p className="text-base font-black uppercase tracking-tight">{tr('Reading Plans')}</p>}
         {view === 'search' && (
           <input
             autoFocus
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Passage (John 3:16) or words"
+            placeholder={tr('Passage (John 3:16) or words')}
             className="w-full bg-transparent text-sm font-medium focus:outline-none placeholder:text-muted-foreground"
           />
         )}
@@ -94,7 +96,7 @@ export function BibleTopBar({
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-100 dark:bg-violet-900/40 text-violet-600 dark:text-violet-400 text-xs font-black transition"
           >
             <X className="w-3.5 h-3.5" />
-            Clear
+            {tr('Clear')}
           </button>
         )}
 
@@ -103,7 +105,7 @@ export function BibleTopBar({
             {view === 'read' && selectedVerses.size === 0 && (
               <button
                 onClick={() => setFontSize(fontSizeNext[fontSize])}
-                title={`Font: ${fontSize.toUpperCase()}`}
+                title={tr('Font: {toUpperCase}', { toUpperCase: fontSize.toUpperCase() })}
                 className="p-1.5 rounded-xl hover:bg-muted transition relative"
               >
                 <Type className="w-5 h-5 text-muted-foreground" />

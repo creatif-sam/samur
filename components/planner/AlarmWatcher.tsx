@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AlarmClock, BellOff, Check, TimerReset } from 'lucide-react'
 import { toast } from 'sonner'
@@ -57,6 +58,7 @@ function timeOn(day: string, minutes: number) {
 }
 
 export default function AlarmWatcher() {
+  const { tr } = useTranslation()
   const [supabase] = useState(createClient)
   const [ringing, setRinging] = useState<Ringing | null>(null)
   const alarmsRef = useRef<Alarm[]>([])
@@ -193,7 +195,7 @@ export default function AlarmWatcher() {
     if (!ringing) return
     updateRecord(ringing.day, ringing.taskId, { snoozeUntil: Date.now() + SNOOZE_MS })
     closeRinging()
-    toast('Snoozed for 5 minutes', { description: 'Keep Mastery open to hear it ring again.' })
+    toast(tr('Snoozed for 5 minutes'), { description: tr('Keep Mastery open to hear it ring again.') })
   }
 
   async function markDone() {
@@ -212,37 +214,37 @@ export default function AlarmWatcher() {
       .eq('user_id', uid)
       .eq('day', day)
       .maybeSingle()
-    if (error) { toast.error("Couldn't mark it done"); return }
+    if (error) { toast.error(tr('Couldn\'t mark it done')); return }
     const ids: string[] = row?.completed_task_ids ?? []
     if (ids.includes(taskId)) return
     const { error: saveError } = row
       ? await supabase.from('planner_days').update({ completed_task_ids: [...ids, taskId] }).eq('user_id', uid).eq('day', day)
       : await supabase.from('planner_days').insert({ user_id: uid, day, tasks: [], completed_task_ids: [taskId], visibility: 'private' })
-    if (saveError) toast.error("Couldn't mark it done")
-    else toast.success('Marked as done')
+    if (saveError) toast.error(tr('Couldn\'t mark it done'))
+    else toast.success(tr('Marked as done'))
   }
 
   if (!ringing) return null
 
   return (
-    <div role="alertdialog" aria-modal="true" aria-label="Planner alarm" className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-6">
+    <div role="alertdialog" aria-modal="true" aria-label={tr('Planner alarm')} className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-6">
       <div className="w-full max-w-sm rounded-[32px] bg-background p-6 text-center shadow-2xl">
         <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-full bg-rose-100 dark:bg-rose-900/30">
           <AlarmClock className="h-10 w-10 text-rose-500 animate-bounce" />
         </div>
-        <p className="text-[11px] font-black uppercase tracking-widest text-rose-500">Alarm</p>
+        <p className="text-[11px] font-black uppercase tracking-widest text-rose-500">{tr('Alarm')}</p>
         <h2 className="mt-1 text-2xl font-black tracking-tight break-words">{ringing.text}</h2>
-        {ringing.start && <p className="mt-1 text-sm text-muted-foreground">Starts at {ringing.start}</p>}
+        {ringing.start && <p className="mt-1 text-sm text-muted-foreground">{tr('Starts at {start}', { start: ringing.start })}</p>}
         <div className="mt-6 grid grid-cols-2 gap-2">
           <button onClick={snooze} className="flex items-center justify-center gap-1.5 rounded-2xl bg-muted py-3 text-sm font-bold active:scale-95">
-            <TimerReset className="h-4 w-4" /> Snooze 5 min
+            <TimerReset className="h-4 w-4" />{' '}{tr('Snooze 5 min')}
           </button>
           <button onClick={markDone} className="flex items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 py-3 text-sm font-bold text-white active:scale-95">
-            <Check className="h-4 w-4" /> Done
+            <Check className="h-4 w-4" />{' '}{tr('Done')}
           </button>
         </div>
         <button onClick={closeRinging} className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-semibold text-muted-foreground active:bg-muted">
-          <BellOff className="h-4 w-4" /> Stop alarm
+          <BellOff className="h-4 w-4" />{' '}{tr('Stop alarm')}
         </button>
       </div>
     </div>

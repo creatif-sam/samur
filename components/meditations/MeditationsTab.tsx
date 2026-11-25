@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -20,6 +22,7 @@ type Filter = 'all' | 'mine' | 'partner' | 'private' | 'shared'
 const plain = (s: string | null | undefined) => (s ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
 
 export default function MeditationsTab() {
+  const { tr } = useTranslation()
   const [meditations, setMeditations] = useState<MeditationDB[]>([])
   const [loaded, setLoaded] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -110,7 +113,7 @@ export default function MeditationsTab() {
     const bestHour = hourCounts.indexOf(Math.max(...hourCounts))
     const monthKey = todayKey.slice(0, 7)
     return {
-      time: new Date(2000, 0, 1, bestHour).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      time: new Date(2000, 0, 1, bestHour).toLocaleTimeString(appLocale(), { hour: 'numeric', minute: '2-digit' }),
       period: mornings >= own.length - mornings ? `Mornings · ${Math.round((mornings / own.length) * 100)}%` : `Evenings · ${Math.round(((own.length - mornings) / own.length) * 100)}%`,
       thisMonth: own.filter(m => toLocalDateKey(new Date(m.created_at)).startsWith(monthKey)).length,
     }
@@ -132,7 +135,7 @@ export default function MeditationsTab() {
   const byMonth = useMemo(() => {
     const groups: { label: string; items: MeditationDB[] }[] = []
     for (const m of filtered) {
-      const label = new Date(m.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+      const label = new Date(m.created_at).toLocaleDateString(appLocale(), { month: 'long', year: 'numeric' })
       const last = groups[groups.length - 1]
       if (last?.label === label) last.items.push(m)
       else groups.push({ label, items: [m] })
@@ -155,9 +158,9 @@ export default function MeditationsTab() {
       await navigator.clipboard.writeText(text)
       setCopiedId(m.id)
       setTimeout(() => setCopiedId(id => (id === m.id ? null : id)), 1500)
-      toast.success('Meditation copied')
+      toast.success(tr('Meditation copied'))
     } catch {
-      toast.error("Couldn't copy")
+      toast.error(tr('Couldn\'t copy'))
     }
   }
 
@@ -172,15 +175,15 @@ export default function MeditationsTab() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-white/70">
-                {clock ? <>{greeting} · {clock.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</> : ' '}
+                {clock ? <>{tr(greeting)} · {clock.toLocaleDateString(appLocale(), { weekday: 'short', month: 'short', day: 'numeric' })}</> : ' '}
               </p>
-              <h2 className="mt-1.5 text-[22px] font-black leading-tight tracking-tight">{heroTitle}</h2>
+              <h2 className="mt-1.5 text-[22px] font-black leading-tight tracking-tight">{tr(heroTitle)}</h2>
             </div>
             {streak > 0 && (
               <div className="shrink-0 flex flex-col items-center rounded-2xl bg-white/15 px-3 py-2 backdrop-blur-sm">
                 <Flame className="h-4 w-4 fill-orange-300 text-orange-300" />
                 <span className="text-lg font-black leading-none mt-0.5">{streak}</span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-white/70">day{streak !== 1 ? 's' : ''}</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-white/70">{tr('{streak:day|days}', { streak: streak })}</span>
               </div>
             )}
           </div>
@@ -194,7 +197,7 @@ export default function MeditationsTab() {
                 }`}
               >
                 {done ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
-                {label}
+                {tr(label)}
               </span>
             ))}
           </div>
@@ -204,14 +207,14 @@ export default function MeditationsTab() {
               onClick={() => setEditing({} as MeditationDB)}
               className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-white py-3 text-sm font-black text-violet-700 shadow-sm active:scale-[0.98] transition"
             >
-              <PenLine className="h-4 w-4" /> {heroAction}
+              <PenLine className="h-4 w-4" /> {tr(heroAction)}
             </button>
             <Link
               href="/protected/bible"
-              aria-label="Open the Bible"
+              aria-label={tr('Open the Bible')}
               className="flex items-center justify-center gap-1.5 rounded-2xl bg-white/15 px-4 text-sm font-bold active:scale-[0.98] transition"
             >
-              <BookOpen className="h-4 w-4" /> Bible
+              <BookOpen className="h-4 w-4" />{' '}{tr('Bible')}
             </Link>
           </div>
         </div>
@@ -238,7 +241,7 @@ export default function MeditationsTab() {
           ].map(({ icon: Icon, label, value, tone }) => (
             <div key={label} className="rounded-2xl border border-border bg-card px-3 py-2.5 min-w-0">
               <Icon className={`h-3.5 w-3.5 ${tone}`} />
-              <p className="mt-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+              <p className="mt-1.5 text-[9px] font-black uppercase tracking-widest text-muted-foreground">{tr(label)}</p>
               <p className="text-xs font-bold truncate">{value}</p>
             </div>
           ))}
@@ -249,10 +252,10 @@ export default function MeditationsTab() {
       <section className="space-y-3">
         <div className="flex items-baseline justify-between px-1">
           <div className="flex items-center gap-0.5">
-            <h3 className="text-base font-black tracking-tight">Your journal</h3>
+            <h3 className="text-base font-black tracking-tight">{tr('Your journal')}</h3>
             <HelpTip topic="spirit.journal" align="left" className="-my-1" />
           </div>
-          <span className="text-[11px] font-bold text-muted-foreground">{filtered.length} of {meditations.length}</span>
+          <span className="text-[11px] font-bold text-muted-foreground">{tr('{filteredCount} of {meditationsCount}', { filteredCount: filtered.length, meditationsCount: meditations.length })}</span>
         </div>
 
         <div className="relative">
@@ -260,11 +263,11 @@ export default function MeditationsTab() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search titles, verses, lessons…"
+            placeholder={tr('Search titles, verses, lessons…')}
             className="w-full rounded-2xl bg-muted/60 pl-10 pr-10 py-3 text-[15px] outline-none focus:ring-2 focus:ring-violet-500"
           />
           {search && (
-            <button onClick={() => setSearch('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground">
+            <button onClick={() => setSearch('')} aria-label={tr('Clear search')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted-foreground">
               <X className="h-4 w-4" />
             </button>
           )}
@@ -279,7 +282,7 @@ export default function MeditationsTab() {
                 filter === f.value ? 'bg-violet-600 text-white' : 'bg-muted text-muted-foreground'
               }`}
             >
-              {f.label}
+              {tr(f.label)}
             </button>
           ))}
         </div>
@@ -293,15 +296,15 @@ export default function MeditationsTab() {
             <div className="mx-auto mb-3 h-12 w-12 rounded-2xl bg-violet-100 dark:bg-violet-500/15 grid place-items-center">
               <PenLine className="h-5 w-5 text-violet-600 dark:text-violet-400" />
             </div>
-            <p className="font-bold">Your journal is empty</p>
-            <p className="mt-1 text-sm text-muted-foreground">Write your first meditation: a verse, what it teaches, and a prayer.</p>
+            <p className="font-bold">{tr('Your journal is empty')}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{tr('Write your first meditation: a verse, what it teaches, and a prayer.')}</p>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-foreground">No meditations match.</p>
+          <p className="py-10 text-center text-sm text-muted-foreground">{tr('No meditations match.')}</p>
         ) : (
           byMonth.map(group => (
             <div key={group.label} className="space-y-2">
-              <p className="px-1 pt-2 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{group.label}</p>
+              <p className="px-1 pt-2 text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">{tr(group.label)}</p>
               {group.items.map(m => {
                 const d = new Date(m.created_at)
                 const mine = m.author_id === userId
@@ -312,27 +315,27 @@ export default function MeditationsTab() {
                       <div className={`shrink-0 w-12 rounded-xl py-1.5 flex flex-col items-center justify-center ${
                         m.period === 'morning' ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-indigo-50 dark:bg-indigo-500/10'
                       }`}>
-                        <span className="text-[9px] font-black uppercase text-muted-foreground">{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                        <span className="text-[9px] font-black uppercase text-muted-foreground">{d.toLocaleDateString(appLocale(), { weekday: 'short' })}</span>
                         <span className="text-lg font-black leading-none my-0.5">{d.getDate()}</span>
                         {m.period === 'morning'
                           ? <Sun className="h-3 w-3 text-amber-500" />
                           : <Moon className="h-3 w-3 text-indigo-500" />}
                       </div>
                       <div className="min-w-0 flex-1 py-0.5">
-                        <h4 className="font-bold leading-snug line-clamp-1">{m.title || 'Untitled'}</h4>
+                        <h4 className="font-bold leading-snug line-clamp-1">{m.title || tr('Untitled')}</h4>
                         {m.scripture && (
                           <p className="mt-0.5 text-xs font-semibold text-violet-600 dark:text-violet-400 line-clamp-1">{plain(m.scripture)}</p>
                         )}
                         {preview && <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">{preview}</p>}
                         <div className="mt-1.5 flex items-center gap-2 text-[10px] font-semibold text-muted-foreground">
-                          <span>{d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                          <span>{d.toLocaleTimeString(appLocale(), { hour: 'numeric', minute: '2-digit' })}</span>
                           {mine ? (
                             <span className="flex items-center gap-1">
-                              {m.visibility === 'shared' ? <><Users className="h-3 w-3" /> Shared</> : <><Lock className="h-3 w-3" /> Private</>}
+                              {m.visibility === 'shared' ? <><Users className="h-3 w-3" />{' '}{tr('Shared')}</> : <><Lock className="h-3 w-3" />{' '}{tr('Private')}</>}
                             </span>
                           ) : (
                             <span className="rounded-full bg-violet-100 dark:bg-violet-500/15 px-2 py-0.5 text-violet-700 dark:text-violet-300">
-                              {partnerName ?? 'Partner'}
+                              {partnerName ?? tr('Partner')}
                             </span>
                           )}
                         </div>
@@ -341,7 +344,7 @@ export default function MeditationsTab() {
                     <div className="flex flex-col justify-between items-end shrink-0">
                       <button
                         onClick={() => copyMeditation(m)}
-                        aria-label="Copy meditation"
+                        aria-label={tr('Copy meditation')}
                         className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted active:scale-90 transition"
                       >
                         {copiedId === m.id ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
@@ -349,7 +352,7 @@ export default function MeditationsTab() {
                       {mine ? (
                         <button
                           onClick={() => setEditing(m)}
-                          aria-label="Edit meditation"
+                          aria-label={tr('Edit meditation')}
                           className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted active:scale-90 transition"
                         >
                           <PenLine className="h-4 w-4" />

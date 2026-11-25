@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Goal } from '@/lib/types'
@@ -13,6 +14,7 @@ import TodayPanel from '@/components/home/TodayPanel'
 import CurrentBookCard, { type CurrentBook } from '@/components/home/CurrentBookCard'
 
 export default function HomePage() {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [userName, setUserName]       = useState<string | null>(null)
   const [userId, setUserId]           = useState<string | null>(null)
@@ -55,11 +57,11 @@ export default function HomePage() {
 
         {/* Greeting */}
         <div className="px-4 pt-5 pb-1">
-          <p className="text-sm text-muted-foreground font-medium">{greeting()}</p>
+          <p className="text-sm text-muted-foreground font-medium">{tr(greeting())}</p>
           <h1 className="text-3xl font-black tracking-tight leading-none">
-            Hello, <span className="text-violet-500">{firstName}</span> 🕊️
+            {tr('Hello,')}{' '}<span className="text-violet-500">{tr(firstName)}</span> 🕊️
           </h1>
-          <p className="text-xs text-muted-foreground mt-1">Stay intentional. Stay consistent.</p>
+          <p className="text-xs text-muted-foreground mt-1">{tr('Stay intentional. Stay consistent.')}</p>
         </div>
 
         <TodayPanel userId={userId} goals={goals} />

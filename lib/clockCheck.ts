@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 // Is this device's clock right? Compares it with the server's clock.
 // A phone whose time zone is set wrong, with its clock then moved by hand to look right,
 // shows the right time on its home screen but is an hour (or more) off underneath. The app
@@ -19,10 +20,11 @@ export function describeSkew(skewMs: number) {
   const h = Math.floor(mins / 60)
   const m = mins % 60
   const parts = [
-    h ? `${h} hour${h === 1 ? '' : 's'}` : '',
-    m ? `${m} minute${m === 1 ? '' : 's'}` : '',
+    h ? trNow('{h} {h:hour|hours}', { h }) : '',
+    m ? trNow('{m} {m:minute|minutes}', { m }) : '',
   ].filter(Boolean)
-  return `${parts.join(' ') || 'less than a minute'} ${skewMs > 0 ? 'ahead' : 'behind'}`
+  const amount = parts.join(' ') || trNow('less than a minute')
+  return skewMs > 0 ? trNow('{amount} ahead', { amount }) : trNow('{amount} behind', { amount })
 }
 
 // The notice can be hidden for a day

@@ -21,7 +21,7 @@ export default function MoneyAddModal({
   onAdded: () => void
 }) {
   const supabase = createClient()
-  const { t } = useTranslation()
+  const { t, tr } = useTranslation()
   const today = toLocalDateKey(new Date())
 
   const [title, setTitle] = useState('')
@@ -139,7 +139,7 @@ export default function MoneyAddModal({
 
         {/* TITLE */}
         <Input
-          placeholder={t.money.title}
+          placeholder={tr(t.money.title)}
           value={title}
           onChange={e => setTitle(e.target.value)}
         />

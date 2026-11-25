@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -33,6 +35,7 @@ interface Meditation {
 }
 
 export default function MeditationViewPage() {
+  const { tr } = useTranslation()
   const { id } = useParams()
   const router = useRouter()
   const pageRef = useRef<HTMLDivElement>(null)
@@ -42,10 +45,10 @@ export default function MeditationViewPage() {
   const [sharingToFeed, setSharingToFeed] = useState(false)
 
   const formattedDate = meditation
-    ? new Date(meditation.created_at).toLocaleDateString(undefined, { dateStyle: 'long' })
+    ? new Date(meditation.created_at).toLocaleDateString(appLocale(), { dateStyle: 'long' })
     : ''
   const formattedTime = meditation
-    ? new Date(meditation.created_at).toLocaleTimeString([], {
+    ? new Date(meditation.created_at).toLocaleTimeString(appLocale(), {
         hour: 'numeric',
         minute: '2-digit',
       })
@@ -69,7 +72,7 @@ export default function MeditationViewPage() {
       .single()
 
     if (error) {
-      toast.error("Could not load meditation")
+      toast.error(tr('Could not load meditation'))
       return
     }
     setMeditation(data)
@@ -105,7 +108,7 @@ export default function MeditationViewPage() {
         await navigator.share(shareData)
       } else {
         await navigator.clipboard.writeText(window.location.href)
-        toast.success("Link copied to clipboard")
+        toast.success(tr('Link copied to clipboard'))
       }
     } catch (err) {
       console.log("Share cancelled or failed", err)
@@ -129,9 +132,9 @@ export default function MeditationViewPage() {
     })
 
     if (error) {
-      toast.error("Failed to post to feed")
+      toast.error(tr('Failed to post to feed'))
     } else {
-      toast.success("Shared with the community!")
+      toast.success(tr('Shared with the community!'))
     }
     setSharingToFeed(false)
   }
@@ -140,7 +143,7 @@ export default function MeditationViewPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-muted-foreground gap-4">
         <Loader2 className="w-6 h-6 animate-spin text-violet-600" />
-        <p className="text-sm font-medium italic">Opening the scrolls...</p>
+        <p className="text-sm font-medium italic">{tr('Opening the scrolls...')}</p>
       </div>
     )
   }
@@ -157,18 +160,18 @@ export default function MeditationViewPage() {
             onClick={() => router.push('/protected/posts?tab=meditations')}
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
+            {tr('Back')}
           </Button>
 
           <div className="flex items-center gap-1 sm:gap-2">
             <Button size="sm" variant="ghost" className="rounded-full" onClick={() => setEditing(true)}>
               <Pencil className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Edit</span>
+              <span className="hidden sm:inline">{tr('Edit')}</span>
             </Button>
 
             <Button size="sm" variant="ghost" className="rounded-full text-violet-600 dark:text-violet-400" onClick={handleNativeShare}>
               <Share2 className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">Share</span>
+              <span className="hidden sm:inline">{tr('Share')}</span>
             </Button>
 
             <Button
@@ -179,7 +182,7 @@ export default function MeditationViewPage() {
               disabled={sharingToFeed}
             >
               {sharingToFeed ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4 sm:mr-1" />}
-              <span className="hidden sm:inline">Feed</span>
+              <span className="hidden sm:inline">{tr('Feed')}</span>
             </Button>
 
             <Button
@@ -193,7 +196,7 @@ export default function MeditationViewPage() {
               })}
             >
               <ImageIcon className="h-4 w-4 sm:mr-1" />
-              <span className="hidden sm:inline">PDF</span>
+              <span className="hidden sm:inline">{tr('PDF')}</span>
             </Button>
           </div>
         </div>
@@ -210,7 +213,7 @@ export default function MeditationViewPage() {
             {/* Title & Date */}
             <div className="text-center space-y-4">
               <h1 className="text-4xl font-black tracking-tighter text-violet-600 dark:text-violet-400 font-sans uppercase italic">
-                {meditation.title}
+                {tr(meditation.title)}
               </h1>
               <div className="flex items-center justify-center gap-3">
                 <span className="h-[1px] w-10 bg-violet-200 dark:bg-violet-900" />
@@ -227,7 +230,7 @@ export default function MeditationViewPage() {
                       : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'
                   }`}
                 >
-                  {formattedTime} • {periodLabel}
+                  {formattedTime} • {tr(periodLabel)}
                 </span>
               </div>
             </div>
@@ -243,7 +246,7 @@ export default function MeditationViewPage() {
                 <div className="inline-flex items-center gap-2 bg-violet-100 dark:bg-violet-900/30 px-4 py-1.5 rounded-full transition-all group-hover:scale-105">
                   <section.icon className="h-3.5 w-3.5 text-violet-700 dark:text-violet-400" />
                   <h2 className="text-[10px] font-black uppercase tracking-[0.25em] text-violet-800 dark:text-violet-300">
-                    {section.label}
+                    {tr(section.label)}
                   </h2>
                 </div>
                 <div className={`${section.italic ? 'italic text-foreground/80' : 'text-foreground/90'} transition-opacity`}>

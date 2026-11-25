@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { History, Play, Square, Trash2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -33,6 +35,7 @@ interface Props {
 }
 
 export default function CreateTimer({ running, recent, onStart, onActivity, onStop, onDiscard, onLogPast, busy }: Props) {
+  const { tr } = useTranslation()
   if (running) {
     return (
       <section className="rounded-3xl border border-emerald-500/30 bg-emerald-50 p-5 dark:bg-emerald-500/10">
@@ -41,19 +44,19 @@ export default function CreateTimer({ running, recent, onStart, onActivity, onSt
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500/70" />
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">In session</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700 dark:text-emerald-300">{tr('In session')}</span>
         </div>
 
         <Elapsed startedAt={running.startedAt} />
         <p className="mt-1 text-xs text-muted-foreground">
-          Started {new Date(running.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}. Keeps running if you leave this page.
+          {tr('Started {value}. Keeps running if you leave this page.', { value: new Date(running.startedAt).toLocaleTimeString(appLocale(), { hour: '2-digit', minute: '2-digit' }) })}
         </p>
 
         <div className="mt-4 space-y-2">
           <Input
             value={running.activity}
             onChange={e => onActivity(e.target.value)}
-            placeholder="What are you working on?"
+            placeholder={tr('What are you working on?')}
             className="h-11 bg-background"
           />
           {recent.length > 0 && !running.activity && (
@@ -65,7 +68,7 @@ export default function CreateTimer({ running, recent, onStart, onActivity, onSt
                   onClick={() => onActivity(name)}
                   className="max-w-full truncate rounded-full bg-background px-3 py-1.5 text-xs font-semibold text-foreground/80 ring-1 ring-border active:scale-95"
                 >
-                  {name}
+                  {tr(name)}
                 </button>
               ))}
             </div>
@@ -78,12 +81,12 @@ export default function CreateTimer({ running, recent, onStart, onActivity, onSt
             onClick={onStop}
             className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition active:scale-[0.98]"
           >
-            <Square className="h-4 w-4 fill-current" /> Stop and save
+            <Square className="h-4 w-4 fill-current" />{' '}{tr('Stop and save')}
           </button>
           <button
             type="button"
             onClick={onDiscard}
-            aria-label="Discard this session"
+            aria-label={tr('Discard this session')}
             className="grid h-12 w-12 place-items-center rounded-2xl bg-background text-muted-foreground ring-1 ring-border transition active:scale-95"
           >
             <Trash2 className="h-4 w-4" />
@@ -101,7 +104,7 @@ export default function CreateTimer({ running, recent, onStart, onActivity, onSt
         disabled={busy}
         className="flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-violet-600 text-base font-bold text-white shadow-lg shadow-violet-500/25 transition active:scale-[0.98] disabled:opacity-50"
       >
-        <Play className="h-5 w-5 fill-current" /> Start a session
+        <Play className="h-5 w-5 fill-current" />{' '}{tr('Start a session')}
       </button>
       <button
         type="button"
@@ -109,7 +112,7 @@ export default function CreateTimer({ running, recent, onStart, onActivity, onSt
         disabled={busy}
         className="mx-auto mt-3 flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition hover:text-foreground disabled:opacity-50"
       >
-        <History className="h-4 w-4" /> Or log a past session
+        <History className="h-4 w-4" />{' '}{tr('Or log a past session')}
       </button>
     </section>
   )

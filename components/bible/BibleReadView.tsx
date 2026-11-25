@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import type { RefObject } from 'react'
 import {
@@ -62,6 +63,7 @@ export function BibleReadView({
   chapterIsRead, chapterReadToday, toggleChapterReadToday,
   verseNotes, openExistingNote,
 }: Props) {
+  const { tr } = useTranslation()
   return (
     <>
       {/* ── Verse list ── */}
@@ -76,7 +78,7 @@ export function BibleReadView({
             <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
           </div>
         )}
-        {error && <div className="text-center py-10 text-destructive text-sm">{error}</div>}
+        {error && <div className="text-center py-10 text-destructive text-sm">{tr(error)}</div>}
 
         {/* Chapter heading */}
         {!loading && !error && verses.length > 0 && (
@@ -87,7 +89,7 @@ export function BibleReadView({
             <p className="mt-1 font-serif text-6xl font-bold leading-none tracking-tight">{selectedChapter}</p>
             <div className="mx-auto mt-4 flex items-center justify-center gap-2 text-[11px] font-semibold text-muted-foreground">
               <span className="h-px w-8 bg-border" />
-              {TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'} · {verses.length} {isFrench(translation) ? 'versets' : 'verses'}
+              {TRANSLATIONS.find(t => t.id === translation)?.label ?? 'KJV'} · {verses.length} {isFrench(translation) ? tr('versets') : tr('verses')}
               <HelpTip topic="bible.read" className="-my-1.5" />
               <span className="h-px w-8 bg-border" />
             </div>
@@ -125,7 +127,7 @@ export function BibleReadView({
                   {verseNotes.has(v.verse) && (
                     <button
                       onClick={e => { e.stopPropagation(); openExistingNote(v.verse) }}
-                      aria-label={`Open your note on verse ${v.verse}`}
+                      aria-label={tr('Open your note on verse {verse}', { verse: v.verse })}
                       className="-mr-1 p-1 rounded-lg text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/30"
                     >
                       <StickyNote className="w-3.5 h-3.5" />
@@ -157,7 +159,7 @@ export function BibleReadView({
                   <p className="text-sm font-bold text-foreground truncate">{refLabel}</p>
                   {selectedVerses.size > 1 && (
                     <span className="text-[11px] font-black text-violet-500 bg-violet-100 dark:bg-violet-900/40 px-2.5 py-1 rounded-full shrink-0">
-                      {selectedVerses.size} verses
+                      {tr('{size} verses', { size: selectedVerses.size })}
                     </span>
                   )}
                 </div>
@@ -177,7 +179,7 @@ export function BibleReadView({
                   <button key={label} onClick={action}
                     className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]">
                     <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">{icon}</div>
-                    <span className="text-[11px] text-muted-foreground font-medium">{label}</span>
+                    <span className="text-[11px] text-muted-foreground font-medium">{tr(label)}</span>
                   </button>
                 ))}
                 <button onClick={saveSelectedVerses} disabled={savingSelection}
@@ -187,28 +189,28 @@ export function BibleReadView({
                       ? <Loader2 className="w-5 h-5 animate-spin text-violet-500" />
                       : <Bookmark className={`w-5 h-5 ${allSaved ? 'text-violet-600 dark:text-violet-400 fill-current' : ''}`} />}
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">{allSaved ? 'Saved' : 'Save'}</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">{allSaved ? tr('Saved') : tr('Save')}</span>
                 </button>
                 <button onClick={() => setShowHighlightPanel(v => !v)}
                   className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]">
                   <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${sharedHighlight ? highlightBg(sharedHighlight.color) : 'bg-muted'}`}>
                     <Highlighter className="w-5 h-5" />
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">Highlight</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">{tr('Highlight')}</span>
                 </button>
                 <button onClick={openNoteForSelection}
                   className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]">
                   <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
                     <PenLine className="w-5 h-5" />
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">Note</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">{tr('Note')}</span>
                 </button>
                 <button onClick={openCompare}
                   className="flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl hover:bg-muted active:bg-muted/80 transition min-w-[60px]">
                   <div className="w-11 h-11 rounded-2xl bg-muted flex items-center justify-center">
                     <BookCopy className="w-5 h-5" />
                   </div>
-                  <span className="text-[11px] text-muted-foreground font-medium">Compare</span>
+                  <span className="text-[11px] text-muted-foreground font-medium">{tr('Compare')}</span>
                 </button>
               </div>
 
@@ -248,14 +250,14 @@ export function BibleReadView({
             }`}
           >
             <Check className="w-4 h-4" />
-            {chapterReadToday ? 'Read today' : chapterIsRead ? 'Read it today' : 'Mark chapter as read'}
+            {chapterReadToday ? tr('Read today') : chapterIsRead ? tr('Read it today') : tr('Mark chapter as read')}
           </button>
         </div>
       )}
 
       {/* ── Chapter nav bar ── */}
       <div className="fixed bottom-[68px] left-3 right-3 z-[56] mx-auto max-w-md rounded-2xl bg-background/90 backdrop-blur-xl border border-border shadow-lg shadow-black/5 flex items-center h-[50px] px-1">
-        <button onClick={prevChapter} className="h-10 w-10 grid place-items-center rounded-xl hover:bg-muted active:scale-90 transition" aria-label="Previous chapter">
+        <button onClick={prevChapter} className="h-10 w-10 grid place-items-center rounded-xl hover:bg-muted active:scale-90 transition" aria-label={tr('Previous chapter')}>
           <ChevronLeft className="w-5 h-5" />
         </button>
         <button
@@ -265,7 +267,7 @@ export function BibleReadView({
           <span className="text-sm font-bold">{displayBook(selectedBook, translation)} {selectedChapter}</span>
           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${showChapterSheet ? 'rotate-180' : ''}`} />
         </button>
-        <button onClick={nextChapter} className="h-10 w-10 grid place-items-center rounded-xl hover:bg-muted active:scale-90 transition" aria-label="Next chapter">
+        <button onClick={nextChapter} className="h-10 w-10 grid place-items-center rounded-xl hover:bg-muted active:scale-90 transition" aria-label={tr('Next chapter')}>
           <ChevronRight className="w-5 h-5" />
         </button>
       </div>

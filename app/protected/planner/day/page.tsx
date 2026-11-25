@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import React, { useState } from 'react'
 import DailyPlanner from '@/components/planner/DailyPlanner'
@@ -10,13 +11,14 @@ import MoneyTabs from '@/components/planner/money/MoneyTabs'
 type PlanningMode = 'time' | 'money'
 
 export default function DayPlannerPage(): React.JSX.Element {
+  const { tr } = useTranslation()
   const [mode, setMode] = useState<PlanningMode>('time')
 
   return (
     // Changed to use 'text-foreground' for automatic theme text switching
     <div className="flex flex-col gap-4 px-3 pb-20 max-w-xl mx-auto text-foreground">
       <div className="flex items-center justify-center gap-1 text-lg font-semibold">
-        Daily Planning
+        {tr('Daily Planning')}
         <HelpTip topic="planner.page" align="left" />
       </div>
 
@@ -25,13 +27,13 @@ export default function DayPlannerPage(): React.JSX.Element {
         <TabButton
           active={mode === 'time'}
           onClick={() => setMode('time')}
-          label="Time"
+          label={tr('Time')}
           icon={<Clock size={16} />}
         />
         <TabButton
           active={mode === 'money'}
           onClick={() => setMode('money')}
-          label="Money"
+          label={tr('Money')}
           icon={<Wallet size={16} />}
         />
       </div>
@@ -65,6 +67,7 @@ function TabButton({
   active: boolean
   onClick: () => void
 }) {
+  const { tr } = useTranslation()
   return (
     <Button
       onClick={onClick}
@@ -76,7 +79,7 @@ function TabButton({
       }`}
     >
       {icon}
-      <span>{label}</span>
+      <span>{tr(label)}</span>
     </Button>
   )
 }

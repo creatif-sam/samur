@@ -1,3 +1,4 @@
+import { appLocale } from '@/lib/i18n'
 // "Export PDF": renders content in a clean print layout and opens the system
 // print dialog, where "Save as PDF" is available on phones and desktops.
 // Uses a hidden iframe so it also works inside the installed app.
@@ -24,7 +25,7 @@ export function exportPdf({ title, subtitle, html }: { title: string; subtitle?:
 <h1>${escapeHtml(title)}</h1>
 ${subtitle ? `<div class="subtitle">${escapeHtml(subtitle)}</div>` : ''}
 ${html}
-<div class="footer">Exported from Mastery · ${escapeHtml(new Date().toLocaleDateString())}</div>
+<div class="footer">Exported from Mastery · ${escapeHtml(new Date().toLocaleDateString(appLocale()))}</div>
 </body></html>`
 
   const iframe = document.createElement('iframe')

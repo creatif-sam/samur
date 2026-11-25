@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { JSX, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -29,6 +30,7 @@ const CATEGORY_ORDER: ReadingCategory[] = [
 ]
 
 export default function ReadingList(): JSX.Element {
+  const { tr } = useTranslation()
   const [readings, setReadings] = useState<Reading[]>([])
   const [loading, setLoading] = useState(true)
   const [isAddOpen, setIsAddOpen] = useState(false)
@@ -118,7 +120,7 @@ export default function ReadingList(): JSX.Element {
       <div className="flex h-64 items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-10 h-10 text-violet-600 animate-spin" />
-          <p className="animate-pulse text-violet-600 font-bold uppercase tracking-widest text-xs">Opening Library...</p>
+          <p className="animate-pulse text-violet-600 font-bold uppercase tracking-widest text-xs">{tr('Opening Library...')}</p>
         </div>
       </div>
     )
@@ -134,10 +136,10 @@ export default function ReadingList(): JSX.Element {
 
         {/* Status Stats (tap to filter the library) */}
         <section className="flex gap-3 overflow-x-auto pb-1 no-scrollbar -mx-4 px-4">
-          <Stat icon={<BookOpen className="w-4 h-4" />} label="To Read" value={statusStats.toRead} color="text-blue-600 dark:text-blue-400" bg="bg-blue-50 dark:bg-blue-950/30" active={statusFilter === 'to_read'} onClick={() => setStatusFilter(f => f === 'to_read' ? 'all' : 'to_read')} />
-          <Stat icon={<BookMarked className="w-4 h-4" />} label="Reading" value={statusStats.reading} color="text-orange-600 dark:text-orange-400" bg="bg-orange-50 dark:bg-orange-950/30" active={statusFilter === 'reading'} onClick={() => setStatusFilter(f => f === 'reading' ? 'all' : 'reading')} />
-          <Stat icon={<CheckCircle className="w-4 h-4" />} label="Done" value={statusStats.done} color="text-green-600 dark:text-green-400" bg="bg-green-50 dark:bg-green-950/30" active={statusFilter === 'done'} onClick={() => setStatusFilter(f => f === 'done' ? 'all' : 'done')} />
-          <Stat icon={<Lightbulb className="w-4 h-4" />} label="Applied" value={statusStats.applied} color="text-yellow-600 dark:text-yellow-400" bg="bg-yellow-50 dark:bg-yellow-950/30" active={statusFilter === 'applied'} onClick={() => setStatusFilter(f => f === 'applied' ? 'all' : 'applied')} />
+          <Stat icon={<BookOpen className="w-4 h-4" />} label={tr('To Read')} value={statusStats.toRead} color="text-blue-600 dark:text-blue-400" bg="bg-blue-50 dark:bg-blue-950/30" active={statusFilter === 'to_read'} onClick={() => setStatusFilter(f => f === 'to_read' ? 'all' : 'to_read')} />
+          <Stat icon={<BookMarked className="w-4 h-4" />} label={tr('Reading')} value={statusStats.reading} color="text-orange-600 dark:text-orange-400" bg="bg-orange-50 dark:bg-orange-950/30" active={statusFilter === 'reading'} onClick={() => setStatusFilter(f => f === 'reading' ? 'all' : 'reading')} />
+          <Stat icon={<CheckCircle className="w-4 h-4" />} label={tr('Done')} value={statusStats.done} color="text-green-600 dark:text-green-400" bg="bg-green-50 dark:bg-green-950/30" active={statusFilter === 'done'} onClick={() => setStatusFilter(f => f === 'done' ? 'all' : 'done')} />
+          <Stat icon={<Lightbulb className="w-4 h-4" />} label={tr('Applied')} value={statusStats.applied} color="text-yellow-600 dark:text-yellow-400" bg="bg-yellow-50 dark:bg-yellow-950/30" active={statusFilter === 'applied'} onClick={() => setStatusFilter(f => f === 'applied' ? 'all' : 'applied')} />
         </section>
 
         {/* Today's goal and quick logging */}
@@ -147,10 +149,10 @@ export default function ReadingList(): JSX.Element {
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-0.5">
-              <h2 className="font-black text-foreground uppercase tracking-tight">Your Library</h2>
+              <h2 className="font-black text-foreground uppercase tracking-tight">{tr('Your Library')}</h2>
               <HelpTip topic="reading.library" align="left" />
             </div>
-            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{readings.length} Total</span>
+            <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{tr('{readingsCount} Total', { readingsCount: readings.length })}</span>
           </div>
 
           {readings.length > 0 && (
@@ -160,11 +162,11 @@ export default function ReadingList(): JSX.Element {
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search title or author"
+                  placeholder={tr('Search title or author')}
                   className="w-full rounded-2xl bg-muted/50 pl-9 pr-9 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-violet-500"
                 />
                 {query && (
-                  <button onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <button onClick={() => setQuery('')} aria-label={tr('Clear search')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                     <X className="w-4 h-4" />
                   </button>
                 )}
@@ -178,7 +180,7 @@ export default function ReadingList(): JSX.Element {
                       statusFilter === opt.value ? 'bg-violet-600 text-white' : 'bg-muted text-muted-foreground'
                     }`}
                   >
-                    {opt.label}
+                    {tr(opt.label)}
                   </button>
                 ))}
               </div>
@@ -189,11 +191,11 @@ export default function ReadingList(): JSX.Element {
             {readings.length === 0 ? (
               <div className="text-center py-16 bg-muted/30 rounded-[32px] border-2 border-dashed border-border transition-all">
                 <Library className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground font-bold italic">Your library is empty.</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Add your first book to get started.</p>
+                <p className="text-sm text-muted-foreground font-bold italic">{tr('Your library is empty.')}</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">{tr('Add your first book to get started.')}</p>
               </div>
             ) : shelves.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-8">No books match.</p>
+              <p className="text-center text-sm text-muted-foreground py-8">{tr('No books match.')}</p>
             ) : (
               shelves.map(({ category, books }) => (
                 <BookShelf
@@ -215,7 +217,7 @@ export default function ReadingList(): JSX.Element {
       <div className="fixed bottom-24 right-6 z-30">
         <button
           onClick={() => setIsAddOpen(true)}
-          aria-label="Add book"
+          aria-label={tr('Add book')}
           className="flex h-14 w-14 items-center justify-center rounded-full bg-violet-600 text-white shadow-xl shadow-violet-500/40 active:scale-90 transition-all hover:bg-violet-700 hover:rotate-90"
         >
           <Plus className="w-8 h-8" />
@@ -237,7 +239,7 @@ export default function ReadingList(): JSX.Element {
             <div className="w-12 h-1.5 bg-muted rounded-full mx-auto mb-6 cursor-pointer" onClick={closeSheet} />
 
             <div className="flex justify-between items-center mb-8">
-              <h3 className="text-2xl font-black tracking-tighter uppercase italic">{editing ? 'Edit Book' : 'Add New Book'}</h3>
+              <h3 className="text-2xl font-black tracking-tighter uppercase italic">{editing ? tr('Edit Book') : tr('Add New Book')}</h3>
               <button
                 onClick={closeSheet}
                 className="p-2 bg-muted rounded-full text-muted-foreground hover:text-foreground"
@@ -262,6 +264,7 @@ export default function ReadingList(): JSX.Element {
 function Stat({ icon, label, value, color, bg, active, onClick }: {
   icon: JSX.Element, label: string, value: number, color: string, bg: string, active: boolean, onClick: () => void
 }): JSX.Element {
+  const { tr } = useTranslation()
   return (
     <button
       onClick={onClick}
@@ -272,7 +275,7 @@ function Stat({ icon, label, value, color, bg, active, onClick }: {
         {icon}
       </div>
       <div className="text-xl font-black text-foreground leading-none">{value}</div>
-      <div className="text-[9px] uppercase tracking-widest font-black text-muted-foreground mt-1.5">{label}</div>
+      <div className="text-[9px] uppercase tracking-widest font-black text-muted-foreground mt-1.5">{tr(label)}</div>
     </button>
   )
 }

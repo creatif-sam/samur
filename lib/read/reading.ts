@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ReadingCategory, ReadingStatus } from '@/lib/types'
 import { createReadingLogPage, ensureBookSection, ensureReadingLogsNotebook } from './journalSync'
@@ -47,8 +48,8 @@ export const MIN_READING_NOTE_CHARS = 20
 
 export function readingNoteProblem(note: string | null | undefined): string | null {
   const text = (note ?? '').trim()
-  if (!text) return 'Write a short note on what you read'
-  if (text.length < MIN_READING_NOTE_CHARS) return `Say a bit more about what you read (at least ${MIN_READING_NOTE_CHARS} characters)`
+  if (!text) return trNow('Write a short note on what you read')
+  if (text.length < MIN_READING_NOTE_CHARS) return trNow('Say a bit more about what you read (at least {min} characters)', { min: MIN_READING_NOTE_CHARS })
   return null
 }
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useMemo } from 'react'
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import clsx from 'clsx'
@@ -34,6 +36,7 @@ function niceAxis(top: number, steps: number[], maxTicks: number) {
 }
 
 export default function PrayerMonthGraph({ days, month, mode, onModeChange, formatMinutes, target, animate = true }: Props) {
+  const { tr } = useTranslation()
   // Only this month's days; future days and days before you started have no value so the line stops there
   const { data, lastCounted, hitDays, countedDays } = useMemo(() => {
     let running = 0
@@ -52,7 +55,7 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
         }
         return {
           day: d.date.getDate(),
-          label: d.date.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' }),
+          label: d.date.toLocaleDateString(appLocale(), { weekday: 'short', day: 'numeric', month: 'short' }),
           value: isCounted ? (mode === 'daily' ? d.totalMinutes : running) : null,
         }
       })
@@ -74,7 +77,7 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
     <div>
       <div className="mb-3 flex items-center justify-between gap-2">
         <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-          {mode === 'daily' ? 'Minutes prayed each day' : 'Minutes prayed so far'}
+          {mode === 'daily' ? tr('Minutes prayed each day') : tr('Minutes prayed so far')}
         </p>
         <div className="flex rounded-full bg-muted/60 p-0.5">
           {(['daily', 'total'] as const).map(m => (
@@ -86,7 +89,7 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
                 mode === m ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground',
               )}
             >
-              {m === 'daily' ? 'Daily' : 'Running total'}
+              {m === 'daily' ? tr('Daily') : tr('Running total')}
             </button>
           ))}
         </div>
@@ -159,7 +162,7 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
         </ResponsiveContainer>
         {!hasData && (
           <div className="absolute inset-0 grid place-items-center">
-            <p className="rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground">No prayer time logged this month yet</p>
+            <p className="rounded-full bg-background/80 px-3 py-1 text-xs font-semibold text-muted-foreground">{tr('No prayer time logged this month yet')}</p>
           </div>
         )}
       </div>
@@ -167,16 +170,14 @@ export default function PrayerMonthGraph({ days, month, mode, onModeChange, form
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border/40 pt-3 text-[11px] font-bold text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <span className="h-[3px] w-5 rounded-full" style={{ backgroundColor: GREEN }} />
-          {mode === 'daily' ? `Target ${formatMinutes(target)} a day` : `Pace at ${formatMinutes(target)} a day`}
+          {mode === 'daily' ? tr('Target {value} a day', { value: formatMinutes(target) }) : tr('Pace at {value} a day', { value: formatMinutes(target) })}
         </span>
         {countedDays > 0 && mode === 'daily' && (
-          <span className="ml-auto font-semibold">Reached on {hitDays} of {countedDays} days{best > 0 ? ` · best ${formatMinutes(best)}` : ''}</span>
+          <span className="ml-auto font-semibold">{tr('Reached on {hitDays} of {countedDays} days{value}', { hitDays: hitDays, countedDays: countedDays, value: best > 0 ? tr(' · best {value}', { value: formatMinutes(best) }) : '' })}</span>
         )}
         {countedDays > 0 && mode === 'total' && (
           <span className={clsx('ml-auto font-semibold', runningNow >= paceNow ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400')}>
-            {runningNow >= paceNow
-              ? `${formatMinutes(runningNow - paceNow)} ahead of pace`
-              : `${formatMinutes(paceNow - runningNow)} behind pace`}
+            {runningNow >= paceNow ? tr('{value} ahead of pace', { value: formatMinutes(runningNow - paceNow) }) : tr('{value} behind pace', { value: formatMinutes(paceNow - runningNow) })}
           </span>
         )}
       </div>

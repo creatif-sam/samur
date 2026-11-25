@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { JSX, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import clsx from 'clsx'
@@ -25,6 +27,7 @@ interface Props {
 }
 
 export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Element {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [days, setDays] = useState<SessionDay[]>([])
   const [viewDate, setViewDate] = useState(new Date())
@@ -44,18 +47,18 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
   }, [userId])
   const monthKey = monthKeyOf(viewDate)
   const { minutes: target, from: targetFrom } = targetFor(targets, monthKey)
-  const monthNameOf = (key: string) => new Date(Number(key.slice(0, 4)), Number(key.slice(5)) - 1, 1).toLocaleString('default', { month: 'long' })
+  const monthNameOf = (key: string) => new Date(Number(key.slice(0, 4)), Number(key.slice(5)) - 1, 1).toLocaleString(appLocale(), { month: 'long' })
   const handleSaveTarget = async (minutes: number) => {
     setSavingTarget(true)
     const res = await saveTarget(supabase, userId, targets, monthKey, minutes)
     setSavingTarget(false)
     if (res.result === 'error') {
-      toast.error("Couldn't save your target. Try again.")
+      toast.error(tr('Couldn\'t save your target. Try again.'))
       return false
     }
     setTargets(res.targets)
-    if (res.result === 'device') toast.warning(`Target set to ${res.targets[monthKey]} min a day, saved on this device. It needs a database update to sync.`)
-    else toast.success(`Target set to ${res.targets[monthKey]} min a day for ${monthNameOf(monthKey)}`)
+    if (res.result === 'device') toast.warning(tr('Target set to {value} min a day, saved on this device. It needs a database update to sync.', { value: res.targets[monthKey] }))
+    else toast.success(tr('Target set to {value} min a day for {monthNameOf}', { value: res.targets[monthKey], monthNameOf: monthNameOf(monthKey) }))
     return true
   }
   // Calendar or graph, remembered on this device
@@ -193,12 +196,12 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
         <div className="flex items-center justify-between mb-6">
           <div className="space-y-1">
             <h2 className="text-xl font-black tracking-tighter text-foreground">
-              {viewDate.toLocaleString('default', { month: 'long', year: 'numeric' })}
+              {viewDate.toLocaleString(appLocale(), { month: 'long', year: 'numeric' })}
             </h2>
             <div className="flex items-center gap-1.5 text-amber-500 dark:text-amber-400">
               <Flame size={14} className="fill-current" />
               <span className="text-xs font-bold uppercase tracking-widest">
-                {streak} Day Streak
+                {tr('{streak} Day Streak', { streak: streak })}
               </span>
             </div>
           </div>
@@ -221,24 +224,24 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
         {/* This month's prayer time */}
         <div className="grid grid-cols-3 gap-2 mb-5">
           <div className="rounded-2xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-900/40 px-3 py-2.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">Avg / day</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-violet-500">{tr('Avg / day')}</p>
             <p className="text-lg font-black text-foreground leading-tight mt-0.5">{formatMinutes(avgPerDay)}</p>
             <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
-              {countedDays > 0 ? `over ${countedDays} day${countedDays !== 1 ? 's' : ''}` : 'no days yet'}
+              {countedDays > 0 ? tr('over {countedDays} {countedDays:day|days}', { countedDays: countedDays }) : tr('no days yet')}
             </p>
           </div>
           <div className="rounded-2xl bg-muted/50 px-3 py-2.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Total</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{tr('Total')}</p>
             <p className="text-lg font-black text-foreground leading-tight mt-0.5">{formatMinutes(monthSeconds / 60)}</p>
-            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">this month</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">{tr('this month')}</p>
           </div>
           <div className="rounded-2xl bg-muted/50 px-3 py-2.5">
-            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Days prayed</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">{tr('Days prayed')}</p>
             <p className="text-lg font-black text-foreground leading-tight mt-0.5">
               {prayedDays}<span className="text-xs text-muted-foreground font-bold">/{countedDays}</span>
             </p>
             <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
-              {prayedDays > 0 ? `${formatMinutes(avgPerPrayedDay)} when prayed` : '—'}
+              {prayedDays > 0 ? tr('{value} when prayed', { value: formatMinutes(avgPerPrayedDay) }) : '—'}
             </p>
           </div>
         </div>
@@ -269,7 +272,7 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
                   active ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <Icon className="h-3.5 w-3.5" /> {label}
+                <Icon className="h-3.5 w-3.5" /> {tr(label)}
               </button>
             )
           })}
@@ -351,16 +354,16 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
               <div className={clsx('w-4 h-4 rounded-md flex items-center justify-center', bg)}>
                 <Flame className="w-2.5 h-2.5 fill-white text-white" />
               </div>
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{tr(label)}</span>
             </div>
           ))}
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded-md bg-muted" />
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Missed</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{tr('Missed')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-4 h-4 rounded-full bg-white border border-amber-400 text-amber-600 text-[7px] font-black flex items-center justify-center">2</div>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sessions</span>
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{tr('Sessions')}</span>
           </div>
         </div>
         </>
@@ -373,9 +376,9 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
           <div className="bg-card border border-border w-full max-w-md rounded-[32px] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">Prayer Record</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">{tr('Prayer Record')}</p>
                 <h3 className="text-xl font-bold mt-0.5">
-                  {selectedDay.date.toLocaleDateString(undefined, { dateStyle: 'full' })}
+                  {selectedDay.date.toLocaleDateString(appLocale(), { dateStyle: 'full' })}
                 </h3>
               </div>
               <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setSelectedDay(null)}>
@@ -392,10 +395,10 @@ export default function PrayerCalendar({ userId, refreshKey }: Props): JSX.Eleme
               <div>
                 <p className="text-2xl font-black text-foreground leading-none">{selectedDay.count}</p>
                 <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                  session{selectedDay.count !== 1 ? 's' : ''}
+                  {tr('{count:session|sessions}', { count: selectedDay.count })}
                 </p>
                 <p className="text-2xl font-black text-amber-500 leading-none mt-2">{selectedDay.totalMinutes}</p>
-                <p className="text-xs text-muted-foreground font-medium">min prayed</p>
+                <p className="text-xs text-muted-foreground font-medium">{tr('min prayed')}</p>
               </div>
             </div>
           </div>

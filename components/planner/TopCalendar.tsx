@@ -1,5 +1,6 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
 import { useMemo, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { parseDateKey, toLocalDateKey } from '@/lib/dates'
@@ -15,7 +16,7 @@ export default function TopCalendar({
 }: TopCalendarProps) {
   const dateInputRef = useRef<HTMLInputElement>(null)
 
-  const monthLabel = selectedDate.toLocaleDateString(undefined, {
+  const monthLabel = selectedDate.toLocaleDateString(appLocale(), {
     month: 'short',
     year: 'numeric',
   })
@@ -91,7 +92,7 @@ export default function TopCalendar({
                 }`}
               >
                 <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${active ? 'text-blue-100' : 'text-slate-300'}`}>
-                  {day.toLocaleDateString(undefined, { weekday: 'short' })}
+                  {day.toLocaleDateString(appLocale(), { weekday: 'short' })}
                 </span>
                 <span className="text-xl font-bold tabular-nums">
                   {day.getDate()}
@@ -118,7 +119,7 @@ export default function TopCalendar({
                     : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300'
                 }`}
               >
-                <span className="text-[10px] font-bold uppercase tracking-widest mb-1">{day.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest mb-1">{day.toLocaleDateString(appLocale(), { weekday: 'short' })}</span>
                 <span className="text-lg font-bold">{day.getDate()}</span>
               </button>
             )

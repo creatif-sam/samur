@@ -1,3 +1,4 @@
+import { appLocale, trNow } from '@/lib/i18n'
 // Post types live in the text itself as a first line ("🙏 Prayer request"),
 // so they need no database change and still read naturally in notifications.
 
@@ -46,10 +47,10 @@ export function dayLabel(iso: string, now = new Date()) {
   const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const diff = Math.round((today.getTime() - day.getTime()) / 86400000)
-  if (diff === 0) return 'Today'
-  if (diff === 1) return 'Yesterday'
-  if (diff < 7) return d.toLocaleDateString(undefined, { weekday: 'long' })
-  return d.toLocaleDateString(undefined, {
+  if (diff === 0) return trNow('Today')
+  if (diff === 1) return trNow('Yesterday')
+  if (diff < 7) return d.toLocaleDateString(appLocale(), { weekday: 'long' })
+  return d.toLocaleDateString(appLocale(), {
     weekday: 'short', month: 'short', day: 'numeric',
     year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric',
   })

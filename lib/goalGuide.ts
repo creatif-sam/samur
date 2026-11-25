@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 import { addDays, daysBetween, parseDateKey, toLocalDateKey } from '@/lib/dates'
 
 // Helpers for the New Goal and New Vision forms. Nothing here blocks anyone:
@@ -18,10 +19,10 @@ const endOfQuarter = (key: string) => {
 export function goalDatePresets(today: string): { label: string; value: string }[] {
   const year = parseDateKey(today).getFullYear()
   const all = [
-    { label: 'End of this month', value: endOfMonth(today) },
-    { label: 'In 30 days', value: addDays(today, 30) },
-    { label: 'End of this quarter', value: endOfQuarter(today) },
-    { label: `End of ${year}`, value: `${year}-12-31` },
+    { label: trNow('End of this month'), value: endOfMonth(today) },
+    { label: trNow('In 30 days'), value: addDays(today, 30) },
+    { label: trNow('End of this quarter'), value: endOfQuarter(today) },
+    { label: trNow('End of {year}', { year }), value: `${year}-12-31` },
   ]
   const seen = new Set<string>()
   return all.filter(p => {

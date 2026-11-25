@@ -1,5 +1,6 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import BudgetEditModal from './BudgetEditModal'
@@ -29,7 +30,7 @@ type CategoryBudget = {
 
 export default function MoneyBudget() {
   const supabase = createClient()
-  const { t } = useTranslation()
+  const { t, tr } = useTranslation()
   const { format } = useMoneyFormat()
   const now = new Date()
 
@@ -372,7 +373,7 @@ export default function MoneyBudget() {
           >
             {Array.from({ length: 12 }).map((_, i) => (
               <option key={i} value={i}>
-                {new Date(0, i).toLocaleString(undefined, { month: 'long' })}
+                {new Date(0, i).toLocaleString(appLocale(), { month: 'long' })}
               </option>
             ))}
           </select>
@@ -403,7 +404,7 @@ export default function MoneyBudget() {
         <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest mb-4">
           {scope === 'week'
             ? t.money.week
-            : `${new Date(year, month).toLocaleString(undefined, { month: 'long' })} ${year}`
+            : `${new Date(year, month).toLocaleString(appLocale(), { month: 'long' })} ${year}`
           } · {t.money.budget}
         </p>
 
@@ -493,7 +494,7 @@ export default function MoneyBudget() {
                       {c.icon}
                     </div>
                     <div>
-                      <p className="text-sm font-bold leading-none">{c.name}</p>
+                      <p className="text-sm font-bold leading-none">{tr(c.name)}</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {format(c.spent)} / {c.budget > 0 ? format(c.budget) : '—'}
                       </p>
@@ -536,7 +537,7 @@ export default function MoneyBudget() {
       {/* ── MODAL ─────────────────────────────────── */}
       <BudgetEditModal
         open={budgetModalOpen}
-        title={budgetModalTitle}
+        title={tr(budgetModalTitle)}
         amount={budgetTarget === 'total' ? totalInput : categoryInput}
         onChange={v =>
           budgetTarget === 'total' ? setTotalInput(v) : setCategoryInput(v)

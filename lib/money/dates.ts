@@ -1,3 +1,4 @@
+import { appLocale } from '@/lib/i18n'
 export { toLocalDateKey, parseDateKey } from '@/lib/dates'
 
 // Next year first (for planning ahead), then the four years before this one
@@ -15,6 +16,6 @@ export function formatWeekRange(offset: number, template: string) {
   const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
   const opts: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' }
   return template
-    .replace('{start}', start.toLocaleDateString(undefined, opts))
-    .replace('{end}', end.toLocaleDateString(undefined, opts))
+    .replace('{start}', start.toLocaleDateString(appLocale(), opts))
+    .replace('{end}', end.toLocaleDateString(appLocale(), opts))
 }

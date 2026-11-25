@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useMemo, useState } from 'react'
 import { ChevronDown, Loader2, MoreHorizontal, Pencil, Search, Target, Trash2, X, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -36,6 +37,7 @@ interface Props {
 }
 
 export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onLoadMore, onEdit, onDelete }: Props) {
+  const { tr } = useTranslation()
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<Filter>('all')
   const [type, setType] = useState<string>('all')
@@ -67,8 +69,8 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
   if (logs.length === 0 && olderCount === 0) {
     return (
       <section className="rounded-3xl border border-dashed border-border p-8 text-center">
-        <p className="text-sm font-bold">No sessions yet</p>
-        <p className="mt-1 text-xs text-muted-foreground">Start a session above and it will show up here.</p>
+        <p className="text-sm font-bold">{tr('No sessions yet')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{tr('Start a session above and it will show up here.')}</p>
       </section>
     )
   }
@@ -79,9 +81,9 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
   return (
     <section className="space-y-3">
       <div className="flex items-end justify-between px-1">
-        <h3 className="text-base font-black tracking-tight">Your sessions</h3>
+        <h3 className="text-base font-black tracking-tight">{tr('Your sessions')}</h3>
         <span className="text-[11px] font-bold text-muted-foreground">
-          {shown.length} · {formatDuration(totalHours)}{filtering ? ' (filtered)' : ''}
+          {shown.length} · {formatDuration(totalHours)}{filtering ? tr(' (filtered)') : ''}
         </span>
       </div>
 
@@ -90,11 +92,11 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search your sessions"
+          placeholder={tr('Search your sessions')}
           className="h-11 w-full rounded-2xl bg-muted/60 pl-10 pr-9 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
         />
         {query && (
-          <button type="button" onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted">
+          <button type="button" onClick={() => setQuery('')} aria-label={tr('Clear search')} className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground hover:bg-muted">
             <X className="h-3.5 w-3.5" />
           </button>
         )}
@@ -103,21 +105,21 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
       <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
         {(['all', 'focused', 'aligned'] as const).map(f => (
           <button key={f} type="button" onClick={() => setFilter(f)} className={chip(filter === f)}>
-            {f === 'all' ? 'All' : f === 'focused' ? 'Focused' : 'Aligned'}
+            {f === 'all' ? tr('All') : f === 'focused' ? tr('Focused') : tr('Aligned')}
           </button>
         ))}
         {types.length > 1 && <span className="mx-0.5 w-px shrink-0 self-stretch bg-border" aria-hidden />}
         {types.length > 1 && types.map(t => (
           <button key={t} type="button" onClick={() => setType(type === t ? 'all' : t)} className={chip(type === t)}>
-            {TYPE_LABEL[t] ?? t}
+            {tr(TYPE_LABEL[t] ?? t)}
           </button>
         ))}
       </div>
 
       {days.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
-          Nothing matches.{' '}
-          <button type="button" className="font-bold text-violet-600 dark:text-violet-400" onClick={() => { setQuery(''); setFilter('all'); setType('all') }}>Clear filters</button>
+          {tr('Nothing matches.')}{' '}
+          <button type="button" className="font-bold text-violet-600 dark:text-violet-400" onClick={() => { setQuery(''); setFilter('all'); setType('all') }}>{tr('Clear filters')}</button>
         </p>
       ) : (
         days.map(group => (
@@ -138,18 +140,18 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-[15px] font-bold leading-tight">{log.worked_on}</p>
-                        {log.produced && <p className="mt-0.5 text-xs text-muted-foreground">Produced: {log.produced}</p>}
+                        {log.produced && <p className="mt-0.5 text-xs text-muted-foreground">{tr('Produced: {produced}', { produced: log.produced })}</p>}
                       </div>
                       <span className="shrink-0 text-sm font-black tabular-nums">{formatDuration(log.hours_worked)}</span>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button type="button" aria-label="Session options" className="-mr-1.5 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted">
+                          <button type="button" aria-label={tr('Session options')} className="-mr-1.5 -mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted">
                             <MoreHorizontal className="h-4 w-4" />
                           </button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEdit(log)}><Pencil className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setDeleting(log)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onEdit(log)}><Pencil className="mr-2 h-4 w-4" />{' '}{tr('Edit')}</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setDeleting(log)} className="text-red-600"><Trash2 className="mr-2 h-4 w-4" />{' '}{tr('Delete')}</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -157,10 +159,10 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
                     <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[11px] text-muted-foreground">
                       {range && <span className="font-semibold tabular-nums">{range}</span>}
                       <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', TYPE_STYLE[log.work_type] ?? 'bg-muted text-muted-foreground')}>
-                        {TYPE_LABEL[log.work_type] ?? (log.work_type || 'General')}
+                        {TYPE_LABEL[log.work_type] ?? (log.work_type || tr('General'))}
                       </span>
-                      {log.focused && <span className="flex items-center gap-0.5 font-semibold text-emerald-600 dark:text-emerald-400"><Zap className="h-3 w-3 fill-current" /> Focused</span>}
-                      {log.aligned && <span className="flex items-center gap-0.5 font-semibold text-blue-600 dark:text-blue-400"><Target className="h-3 w-3" /> On vision</span>}
+                      {log.focused && <span className="flex items-center gap-0.5 font-semibold text-emerald-600 dark:text-emerald-400"><Zap className="h-3 w-3 fill-current" />{' '}{tr('Focused')}</span>}
+                      {log.aligned && <span className="flex items-center gap-0.5 font-semibold text-blue-600 dark:text-blue-400"><Target className="h-3 w-3" />{' '}{tr('On vision')}</span>}
                     </div>
 
                     {log.notes && (
@@ -168,7 +170,7 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
                         <p className={cn('mt-2 whitespace-pre-wrap text-xs leading-relaxed text-foreground/80', !expanded && 'line-clamp-2')}>{log.notes}</p>
                         {log.notes.length > 90 && (
                           <button type="button" onClick={() => toggle(log.id)} className="mt-0.5 flex items-center gap-0.5 text-[11px] font-bold text-violet-600 dark:text-violet-400">
-                            {expanded ? 'Show less' : 'Read more'} <ChevronDown className={cn('h-3 w-3 transition-transform', expanded && 'rotate-180')} />
+                            {expanded ? tr('Show less') : tr('Read more')} <ChevronDown className={cn('h-3 w-3 transition-transform', expanded && 'rotate-180')} />
                           </button>
                         )}
                       </>
@@ -183,25 +185,25 @@ export default function CreateLog({ logs, todayKey, olderCount, loadingMore, onL
 
       {olderCount > 0 && (
         <Button type="button" variant="outline" onClick={onLoadMore} disabled={loadingMore} className="h-11 w-full rounded-2xl font-bold">
-          {loadingMore ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…</> : `Show older sessions (${olderCount})`}
+          {loadingMore ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{' '}{tr('Loading…')}</> : tr('Show older sessions ({olderCount})', { olderCount: olderCount })}
         </Button>
       )}
 
       <AlertDialog open={!!deleting} onOpenChange={o => !o && setDeleting(null)}>
         <AlertDialogContent className="w-[90vw] max-w-sm rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this session?</AlertDialogTitle>
+            <AlertDialogTitle>{tr('Delete this session?')}</AlertDialogTitle>
             <AlertDialogDescription>
-              “{deleting?.worked_on}” ({deleting ? formatDuration(deleting.hours_worked) : ''}) will be removed. This cannot be undone.
+              {tr('“{worked_on}” ({value}) will be removed. This cannot be undone.', { worked_on: deleting?.worked_on, value: deleting ? formatDuration(deleting.hours_worked) : '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
-            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogCancel>{tr('Keep it')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-red-600 text-white hover:bg-red-700"
               onClick={() => { if (deleting) onDelete(deleting); setDeleting(null) }}
             >
-              Delete
+              {tr('Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

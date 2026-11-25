@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -26,6 +28,7 @@ const STATUS_LABEL: Record<string, { label: string; className: string }> = {
 }
 
 export default function GoalDetailPage() {
+  const { tr } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const supabase = createClient()
@@ -82,8 +85,8 @@ export default function GoalDetailPage() {
     setDeleting(true)
     const { error } = await supabase.from('goals').delete().eq('id', goal.id)
     setDeleting(false)
-    if (error) { toast.error("Couldn't delete the goal"); return }
-    toast.success('Goal deleted')
+    if (error) { toast.error(tr('Couldn\'t delete the goal')); return }
+    toast.success(tr('Goal deleted'))
     router.replace('/protected/goals')
   }
 
@@ -95,9 +98,9 @@ export default function GoalDetailPage() {
     return (
       <div className="max-w-xl mx-auto px-4 py-16 text-center space-y-3">
         <Target className="w-10 h-10 mx-auto text-muted-foreground/40" />
-        <p className="font-bold">Goal not found</p>
-        <p className="text-sm text-muted-foreground">It may have been deleted, or it isn&apos;t shared with you.</p>
-        <Link href="/protected/goals" className="inline-block rounded-2xl bg-violet-600 text-white px-4 py-2 text-sm font-bold">Back to goals</Link>
+        <p className="font-bold">{tr('Goal not found')}</p>
+        <p className="text-sm text-muted-foreground">{tr('It may have been deleted, or it isn\'t shared with you.')}</p>
+        <Link href="/protected/goals" className="inline-block rounded-2xl bg-violet-600 text-white px-4 py-2 text-sm font-bold">{tr('Back to goals')}</Link>
       </div>
     )
   }
@@ -116,14 +119,14 @@ export default function GoalDetailPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 pb-28">
       <div className="sticky top-[60px] z-20 -mx-4 px-4 py-3 bg-background/90 backdrop-blur-md border-b border-border/40 flex items-center gap-3">
-        <button onClick={() => (window.history.length > 1 ? router.back() : router.push('/protected/goals'))} aria-label="Back" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+        <button onClick={() => (window.history.length > 1 ? router.back() : router.push('/protected/goals'))} aria-label={tr('Back')} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
           <ArrowLeft className="w-4 h-4" />
         </button>
-        <p className="text-sm font-bold truncate flex-1">Goal</p>
+        <p className="text-sm font-bold truncate flex-1">{tr('Goal')}</p>
         {isOwner && (
           <div className="flex gap-1">
-            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>Edit</Button>
-            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setConfirmDelete(true)}>Delete</Button>
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>{tr('Edit')}</Button>
+            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setConfirmDelete(true)}>{tr('Delete')}</Button>
           </div>
         )}
       </div>
@@ -132,19 +135,19 @@ export default function GoalDetailPage() {
       <div className="pt-5 space-y-4">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${status.className}`}>{status.label}</span>
+            <span className={`text-[11px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${status.className}`}>{tr(status.label)}</span>
             {goal.goal_categories && (
               <span className="text-[11px] font-black uppercase px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: goal.goal_categories.color }}>
-                {goal.goal_categories.emoji} {goal.goal_categories.name}
+                {goal.goal_categories.emoji} {tr(goal.goal_categories.name)}
               </span>
             )}
           </div>
-          <h1 className={`text-2xl font-black leading-tight ${goal.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>{goal.title}</h1>
+          <h1 className={`text-2xl font-black leading-tight ${goal.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>{tr(goal.title)}</h1>
         </div>
 
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs font-bold">
-            <span className="text-muted-foreground">Progress</span>
+            <span className="text-muted-foreground">{tr('Progress')}</span>
             <span>{goal.progress ?? 0}%</span>
           </div>
           <div className="h-2.5 rounded-full bg-secondary overflow-hidden">
@@ -154,19 +157,19 @@ export default function GoalDetailPage() {
 
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-2xl bg-card border border-border p-3">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><CalendarDays className="w-3 h-3" /> Due</p>
-            <p className="text-sm font-bold mt-0.5">{due ? due.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No due date'}</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><CalendarDays className="w-3 h-3" />{' '}{tr('Due')}</p>
+            <p className="text-sm font-bold mt-0.5">{due ? due.toLocaleDateString(appLocale(), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : tr('No due date')}</p>
             {daysLeft !== null && goal.status !== 'done' && (
               <p className={`text-[11px] font-semibold ${overdue ? 'text-red-500' : daysLeft <= 3 ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                {overdue ? `${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''} overdue` : daysLeft === 0 ? 'Due today' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`}
+                {overdue ? tr('{abs} {abs:day|days} overdue', { abs: Math.abs(daysLeft) }) : daysLeft === 0 ? tr('Due today') : tr('{daysLeft} {daysLeft:day|days} left', { daysLeft: daysLeft })}
               </p>
             )}
           </div>
           <div className="rounded-2xl bg-card border border-border p-3">
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-              {sharedWith ? <Users className="w-3 h-3" /> : <Lock className="w-3 h-3" />} {sharedWith ? 'Shared' : 'Private'}
+              {sharedWith ? <Users className="w-3 h-3" /> : <Lock className="w-3 h-3" />} {sharedWith ? tr('Shared') : tr('Private')}
             </p>
-            <p className="text-sm font-bold mt-0.5 truncate">{sharedWith ? (isOwner ? `With ${sharedWith}` : `From ${sharedWith}`) : 'Only you'}</p>
+            <p className="text-sm font-bold mt-0.5 truncate">{sharedWith ? (isOwner ? tr('With {sharedWith}', { sharedWith: sharedWith }) : tr('From {sharedWith}', { sharedWith: sharedWith })) : tr('Only you')}</p>
           </div>
         </div>
 
@@ -174,8 +177,8 @@ export default function GoalDetailPage() {
           <Link href="/protected/goals" className="flex items-center gap-3 rounded-2xl border border-border p-3" style={{ backgroundColor: `${role.color}14` }}>
             <span className="text-xl">{role.emoji || '🎯'}</span>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Role</p>
-              <p className="text-sm font-bold truncate">{role.name}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{tr('Role')}</p>
+              <p className="text-sm font-bold truncate">{tr(role.name)}</p>
               {role.mission && <p className="mt-0.5 line-clamp-2 font-serif text-xs text-muted-foreground">{role.mission}</p>}
             </div>
           </Link>
@@ -185,8 +188,8 @@ export default function GoalDetailPage() {
           <Link href="/protected/goals" className="flex items-center gap-3 rounded-2xl border border-border p-3" style={{ backgroundColor: `${vision.color}14` }}>
             <span className="text-xl">{vision.emoji || '🎯'}</span>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Flag className="w-3 h-3" /> Vision</p>
-              <p className="text-sm font-bold truncate">{vision.title}</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Flag className="w-3 h-3" />{' '}{tr('Vision')}</p>
+              <p className="text-sm font-bold truncate">{tr(vision.title)}</p>
             </div>
           </Link>
         )}
@@ -195,13 +198,13 @@ export default function GoalDetailPage() {
           <div className="rounded-2xl bg-card border border-border p-4 space-y-3">
             {goal.description && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">About this goal</p>
-                <p className="text-sm whitespace-pre-wrap leading-relaxed">{goal.description}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">{tr('About this goal')}</p>
+                <p className="text-sm whitespace-pre-wrap leading-relaxed">{tr(goal.description)}</p>
               </div>
             )}
             {goal.deliverable && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">How you will know it is done</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">{tr('How you will know it is done')}</p>
                 <p className="text-sm whitespace-pre-wrap leading-relaxed">{goal.deliverable}</p>
               </div>
             )}
@@ -211,7 +214,7 @@ export default function GoalDetailPage() {
         {/* Status, milestones and scheduling (same controls as the goals list) */}
         <div className="space-y-2">
           <div className="flex items-center gap-0.5">
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Track it</p>
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{tr('Track it')}</p>
             <HelpTip topic="goals.track" align="left" className="-my-1" />
           </div>
           <GoalCard
@@ -226,15 +229,15 @@ export default function GoalDetailPage() {
         </div>
 
         <p className="text-[11px] text-muted-foreground text-center pt-2">
-          Created {new Date(goal.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+          {tr('Created {value}', { value: new Date(goal.created_at).toLocaleDateString(appLocale(), { dateStyle: 'medium' }) })}
         </p>
       </div>
 
       <Dialog open={editing} onOpenChange={setEditing}>
         <DialogContent className="w-[95vw] max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-black uppercase italic">Edit Goal</DialogTitle>
-            <DialogDescription className="sr-only">Update this goal</DialogDescription>
+            <DialogTitle className="font-black uppercase italic">{tr('Edit Goal')}</DialogTitle>
+            <DialogDescription className="sr-only">{tr('Update this goal')}</DialogDescription>
           </DialogHeader>
           {editing && (
             <NewGoalForm
@@ -251,12 +254,12 @@ export default function GoalDetailPage() {
       <Dialog open={confirmDelete} onOpenChange={open => !deleting && setConfirmDelete(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Delete this goal?</DialogTitle>
-            <DialogDescription>&ldquo;{goal.title}&rdquo; and its milestones will be deleted. This can&apos;t be undone.</DialogDescription>
+            <DialogTitle>{tr('Delete this goal?')}</DialogTitle>
+            <DialogDescription>{tr('“{title}” and its milestones will be deleted. This can\'t be undone.', { title: goal.title })}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleting}>Cancel</Button>
-            <Button variant="destructive" onClick={deleteGoal} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete'}</Button>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)} disabled={deleting}>{tr('Cancel')}</Button>
+            <Button variant="destructive" onClick={deleteGoal} disabled={deleting}>{deleting ? tr('Deleting…') : tr('Delete')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

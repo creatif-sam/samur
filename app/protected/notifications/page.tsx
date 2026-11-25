@@ -1,10 +1,12 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
+import { dateFnsLocale } from '@/lib/i18n/dateFns'
 import { toast } from 'sonner'
 import { CheckCheck, ChevronLeft, Loader2, Settings, Trash2 } from 'lucide-react'
 import { BellIcon } from '@/components/notifications/BellIcon'
@@ -19,6 +21,7 @@ function announceChange() {
 }
 
 export default function NotificationsPage() {
+  const { tr } = useTranslation()
   const router = useRouter()
   const [items, setItems] = useState<AppNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -40,7 +43,7 @@ export default function NotificationsPage() {
       setHasMore(!!data.hasMore)
       setUnreadCount(data.unreadCount ?? 0)
     } catch {
-      toast.error("Couldn't load notifications")
+      toast.error(tr('Couldn\'t load notifications'))
     } finally {
       setLoading(false)
       setLoadingMore(false)
@@ -80,7 +83,7 @@ export default function NotificationsPage() {
       body: JSON.stringify({ id: n.id }),
     })
     if (!res.ok) {
-      toast.error("Couldn't delete the notification")
+      toast.error(tr('Couldn\'t delete the notification'))
       loadPage(0)
       return
     }
@@ -97,10 +100,10 @@ export default function NotificationsPage() {
     })
     if (!res.ok) {
       setItems(before)
-      toast.error("Couldn't clear notifications")
+      toast.error(tr('Couldn\'t clear notifications'))
       return
     }
-    toast.success('Read notifications cleared')
+    toast.success(tr('Read notifications cleared'))
     announceChange()
   }
 
@@ -110,15 +113,15 @@ export default function NotificationsPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 pb-28">
       <div className="sticky top-[60px] z-20 -mx-4 px-4 py-3 bg-background/90 backdrop-blur-md border-b border-border/40 flex items-center gap-3">
-        <button onClick={() => router.back()} aria-label="Back" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+        <button onClick={() => router.back()} aria-label={tr('Back')} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-base font-black">Notifications</h1>
-          <p className="text-[11px] text-muted-foreground">{unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}</p>
+          <h1 className="text-base font-black">{tr('Notifications')}</h1>
+          <p className="text-[11px] text-muted-foreground">{unreadCount > 0 ? tr('{unreadCount} unread', { unreadCount: unreadCount }) : tr('All caught up')}</p>
         </div>
         <HelpTip topic="notifications.page" />
-        <Link href="/protected/profile#notifications" aria-label="Notification settings" className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+        <Link href="/protected/profile#notifications" aria-label={tr('Notification settings')} className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
           <Settings className="w-4 h-4" />
         </Link>
       </div>
@@ -130,18 +133,18 @@ export default function NotificationsPage() {
             onClick={() => setFilter(f)}
             className={`rounded-full px-3 py-1 text-xs font-bold ${filter === f ? 'bg-violet-600 text-white' : 'bg-muted text-muted-foreground'}`}
           >
-            {f === 'all' ? 'All' : 'Unread'}
+            {f === 'all' ? tr('All') : tr('Unread')}
           </button>
         ))}
         <div className="ml-auto flex gap-1">
           {unreadCount > 0 && (
             <button onClick={markAllRead} className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-violet-600 dark:text-violet-400 hover:bg-muted">
-              <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+              <CheckCheck className="w-3.5 h-3.5" />{' '}{tr('Mark all read')}
             </button>
           )}
           {hasRead && (
             <button onClick={clearRead} className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-muted-foreground hover:bg-muted">
-              <Trash2 className="w-3.5 h-3.5" /> Clear read
+              <Trash2 className="w-3.5 h-3.5" />{' '}{tr('Clear read')}
             </button>
           )}
         </div>
@@ -152,7 +155,7 @@ export default function NotificationsPage() {
       ) : visible.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground">
           <BellIcon slashed className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="text-sm font-semibold">{filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}</p>
+          <p className="text-sm font-semibold">{filter === 'unread' ? tr('No unread notifications') : tr('No notifications yet')}</p>
         </div>
       ) : (
         <ul className="space-y-2">
@@ -164,16 +167,16 @@ export default function NotificationsPage() {
               <button onClick={() => open(n)} className="flex items-start gap-3 min-w-0 flex-1 text-left">
                 <span className="text-xl shrink-0">{notificationIcon(n.type)}</span>
                 <div className="min-w-0 flex-1">
-                  <p className={`text-sm ${n.read ? 'font-medium' : 'font-bold'} text-foreground`}>{n.title}</p>
+                  <p className={`text-sm ${n.read ? 'font-medium' : 'font-bold'} text-foreground`}>{tr(n.title)}</p>
                   {n.body && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-3">{n.body}</p>}
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: dateFnsLocale() })}
                   </p>
                 </div>
               </button>
               <button
                 onClick={() => remove(n)}
-                aria-label="Delete notification"
+                aria-label={tr('Delete notification')}
                 className="shrink-0 p-1.5 rounded-full text-muted-foreground hover:bg-muted active:text-red-500"
               >
                 <Trash2 className="w-4 h-4" />
@@ -189,7 +192,7 @@ export default function NotificationsPage() {
           disabled={loadingMore}
           className="w-full mt-4 py-3 rounded-2xl border border-border text-sm font-bold text-muted-foreground disabled:opacity-60"
         >
-          {loadingMore ? 'Loading…' : 'Load older'}
+          {loadingMore ? tr('Loading…') : tr('Load older')}
         </button>
       )}
     </div>

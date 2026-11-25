@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -46,6 +48,7 @@ function pad(n: number) {
 }
 
 function GoalCard({ goal }: { goal: Goal }) {
+  const { tr } = useTranslation()
   const [cd, setCd] = useState<Countdown>(() => getCountdown(goal.due_date))
 
   useEffect(() => {
@@ -77,14 +80,14 @@ function GoalCard({ goal }: { goal: Goal }) {
           }`}
         />
         <p className="text-[13px] font-bold text-slate-800 dark:text-slate-100 leading-snug line-clamp-2">
-          {goal.title}
+          {tr(goal.title)}
         </p>
       </div>
 
       {/* Countdown display */}
       {cd.overdue ? (
         <div className="flex items-center gap-1.5">
-          <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Overdue</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-red-500">{tr('Overdue')}</span>
         </div>
       ) : (
         <div className="flex items-center gap-1 flex-wrap">
@@ -116,13 +119,14 @@ function GoalCard({ goal }: { goal: Goal }) {
 
       {/* Due date label */}
       <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2">
-        Due {new Date(goal.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+        {tr('Due {value}', { value: new Date(goal.due_date).toLocaleDateString(appLocale() ?? 'en-US', { month: 'short', day: 'numeric', year: 'numeric' }) })}
       </p>
     </Link>
   )
 }
 
 export default function UpcomingGoalsCountdown() {
+  const { tr } = useTranslation()
   const [goals, setGoals] = useState<Goal[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -162,17 +166,17 @@ export default function UpcomingGoalsCountdown() {
           </div>
           <div>
             <div className="flex items-center gap-0.5">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Upcoming Goals</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{tr('Upcoming Goals')}</p>
               <HelpTip topic="home.countdown" align="left" className="-my-1.5" />
             </div>
-            <p className="text-[11px] font-semibold text-muted-foreground/60">Live countdown</p>
+            <p className="text-[11px] font-semibold text-muted-foreground/60">{tr('Live countdown')}</p>
           </div>
         </div>
         <Link
           href="/protected/goals"
           className="flex items-center gap-1 text-[11px] font-bold text-violet-500 dark:text-violet-400"
         >
-          See all <ChevronRight className="w-3.5 h-3.5" />
+          {tr('See all')}{' '}<ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </div>
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale, trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useRef } from 'react'
 import { FileText, Calendar, Book, Pin } from 'lucide-react'
 import { pageSortTime, type Notebook, type Page, type Section } from './types'
@@ -13,6 +15,7 @@ interface RecentPagesGridProps {
 }
 
 export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: RecentPagesGridProps) {
+  const { tr } = useTranslation()
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const didLongPress = useRef(false)
 
@@ -51,7 +54,7 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
     .slice(0, 60) // Show most recent 60 pages
 
   const getPreviewText = (content: string | null) => {
-    if (!content) return 'Empty page...'
+    if (!content) return trNow('Empty page...')
     const plainText = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ')
     return plainText.substring(0, 100) + (plainText.length > 100 ? '...' : '')
   }
@@ -67,15 +70,15 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
     if (diffMins < 60) return `${diffMins}m ago`
     if (diffHours < 24) return `${diffHours}h ago`
     if (diffDays < 7) return `${diffDays}d ago`
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return d.toLocaleDateString(appLocale() ?? 'en-US', { month: 'short', day: 'numeric' })
   }
 
   if (recentPages.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-slate-400 dark:text-slate-600">
         <FileText className="w-16 h-16 mb-4 opacity-30" />
-        <p className="text-sm font-semibold uppercase tracking-wider">No pages yet</p>
-        <p className="text-xs mt-2">Create a notebook to get started</p>
+        <p className="text-sm font-semibold uppercase tracking-wider">{tr('No pages yet')}</p>
+        <p className="text-xs mt-2">{tr('Create a notebook to get started')}</p>
       </div>
     )
   }
@@ -83,7 +86,7 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
   return (
     <div className="px-4 py-6">
       <h3 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 px-2">
-        Recent Pages
+        {tr('Recent Pages')}
       </h3>
       <div className="grid grid-cols-2 gap-3">
         {recentPages.map(({ page, section, notebook }) => (
@@ -113,7 +116,7 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate flex items-center gap-1">
                   {page.pinned && <Pin className="w-3 h-3 text-[#7719aa] shrink-0" />}
-                  <span className="truncate">{page.title || 'Untitled'}</span>
+                  <span className="truncate">{page.title || tr('Untitled')}</span>
                 </h4>
               </div>
             </div>
@@ -127,7 +130,7 @@ export function RecentPagesGrid({ notebooks, onSelectPage, onLongPress }: Recent
             <div className="flex items-center justify-between text-[9px] text-slate-400 dark:text-slate-500">
               <div className="flex items-center gap-1">
                 <Book className="w-3 h-3" />
-                <span className="truncate max-w-[80px]">{notebook.title}</span>
+                <span className="truncate max-w-[80px]">{tr(notebook.title)}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />

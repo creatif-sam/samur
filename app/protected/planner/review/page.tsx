@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -59,19 +61,21 @@ function dayLabels() {
 function StatCard({ icon, label, value, sub, color }: {
   icon: React.ReactNode; label: string; value: string | number; sub?: string; color: string
 }) {
+  const { tr } = useTranslation()
   return (
     <div className={cn('rounded-2xl p-4 flex flex-col gap-2', color)}>
       <div className="flex items-center justify-between">
         <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">{icon}</div>
       </div>
       <p className="text-2xl font-black text-white leading-none">{value}</p>
-      <p className="text-[10px] font-bold text-white/60 uppercase tracking-wide">{label}</p>
-      {sub && <p className="text-[11px] text-white/70 leading-tight">{sub}</p>}
+      <p className="text-[10px] font-bold text-white/60 uppercase tracking-wide">{tr(label)}</p>
+      {sub && <p className="text-[11px] text-white/70 leading-tight">{tr(sub)}</p>}
     </div>
   )
 }
 
 export default function WeeklyReviewPage() {
+  const { tr } = useTranslation()
   const router = useRouter()
   const supabase = createClient()
   const [data, setData] = useState<WeekData | null>(null)
@@ -191,7 +195,7 @@ export default function WeeklyReviewPage() {
   }
 
   const { start } = weekRange()
-  const weekLabel = start.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+  const weekLabel = start.toLocaleDateString(appLocale() ?? 'en-US', { month: 'long', day: 'numeric' })
 
   const taskRate = data && data.tasksTotal > 0
     ? Math.round((data.tasksDone / data.tasksTotal) * 100)
@@ -205,8 +209,8 @@ export default function WeeklyReviewPage() {
           <ChevronLeft className="w-4 h-4" />
         </button>
         <div>
-          <h1 className="text-base font-black">Weekly Review</h1>
-          <p className="text-[11px] text-muted-foreground">Week of {weekLabel}</p>
+          <h1 className="text-base font-black">{tr('Weekly Review')}</h1>
+          <p className="text-[11px] text-muted-foreground">{tr('Week of {weekLabel}', { weekLabel: weekLabel })}</p>
         </div>
         <div className="ml-auto flex items-center gap-1">
           <HelpTip topic="review.page" />
@@ -215,61 +219,59 @@ export default function WeeklyReviewPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">Loading…</div>
+        <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">{tr('Loading…')}</div>
       ) : !data ? null : (
         <div className="px-4 pt-5 space-y-6 max-w-2xl mx-auto">
 
           {/* Intro */}
           <div className="rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-600 p-5 text-white">
-            <p className="text-[11px] font-bold text-white/60 uppercase tracking-widest mb-1">This Week's Snapshot</p>
+            <p className="text-[11px] font-bold text-white/60 uppercase tracking-widest mb-1">{tr('This Week\'s Snapshot')}</p>
             <p className="text-2xl font-black leading-tight">
-              {data.goals.done > 0 || data.meditations > 0
-                ? `${data.goals.done + data.meditations} wins this week 🏆`
-                : 'New week, fresh start ✨'}
+              {data.goals.done > 0 || data.meditations > 0 ? tr('{value} wins this week 🏆', { value: data.goals.done + data.meditations }) : tr('New week, fresh start ✨')}
             </p>
-            <p className="text-sm text-white/70 mt-1">Keep the momentum going.</p>
+            <p className="text-sm text-white/70 mt-1">{tr('Keep the momentum going.')}</p>
           </div>
 
           {/* Stats grid */}
           <div className="grid grid-cols-2 gap-3">
             <StatCard
               icon={<Target className="w-4 h-4 text-white" />}
-              label="Goals this week"
+              label={tr('Goals this week')}
               value={data.goals.total}
               sub={`${data.goals.done} done · ${data.goals.doing} in progress`}
               color="bg-gradient-to-br from-violet-600 to-purple-700"
             />
             <StatCard
               icon={<Heart className="w-4 h-4 text-white" />}
-              label="Meditations"
+              label={tr('Meditations')}
               value={data.meditations}
               sub="Completed this week"
               color="bg-gradient-to-br from-pink-500 to-rose-600"
             />
             <StatCard
               icon={<CheckCircle2 className="w-4 h-4 text-white" />}
-              label="Tasks done"
+              label={tr('Tasks done')}
               value={taskRate !== null ? `${taskRate}%` : data.tasksDone}
               sub={`${data.tasksDone} of ${data.tasksTotal} completed`}
               color="bg-gradient-to-br from-emerald-500 to-teal-600"
             />
             <StatCard
               icon={<Wallet className="w-4 h-4 text-white" />}
-              label="Net money"
+              label={tr('Net money')}
               value={`${data.moneyIn - data.moneyOut >= 0 ? '+' : ''}${(data.moneyIn - data.moneyOut).toFixed(0)}`}
               sub={`In ${data.moneyIn.toFixed(0)} · Out ${data.moneyOut.toFixed(0)}`}
               color="bg-gradient-to-br from-blue-500 to-cyan-600"
             />
             <StatCard
               icon={<Flame className="w-4 h-4 text-white" />}
-              label="Prayer time"
+              label={tr('Prayer time')}
               value={data.prayerMinutes >= 60 ? `${Math.floor(data.prayerMinutes / 60)}h ${data.prayerMinutes % 60}m` : `${data.prayerMinutes}m`}
               sub={`${data.prayerDays} of 7 days`}
               color="bg-gradient-to-br from-amber-500 to-orange-600"
             />
             <StatCard
               icon={<Brain className="w-4 h-4 text-white" />}
-              label="Memory verses"
+              label={tr('Memory verses')}
               value={data.versesChosen}
               sub={`${data.versesMemorized} memorized`}
               color="bg-gradient-to-br from-indigo-500 to-violet-600"
@@ -281,7 +283,7 @@ export default function WeeklyReviewPage() {
             <div className="space-y-3">
               <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest px-1">
                 <Sparkles className="w-3 h-3 inline mr-1 text-amber-500" />
-                Gratitude this week ({data.gratitude.length} / 7 days)
+                {tr('Gratitude this week (')}{data.gratitude.length}{' '}{tr('/ 7 days)')}
               </p>
 
               {/* Mini progress bar */}
@@ -303,7 +305,7 @@ export default function WeeklyReviewPage() {
               {data.gratitude.map(g => (
                 <div key={g.date} className="rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/50 dark:border-amber-800/30 p-4 space-y-1.5">
                   <p className="text-[10px] font-bold text-amber-600/80 uppercase tracking-wide">
-                    {new Date(g.date).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                    {new Date(g.date).toLocaleDateString(appLocale() ?? 'en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                   </p>
                   {[g.entry_1, g.entry_2, g.entry_3].filter(Boolean).map((e, i) => (
                     <p key={i} className="text-[12px] text-foreground/80 pl-2 border-l-2 border-amber-300 dark:border-amber-700">{e}</p>
@@ -316,9 +318,9 @@ export default function WeeklyReviewPage() {
           {/* Reflection prompt */}
           <div className="rounded-3xl border border-dashed border-violet-300 dark:border-violet-800 p-5 text-center space-y-2">
             <TrendingUp className="w-8 h-8 text-violet-400 mx-auto" />
-            <p className="font-bold text-sm">What will you improve next week?</p>
+            <p className="font-bold text-sm">{tr('What will you improve next week?')}</p>
             <p className="text-xs text-muted-foreground">
-              Reflect on your wins and set one intention for next week.
+              {tr('Reflect on your wins and set one intention for next week.')}
             </p>
           </div>
 

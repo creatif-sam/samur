@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import QuizTake from './QuizTake';
@@ -12,6 +13,7 @@ interface Quiz {
 }
 
 export default function QuizList() {
+  const { tr } = useTranslation()
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [active, setActive] = useState<Quiz | null>(null);
 
@@ -45,12 +47,12 @@ export default function QuizList() {
           className="border rounded-xl p-4"
         >
           <h3 className="font-semibold">
-            {q.title}
+            {tr(q.title)}
           </h3>
 
           {q.description && (
             <p className="text-sm text-muted-foreground">
-              {q.description}
+              {tr(q.description)}
             </p>
           )}
 
@@ -59,7 +61,7 @@ export default function QuizList() {
             className="mt-2"
             onClick={() => setActive(q)}
           >
-            Take Quiz
+            {tr('Take Quiz')}
           </Button>
         </div>
       ))}

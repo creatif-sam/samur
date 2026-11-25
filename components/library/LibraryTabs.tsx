@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import ReadingList from '@/components/read/ReadingList';
 import QuizTabs from '@/components/quiz/QuizTabs';
@@ -32,6 +33,7 @@ function tabFromParam(param: string | null): TabKey {
 }
 
 export default function LibraryTabs(): JSX.Element {
+  const { tr } = useTranslation()
   const requested = useSearchParams().get('tab');
   const [tab, setTab] = useState<TabKey>(() => tabFromParam(requested));
   // Follow the link when it changes while the Library is already open
@@ -42,17 +44,17 @@ export default function LibraryTabs(): JSX.Element {
       <TabsList className="grid grid-cols-3 gap-1.5 p-1.5 bg-muted/50 dark:bg-zinc-900/50 backdrop-blur-md rounded-2xl border border-border/50">
         <TabsTrigger value="read" className={triggerClass}>
           <BookOpen className="w-4 h-4" />
-          <span className={labelClass}>Read</span>
+          <span className={labelClass}>{tr('Read')}</span>
         </TabsTrigger>
 
         <TabsTrigger value="quiz" className={triggerClass}>
           <ListChecks className="w-4 h-4" />
-          <span className={labelClass}>Quiz</span>
+          <span className={labelClass}>{tr('Quiz')}</span>
         </TabsTrigger>
 
         <TabsTrigger value="creative" className={triggerClass}>
           <Sparkles className="w-4 h-4" />
-          <span className={labelClass}>Create</span>
+          <span className={labelClass}>{tr('Create')}</span>
         </TabsTrigger>
       </TabsList>
 

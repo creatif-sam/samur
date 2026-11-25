@@ -1,5 +1,7 @@
 'use client'
 
+import { appLocale, trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { JSX, useEffect, useMemo, useState, useRef } from 'react'
 import Link from 'next/link'
 import { Goal } from '@/lib/types'
@@ -70,6 +72,7 @@ export function GoalList({
   onUpdated,
   onDeleted
 }: GoalListProps) {
+  const { tr } = useTranslation()
   const [editingGoal, setEditingGoal] = useState<EnhancedGoal | null>(null)
   const [goalToDelete, setGoalToDelete] = useState<EnhancedGoal | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -83,7 +86,7 @@ export function GoalList({
       if (!groups[vId]) {
         groups[vId] = {
           key: vId,
-          vision: goal.visions || { title: 'General Strategy', color: '#94a3b8', emoji: '🎯' },
+          vision: goal.visions || { title: trNow('General Strategy'), color: '#94a3b8', emoji: '🎯' },
           items: [],
           avgProgress: 0
         }
@@ -115,7 +118,7 @@ export function GoalList({
     try {
       const { error } = await supabase.from('goals').delete().eq('id', goalToDelete.id)
       if (error) {
-        toast.error("Couldn't delete the goal")
+        toast.error(tr('Couldn\'t delete the goal'))
         return
       }
       onDeleted(goalToDelete.id)
@@ -128,8 +131,8 @@ export function GoalList({
   if (!goals.length) return (
     <div className="rounded-[24px] border border-dashed border-muted-foreground/30 p-12 text-center">
       <div className="text-3xl mb-3">🎯</div>
-      <p className="text-sm font-semibold text-muted-foreground">No goals in this period</p>
-      <p className="text-xs text-muted-foreground mt-1">Adjust the time filter or add a new goal</p>
+      <p className="text-sm font-semibold text-muted-foreground">{tr('No goals in this period')}</p>
+      <p className="text-xs text-muted-foreground mt-1">{tr('Adjust the time filter or add a new goal')}</p>
     </div>
   )
 
@@ -148,9 +151,9 @@ export function GoalList({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {items.length} goal{items.length !== 1 ? 's' : ''} · {items.filter(g => g.status === 'done').length} done
+                  {tr('{itemsCount} {itemsCount:goal|goals} · {length} done', { itemsCount: items.length, length: items.filter(g => g.status === 'done').length })}
                 </p>
-                <h2 className="text-base font-black truncate">{vision.title}</h2>
+                <h2 className="text-base font-black truncate">{tr(vision.title)}</h2>
               </div>
               <span className="text-xl font-black flex-shrink-0" style={{ color: vision.color }}>
                 {avgProgress}%
@@ -192,7 +195,7 @@ export function GoalList({
         <DialogContent className="sm:max-w-[500px] p-6 gap-6 outline-none rounded-[32px]">
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase italic tracking-tight">
-              Edit Goal
+              {tr('Edit Goal')}
             </DialogTitle>
           </DialogHeader>
 
@@ -235,12 +238,12 @@ export function GoalList({
 
       <DialogHeader>
         <DialogTitle className="text-xl font-black uppercase italic tracking-tight">
-          Confirm Delete
+          {tr('Confirm Delete')}
         </DialogTitle>
       </DialogHeader>
 
       <p className="text-sm text-muted-foreground leading-relaxed px-2">
-        Are you sure you want to delete <span className="font-bold text-foreground">"{goalToDelete?.title}"</span>? This action is permanent.
+        {tr('Are you sure you want to delete')}{' '}<span className="font-bold text-foreground">"{tr(goalToDelete?.title ?? '')}"</span>{tr('? This action is permanent.')}
       </p>
 
       <div className="flex w-full gap-3 pt-2">
@@ -250,7 +253,7 @@ export function GoalList({
           onClick={() => setGoalToDelete(null)}
           disabled={isDeleting}
         >
-          Cancel
+          {tr('Cancel')}
         </Button>
         <Button
           variant="destructive"
@@ -261,7 +264,7 @@ export function GoalList({
           onClick={handleConfirmDelete}
           disabled={isDeleting}
         >
-          {isDeleting ? 'Deleting...' : 'Delete'}
+          {isDeleting ? tr('Deleting...') : tr('Delete')}
         </Button>
       </div>
     </div>
@@ -288,6 +291,7 @@ export function GoalCard({
   defaultExpanded?: boolean,
   linkTitle?: boolean,
 }) {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [showMilestones, setShowMilestones] = useState(false)
   const [milestones, setMilestones] = useState<{ id: string; title: string; is_done: boolean; position: number }[]>([])
@@ -298,7 +302,7 @@ export function GoalCard({
   const inputRef = useRef<HTMLInputElement>(null)
 
   const due = dueDate(goal)
-  const formattedDate = due ? due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : null
+  const formattedDate = due ? due.toLocaleDateString(appLocale() ?? 'en-US', { month: 'short', day: 'numeric' }) : null
   const isOverdue = goalIsOverdue(goal)
 
   const loadMilestones = async () => {
@@ -369,7 +373,7 @@ export function GoalCard({
       .select('*, visions(*), goal_categories(*)')
       .single()
     if (error || !data) {
-      toast.error("Couldn't update the goal")
+      toast.error(tr('Couldn\'t update the goal'))
       return
     }
     onUpdated(data)
@@ -433,7 +437,7 @@ export function GoalCard({
                   className="text-[8px] font-black px-2 py-0.5 rounded-md text-white uppercase"
                   style={{ backgroundColor: goal.goal_categories.color }}
                 >
-                  {goal.goal_categories.emoji} {goal.goal_categories.name}
+                  {goal.goal_categories.emoji} {tr(goal.goal_categories.name)}
                 </span>
               )}
               {formattedDate && (
@@ -455,14 +459,14 @@ export function GoalCard({
                   goal.status === 'done' ? "text-muted-foreground/60 line-through" : "text-foreground"
                 )}
               >
-                {goal.title}
+                {tr(goal.title)}
               </Link>
             ) : (
               <span className={cn(
                 "text-[13px] leading-tight font-bold",
                 goal.status === 'done' ? "text-muted-foreground/60 line-through" : "text-foreground"
               )}>
-                {goal.title}
+                {tr(goal.title)}
               </span>
             )}
 
@@ -481,9 +485,7 @@ export function GoalCard({
               className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors w-fit"
             >
               {showMilestones ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-              {milestonesLoaded && milestones.length > 0
-                ? `${doneCount}/${milestones.length} milestones`
-                : 'Milestones & progress'}
+              {milestonesLoaded && milestones.length > 0 ? tr('{doneCount}/{milestonesCount} milestones', { doneCount: doneCount, milestonesCount: milestones.length }) : tr('Milestones & progress')}
             </button>
           </div>
 
@@ -499,17 +501,17 @@ export function GoalCard({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
-                <SelectItem value="to_do">TO DO</SelectItem>
-                <SelectItem value="doing">DOING</SelectItem>
-                <SelectItem value="blocked">BLOCKED</SelectItem>
-                <SelectItem value="done">DONE</SelectItem>
+                <SelectItem value="to_do">{tr('TO DO')}</SelectItem>
+                <SelectItem value="doing">{tr('DOING')}</SelectItem>
+                <SelectItem value="blocked">{tr('BLOCKED')}</SelectItem>
+                <SelectItem value="done">{tr('DONE')}</SelectItem>
               </SelectContent>
             </Select>
 
             {goal.status !== 'done' && (
               <button
                 onClick={() => setScheduling(true)}
-                aria-label="Schedule time in planner"
+                aria-label={tr('Schedule time in planner')}
                 className="p-1.5 hover:bg-secondary rounded-full transition-colors"
               >
                 <CalendarPlus className="w-4 h-4 text-muted-foreground" />
@@ -522,10 +524,10 @@ export function GoalCard({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-32">
                 <DropdownMenuItem onClick={onEditInitiated} className="gap-2 text-xs font-medium cursor-pointer">
-                  <Pencil className="w-3.5 h-3.5" /> Edit Goal
+                  <Pencil className="w-3.5 h-3.5" />{' '}{tr('Edit Goal')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDeleteInitiated} className="gap-2 text-xs font-medium text-destructive focus:text-destructive cursor-pointer">
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                  <Trash2 className="w-3.5 h-3.5" />{' '}{tr('Delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>}
@@ -539,7 +541,7 @@ export function GoalCard({
         <div className="border-t border-border/40 px-4 py-3 space-y-2 bg-muted/30">
           {milestones.length === 0 && (
             <div className="space-y-1.5 pb-1">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Progress</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{tr('Progress')}</p>
               <div className="flex gap-1">
                 {PROGRESS_STEPS.map(step => (
                   <button
@@ -554,7 +556,7 @@ export function GoalCard({
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-muted-foreground">Or break it into milestones below and progress follows them.</p>
+              <p className="text-[10px] text-muted-foreground">{tr('Or break it into milestones below and progress follows them.')}</p>
             </div>
           )}
 
@@ -569,11 +571,11 @@ export function GoalCard({
                 'flex-1 text-[12px] font-medium leading-tight',
                 m.is_done && 'line-through text-muted-foreground'
               )}>
-                {m.title}
+                {tr(m.title)}
               </span>
               <button
                 onClick={() => deleteMilestone(m.id)}
-                aria-label="Delete milestone"
+                aria-label={tr('Delete milestone')}
                 className="opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-destructive"
               >
                 <Trash2 className="w-3 h-3" />
@@ -589,11 +591,11 @@ export function GoalCard({
                 value={newMilestone}
                 onChange={e => setNewMilestone(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') addMilestone(); if (e.key === 'Escape') { setAddingMilestone(false); setNewMilestone('') } }}
-                placeholder="Milestone title…"
+                placeholder={tr('Milestone title…')}
                 className="flex-1 text-[12px] bg-background border border-border/60 rounded-lg px-2.5 py-1.5 outline-none focus:border-violet-400"
               />
               <button onClick={addMilestone} className="text-[11px] font-bold text-violet-600 hover:text-violet-700 px-1">
-                Add
+                {tr('Add')}
               </button>
               <button onClick={() => { setAddingMilestone(false); setNewMilestone('') }} className="text-[11px] text-muted-foreground">
                 ✕
@@ -604,7 +606,7 @@ export function GoalCard({
               onClick={() => { setAddingMilestone(true); setTimeout(() => inputRef.current?.focus(), 50) }}
               className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700 mt-1"
             >
-              <Plus className="w-3 h-3" /> Add milestone
+              <Plus className="w-3 h-3" />{' '}{tr('Add milestone')}
             </button>
           )}
         </div>

@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { Button } from "@/components/ui/button";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 const ThemeSwitcher = () => {
+  const { tr } = useTranslation()
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme } = useTheme();
 
@@ -30,7 +32,7 @@ const ThemeSwitcher = () => {
       variant="ghost" 
       size={"sm"} 
       onClick={toggleTheme}
-      aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      aria-label={theme === "dark" ? tr('Switch to light mode') : tr('Switch to dark mode')}
       className="h-10 w-10 rounded-full bg-white/10 p-0 text-white ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white active:scale-95"
     >
       {theme === "dark" ? (

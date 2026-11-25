@@ -1,5 +1,7 @@
 "use client";
 
+import { trNow } from '@/lib/i18n'
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -59,6 +61,7 @@ const DATA_TYPES = [
 ];
 
 export default function DeleteDataPage() {
+  const { tr } = useTranslation()
   const [selectedData, setSelectedData] = useState<DataType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -79,7 +82,7 @@ export default function DeleteDataPage() {
     setError("");
 
     if (selectedData.length === 0) {
-      setError("Please select at least one data type to delete.");
+      setError(tr('Please select at least one data type to delete.'));
       return;
     }
 
@@ -92,7 +95,7 @@ export default function DeleteDataPage() {
       } = await supabase.auth.getUser();
 
       if (!user) {
-        setError("You must be logged in to delete your data.");
+        setError(tr('You must be logged in to delete your data.'));
         setLoading(false);
         return;
       }
@@ -112,7 +115,7 @@ export default function DeleteDataPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to submit deletion request");
+        throw new Error(data.error || trNow("Failed to submit deletion request"));
       }
 
       setSuccess(true);
@@ -122,7 +125,7 @@ export default function DeleteDataPage() {
         router.push("/protected/profile");
       }, 3000);
     } catch (err: any) {
-      setError(err.message || "An error occurred. Please try again.");
+      setError(err.message || tr('An error occurred. Please try again.'));
       setLoading(false);
     }
   };
@@ -132,16 +135,14 @@ export default function DeleteDataPage() {
       <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-background to-muted">
         <Card className="max-w-lg w-full">
           <CardHeader>
-            <CardTitle className="text-green-600">Request Submitted</CardTitle>
+            <CardTitle className="text-green-600">{tr('Request Submitted')}</CardTitle>
             <CardDescription>
-              Your data deletion request has been successfully submitted.
+              {tr('Your data deletion request has been successfully submitted.')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              We will process your request within 7-30 days as required by GDPR.
-              The selected data will be permanently deleted. Redirecting you to
-              your profile...
+              {tr('We will process your request within 7-30 days as required by GDPR. The selected data will be permanently deleted. Redirecting you to your profile...')}
             </p>
           </CardContent>
         </Card>
@@ -155,10 +156,10 @@ export default function DeleteDataPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
-            Delete Specific Data
+            {tr('Delete Specific Data')}
           </CardTitle>
           <CardDescription>
-            Select which data you want to permanently delete
+            {tr('Select which data you want to permanently delete')}
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
@@ -166,21 +167,19 @@ export default function DeleteDataPage() {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                This allows you to delete specific types of data while keeping
-                your account. Your profile and login credentials will remain
-                active.
+                {tr('This allows you to delete specific types of data while keeping your account. Your profile and login credentials will remain active.')}
               </AlertDescription>
             </Alert>
 
             {error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{tr(error)}</AlertDescription>
               </Alert>
             )}
 
             <div className="space-y-4">
               <Label className="text-base font-semibold">
-                Select data to delete:
+                {tr('Select data to delete:')}
               </Label>
               {DATA_TYPES.map((dataType) => (
                 <div
@@ -198,10 +197,10 @@ export default function DeleteDataPage() {
                       htmlFor={dataType.id}
                       className="text-sm font-medium cursor-pointer"
                     >
-                      {dataType.label}
+                      {tr(dataType.label)}
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      {dataType.description}
+                      {tr(dataType.description)}
                     </p>
                   </div>
                 </div>
@@ -212,9 +211,7 @@ export default function DeleteDataPage() {
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
-                  <strong>Warning:</strong> The selected data will be
-                  permanently deleted and cannot be recovered. This action is
-                  irreversible.
+                  <strong>{tr('Warning:')}</strong>{' '}{tr('The selected data will be permanently deleted and cannot be recovered. This action is irreversible.')}
                 </AlertDescription>
               </Alert>
             )}
@@ -226,32 +223,28 @@ export default function DeleteDataPage() {
               onClick={() => router.back()}
               disabled={loading}
             >
-              Cancel
+              {tr('Cancel')}
             </Button>
             <Button
               type="submit"
               variant="destructive"
               disabled={loading || selectedData.length === 0}
             >
-              {loading ? (
-                <>
+              {loading ? (<>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                `Delete Selected Data (${selectedData.length})`
-              )}
+                  {tr('Processing...')}
+                </>) : (tr('Delete Selected Data ({selectedDataCount})', { selectedDataCount: selectedData.length }))}
             </Button>
           </CardFooter>
         </form>
         <div className="px-6 pb-6">
           <p className="text-xs text-center text-muted-foreground">
-            Need help? Contact us at{" "}
+            {tr('Need help? Contact us at')}{" "}
             <a
               href="mailto:tech@espirito.samuelgyasi.com"
               className="underline hover:text-foreground"
             >
-              tech@espirito.samuelgyasi.com
+              {tr('tech@espirito.samuelgyasi.com')}
             </a>
           </p>
         </div>

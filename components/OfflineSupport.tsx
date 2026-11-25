@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { CloudOff, Wifi } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -8,6 +9,7 @@ import { cachedUserId, clearOfflineData } from '@/lib/offline'
 // Shows when the app is offline (pages then show the last data seen on this
 // device) and wipes that saved data on sign-out or when another account signs in.
 export default function OfflineSupport() {
+  const { tr } = useTranslation()
   const [offline, setOffline] = useState(false)
   const [backOnline, setBackOnline] = useState(false)
 
@@ -58,7 +60,7 @@ export default function OfflineSupport() {
         }`}
       >
         {offline ? <CloudOff className="w-3.5 h-3.5" /> : <Wifi className="w-3.5 h-3.5" />}
-        {offline ? 'Offline · showing saved data' : 'Back online'}
+        {offline ? tr('Offline · showing saved data') : tr('Back online')}
       </div>
     </div>
   )

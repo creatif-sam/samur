@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -64,6 +65,7 @@ export function NewGoalForm({
   roles?: Role[]
   initialRoleId?: string
 }) {
+  const { tr } = useTranslation()
 
   const supabase = createClient()
 
@@ -145,8 +147,8 @@ export function NewGoalForm({
       .insert({ name: newCategoryName.trim(), emoji: selectedEmoji, color, user_id: auth.user.id })
       .select()
       .single()
-    if (error) { toast.error('Failed to create category'); return }
-    toast.success('Category created')
+    if (error) { toast.error(tr('Failed to create category')); return }
+    toast.success(tr('Category created'))
     setLocalCategories(c => [...c, data])
     setCategoryId(data.id)
     setNewCategoryName('')
@@ -196,8 +198,8 @@ export function NewGoalForm({
         .eq('id', initialData.id)
         .select('*, visions(*), goal_categories(*)')
         .single()
-      if (error) { toast.error('Failed to update goal'); return }
-      toast.success('Goal updated')
+      if (error) { toast.error(tr('Failed to update goal')); return }
+      toast.success(tr('Goal updated'))
       onCreated(data)
     } else {
       const { data, error } = await supabase
@@ -209,7 +211,7 @@ export function NewGoalForm({
         })
         .select('*, visions(*), goal_categories(*)')
         .single()
-      if (error) { toast.error('Failed to create goal'); return }
+      if (error) { toast.error(tr('Failed to create goal')); return }
 
       // The first step becomes a planner to-do (a milestone would count as 100% the moment it is ticked)
       const step = firstStep.trim()
@@ -217,10 +219,10 @@ export function NewGoalForm({
         const { error: stepError } = await supabase
           .from('planner_todos')
           .insert({ user_id: auth.user.id, text: step, ...(visionId !== 'none' ? { vision_id: visionId } : {}) })
-        if (stepError) toast.warning("Goal created, but the first step couldn't be added to your to-dos.")
-        else toast.success('Goal created! Your first step is in your planner to-dos 🎯')
+        if (stepError) toast.warning(tr('Goal created, but the first step couldn\'t be added to your to-dos.'))
+        else toast.success(tr('Goal created! Your first step is in your planner to-dos 🎯'))
       } else {
-        toast.success('Goal created! 🎯')
+        toast.success(tr('Goal created! 🎯'))
       }
 
       if (data) {
@@ -259,28 +261,28 @@ export function NewGoalForm({
       {/* What a goal is, in one breath: new goals only */}
       {!initialData?.id && (
         <div className="rounded-2xl bg-violet-50 px-3.5 py-3 text-[12px] leading-relaxed dark:bg-violet-500/10">
-          <p className="font-bold text-violet-900 dark:text-violet-200">A goal is one result you will finish by a date.</p>
-          <p className="text-violet-800/80 dark:text-violet-300/80">Make it something you can count or check, and start with one small first step.</p>
+          <p className="font-bold text-violet-900 dark:text-violet-200">{tr('A goal is one result you will finish by a date.')}</p>
+          <p className="text-violet-800/80 dark:text-violet-300/80">{tr('Make it something you can count or check, and start with one small first step.')}</p>
         </div>
       )}
 
       {/* Title */}
       <div className="space-y-1.5">
         <Label className={labelCls}>
-          What do you want to achieve? <span className="text-rose-500">*</span>
+          {tr('What do you want to achieve?')}{' '}<span className="text-rose-500">*</span>
         </Label>
         <Input
-          placeholder="e.g. Read 12 books by December"
+          placeholder={tr('e.g. Read 12 books by December')}
           value={title}
           onChange={e => setTitle(e.target.value)}
         />
-        <p className={hintCls}>Say what you will do, and be specific.</p>
+        <p className={hintCls}>{tr('Say what you will do, and be specific.')}</p>
       </div>
 
       {/* Role */}
       {canSetRole && (
         <div className="space-y-1.5">
-          <Label className={labelCls}>Which role does it serve?</Label>
+          <Label className={labelCls}>{tr('Which role does it serve?')}</Label>
           {roleOptions.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {roleOptions.map(r => (
@@ -294,32 +296,32 @@ export function NewGoalForm({
                   )}
                   style={roleId === r.id ? { backgroundColor: r.color, borderColor: r.color } : undefined}
                 >
-                  {r.emoji ?? '🎯'} {r.name}
+                  {r.emoji ?? '🎯'} {tr(r.name)}
                 </button>
               ))}
             </div>
           ) : (
-            <p className={hintCls}>Add your roles in the Roles tab to file goals under them.</p>
+            <p className={hintCls}>{tr('Add your roles in the Roles tab to file goals under them.')}</p>
           )}
-          {roleOptions.length > 0 && roleId === 'none' && <p className={hintCls}>Pick the role this goal serves. Without one it waits under Unassigned.</p>}
+          {roleOptions.length > 0 && roleId === 'none' && <p className={hintCls}>{tr('Pick the role this goal serves. Without one it waits under Unassigned.')}</p>}
         </div>
       )}
 
       {/* Measurable outcome */}
       <div className="space-y-1.5">
-        <Label className={labelCls}>How will you know it&apos;s done?</Label>
+        <Label className={labelCls}>{tr('How will you know it\'s done?')}</Label>
         <Input
-          placeholder="e.g. 12 books finished"
+          placeholder={tr('e.g. 12 books finished')}
           value={deliverable}
           onChange={e => setDeliverable(e.target.value)}
         />
-        <p className={hintCls}>A number, a date or a result you can check.</p>
+        <p className={hintCls}>{tr('A number, a date or a result you can check.')}</p>
       </div>
 
       {/* Due date */}
       <div className="space-y-1.5">
         <Label className={labelCls}>
-          Due date <span className="text-rose-500">*</span>
+          {tr('Due date')}{' '}<span className="text-rose-500">*</span>
         </Label>
         <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
         <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -333,13 +335,13 @@ export function NewGoalForm({
                 dueDate === p.value ? 'bg-violet-600 text-white' : 'bg-muted text-muted-foreground',
               )}
             >
-              {p.label}
+              {tr(p.label)}
             </button>
           ))}
         </div>
         {isFarAway(dueDate, today) && (
           <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-            That is over a year away. Goals tend to work best with a date in the next few months. Consider a nearer date, or make this a vision.
+            {tr('That is over a year away. Goals tend to work best with a date in the next few months. Consider a nearer date, or make this a vision.')}
           </p>
         )}
       </div>
@@ -348,24 +350,24 @@ export function NewGoalForm({
       {!isEditing && (
         <div className="space-y-1.5">
           <Label className={labelCls}>
-            What is the first step? <span className="font-medium normal-case tracking-normal">(optional)</span>
+            {tr('What is the first step?')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span>
           </Label>
           <Input
-            placeholder="e.g. Read the first 20 pages"
+            placeholder={tr('e.g. Read the first 20 pages')}
             value={firstStep}
             onChange={e => setFirstStep(e.target.value)}
           />
-          <p className={hintCls}>Small enough to do this week. It goes to your planner to-dos, where you can schedule it.</p>
+          <p className={hintCls}>{tr('Small enough to do this week. It goes to your planner to-dos, where you can schedule it.')}</p>
         </div>
       )}
 
       {/* Why */}
       <div className="space-y-1.5">
         <Label className={labelCls}>
-          Why does it matter to you? <span className="font-medium normal-case tracking-normal">(optional)</span>
+          {tr('Why does it matter to you?')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span>
         </Label>
         <Textarea
-          placeholder="What will change when you finish?"
+          placeholder={tr('What will change when you finish?')}
           value={description}
           onChange={e => setDescription(e.target.value)}
           rows={2}
@@ -376,14 +378,14 @@ export function NewGoalForm({
       {isOwner ? (
         <div className="flex items-center justify-between rounded-2xl bg-muted/50 px-4 py-3">
           <div>
-            <p className="text-sm font-semibold">Shared with partner</p>
-            <p className="text-[11px] text-muted-foreground">Partner can see and contribute</p>
+            <p className="text-sm font-semibold">{tr('Shared with partner')}</p>
+            <p className="text-[11px] text-muted-foreground">{tr('Partner can see and contribute')}</p>
           </div>
           <Switch checked={isShared} onCheckedChange={setIsShared} />
         </div>
       ) : (
         <p className="text-[11px] text-muted-foreground rounded-2xl bg-muted/50 px-4 py-3">
-          Shared goal from your partner. Only they can change who it&apos;s shared with.
+          {tr('Shared goal from your partner. Only they can change who it\'s shared with.')}
         </p>
       )}
 
@@ -395,39 +397,39 @@ export function NewGoalForm({
           aria-expanded={showMore}
           className="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
         >
-          More options <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMore && 'rotate-180')} />
+          {tr('More options')}{' '}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showMore && 'rotate-180')} />
         </button>
         {showMore && (
           <div className="mt-3 space-y-1.5">
             {/* Vision */}
             <div className="space-y-1.5 pb-3">
               <Label className={labelCls}>
-                Linked vision <span className="font-medium normal-case tracking-normal">(optional)</span>
+                {tr('Linked vision')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span>
               </Label>
               <Select value={visionId} onValueChange={setVisionId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="No vision (standalone)" />
+                  <SelectValue placeholder={tr('No vision (standalone)')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">No Vision (Standalone)</SelectItem>
+                  <SelectItem value="none">{tr('No Vision (Standalone)')}</SelectItem>
                   {visionOptions.map(v => (
-                    <SelectItem key={v.id} value={v.id}>✨ {v.title}</SelectItem>
+                    <SelectItem key={v.id} value={v.id}>✨ {tr(v.title)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {visionOptions.length > 0 && <p className={hintCls}>A linked goal moves its vision forward.</p>}
+              {visionOptions.length > 0 && <p className={hintCls}>{tr('A linked goal moves its vision forward.')}</p>}
             </div>
             <Label className={labelCls}>
-              Category <span className="font-medium normal-case tracking-normal">(optional)</span>
+              {tr('Category')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span>
             </Label>
             <Select value={categoryId || 'none'} onValueChange={v => setCategoryId(v === 'none' ? '' : v)}>
               <SelectTrigger>
-                <SelectValue placeholder="General" />
+                <SelectValue placeholder={tr('General')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">🎯 General</SelectItem>
+                <SelectItem value="none">{tr('🎯 General')}</SelectItem>
                 {localCategories.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.emoji ?? '📁'} {c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{c.emoji ?? '📁'} {tr(c.name)}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -437,12 +439,12 @@ export function NewGoalForm({
                 onClick={() => setShowCategoryInput(true)}
                 className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700"
               >
-                <Plus className="h-3 w-3" /> Add new category
+                <Plus className="h-3 w-3" />{' '}{tr('Add new category')}
               </button>
             ) : (
               <div className="space-y-2 pt-1">
                 <Input
-                  placeholder="Category name"
+                  placeholder={tr('Category name')}
                   value={newCategoryName}
                   onChange={e => setNewCategoryName(e.target.value)}
                 />
@@ -463,8 +465,8 @@ export function NewGoalForm({
                   ))}
                 </div>
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={createCategory}>Create</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setShowCategoryInput(false)}>Cancel</Button>
+                  <Button size="sm" onClick={createCategory}>{tr('Create')}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setShowCategoryInput(false)}>{tr('Cancel')}</Button>
                 </div>
               </div>
             )}
@@ -474,9 +476,9 @@ export function NewGoalForm({
 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-1">
-        <Button variant="outline" onClick={onCancel}>Cancel</Button>
+        <Button variant="outline" onClick={onCancel}>{tr('Cancel')}</Button>
         <Button disabled={!valid} onClick={handleSubmit}>
-          {initialData?.id ? 'Save Changes' : 'Create Goal'}
+          {initialData?.id ? tr('Save Changes') : tr('Create Goal')}
         </Button>
       </div>
     </div>

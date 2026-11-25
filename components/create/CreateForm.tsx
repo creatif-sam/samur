@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react'
 import { Check, Moon, Target, X, Zap } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -37,6 +38,7 @@ const label = 'px-1 text-[10px] font-bold uppercase tracking-widest text-muted-f
 
 // Yes / No, optional: tap the chosen one again to clear it
 function YesNo({ icon, text, value, onChange }: { icon: React.ReactNode; text: string; value: boolean | null; onChange: (v: boolean | null) => void }) {
+  const { tr } = useTranslation()
   return (
     <div className="flex items-center justify-between gap-3 rounded-2xl bg-muted/50 px-3 py-2.5">
       <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">{icon}<span className="leading-tight">{text}</span></span>
@@ -52,7 +54,7 @@ function YesNo({ icon, text, value, onChange }: { icon: React.ReactNode; text: s
               value === v ? (v ? 'bg-emerald-600 text-white' : 'bg-foreground text-background') : 'text-muted-foreground',
             )}
           >
-            {v ? 'Yes' : 'No'}
+            {v ? tr('Yes') : tr('No')}
           </button>
         ))}
       </div>
@@ -71,6 +73,7 @@ interface Props {
 }
 
 export default function CreateForm({ title, mode, initial, recent, saving, onSave, onCancel }: Props) {
+  const { tr } = useTranslation()
   const [v, setV] = useState<FormValues>(initial)
   const set = <K extends keyof FormValues>(k: K, value: FormValues[K]) => setV(prev => ({ ...prev, [k]: value }))
 
@@ -89,10 +92,10 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
     <section className="rounded-3xl border border-violet-500/30 bg-card p-5 shadow-lg shadow-violet-500/10">
       <div className="mb-4 flex items-center justify-between gap-2">
         <div>
-          <h3 className="text-lg font-black tracking-tight">{title}</h3>
-          {mode === 'timer' && <p className="text-xs text-muted-foreground">Times came from your timer. Add the details.</p>}
+          <h3 className="text-lg font-black tracking-tight">{tr(title)}</h3>
+          {mode === 'timer' && <p className="text-xs text-muted-foreground">{tr('Times came from your timer. Add the details.')}</p>}
         </div>
-        <button type="button" onClick={onCancel} aria-label="Cancel" className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted">
+        <button type="button" onClick={onCancel} aria-label={tr('Cancel')} className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-muted">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -100,11 +103,11 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
       <div className="space-y-4">
         {/* What */}
         <div className="space-y-2">
-          <p className={label}>What did you work on?</p>
+          <p className={label}>{tr('What did you work on?')}</p>
           <Input
             value={v.workedOn}
             onChange={e => set('workedOn', e.target.value)}
-            placeholder="Project or task"
+            placeholder={tr('Project or task')}
             className="h-12 text-base font-medium"
             autoFocus={mode !== 'timer'}
           />
@@ -117,7 +120,7 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
                   onClick={() => set('workedOn', name)}
                   className="max-w-full truncate rounded-full bg-muted px-3 py-1.5 text-xs font-semibold text-foreground/80 active:scale-95"
                 >
-                  {name}
+                  {tr(name)}
                 </button>
               ))}
             </div>
@@ -125,13 +128,13 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
         </div>
 
         <div className="space-y-2">
-          <p className={label}>What did it produce? <span className="font-medium normal-case tracking-normal">(optional)</span></p>
-          <Input value={v.produced} onChange={e => set('produced', e.target.value)} placeholder="A chapter, a design, a finished list…" />
+          <p className={label}>{tr('What did it produce?')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span></p>
+          <Input value={v.produced} onChange={e => set('produced', e.target.value)} placeholder={tr('A chapter, a design, a finished list…')} />
         </div>
 
         {/* When */}
         <div className="space-y-2">
-          <p className={label}>When</p>
+          <p className={label}>{tr('When')}</p>
           {mode === 'new' && (
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
               {QUICK_MINUTES.map(m => (
@@ -141,16 +144,16 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
                   onClick={() => applyQuick(m)}
                   className="shrink-0 rounded-full bg-muted px-3 py-1.5 text-xs font-bold active:scale-95"
                 >
-                  {formatDuration(m / 60)} ago
+                  {tr('{value} ago', { value: formatDuration(m / 60) })}
                 </button>
               ))}
             </div>
           )}
-          <Input type="date" value={v.date} max={toLocalDateKey(new Date())} onChange={e => set('date', e.target.value)} aria-label="Date" />
+          <Input type="date" value={v.date} max={toLocalDateKey(new Date())} onChange={e => set('date', e.target.value)} aria-label={tr('Date')} />
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-            <Input type="time" value={v.start} onChange={e => set('start', e.target.value)} aria-label="Start time" />
-            <span className="text-xs font-bold text-muted-foreground">to</span>
-            <Input type="time" value={v.end} onChange={e => set('end', e.target.value)} aria-label="End time" />
+            <Input type="time" value={v.start} onChange={e => set('start', e.target.value)} aria-label={tr('Start time')} />
+            <span className="text-xs font-bold text-muted-foreground">{tr('to')}</span>
+            <Input type="time" value={v.end} onChange={e => set('end', e.target.value)} aria-label={tr('End time')} />
           </div>
           <p
             className={cn(
@@ -158,23 +161,17 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
               sameTimes || long ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground',
             )}
           >
-            {sameTimes
-              ? 'The start and end are the same time.'
-              : minutes === null
-                ? 'Set a start and an end time.'
-                : (
-                  <>
+            {sameTimes ? tr('The start and end are the same time.') : minutes === null ? tr('Set a start and an end time.') : (<>
                     <span className="text-foreground">{formatDuration(hoursFromMinutes(minutes))}</span>
-                    {overnight && <span className="flex items-center gap-1"><Moon className="h-3 w-3" /> ends the next day</span>}
-                    {long && <span>That is a long session. Check the times.</span>}
-                  </>
-                )}
+                    {overnight && <span className="flex items-center gap-1"><Moon className="h-3 w-3" />{' '}{tr('ends the next day')}</span>}
+                    {long && <span>{tr('That is a long session. Check the times.')}</span>}
+                  </>)}
           </p>
         </div>
 
         {/* Type */}
         <div className="space-y-2">
-          <p className={label}>Type</p>
+          <p className={label}>{tr('Type')}</p>
           <div className="grid grid-cols-3 gap-2">
             {WORK_TYPES.map(t => (
               <button
@@ -187,7 +184,7 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
                   v.workType === t.id ? 'bg-violet-600 text-white shadow-md shadow-violet-500/25' : 'bg-muted text-muted-foreground',
                 )}
               >
-                {t.label}
+                {tr(t.label)}
               </button>
             ))}
           </div>
@@ -195,7 +192,7 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
 
         {/* How it went */}
         <div className="space-y-2">
-          <p className={label}>How did it go? <span className="font-medium normal-case tracking-normal">(optional)</span></p>
+          <p className={label}>{tr('How did it go?')}{' '}<span className="font-medium normal-case tracking-normal">{tr('(optional)')}</span></p>
           <YesNo icon={<Zap className="h-4 w-4 shrink-0 text-emerald-500" />} text="I stayed focused" value={v.focused} onChange={x => set('focused', x)} />
           <YesNo icon={<Target className="h-4 w-4 shrink-0 text-blue-500" />} text="It moved my vision forward" value={v.aligned} onChange={x => set('aligned', x)} />
         </div>
@@ -203,7 +200,7 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
         <Textarea
           value={v.notes}
           onChange={e => set('notes', e.target.value)}
-          placeholder="Notes or reflection (optional)"
+          placeholder={tr('Notes or reflection (optional)')}
           className="min-h-[88px] resize-none"
         />
 
@@ -213,7 +210,7 @@ export default function CreateForm({ title, mode, initial, recent, saving, onSav
           onClick={() => minutes !== null && onSave(v, minutes)}
           className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-violet-600 text-sm font-bold text-white shadow-lg shadow-violet-500/25 transition active:scale-[0.98] disabled:opacity-40"
         >
-          <Check className="h-4 w-4" /> {saving ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Save session'}
+          <Check className="h-4 w-4" /> {saving ? tr('Saving…') : mode === 'edit' ? tr('Save changes') : tr('Save session')}
         </button>
       </div>
     </section>

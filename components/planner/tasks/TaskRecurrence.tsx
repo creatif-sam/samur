@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import type { PlannerTask } from '../DailyPlanner'
 import { Repeat, X } from 'lucide-react'
 
@@ -12,6 +13,7 @@ export function TaskRecurrence({
   value: PlannerTask['recurring'] | null
   onChange: (v: PlannerTask['recurring'] | null) => void
 }) {
+  const { tr } = useTranslation()
   if (!value) {
     return (
       <button
@@ -19,7 +21,7 @@ export function TaskRecurrence({
         className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-2xl px-4 py-3 text-sm font-bold text-slate-500 hover:bg-slate-100 transition-all mt-3"
       >
         <Repeat size={16} />
-        Add Recurrence
+        {tr('Add Recurrence')}
       </button>
     )
   }
@@ -31,7 +33,7 @@ export function TaskRecurrence({
       <div className="flex justify-between items-center px-1">
         <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
           <Repeat size={14} />
-          <span>Recurrence Rules</span>
+          <span>{tr('Recurrence Rules')}</span>
         </div>
         <button 
           onClick={() => onChange(null)}
@@ -45,7 +47,7 @@ export function TaskRecurrence({
       <div className="flex flex-col md:flex-row gap-4 items-end w-full">
         {/* Interval: 1/4 of width on PC */}
         <div className="w-full md:w-1/4">
-          <p className="text-[10px] font-bold text-blue-500 mb-1.5 ml-1 uppercase tracking-tight">Every</p>
+          <p className="text-[10px] font-bold text-blue-500 mb-1.5 ml-1 uppercase tracking-tight">{tr('Every')}</p>
           <input
             type="number"
             min={1}
@@ -57,21 +59,21 @@ export function TaskRecurrence({
 
         {/* Unit: 1/4 of width on PC */}
         <div className="w-full md:w-1/4">
-          <p className="text-[10px] font-bold text-purple-500 mb-1.5 ml-1 uppercase tracking-tight">Unit</p>
+          <p className="text-[10px] font-bold text-purple-500 mb-1.5 ml-1 uppercase tracking-tight">{tr('Unit')}</p>
           <select
             value={base.unit}
             onChange={(e) => onChange({ ...base, unit: e.target.value as RecurringUnit })}
             className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm font-bold shadow-sm focus:ring-2 focus:ring-blue-100 dark:text-white outline-none appearance-none"
           >
-            <option value="day">Days</option>
-            <option value="week">Weeks</option>
-            <option value="month">Months</option>
+            <option value="day">{tr('Days')}</option>
+            <option value="week">{tr('Weeks')}</option>
+            <option value="month">{tr('Months')}</option>
           </select>
         </div>
 
         {/* Until: 2/4 (Half) of width on PC */}
         <div className="w-full md:w-2/4">
-          <p className="text-[10px] font-bold text-slate-400 mb-1.5 ml-1 uppercase tracking-tight">Until (Optional)</p>
+          <p className="text-[10px] font-bold text-slate-400 mb-1.5 ml-1 uppercase tracking-tight">{tr('Until (Optional)')}</p>
           <input
             type="date"
             value={base.until ?? ''}
@@ -106,10 +108,10 @@ export function TaskRecurrence({
         </div>
       )}
       {base.unit === 'week' && base.daysOfWeek.length === 0 && (
-        <p className="text-[11px] text-slate-400 px-1">No days picked: repeats on the weekday it starts.</p>
+        <p className="text-[11px] text-slate-400 px-1">{tr('No days picked: repeats on the weekday it starts.')}</p>
       )}
       {base.unit === 'month' && (
-        <p className="text-[11px] text-slate-400 px-1">Repeats on the same date of the month (last day for shorter months).</p>
+        <p className="text-[11px] text-slate-400 px-1">{tr('Repeats on the same date of the month (last day for shorter months).')}</p>
       )}
     </div>
   )

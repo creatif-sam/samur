@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Suspense } from "react";
 
@@ -12,11 +13,11 @@ async function ErrorContent({
     <>
       {params?.error ? (
         <p className="text-sm text-muted-foreground">
-          Code error: {params.error}
+          {trNow('Code error: {error}', { error: params.error })}
         </p>
       ) : (
         <p className="text-sm text-muted-foreground">
-          An unspecified error occurred.
+          {trNow('An unspecified error occurred.')}
         </p>
       )}
     </>
@@ -35,7 +36,7 @@ export default function Page({
           <Card>
             <CardHeader>
               <CardTitle className="text-2xl">
-                Sorry, something went wrong.
+                {trNow('Sorry, something went wrong.')}
               </CardTitle>
             </CardHeader>
             <CardContent>

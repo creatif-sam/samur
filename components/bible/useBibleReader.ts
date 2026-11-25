@@ -1,5 +1,6 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -483,7 +484,7 @@ export function useBibleReader() {
         const pg = await fetchPage(supabase, noteExisting.pageId)
         if (!pg) throw new Error('Note not found')
         const sameRef = ref.toLowerCase() === noteExisting.title.trim().toLowerCase()
-        const heading = new Date().toLocaleDateString(undefined, { dateStyle: 'medium' }) + (sameRef ? '' : ` · ${ref}`)
+        const heading = new Date().toLocaleDateString(appLocale(), { dateStyle: 'medium' }) + (sameRef ? '' : ` · ${ref}`)
         // Verses beyond the note's own get quoted with the new entry
         const quote = sameRef ? undefined : (noteIsMulti
           ? [...selectedVersesForRef(ref)].join('\n\n')

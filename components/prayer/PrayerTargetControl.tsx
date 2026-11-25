@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useState } from 'react'
 import { Check, Pencil, Target } from 'lucide-react'
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function PrayerTargetControl({ monthName, target, carriedFrom, saving, onSave }: Props) {
+  const { tr } = useTranslation()
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState(String(target))
 
@@ -45,8 +47,8 @@ export default function PrayerTargetControl({ monthName, target, carriedFrom, sa
             <Target className="h-4 w-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[9px] font-black uppercase tracking-widest text-green-700 dark:text-green-400">Daily target · {monthName}</span>
-            <span className="block text-sm font-black leading-tight text-foreground">{target} min <span className="font-semibold text-muted-foreground">a day</span></span>
+            <span className="block text-[9px] font-black uppercase tracking-widest text-green-700 dark:text-green-400">{tr('Daily target · {monthName}', { monthName: monthName })}</span>
+            <span className="block text-sm font-black leading-tight text-foreground">{target}{' '}{tr('min')}{' '}<span className="font-semibold text-muted-foreground">{tr('a day')}</span></span>
           </span>
           <Pencil className="h-3.5 w-3.5 shrink-0 text-green-700/70 dark:text-green-400/70" />
         </button>
@@ -72,7 +74,7 @@ export default function PrayerTargetControl({ monthName, target, carriedFrom, sa
           </div>
 
           <div className="flex items-center gap-2">
-            <label htmlFor="prayer-target" className="sr-only">Minutes per day</label>
+            <label htmlFor="prayer-target" className="sr-only">{tr('Minutes per day')}</label>
             <input
               id="prayer-target"
               inputMode="numeric"
@@ -81,7 +83,7 @@ export default function PrayerTargetControl({ monthName, target, carriedFrom, sa
               onKeyDown={e => e.key === 'Enter' && save()}
               className="h-10 w-24 rounded-xl border border-border bg-background px-3 text-center text-base font-black focus:outline-none focus:ring-2 focus:ring-green-600"
             />
-            <span className="whitespace-nowrap text-xs font-semibold text-muted-foreground">minutes a day</span>
+            <span className="whitespace-nowrap text-xs font-semibold text-muted-foreground">{tr('minutes a day')}</span>
           </div>
           <button
             type="button"
@@ -89,15 +91,11 @@ export default function PrayerTargetControl({ monthName, target, carriedFrom, sa
             disabled={!changed || saving}
             className="flex h-10 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-green-600 text-sm font-bold text-white transition active:scale-95 disabled:opacity-40"
           >
-            <Check className="h-4 w-4" /> {saving ? 'Saving…' : `Set ${monthName} target`}
+            <Check className="h-4 w-4" /> {saving ? tr('Saving…') : tr('Set {monthName} target', { monthName: monthName })}
           </button>
 
           <p className={clsx('text-[11px]', draft && !valid ? 'font-semibold text-destructive' : 'text-muted-foreground')}>
-            {draft && !valid
-              ? `Choose between ${MIN_TARGET} and ${MAX_TARGET} minutes.`
-              : carriedFrom
-                ? `Carried over from ${carriedFrom}. Setting it here only changes ${monthName} and later months.`
-                : `This only changes ${monthName} and later months.`}
+            {draft && !valid ? tr('Choose between {MIN_TARGET} and {MAX_TARGET} minutes.', { MIN_TARGET: MIN_TARGET, MAX_TARGET: MAX_TARGET }) : carriedFrom ? tr('Carried over from {carriedFrom}. Setting it here only changes {monthName} and later months.', { carriedFrom: carriedFrom, monthName: monthName }) : tr('This only changes {monthName} and later months.', { monthName: monthName })}
           </p>
         </div>
       )}

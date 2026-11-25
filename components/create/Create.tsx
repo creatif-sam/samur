@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
@@ -39,6 +40,7 @@ const merge = (current: CreativeLog[], incoming: CreativeLog[]) => {
 }
 
 export default function Create() {
+  const { tr } = useTranslation()
   const supabase = useMemo(() => createClient(), [])
   const [ready, setReady] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
@@ -109,7 +111,7 @@ export default function Create() {
       .order('start_time', { ascending: false })
       .limit(PAGE)
     if (error || !data) {
-      toast.error("Couldn't load older sessions")
+      toast.error(tr('Couldn\'t load older sessions'))
       setLoadingMore(false)
       return
     }
@@ -143,7 +145,7 @@ export default function Create() {
       return next
     })
   const discardTimer = () => {
-    if (!window.confirm('Discard this session? The time so far will be lost.')) return
+    if (!window.confirm(tr('Discard this session? The time so far will be lost.'))) return
     clearTimer()
     setRunning(null)
   }
@@ -151,14 +153,14 @@ export default function Create() {
     if (!running) return
     const now = Date.now()
     let r = timerResult(running.startedAt, now)
-    if (now - running.startedAt < 60_000 && !window.confirm('That was under a minute. Keep it as a 1 minute session?')) {
+    if (now - running.startedAt < 60_000 && !window.confirm(tr('That was under a minute. Keep it as a 1 minute session?'))) {
       clearTimer()
       setRunning(null)
       return
     }
     // Always at least one minute apart on the clock
     if (r.start === r.end) r = { ...r, end: timeOf(new Date(running.startedAt + 60_000)) }
-    if (now - running.startedAt > 24 * 3_600_000) toast.warning('That timer ran for over a day. Please set the real times.')
+    if (now - running.startedAt > 24 * 3_600_000) toast.warning(tr('That timer ran for over a day. Please set the real times.'))
     clearTimer()
     setRunning(null)
     setForm({ mode: 'timer', key: now, values: { ...emptyForm(), date: r.date, start: r.start, end: r.end, workedOn: running.activity } })
@@ -184,7 +186,7 @@ export default function Create() {
       },
     })
   const cancelForm = () => {
-    if (form?.mode === 'timer' && !window.confirm('Discard this session? The timer time will be lost.')) return
+    if (form?.mode === 'timer' && !window.confirm(tr('Discard this session? The timer time will be lost.'))) return
     setForm(null)
   }
 
@@ -211,21 +213,21 @@ export default function Create() {
       const { data, error } = await supabase.from('creative_work').update(payload).eq('id', form.id).eq('user_id', userId).select(COLS)
       if (error || !data?.length) {
         setLogs(before)
-        toast.error("Couldn't save the changes. Editing may not be allowed yet.")
+        toast.error(tr('Couldn\'t save the changes. Editing may not be allowed yet.'))
         setSaving(false)
         return
       }
       setLogs(prev => merge(prev, [normalize(data[0])]))
-      toast.success('Session updated')
+      toast.success(tr('Session updated'))
     } else {
       const { data, error } = await supabase.from('creative_work').insert({ user_id: userId, ...payload }).select(COLS).single()
       if (error || !data) {
-        toast.error('Failed to save the session')
+        toast.error(tr('Failed to save the session'))
         setSaving(false)
         return
       }
       setLogs(prev => merge(prev, [normalize(data)]))
-      toast.success(`Session saved: ${formatDuration(payload.hours_worked)}`)
+      toast.success(tr('Session saved: {value}', { value: formatDuration(payload.hours_worked) }))
     }
     setForm(null)
     setSaving(false)
@@ -238,10 +240,10 @@ export default function Create() {
     const { data, error } = await supabase.from('creative_work').delete().eq('id', log.id).eq('user_id', userId).select('id')
     if (error || !data?.length) {
       setLogs(before)
-      toast.error("Couldn't delete this session. Deleting may not be allowed yet.")
+      toast.error(tr('Couldn\'t delete this session. Deleting may not be allowed yet.'))
       return
     }
-    toast.success('Session deleted')
+    toast.success(tr('Session deleted'))
   }
 
   if (!ready || !stats) {
@@ -260,7 +262,7 @@ export default function Create() {
 
       {loadError && (
         <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-          Couldn&apos;t load your sessions. Check your connection and reopen this tab.
+          {tr('Couldn\'t load your sessions. Check your connection and reopen this tab.')}
         </p>
       )}
 
@@ -268,7 +270,7 @@ export default function Create() {
         {form ? (
           <CreateForm
             key={form.key}
-            title={form.mode === 'edit' ? 'Edit session' : form.mode === 'timer' ? 'Save your session' : 'Log a past session'}
+            title={form.mode === 'edit' ? tr('Edit session') : form.mode === 'timer' ? tr('Save your session') : tr('Log a past session')}
             mode={form.mode}
             initial={form.values}
             recent={recent}

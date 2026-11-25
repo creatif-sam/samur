@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react'
 import { Layers, MoreHorizontal, Trash2, Search, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,7 @@ type SectionListProps = {
 }
 
 export function SectionList({ notebook, onSelect, onDeleteSection, onRenameSection }: SectionListProps) {
+  const { tr } = useTranslation()
   const [searchQuery, setSearchQuery] = useState('')
 
   const filteredSections = notebook.sections?.filter(s =>
@@ -27,7 +29,7 @@ export function SectionList({ notebook, onSelect, onDeleteSection, onRenameSecti
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input 
-            placeholder="Search sections..." 
+            placeholder={tr('Search sections...')} 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 h-10 rounded-xl bg-slate-50/50 dark:bg-slate-900/50 border-none text-[13px] font-medium text-slate-700 dark:text-slate-200"
@@ -44,10 +46,10 @@ export function SectionList({ notebook, onSelect, onDeleteSection, onRenameSecti
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="font-medium text-[14px] text-slate-800 dark:text-slate-100 uppercase truncate leading-none">
-                  {s.title}
+                  {tr(s.title)}
                 </span>
                 <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase mt-1.5 tracking-widest">
-                  {s.pages?.length || 0} Pages
+                  {tr('{value} Pages', { value: s.pages?.length || 0 })}
                 </span>
               </div>
             </div>
@@ -63,13 +65,13 @@ export function SectionList({ notebook, onSelect, onDeleteSection, onRenameSecti
                   onClick={() => onRenameSection(s)} 
                   className="rounded-xl font-semibold text-[11px] uppercase py-3 cursor-pointer"
                 >
-                  <Pencil size={14} className="mr-2" /> Rename
+                  <Pencil size={14} className="mr-2" />{' '}{tr('Rename')}
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   onClick={() => onDeleteSection(s)} 
                   className="rounded-xl font-semibold text-[11px] uppercase py-3 text-red-500 cursor-pointer"
                 >
-                  <Trash2 size={14} className="mr-2" /> Delete
+                  <Trash2 size={14} className="mr-2" />{' '}{tr('Delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

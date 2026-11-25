@@ -1,3 +1,4 @@
+import { trNow } from '@/lib/i18n'
 // Guided prayer sessions: your prayer requests become cards, prayed through one at a time,
 // with the chosen minutes shared equally between them. Pure logic plus small storage helpers.
 
@@ -35,11 +36,11 @@ export const SHORT_SEGMENT_SECONDS = 15
 
 // "45 seconds", "1 minute", "1 min 30 s", "2 minutes"
 export function describeSeconds(sec: number) {
-  if (sec < 60) return `${sec} second${sec === 1 ? '' : 's'}`
+  if (sec < 60) return trNow('{sec} {sec:second|seconds}', { sec })
   const m = Math.floor(sec / 60)
   const s = sec % 60
-  if (s === 0) return `${m} minute${m === 1 ? '' : 's'}`
-  return `${m} min ${s} s`
+  if (s === 0) return trNow('{m} {m:minute|minutes}', { m })
+  return trNow('{m} min {s} s', { m, s })
 }
 
 // 05:00 · 00:45 · 1:02:03

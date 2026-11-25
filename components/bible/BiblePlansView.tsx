@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function BiblePlansView({ userId, translation, openPassage, markChaptersRead }: Props) {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const today = toLocalDateKey(new Date())
   const [enrollments, setEnrollments] = useState<PlanEnrollment[]>([])
@@ -58,15 +60,15 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
       .select()
       .single()
     setBusy(null)
-    if (error) { toast.error(error.message || "Couldn't start the plan"); return }
+    if (error) { toast.error(error.message || tr('Couldn\'t start the plan')); return }
     setEnrollments(prev => [...prev.filter(e => e.plan_key !== planKey), data as PlanEnrollment])
-    toast.success(`Started ${getPlan(planKey)?.title} 📖`)
+    toast.success(tr('Started {title} 📖', { title: getPlan(planKey)?.title }))
   }
 
   async function leavePlan(enrollment: PlanEnrollment) {
-    if (!window.confirm(`Stop "${getPlan(enrollment.plan_key)?.title}"? Your progress in it will be removed.`)) return
+    if (!window.confirm(tr('Stop "{title}"? Your progress in it will be removed.', { title: getPlan(enrollment.plan_key)?.title }))) return
     const { error } = await supabase.from('bible_plans').delete().eq('id', enrollment.id)
-    if (error) { toast.error(error.message || "Couldn't stop the plan"); return }
+    if (error) { toast.error(error.message || tr('Couldn\'t stop the plan')); return }
     setEnrollments(prev => prev.filter(e => e.id !== enrollment.id))
   }
 
@@ -75,15 +77,15 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
     const completed = Array.from(new Set([...enrollment.completed_days, day])).sort((a, b) => a - b)
     const { error } = await supabase.from('bible_plans').update({ completed_days: completed }).eq('id', enrollment.id)
     setBusy(null)
-    if (error) { toast.error(error.message || "Couldn't save your progress"); return }
+    if (error) { toast.error(error.message || tr('Couldn\'t save your progress')); return }
     setEnrollments(prev => prev.map(e => (e.id === enrollment.id ? { ...e, completed_days: completed } : e)))
     markChaptersRead(chapters)
-    toast.success(`Day ${day} done ✅`)
+    toast.success(tr('Day {day} done ✅', { day: day }))
   }
 
   if (loading) return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-violet-500" /></div>
   if (unavailable) {
-    return <p className="px-4 py-10 text-center text-sm text-muted-foreground">Reading plans need the latest database update. Run the reading plans migration in Supabase.</p>
+    return <p className="px-4 py-10 text-center text-sm text-muted-foreground">{tr('Reading plans need the latest database update. Run the reading plans migration in Supabase.')}</p>
   }
 
   const active = enrollments.map(e => ({ e, plan: getPlan(e.plan_key) })).filter(x => x.plan)
@@ -93,7 +95,7 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
     <div className="px-4 pt-4 pb-10 space-y-6">
       {active.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Your plans</h2>
+          <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">{tr('Your plans')}</h2>
           {active.map(({ e, plan }) => {
             const status = planStatus(plan!, e, today)
             const day = status.nextDay
@@ -104,14 +106,14 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
               <div key={e.id} className="rounded-3xl border border-border bg-card p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-black leading-tight">{plan!.title}</p>
+                    <p className="font-black leading-tight">{tr(plan!.title)}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {status.finished ? 'Completed 🎉' : `Day ${day} of ${plan!.days}`}
-                      {status.behind > 0 && ` · ${status.behind} day${status.behind > 1 ? 's' : ''} behind`}
-                      {status.caughtUpToday && ' · ahead of schedule'}
+                      {status.finished ? tr('Completed 🎉') : tr('Day {day} of {days}', { day: day, days: plan!.days })}
+                      {status.behind > 0 && tr(' · {behind} {behind:day|days} behind', { behind: status.behind })}
+                      {status.caughtUpToday && tr(' · ahead of schedule')}
                     </p>
                   </div>
-                  <button onClick={() => leavePlan(e)} aria-label="Stop plan" className="p-1.5 rounded-full text-muted-foreground hover:bg-muted">
+                  <button onClick={() => leavePlan(e)} aria-label={tr('Stop plan')} className="p-1.5 rounded-full text-muted-foreground hover:bg-muted">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -124,7 +126,7 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
                   <>
                     <div className="space-y-1.5">
                       <p className="text-[11px] font-bold uppercase tracking-wider text-violet-600 dark:text-violet-400">
-                        {status.behind > 0 ? 'Next reading' : "Today's reading"}
+                        {status.behind > 0 ? tr('Next reading') : tr('Today\'s reading')}
                       </p>
                       <p className="text-sm font-semibold">{formatReading(chapters, translation)}</p>
                       <div className="flex flex-wrap gap-1.5">
@@ -144,14 +146,14 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
                       disabled={busy === e.id}
                       className="w-full flex items-center justify-center gap-2 rounded-2xl bg-violet-600 text-white py-2.5 text-sm font-bold disabled:opacity-60 active:scale-[0.98]"
                     >
-                      {busy === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Mark day {day} done
+                      {busy === e.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{' '}{tr('Mark day')}{' '}{day}{' '}{tr('done')}
                     </button>
                   </>
                 )}
 
                 {partnerStatus && (
                   <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5" /> {partnerName}: {partnerStatus.finished ? 'finished' : `day ${partnerStatus.nextDay} · ${partnerStatus.percent}%`}
+                    <Users className="w-3.5 h-3.5" /> {partnerName}: {partnerStatus.finished ? tr('finished') : tr('day {nextDay} · {percent}%', { nextDay: partnerStatus.nextDay, percent: partnerStatus.percent })}
                   </p>
                 )}
               </div>
@@ -163,7 +165,7 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
       <section className="space-y-2">
         <div className="flex items-center gap-0.5">
           <h2 className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">
-            {active.length > 0 ? 'More plans' : 'Start a reading plan'}
+            {active.length > 0 ? tr('More plans') : tr('Start a reading plan')}
           </h2>
           <HelpTip topic="bible.plans" align="left" className="-my-1" />
         </div>
@@ -177,9 +179,9 @@ export function BiblePlansView({ userId, translation, openPassage, markChaptersR
               className="w-full flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-left active:bg-muted/60 disabled:opacity-60"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-sm">{plan.title}</p>
-                <p className="text-[11px] text-muted-foreground">{plan.description}</p>
-                {partnerOn && <p className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold mt-0.5">{partnerName} is reading this, join them</p>}
+                <p className="font-bold text-sm">{tr(plan.title)}</p>
+                <p className="text-[11px] text-muted-foreground">{tr(plan.description)}</p>
+                {partnerOn && <p className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold mt-0.5">{tr('{partnerName} is reading this, join them', { partnerName: partnerName })}</p>}
               </div>
               {busy === plan.key ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
             </button>

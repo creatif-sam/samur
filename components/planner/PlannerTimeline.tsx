@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Plus, RefreshCw } from 'lucide-react'
 import { formatDuration, formatMinutes, freeGaps, taskSpan, type PlannerTask } from '@/lib/planner/tasks'
@@ -65,6 +66,7 @@ export default function PlannerTimeline({
   onToggleComplete,
   onAddAt,
 }: Props) {
+  const { tr } = useTranslation()
   const [nowMinutes, setNowMinutes] = useState(() => {
     const d = new Date()
     return d.getHours() * 60 + d.getMinutes()
@@ -112,7 +114,7 @@ export default function PlannerTimeline({
           {h < endHour && (
             <button
               type="button"
-              aria-label={`Add event at ${formatMinutes(h * 60)}`}
+              aria-label={tr('Add event at {value}', { value: formatMinutes(h * 60) })}
               onClick={() => onAddAt(h * 60)}
               className="flex-1 border-t border-slate-200/70 dark:border-slate-700/60 hover:bg-violet-500/5 transition-colors"
               style={{ height: HOUR_PX }}
@@ -132,7 +134,7 @@ export default function PlannerTimeline({
           style={{ top: top(g.start) + 2, height: top(g.end) - top(g.start) - 4 }}
         >
           <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
-            Free · {formatDuration(g.end - g.start)}
+            {tr('Free · {value}', { value: formatDuration(g.end - g.start) })}
           </span>
           <Plus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
         </button>
@@ -169,7 +171,7 @@ export default function PlannerTimeline({
               {!isPartnerTask && (
                 <button
                   type="button"
-                  aria-label={isDone ? 'Mark not done' : 'Mark done'}
+                  aria-label={isDone ? tr('Mark not done') : tr('Mark done')}
                   onClick={(e) => { e.stopPropagation(); onToggleComplete(task.id) }}
                   className={`shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${isDone ? 'bg-white border-white' : 'border-white/60'}`}
                 >

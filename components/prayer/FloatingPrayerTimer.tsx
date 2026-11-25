@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Flame } from 'lucide-react'
@@ -11,6 +12,7 @@ function fmt(s: number) {
 }
 
 export default function FloatingPrayerTimer() {
+  const { tr } = useTranslation()
   const pathname = usePathname()
   const router = useRouter()
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
@@ -80,7 +82,7 @@ export default function FloatingPrayerTimer() {
   return (
     <button
       onClick={() => router.push(PRAYER_PAGE)}
-      aria-label="Prayer timer running — tap to return"
+      aria-label={tr('Prayer timer running — tap to return')}
       className="
         fixed top-3 left-1/2 -translate-x-1/2 z-[100]
         flex items-center gap-1.5

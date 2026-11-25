@@ -1,5 +1,6 @@
 'use client'
 
+import { appLocale } from '@/lib/i18n'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -60,7 +61,7 @@ const COLORS = [
 
 export default function MoneyCharts() {
   const supabase = createClient()
-  const { t } = useTranslation()
+  const { t, tr } = useTranslation()
   const { format } = useMoneyFormat()
   const initialDate = new Date()
 
@@ -271,7 +272,7 @@ export default function MoneyCharts() {
           >
             {Array.from({ length: 12 }).map((_, i) => (
               <option key={i} value={i}>
-                {new Date(0, i).toLocaleString(undefined, {
+                {new Date(0, i).toLocaleString(appLocale(), {
                   month: 'long',
                 })}
               </option>
@@ -359,7 +360,7 @@ export default function MoneyCharts() {
                   {c.icon}
                 </div>
                 <div className="text-sm">
-                  {c.name}{' '}
+                  {tr(c.name)}{' '}
                   <span className="text-muted-foreground">
                     {c.percent}%
                   </span>
@@ -399,7 +400,7 @@ export default function MoneyCharts() {
               </div>
               <div className="text-base font-semibold flex items-center gap-2">
                 <span>{selectedCategory.icon}</span>
-                <span>{selectedCategory.name}</span>
+                <span>{tr(selectedCategory.name)}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-1">
                 {t.money.categoryTotal.replace('{amount}', format(selectedCategory.total))}
@@ -418,9 +419,9 @@ export default function MoneyCharts() {
                     className="rounded-lg border p-3 flex justify-between items-start gap-2"
                   >
                     <div>
-                      <div className="text-sm font-medium">{item.title}</div>
+                      <div className="text-sm font-medium">{tr(item.title)}</div>
                       <div className="text-xs text-muted-foreground">
-                        {parseDateKey(item.entry_date).toLocaleDateString(undefined, {
+                        {parseDateKey(item.entry_date).toLocaleDateString(appLocale(), {
                           weekday: 'short',
                           month: 'short',
                           day: 'numeric',

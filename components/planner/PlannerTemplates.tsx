@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export default function PlannerTemplates({ userId, dateKey, dayLabel, dayTasks, onApply, onClose }: Props) {
+  const { tr } = useTranslation()
   const supabase = createClient()
   const [templates, setTemplates] = useState<Template[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,12 +65,12 @@ export default function PlannerTemplates({ userId, dateKey, dayLabel, dayTasks, 
       const rows = await fetchDayRows(supabase, [userId], yesterday)
       const tasks = (rows[0]?.tasks ?? []).filter(t => t && !t.recurring)
       if (tasks.length === 0) {
-        toast('Nothing to copy: the day before has no one-off events')
+        toast(tr('Nothing to copy: the day before has no one-off events'))
         return
       }
       onApply(sortByStart(tasks).map(toTemplateTask), 'the day before')
     } catch {
-      toast.error("Couldn't load the day before. Check your connection.")
+      toast.error(tr('Couldn\'t load the day before. Check your connection.'))
     } finally {
       setCopying(false)
     }
@@ -85,12 +87,12 @@ export default function PlannerTemplates({ userId, dateKey, dayLabel, dayTasks, 
       .single()
     setSaving(false)
     if (error) {
-      toast.error("Couldn't save the template.")
+      toast.error(tr('Couldn\'t save the template.'))
       return
     }
     setTemplates(t => [...t, data as Template])
     setName('')
-    toast.success(`Saved "${value}"`)
+    toast.success(tr('Saved "{value}"', { value: value }))
   }
 
   async function deleteTemplate(template: Template) {
@@ -98,7 +100,7 @@ export default function PlannerTemplates({ userId, dateKey, dayLabel, dayTasks, 
     const { error } = await supabase.from('planner_templates').delete().eq('id', template.id)
     if (error) {
       setTemplates(t => [...t, template])
-      toast.error("Couldn't delete the template.")
+      toast.error(tr('Couldn\'t delete the template.'))
     }
   }
 
@@ -108,7 +110,7 @@ export default function PlannerTemplates({ userId, dateKey, dayLabel, dayTasks, 
         <div className="px-5 pt-5 pb-3 flex items-start justify-between border-b border-slate-100 dark:border-slate-800">
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-              <LayoutTemplate className="w-5 h-5 text-violet-500" /> Plan faster
+              <LayoutTemplate className="w-5 h-5 text-violet-500" />{' '}{tr('Plan faster')}
             </h3>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{dayLabel}</p>
           </div>
@@ -123,38 +125,37 @@ export default function PlannerTemplates({ userId, dateKey, dayLabel, dayTasks, 
             disabled={copying}
             className="w-full flex items-center justify-between rounded-2xl bg-violet-600 text-white px-4 py-3 text-sm font-bold active:scale-[0.98] disabled:opacity-60"
           >
-            <span className="flex items-center gap-2"><Copy className="w-4 h-4" /> Copy the day before</span>
+            <span className="flex items-center gap-2"><Copy className="w-4 h-4" />{' '}{tr('Copy the day before')}</span>
             {copying && <Loader2 className="w-4 h-4 animate-spin" />}
           </button>
 
           {unavailable ? (
-            <p className="text-xs text-slate-500">Templates need the latest database update. Run the planner migration in Supabase to enable them.</p>
+            <p className="text-xs text-slate-500">{tr('Templates need the latest database update. Run the planner migration in Supabase to enable them.')}</p>
           ) : (
             <>
               <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your templates</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tr('Your templates')}</p>
                 {loading ? (
                   <div className="h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
                 ) : templates.length === 0 ? (
-                  <p className="text-xs text-slate-400">No templates yet. Save a typical day below to reuse it.</p>
+                  <p className="text-xs text-slate-400">{tr('No templates yet. Save a typical day below to reuse it.')}</p>
                 ) : (
                   <ul className="space-y-2">
                     {templates.map(t => (
                       <li key={t.id} className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-700 px-3 py-2">
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{t.name}</p>
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{tr(t.name)}</p>
                           <p className="text-[11px] text-slate-400 truncate">
-                            {t.tasks.length} event{t.tasks.length !== 1 ? 's' : ''}
-                            {t.tasks[0] && ` · from ${t.tasks[0].start}`}
+                            {tr('{tasksCount} {tasksCount:event|events}{value2}', { tasksCount: t.tasks.length, value2: t.tasks[0] && tr(' · from {start}', { start: t.tasks[0].start }) })}
                           </p>
                         </div>
                         <button
                           onClick={() => onApply(t.tasks, `"${t.name}"`)}
                           className="shrink-0 rounded-xl bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-3 py-1.5 text-xs font-bold active:scale-95"
                         >
-                          Apply
+                          {tr('Apply')}
                         </button>
-                        <button onClick={() => deleteTemplate(t)} aria-label="Delete template" className="shrink-0 p-1.5 text-slate-400 active:text-red-500">
+                        <button onClick={() => deleteTemplate(t)} aria-label={tr('Delete template')} className="shrink-0 p-1.5 text-slate-400 active:text-red-500">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </li>
@@ -164,21 +165,21 @@ export default function PlannerTemplates({ userId, dateKey, dayLabel, dayTasks, 
               </div>
 
               <div className="space-y-2">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Save this day as a template</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tr('Save this day as a template')}</p>
                 {savable.length === 0 ? (
-                  <p className="text-xs text-slate-400">Add some one-off events to this day first.</p>
+                  <p className="text-xs text-slate-400">{tr('Add some one-off events to this day first.')}</p>
                 ) : (
                   <form onSubmit={(e) => { e.preventDefault(); saveTemplate() }} className="flex gap-2">
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder={`Name, e.g. Weekday (${savable.length} events)`}
+                      placeholder={tr('Name, e.g. Weekday ({savableCount} events)', { savableCount: savable.length })}
                       className="flex-1 min-w-0 rounded-2xl bg-slate-100 dark:bg-slate-800 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-violet-400 dark:text-white"
                     />
                     <button
                       type="submit"
                       disabled={saving || !name.trim()}
-                      aria-label="Save template"
+                      aria-label={tr('Save template')}
                       className="shrink-0 w-11 h-11 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center disabled:opacity-40"
                     >
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
