@@ -11,12 +11,12 @@ import { fetchDayRows } from '@/lib/planner/queries'
 import { sortByStart, type PlannerTask } from '@/lib/planner/tasks'
 
 // What a template keeps of a task: no ids, owners, completion or repeat rules
-export type TemplateTask = Pick<PlannerTask, 'text' | 'start' | 'end' | 'vision_id' | 'visibility' | 'reminder'>
+export type TemplateTask = Pick<PlannerTask, 'text' | 'start' | 'end' | 'vision_id' | 'role_id' | 'goal_id' | 'visibility' | 'reminder'>
 
 type Template = { id: string; name: string; tasks: TemplateTask[]; created_at: string }
 
 function toTemplateTask(t: PlannerTask): TemplateTask {
-  return { text: t.text, start: t.start, end: t.end, vision_id: t.vision_id, visibility: t.visibility, reminder: t.reminder }
+  return { text: t.text, start: t.start, end: t.end, vision_id: t.vision_id, role_id: t.role_id, goal_id: t.goal_id, visibility: t.visibility, reminder: t.reminder }
 }
 
 interface Props {

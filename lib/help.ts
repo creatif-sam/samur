@@ -57,13 +57,13 @@ export const HELP = {
     title: 'Momentum',
     text: 'How many goals fall due in the period you pick and how many are done, with a chart of finished against still open.',
   },
-  'goals.categories': {
-    title: 'By category',
-    text: 'The goals due in the period you pick, grouped by category, with how many are done in each.',
+  'goals.byRole': {
+    title: 'By role',
+    text: 'The goals due in the period you pick, grouped by the role they serve, with how many are done in each. Your partner’s shared goals have their own row.',
   },
-  'goals.overviewVisions': {
-    title: 'Visions',
-    text: 'Each vision’s progress. The small line marks where an even pace would put you today. Tap one to open your visions under Roles.',
+  'goals.overviewRoles': {
+    title: 'Your roles',
+    text: 'Every role with the progress of its goals. A role with no goals yet stands out, so no part of your life is forgotten. Tap a role to open the Roles tab.',
   },
   'goals.list': {
     title: 'Your goals',
@@ -223,11 +223,11 @@ export const HELP = {
   // ── Insights ──
   'analytics.page': {
     title: 'Analytics',
-    text: 'A look at your growth: meditation streak, goal completion, books read, a breakdown of your goals, and how your planned time is spread across your visions.',
+    text: 'A look at your growth: meditation streak, goal completion, books read, a breakdown of your goals, and how your planned time is shared between your roles.',
   },
   'analytics.visionTime': {
-    title: 'Vision time',
-    text: 'Adds up the hours of the events you planned, grouped by the vision they are linked to. Link an event to a vision when you create it.',
+    title: 'Time per role',
+    text: 'Adds up the hours you planned, by the role each event is for, so you can see whether every role gets time. Pick a role when you create an event. Older events are listed by vision.',
   },
   'review.page': {
     title: 'Weekly review',

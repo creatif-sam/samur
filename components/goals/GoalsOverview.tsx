@@ -6,19 +6,18 @@ import { HelpTip } from '@/components/ui/help-tip'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { AlertTriangle, Ban, CalendarClock, ChevronRight, PartyPopper, Rocket } from 'lucide-react'
+import { AlertTriangle, Ban, CalendarClock, ChevronRight, PartyPopper, Users } from 'lucide-react'
 import type { Goal } from '@/lib/types'
-import type { Vision } from '@/app/protected/goals/page'
-import type { GoalCategory } from '@/components/goals/NewGoalForm'
 import { cn } from '@/lib/utils'
 import type { HelpTopic } from '@/lib/help'
 import { inPeriod, isOverdue, type GoalPeriod } from '@/lib/goals'
 import { addDays, daysBetween, parseDateKey, toLocalDateKey } from '@/lib/dates'
-import { PACE_LABEL, PACE_STYLE, daysLeftLabel, visionPace, visionProgress } from '@/lib/visions'
+import { groupRolesByCategory, roleProgress, type Role, type RoleCategory } from '@/lib/roles'
 
 type Scope = 'week' | 'month' | 'quarter' | 'year'
 const SCOPE_PERIOD: Record<Scope, GoalPeriod> = { week: 'weekly', month: 'monthly', quarter: 'quarterly', year: 'yearly' }
 const SCOPE_LABEL: Record<Scope, string> = { week: 'This week', month: 'This month', quarter: 'This quarter', year: 'This year' }
+const SCOPE_TAB: Record<Scope, string> = { week: 'Week', month: 'Month', quarter: 'Quarter', year: 'Year' }
 
 const STATUS = [
   { key: 'done', label: 'Done', bar: 'bg-emerald-500', dot: 'bg-emerald-500' },
@@ -27,11 +26,16 @@ const STATUS = [
   { key: 'to_do', label: 'Not started', bar: 'bg-zinc-300 dark:bg-zinc-600', dot: 'bg-zinc-300 dark:bg-zinc-600' },
 ] as const
 
+type RoleGoal = Goal & { role_id?: string | null }
+
 interface Props {
-  goals: Goal[]
-  visions: Vision[]
-  categories: GoalCategory[]
-  onOpenVisions: () => void
+  goals: RoleGoal[]          // the goals in focus (all, one role, or unassigned)
+  allGoals: RoleGoal[]       // every goal, for the roles summary
+  roles: Role[]              // active roles
+  roleCategories: RoleCategory[]
+  rolesReady: boolean        // false until the roles database update is run
+  userId: string | null
+  onOpenRoles: () => void
 }
 
 function Ring({ pct, size = 104 }: { pct: number; size?: number }) {
@@ -68,7 +72,7 @@ function SectionTitle({ eyebrow, title, right, help }: { eyebrow: string; title:
 
 const card = 'rounded-3xl bg-card border border-border/60 shadow-sm p-5'
 
-export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Props) {
+export function GoalsOverview({ goals, allGoals, roles, roleCategories, rolesReady, userId, onOpenRoles }: Props) {
   const { tr } = useTranslation()
   const [scope, setScope] = useState<Scope>('month')
   // Only ever rendered on the client after goals load, so reading the clock here is safe
@@ -80,7 +84,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
     goals.forEach(g => { c[g.status] = (c[g.status] ?? 0) + 1 })
     return c
   }, [goals])
-  const avgProgress = visionProgress(goals)
+  const avgProgress = roleProgress(goals) ?? 0
 
   // ── Needs attention ──
   const attention = useMemo(() => {
@@ -92,17 +96,17 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
       const due = g.due_date?.slice(0, 10)
       if (isOverdue(g, todayKey)) {
         const d = daysBetween(due!, todayKey)
-        items.push({ goal: g, kind: 'overdue', note: `${d} day${d === 1 ? '' : 's'} late` })
+        items.push({ goal: g, kind: 'overdue', note: tr('{d} {d:day|days} late', { d }) })
       } else if (g.status === 'blocked') {
-        items.push({ goal: g, kind: 'blocked', note: due ? `Due ${parseDateKey(due).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' })}` : 'Blocked' })
+        items.push({ goal: g, kind: 'blocked', note: due ? tr('Due {value}', { value: parseDateKey(due).toLocaleDateString(appLocale(), { month: 'short', day: 'numeric' }) }) : tr('Blocked') })
       } else if (due && due <= soon) {
         const d = daysBetween(todayKey, due)
-        items.push({ goal: g, kind: 'soon', note: d === 0 ? 'Due today' : d === 1 ? 'Due tomorrow' : `Due in ${d} days` })
+        items.push({ goal: g, kind: 'soon', note: d === 0 ? tr('Due today') : d === 1 ? tr('Due tomorrow') : tr('Due in {d} days', { d }) })
       }
     })
     const rank = { overdue: 0, blocked: 1, soon: 2 }
     return items.sort((a, b) => rank[a.kind] - rank[b.kind] || (a.goal.due_date ?? '9').localeCompare(b.goal.due_date ?? '9'))
-  }, [goals, todayKey])
+  }, [goals, todayKey, tr])
 
   // ── Period momentum ──
   const scoped = useMemo(
@@ -141,40 +145,58 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
     )
   }, [scoped, scope, todayKey])
 
-  // ── Categories (period-scoped) ──
-  const categoryRows = useMemo(() => {
-    const map = new Map<string, { name: string; emoji: string; color: string; total: number; done: number }>()
+  // Where a goal sits: its role, a partner's shared goal, or no role yet
+  const roleById = useMemo(() => Object.fromEntries(roles.map(r => [r.id, r])), [roles])
+  const bucketOf = (g: RoleGoal) =>
+    g.role_id && roleById[g.role_id] ? g.role_id : userId && g.owner_id && g.owner_id !== userId ? 'shared' : 'none'
+
+  // ── By role (period-scoped) ──
+  const roleRows = useMemo(() => {
+    const map = new Map<string, { key: string; name: string; emoji: string; color: string; total: number; done: number }>()
     scoped.forEach(g => {
-      const cat = categories.find(c => c.id === g.category_id)
-      const key = cat?.id ?? 'general'
-      const row = map.get(key) ?? { name: cat?.name ?? 'General', emoji: cat?.emoji ?? '🎯', color: cat?.color ?? '#94a3b8', total: 0, done: 0 }
+      const key = bucketOf(g)
+      const role = roleById[key]
+      const row = map.get(key) ?? (role
+        ? { key, name: role.name, emoji: role.emoji ?? '🎯', color: role.color, total: 0, done: 0 }
+        : key === 'shared'
+          ? { key, name: 'Shared with you', emoji: '🤝', color: '#94a3b8', total: 0, done: 0 }
+          : { key, name: 'No role', emoji: '·', color: '#94a3b8', total: 0, done: 0 })
       row.total += 1
       if (g.status === 'done') row.done += 1
       map.set(key, row)
     })
-    return [...map.values()].sort((a, b) => b.total - a.total)
-  }, [scoped, categories])
-  const maxCat = Math.max(1, ...categoryRows.map(r => r.total))
+    // Roles first, in your order; then shared and unassigned
+    const order = (k: string) => (roleById[k] ? roles.indexOf(roleById[k]) : k === 'shared' ? 1e6 : 1e6 + 1)
+    return [...map.values()].sort((a, b) => order(a.key) - order(b.key))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scoped, roles, roleById, userId])
+  const maxRole = Math.max(1, ...roleRows.map(r => r.total))
 
-  // ── Visions ──
-  const visionRows = useMemo(() => {
-    if (!todayKey) return []
-    return visions
-      .filter(v => !v.is_archived)
-      .map(v => {
-        const vg = goals.filter(g => g.vision_id === v.id)
-        const progress = visionProgress(vg)
-        return { v, count: vg.length, progress, ...visionPace(progress, v.created_at, v.target_date, todayKey) }
-      })
-      .sort((a, b) => (a.v.target_date ?? '9999').localeCompare(b.v.target_date ?? '9999'))
-  }, [visions, goals, todayKey])
+  // ── Your roles (all goals, by category) ──
+  const roleGroups = useMemo(() => {
+    const goalsOf = (id: string) => allGoals.filter(g => g.role_id === id)
+    return groupRolesByCategory(roles, roleCategories)
+      .filter(gr => gr.roles.length > 0)
+      .map(gr => ({
+        category: gr.category,
+        roles: gr.roles.map(r => {
+          const list = goalsOf(r.id)
+          return { role: r, count: list.length, done: list.filter(g => g.status === 'done').length, progress: roleProgress(list) }
+        }),
+      }))
+  }, [roles, roleCategories, allGoals])
+  const unassignedCount = useMemo(
+    () => allGoals.filter(g => (!userId || g.owner_id === userId) && !(g.role_id && roleById[g.role_id])).length,
+    [allGoals, userId, roleById],
+  )
 
+  const overdueCount = attention.filter(a => a.kind === 'overdue').length
   const headline =
-    total === 0 ? 'No goals yet. Set your first one in the Goals tab.'
-      : counts.done === total ? 'Every goal is done. Time to dream bigger.'
-        : attention.some(a => a.kind === 'overdue') ? `${attention.filter(a => a.kind === 'overdue').length} overdue. A small step today counts.`
-          : counts.doing > 0 ? `${counts.doing} goal${counts.doing === 1 ? '' : 's'} in motion. Keep going.`
-            : 'Pick one goal and start moving.'
+    total === 0 ? tr('No goals yet. Set your first one in the Goals tab.')
+      : counts.done === total ? tr('Every goal is done. Time to dream bigger.')
+        : overdueCount > 0 ? tr('{n} overdue. A small step today counts.', { n: overdueCount })
+          : counts.doing > 0 ? tr('{n} {n:goal|goals} in motion. Keep going.', { n: counts.doing })
+            : tr('Pick one goal and start moving.')
 
   return (
     <div className="space-y-5">
@@ -197,7 +219,7 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
               {counts.done}<span className="text-white/60 text-xl"> / {total}</span>
             </p>
             <p className="text-xs font-semibold text-white/80">{tr('goals completed')}</p>
-            <p className="mt-2 text-xs text-white/90 leading-snug">{tr(headline)}</p>
+            <p className="mt-2 text-xs text-white/90 leading-snug">{headline}</p>
           </div>
         </div>
 
@@ -277,11 +299,11 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
             key={s}
             onClick={() => setScope(s)}
             className={cn(
-              'flex-1 rounded-xl py-2 text-[11px] font-bold capitalize transition-all',
+              'flex-1 rounded-xl py-2 text-[11px] font-bold transition-all',
               scope === s ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {s}
+            {tr(SCOPE_TAB[s])}
           </button>
         ))}
       </div>
@@ -328,24 +350,24 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
           )}
         </section>
 
-        {/* ── Categories ── */}
+        {/* ── By role ── */}
         <section className={card}>
-          <SectionTitle eyebrow={tr(SCOPE_LABEL[scope])} title={tr('By category')} help="goals.categories" />
-          {categoryRows.length === 0 ? (
+          <SectionTitle eyebrow={tr(SCOPE_LABEL[scope])} title={tr('By role')} help="goals.byRole" />
+          {roleRows.length === 0 ? (
             <p className="py-10 text-center text-sm text-muted-foreground">{tr('No goals due {toLowerCase}.', { toLowerCase: tr(SCOPE_LABEL[scope]).toLowerCase() })}</p>
           ) : (
             <ul className="space-y-3.5">
-              {categoryRows.map(r => (
-                <li key={r.name}>
+              {roleRows.map(r => (
+                <li key={r.key}>
                   <div className="mb-1.5 flex items-center justify-between gap-2 text-sm">
                     <span className="flex min-w-0 items-center gap-2 font-bold">
                       <span>{r.emoji}</span>
-                      <span className="truncate">{tr(r.name)}</span>
+                      <span className={cn('truncate', !roleById[r.key] && 'text-muted-foreground')}>{tr(r.name)}</span>
                     </span>
                     <span className="shrink-0 text-xs font-semibold text-muted-foreground">{tr('{done}/{total} done', { done: r.done, total: r.total })}</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div className="relative h-full rounded-full" style={{ width: `${(r.total / maxCat) * 100}%`, backgroundColor: `${r.color}40` }}>
+                    <div className="relative h-full rounded-full" style={{ width: `${(r.total / maxRole) * 100}%`, backgroundColor: `${r.color}40` }}>
                       <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${(r.done / r.total) * 100}%`, backgroundColor: r.color }} />
                     </div>
                   </div>
@@ -356,56 +378,66 @@ export function GoalsOverview({ goals, visions, categories, onOpenVisions }: Pro
         </section>
       </div>
 
-      {/* ── Visions ── */}
-      <section className={card}>
-        <SectionTitle
-          eyebrow={tr('Long term')}
-          title={tr('Visions')}
-          help="goals.overviewVisions"
-          right={visionRows.length > 0 && (
-            <button onClick={onOpenVisions} className="flex items-center gap-0.5 text-xs font-bold text-violet-600 dark:text-violet-400">
-              {tr('See all')}{' '}<ChevronRight className="h-3.5 w-3.5" />
+      {/* ── Your roles: every role's goals and progress, so a neglected role shows ── */}
+      {rolesReady && (
+        <section className={card}>
+          <SectionTitle
+            eyebrow={tr('Begin with the end in mind')}
+            title={tr('Your roles')}
+            help="goals.overviewRoles"
+            right={roles.length > 0 && (
+              <button onClick={onOpenRoles} className="flex items-center gap-0.5 text-xs font-bold text-violet-600 dark:text-violet-400">
+                {tr('See all')}{' '}<ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            )}
+          />
+          {roles.length === 0 ? (
+            <button onClick={onOpenRoles} className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-left transition hover:bg-muted/50">
+              <Users className="h-5 w-5 shrink-0 text-violet-500" />
+              <span className="text-sm font-semibold text-muted-foreground">{tr('Start with the roles you live in')}</span>
             </button>
-          )}
-        />
-        {visionRows.length === 0 ? (
-          <button onClick={onOpenVisions} className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-border p-4 text-left transition hover:bg-muted/50">
-            <Rocket className="h-5 w-5 shrink-0 text-violet-500" />
-            <span className="text-sm font-semibold text-muted-foreground">{tr('Cast a vision to give your goals a direction.')}</span>
-          </button>
-        ) : (
-          <ul className="space-y-4">
-            {visionRows.slice(0, 5).map(({ v, count, progress, pace, expected, daysLeft }) => (
-              <li key={v.id}>
-                <button onClick={onOpenVisions} className="w-full text-left">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-lg" style={{ backgroundColor: `${v.color}22` }}>
-                      {v.emoji || '🎯'}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-bold">{tr(v.title)}</p>
-                        <span className="shrink-0 text-sm font-black">{progress}%</span>
-                      </div>
-                      <div className="relative mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${progress}%`, backgroundColor: v.color }} />
-                        {expected !== null && pace !== 'achieved' && pace !== 'overdue' && (
-                          <div className="absolute inset-y-0 w-0.5 bg-foreground/50" style={{ left: `${expected}%` }} title={tr('Expected by today: {expected}%', { expected: expected })} />
-                        )}
-                      </div>
-                      <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold', PACE_STYLE[pace])}>{tr(PACE_LABEL[pace])}</span>
-                        <span>{tr('{count} {count:goal|goals}', { count: count })}</span>
-                        {daysLeftLabel(daysLeft) && <span>· {daysLeftLabel(daysLeft)}</span>}
-                      </div>
-                    </div>
-                  </div>
+          ) : (
+            <div className="space-y-5">
+              {roleGroups.map(group => (
+                <div key={group.category?.id ?? 'other'}>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    {group.category ? `${group.category.emoji ?? ''} ${tr(group.category.name)}` : tr('Other roles')}
+                  </p>
+                  <ul className="space-y-3">
+                    {group.roles.map(({ role, count, done, progress }) => (
+                      <li key={role.id}>
+                        <button onClick={onOpenRoles} className="flex w-full items-center gap-3 text-left">
+                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-lg" style={{ backgroundColor: `${role.color}22` }}>
+                            {role.emoji || '🎯'}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="truncate text-sm font-bold">{tr(role.name)}</span>
+                              {progress !== null && <span className="shrink-0 text-sm font-black">{progress}%</span>}
+                            </span>
+                            <span className="mt-1.5 block h-2 w-full overflow-hidden rounded-full bg-muted">
+                              <span className="block h-full rounded-full transition-all duration-700" style={{ width: `${progress ?? 0}%`, backgroundColor: role.color }} />
+                            </span>
+                            <span className={cn('mt-1 block text-[11px]', count ? 'text-muted-foreground' : 'font-semibold text-amber-600 dark:text-amber-400')}>
+                              {count ? tr('{count} {count:goal|goals} · {done} done', { count, done }) : tr('No goals yet')}
+                            </span>
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              {unassignedCount > 0 && (
+                <button onClick={onOpenRoles} className="flex w-full items-center justify-between rounded-2xl bg-muted/50 px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                  <span>{tr('{n} {n:goal|goals} without a role yet', { n: unassignedCount })}</span>
+                  <ChevronRight className="h-4 w-4" />
                 </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              )}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   )
 }

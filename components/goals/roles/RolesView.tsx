@@ -2,7 +2,7 @@
 
 import { appLocale } from '@/lib/i18n'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { Archive, ArchiveRestore, ArrowDown, ArrowUp, ChevronDown, MoreHorizontal, Pencil, Plus, Settings2, Trash2, Users } from 'lucide-react'
@@ -38,11 +38,9 @@ interface Props {
   onGoalsMoved: (goalIds: string[], roleId: string) => void
   onAddGoal: (roleId: string) => void
   onRefresh: () => void
-  // Set when arriving from a vision on the Overview, to open the visions section
-  openVisions?: number
 }
 
-export default function RolesView({ userId, ready, roles, roleCategories, openVisions, goals, visions, categories, onRolesChange, onCategoriesChange, onGoalsMoved, onAddGoal, onRefresh }: Props) {
+export default function RolesView({ userId, ready, roles, roleCategories, goals, visions, categories, onRolesChange, onCategoriesChange, onGoalsMoved, onAddGoal, onRefresh }: Props) {
   const { tr } = useTranslation()
   const [addingIn, setAddingIn] = useState<string | null>(null)
   const [managing, setManaging] = useState(false)
@@ -51,7 +49,6 @@ export default function RolesView({ userId, ready, roles, roleCategories, openVi
   const [deleting, setDeleting] = useState<Role | null>(null)
   const [busy, setBusy] = useState(false)
   const [showVisions, setShowVisions] = useState(false)
-  useEffect(() => { if (openVisions) setShowVisions(true) }, [openVisions])
   const [showArchived, setShowArchived] = useState(false)
 
   const active = useMemo(() => sortRoles(roles.filter(r => !r.is_archived)), [roles])

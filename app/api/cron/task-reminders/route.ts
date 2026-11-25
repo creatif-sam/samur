@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     let notificationsSent = 0;
     const dedupeSince = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
     const visionEmojis = new Map<string, string>();
+    const roleEmojis = new Map<string, string>();
 
     for (const user of users) {
       // Task times are in the user's local time (synced to their metadata by the app)
@@ -83,7 +84,20 @@ export async function GET(request: Request) {
         if (existing && existing.length > 0) continue;
 
         let visionEmoji = '⏰';
-        if (task.vision_id) {
+        // The role's emoji first; older events use their vision's. A missing roles
+        // table (update not run yet) just falls back.
+        if (task.role_id) {
+          if (!roleEmojis.has(task.role_id)) {
+            const { data: role } = await serviceSupabase
+              .from('roles')
+              .select('emoji')
+              .eq('id', task.role_id)
+              .maybeSingle();
+            roleEmojis.set(task.role_id, role?.emoji || '');
+          }
+          visionEmoji = roleEmojis.get(task.role_id) || visionEmoji;
+        }
+        if (visionEmoji === '⏰' && task.vision_id) {
           if (!visionEmojis.has(task.vision_id)) {
             const { data: vision } = await serviceSupabase
               .from('visions')

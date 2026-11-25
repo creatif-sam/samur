@@ -11,7 +11,9 @@ import { reduceMeditations, calculateStreak } from '@/lib/meditations/reducer'
 import { PlannerTask } from '@/components/planner/DailyPlanner'
 import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks'
 import { addDays, toLocalDateKey } from '@/lib/dates'
-import VisionProgressDashboard from '@/components/planner/VisionTimeUsageDashboard'
+import RoleTimeDashboard from '@/components/planner/VisionTimeUsageDashboard'
+import { loadRoles } from '@/lib/roles'
+import type { RoleLike } from '@/lib/planner/roleLinks'
 import AnalyticsHero from '@/components/analytics/AnalyticsHero'
 import AnalyticsStatCards from '@/components/analytics/AnalyticsStatCards'
 import AnalyticsGoalSection from '@/components/analytics/AnalyticsGoalSection'
@@ -25,6 +27,7 @@ export default function AnalyticsPage() {
   const [booksRead, setBooksRead]   = useState(0)
   const [allTasks, setAllTasks]     = useState<(PlannerTask & { day: string })[]>([])
   const [visionsMap, setVisionsMap] = useState<Record<string, any>>({})
+  const [rolesMap, setRolesMap] = useState<Record<string, RoleLike>>({})
 
   useEffect(() => { loadData() }, [])
 
@@ -34,13 +37,16 @@ export default function AnalyticsPage() {
     const uid = auth.user.id
     setUserId(uid)
 
-    const [goalsRes, meditationsRes, booksRes, historyRes, visionsRes] = await Promise.all([
+    const [goalsRes, meditationsRes, booksRes, historyRes, visionsRes, rolesRes] = await Promise.all([
       supabase.from('goals').select('*').or(`owner_id.eq.${uid},partner_id.eq.${uid}`),
       supabase.from('meditations').select('created_at, period, author_id').eq('author_id', uid).order('created_at', { ascending: false }),
       supabase.from('readings').select('id').eq('user_id', uid).eq('status', 'done'),
       supabase.from('planner_days').select('day, user_id, tasks, completed_task_ids').eq('user_id', uid).lte('day', toLocalDateKey(new Date())),
       supabase.from('visions').select('id, title, emoji').eq('owner_id', uid),
+      loadRoles(supabase, uid),
     ])
+    // Every role, archived too, so past time still counts under it
+    setRolesMap(Object.fromEntries(rolesRes.roles.map(r => [r.id, r])))
 
     setGoals(goalsRes.data ?? [])
     setMeditations(meditationsRes.data ?? [])
@@ -112,7 +118,7 @@ export default function AnalyticsPage() {
       <AnalyticsGoalSection goals={goals} />
 
       <div className="px-4 mt-6">
-        <VisionProgressDashboard allTasks={allTasks} visionsMap={visionsMap} />
+        <RoleTimeDashboard allTasks={allTasks} rolesMap={rolesMap} visionsMap={visionsMap} />
       </div>
 
     </div>

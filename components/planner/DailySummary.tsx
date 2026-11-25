@@ -4,6 +4,7 @@ import { useTranslation } from '@/contexts/TranslationContext'
 import { PlannerTask } from './DailyPlanner'
 import { ListChecks, Clock, Trophy, CheckCircle2, Lightbulb } from 'lucide-react'
 import { busyMinutes as countBusyMinutes, taskDuration } from '@/lib/planner/tasks'
+import { idleRole, type RoleLike } from '@/lib/planner/roleLinks'
 
 const HOURS_START = 5
 const HOURS_END = 23
@@ -11,10 +12,11 @@ const HOURS_END = 23
 interface DaySummaryProps {
   tasks: PlannerTask[]
   completedTaskIds: string[]
-  visions?: Record<string, { title: string; emoji: string }>
+  // Active roles: the tip suggests one with no time today
+  roles?: RoleLike[]
 }
 
-export default function DaySummary({ tasks, completedTaskIds, visions }: DaySummaryProps) {
+export default function DaySummary({ tasks, completedTaskIds, roles = [] }: DaySummaryProps) {
   const { tr } = useTranslation()
   const totalDayMinutes = (HOURS_END - HOURS_START) * 60
 
@@ -37,16 +39,11 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
 
   // SMART SUGGESTION LOGIC
   const getSuggestion = () => {
-    if (freeMinutes <= 30) return "Schedule is tight. Focus on current tasks."
-    if (visions) {
-      const visionIds = Object.keys(visions)
-      const usedVisionIds = tasks.map(t => t.vision_id).filter(Boolean)
-      const unusedVision = visionIds.find(id => !usedVisionIds.includes(id as string))
-      if (unusedVision) {
-        return `You have ${freeHours}h free. Why not spend 30m on "${visions[unusedVision].emoji} ${visions[unusedVision].title}"?`
-      }
-    }
-    return `Great window of ${freeHours}h found. Use it for deep reflection.`
+    if (freeMinutes <= 30) return tr('Schedule is tight. Focus on current tasks.')
+    // Covey: give each role some time. Suggest one that has none today.
+    const idle = idleRole(tasks, roles)
+    if (idle) return tr('You have {hours}h free. No time for {role} yet today; why not 30 min?', { hours: freeHours, role: `${idle.emoji ?? ''} ${tr(idle.name)}`.trim() })
+    return tr('Great window of {hours}h found. Use it for deep reflection.', { hours: freeHours })
   }
 
   return (
@@ -92,7 +89,7 @@ export default function DaySummary({ tasks, completedTaskIds, visions }: DaySumm
         <div className="min-w-0">
           <p className="text-[9px] font-bold text-blue-600/60 uppercase tracking-widest mb-0.5">{tr('Suggestion')}</p>
           <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-tight">
-            {tr(getSuggestion())}
+            {getSuggestion()}
           </p>
         </div>
       </div>

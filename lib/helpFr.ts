@@ -19,8 +19,8 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   'goals.focus': { title: 'Rôle ciblé', text: 'Choisis un rôle pour ne voir que ses objectifs sur cette page, ou affiche-les tous. Non classés montre tes objectifs sans rôle.' },
   'goals.attention': { title: 'À surveiller', text: 'Les objectifs qui ont besoin d’un coup de pouce : en retard, bloqués ou à rendre dans les 7 jours. Touche-en un pour l’ouvrir.' },
   'goals.momentum': { title: 'Élan', text: 'Combien d’objectifs arrivent à échéance sur la période choisie et combien sont faits, avec un graphique des terminés et des ouverts.' },
-  'goals.categories': { title: 'Par catégorie', text: 'Les objectifs à rendre sur la période choisie, groupés par catégorie, avec le nombre de faits dans chacune.' },
-  'goals.overviewVisions': { title: 'Visions', text: 'La progression de chaque vision. Le petit trait montre où un rythme régulier te placerait aujourd’hui. Touche-en une pour ouvrir tes visions dans Rôles.' },
+  'goals.byRole': { title: 'Par rôle', text: 'Les objectifs à rendre sur la période choisie, groupés par le rôle qu’ils servent, avec le nombre de faits dans chacun. Les objectifs partagés par ton partenaire ont leur propre ligne.' },
+  'goals.overviewRoles': { title: 'Tes rôles', text: 'Chaque rôle avec la progression de ses objectifs. Un rôle sans objectif ressort, pour qu’aucune part de ta vie ne soit oubliée. Touche un rôle pour ouvrir l’onglet Rôles.' },
   'goals.list': { title: 'Tes objectifs', text: 'Les objectifs à rendre sur la période choisie. Les objectifs en retard et non faits restent visibles. Touche un objectif pour l’ouvrir, et le bouton + pour en ajouter un.' },
   'goals.visions': { title: 'Visions', text: 'Une vision est un grand tableau à long terme. Lie-lui des objectifs et sa progression est leur moyenne. Touche une carte pour voir ses objectifs ; le menu ⋯ la modifie, l’archive ou la supprime.' },
   'goals.visionYear': { title: 'Visions de l’année', text: 'Les visions de cette année, face au temps déjà écoulé. La frise des mois montre les mois passés, et un point signale une vision à rendre ce mois-là.' },
@@ -69,8 +69,8 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   'posts.feed': { title: 'Tes publications', text: 'Filtre par auteur ou par type, recherche et actualise. Les sujets de prière ont un bouton « J’ai prié », et leur auteur peut les marquer exaucés depuis le menu ⋯. Un badge violet signale du nouveau depuis ta dernière visite.' },
 
   // ── Statistiques ──
-  'analytics.page': { title: 'Statistiques', text: 'Un regard sur ta croissance : série de méditations, objectifs atteints, livres lus, répartition de tes objectifs, et comment ton temps prévu se répartit entre tes visions.' },
-  'analytics.visionTime': { title: 'Temps par vision', text: 'Additionne les heures des événements prévus, groupées par la vision à laquelle ils sont liés. Lie un événement à une vision en le créant.' },
+  'analytics.page': { title: 'Statistiques', text: 'Un regard sur ta croissance : série de méditations, objectifs atteints, livres lus, répartition de tes objectifs, et comment ton temps prévu se partage entre tes rôles.' },
+  'analytics.visionTime': { title: 'Temps par rôle', text: 'Additionne les heures prévues selon le rôle de chaque événement, pour voir si chaque rôle reçoit du temps. Choisis un rôle en créant un événement. Les anciens événements sont listés par vision.' },
   'review.page': { title: 'Bilan de la semaine', text: 'Ta semaine en un coup d’œil : objectifs, méditations, tâches faites, argent, temps de prière et versets, plus tes réflexions du soir. Sers-t’en pour choisir quoi améliorer la semaine prochaine.' },
   'notifications.page': { title: 'Notifications', text: 'Tout ce qui t’a été envoyé, du plus récent au plus ancien : l’activité de ton partenaire, des rappels et des encouragements. Touche-en une pour l’ouvrir. Filtre par Toutes ou Non lues, et la roue choisit ce que tu reçois.' },
 

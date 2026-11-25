@@ -14,11 +14,12 @@ import type { Goal } from '@/lib/types'
 
 const DURATIONS = [30, 60, 90, 120]
 
-// Book time in the planner for a goal; the task is linked to the goal's vision
-export default function ScheduleGoalDialog({ goal, open, onOpenChange }: {
-  goal: Pick<Goal, 'title' | 'vision_id'>
+// Book time in the planner for a goal or a big rock; the event is linked to its role and goal
+export default function ScheduleGoalDialog({ goal, open, onOpenChange, onScheduled }: {
+  goal: Pick<Goal, 'title' | 'vision_id'> & { id?: string; role_id?: string | null; goal_id?: string | null; rock_id?: string }
   open: boolean
   onOpenChange: (open: boolean) => void
+  onScheduled?: () => void
 }) {
   const { tr } = useTranslation()
   const router = useRouter()
@@ -42,9 +43,14 @@ export default function ScheduleGoalDialog({ goal, open, onOpenChange }: {
         end: formatMinutes(h * 60 + m + duration),
         completed: false,
         vision_id: goal.vision_id ?? undefined,
+        role_id: goal.role_id ?? undefined,
+        // A goal passes its own id; a big rock passes the goal it belongs to
+        goal_id: goal.goal_id ?? goal.id ?? undefined,
+        rock_id: goal.rock_id,
         visibility: 'private',
         owner_id: user.id,
       })
+      onScheduled?.()
       onOpenChange(false)
       toast.success(tr('Time booked in your planner'), {
         action: { label: tr('Open planner'), onClick: () => router.push('/protected/planner') },

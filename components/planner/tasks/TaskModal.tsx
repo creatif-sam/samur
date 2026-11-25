@@ -8,6 +8,7 @@ import { TaskRecurrence } from './TaskRecurrence'
 import { Modal } from './Modal'
 import { Clock, ArrowRight, X, Calendar as CalendarIcon, Trash2, Eye, EyeOff, AlertTriangle, Bell, AlarmClock } from 'lucide-react'
 import { DEFAULT_REMINDER_MINUTES, REMINDER_OPTIONS, endsNextDay, overlapping, reminderMinutes, taskDuration } from '@/lib/planner/tasks'
+import type { RoleLike, VisionLike } from '@/lib/planner/roleLinks'
 
 export type SaveScope = 'this' | 'all'
 
@@ -30,6 +31,10 @@ export function TaskModal({
   startMinutes,
   initialText,
   initialVisionId,
+  initialRoleId,
+  initialGoalId,
+  roles = [],
+  visions = {},
   existingTask,
   userId,
   dayTasks = [],
@@ -42,6 +47,11 @@ export function TaskModal({
   startMinutes?: number // Exact start for new tasks (e.g. a free gap); overrides `hour`
   initialText?: string // Pre-filled title for new tasks (e.g. scheduling a to-do)
   initialVisionId?: string | null
+  // Scheduling a to-do (or a goal) brings its role and goal along
+  initialRoleId?: string | null
+  initialGoalId?: string | null
+  roles?: RoleLike[]                     // active roles to choose from
+  visions?: Record<string, VisionLike>   // to name an older event's vision
   existingTask?: PlannerTask | null
   userId: string | null
   dayTasks?: PlannerTask[]
@@ -55,6 +65,8 @@ export function TaskModal({
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [visionId, setVisionId] = useState<string | null>(null)
+  const [roleId, setRoleId] = useState<string | null>(null)
+  const [goalId, setGoalId] = useState<string | null>(null)
   const [recurring, setRecurring] = useState<PlannerTask['recurring'] | null>(null)
   const [visibility, setVisibility] = useState<'private' | 'shared'>('private')
   const [reminder, setReminder] = useState<number | null>(DEFAULT_REMINDER_MINUTES)
@@ -71,6 +83,8 @@ export function TaskModal({
       setStartTime(existingTask.start)
       setEndTime(existingTask.end)
       setVisionId(existingTask.vision_id ?? null)
+      setRoleId(existingTask.role_id ?? null)
+      setGoalId(existingTask.goal_id ?? null)
       setRecurring(existingTask.recurring ?? null)
       setVisibility(existingTask.visibility || 'private')
       setReminder(reminderMinutes(existingTask))
@@ -82,8 +96,10 @@ export function TaskModal({
       setVisibility('private')
       if (initialText) setText(initialText)
       if (initialVisionId) setVisionId(initialVisionId)
+      if (initialRoleId) setRoleId(initialRoleId)
+      if (initialGoalId) setGoalId(initialGoalId)
     }
-  }, [existingTask, hour, startMinutes, initialText, initialVisionId])
+  }, [existingTask, hour, startMinutes, initialText, initialVisionId, initialRoleId, initialGoalId])
 
   const timesValid = !!startTime && !!endTime && startTime !== endTime
   const canSave = canEdit && text.trim().length > 0 && timesValid
@@ -98,7 +114,11 @@ export function TaskModal({
       start: startTime,
       end: endTime,
       completed: existingTask?.completed ?? false,
+      // An older event keeps its vision unless it is removed in the form
       vision_id: visionId ?? undefined,
+      role_id: roleId ?? undefined,
+      goal_id: goalId ?? undefined,
+      rock_id: existingTask?.rock_id,
       recurring: recurring ?? undefined,
       visibility,
       owner_id: existingTask?.owner_id ?? userId ?? undefined,
@@ -273,9 +293,14 @@ export function TaskModal({
 
             <TaskBasics
               text={text}
-              visionId={visionId}
               onTextChange={setText}
-              onVisionChange={setVisionId}
+              roles={roles}
+              roleId={roleId}
+              goalId={goalId}
+              onRoleChange={setRoleId}
+              onGoalChange={(g, r) => { setGoalId(g); if (r) setRoleId(r) }}
+              olderVision={visionId ? visions[visionId] ?? null : null}
+              onClearVision={() => setVisionId(null)}
               hideTitle={true}
             />
 

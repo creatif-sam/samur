@@ -41,8 +41,18 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
   const active = useMemo(() => groupRolesByCategory(sortRoles(roles.filter(r => !r.is_archived)), categories).flatMap(g => g.roles), [roles, categories])
   const goalById = useMemo(() => Object.fromEntries(goals.map(g => [g.id, g])), [goals])
 
+  // Big rocks that already have time booked in the planner this week
+  const [booked, setBooked] = useState<Set<string>>(new Set())
+  const loadBooked = useCallback(async (w: string) => {
+    const { data } = await createClient().from('planner_days').select('tasks').eq('user_id', userId).gte('day', w).lte('day', addDays(w, 6))
+    const ids = new Set<string>()
+    for (const row of data ?? []) for (const t of (row.tasks ?? []) as { rock_id?: string }[]) if (t?.rock_id) ids.add(t.rock_id)
+    setBooked(ids)
+  }, [userId])
+
   const load = useCallback(async (w: string) => {
     if (initialRocks) return
+    void loadBooked(w)
     setLoading(true)
     try {
       const supabase = createClient()
@@ -56,7 +66,7 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
     } finally {
       setLoading(false)
     }
-  }, [userId, initialRocks])
+  }, [userId, initialRocks, loadBooked])
 
   useEffect(() => { if (ready) void load(week) }, [ready, week, load])
 
@@ -175,6 +185,7 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
               onToggle={toggle}
               onRemove={remove}
               onSchedule={setScheduling}
+              booked={booked}
             />
           ))}
         </div>
@@ -182,16 +193,23 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
 
       {scheduling && (
         <ScheduleGoalDialog
-          goal={{ title: scheduling.text, vision_id: scheduling.goal_id ? goalById[scheduling.goal_id]?.vision_id : undefined }}
+          goal={{
+            title: scheduling.text,
+            vision_id: scheduling.goal_id ? goalById[scheduling.goal_id]?.vision_id : undefined,
+            role_id: scheduling.role_id,
+            goal_id: scheduling.goal_id,
+            rock_id: scheduling.id,
+          }}
           open
           onOpenChange={o => { if (!o) setScheduling(null) }}
+          onScheduled={() => setBooked(prev => new Set(prev).add(scheduling.id))}
         />
       )}
     </div>
   )
 }
 
-function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, onSchedule }: {
+function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, onSchedule, booked }: {
   section: { id: string; name: string; emoji: string; color: string; roleId: string | null }
   rocks: WeeklyRock[]
   goals: RoleGoal[]
@@ -200,6 +218,7 @@ function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, 
   onToggle: (rock: WeeklyRock) => void
   onRemove: (rock: WeeklyRock) => void
   onSchedule: (rock: WeeklyRock) => void
+  booked: Set<string>
 }) {
   const { tr } = useTranslation()
   const [text, setText] = useState('')
@@ -243,7 +262,12 @@ function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, 
                   <span className="block truncate text-[10px] text-muted-foreground">🎯 {tr(goalById[r.goal_id].title)}</span>
                 )}
               </span>
-              {!r.done && (
+              {!r.done && booked.has(r.id) && (
+                <button onClick={() => onSchedule(r)} title={tr('Book more time')} className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                  {tr('Scheduled ✓')}
+                </button>
+              )}
+              {!r.done && !booked.has(r.id) && (
                 <button onClick={() => onSchedule(r)} aria-label={tr('Book time for {text}', { text: r.text })} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
                   <CalendarPlus className="h-4 w-4" />
                 </button>

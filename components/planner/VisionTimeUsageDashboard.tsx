@@ -2,134 +2,135 @@
 
 import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
-import React, { useState, useMemo } from 'react'
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, 
-  CartesianGrid, Tooltip, ResponsiveContainer, Cell 
-} from 'recharts'
-import { Target, Calendar, TrendingUp, BarChart3 } from 'lucide-react'
-import { PlannerTask } from './DailyPlanner'
-import { taskDuration } from '@/lib/planner/tasks'
+import { useMemo, useState } from 'react'
+import { ChevronDown, Scale } from 'lucide-react'
+import type { PlannerTask } from './DailyPlanner'
 import { addDays, toLocalDateKey } from '@/lib/dates'
+import { timePerRole, type RoleLike, type VisionLike } from '@/lib/planner/roleLinks'
+import { cn } from '@/lib/utils'
 
 type Period = 'week' | 'month' | 'year'
+const PERIOD_LABEL: Record<Period, string> = { week: 'Week', month: 'Month', year: 'Year' }
 
 interface DashboardProps {
   allTasks: (PlannerTask & { day?: string })[]
-  visionsMap: Record<string, { title: string; emoji: string }>
+  rolesMap: Record<string, RoleLike>
+  visionsMap: Record<string, VisionLike>
 }
 
-export default function VisionProgressDashboard({ allTasks, visionsMap }: DashboardProps) {
+const hours = (mins: number) => {
+  const h = mins / 60
+  return h >= 10 ? Math.round(h).toString() : (Math.round(h * 10) / 10).toString()
+}
+
+// Planned time per role (Covey's balance check): a bar showing the share of each role,
+// then each role's hours. Older events with only a vision are listed apart.
+export default function RoleTimeDashboard({ allTasks, rolesMap, visionsMap }: DashboardProps) {
   const { tr } = useTranslation()
   const [period, setPeriod] = useState<Period>('week')
+  const [showOlder, setShowOlder] = useState(false)
 
   const stats = useMemo(() => {
-    const data: Record<string, { hours: number; sessions: number }> = {}
     const today = toLocalDateKey(new Date())
     const since = addDays(today, period === 'week' ? -6 : period === 'month' ? -29 : -364)
+    const inPeriod = allTasks.filter(t => !t.day || (t.day >= since && t.day <= today))
+    return timePerRole(inPeriod, rolesMap, visionsMap)
+  }, [allTasks, period, rolesMap, visionsMap])
 
-    allTasks.forEach(task => {
-      if (!task.vision_id || !visionsMap[task.vision_id]) return
-      if (task.day && (task.day < since || task.day > today)) return
-
-      const hours = taskDuration(task) / 60
-      const title = visionsMap[task.vision_id].title
-      
-      if (!data[title]) data[title] = { hours: 0, sessions: 0 }
-      data[title].hours += hours
-      data[title].sessions += 1
-    })
-
-    // Most time first; ties go to the vision with more sessions, then by name
-    return Object.entries(data)
-      .map(([name, d]) => ({
-        name,
-        hours: parseFloat(d.hours.toFixed(1)),
-        sessions: d.sessions
-      }))
-      .sort((a, b) => b.hours - a.hours || b.sessions - a.sessions || a.name.localeCompare(b.name))
-  }, [allTasks, period, visionsMap])
+  const linked = stats.roles.reduce((s, r) => s + r.minutes, 0)
+  const share = (mins: number) => (stats.total ? Math.round((mins / stats.total) * 100) : 0)
+  const olderMinutes = stats.olderByVision.reduce((s, v) => s + v.minutes, 0)
 
   return (
-    <div className="w-full bg-muted/30 rounded-3xl p-4 space-y-6">
-      
-      {/* Period Switcher */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-violet-600 rounded-2xl text-white shadow-lg shadow-violet-900/30">
-            <TrendingUp size={20} />
+    <div className="w-full space-y-5 rounded-3xl bg-muted/30 p-4">
+      <div className="flex flex-col gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="rounded-2xl bg-violet-600 p-2.5 text-white shadow-lg shadow-violet-900/30">
+            <Scale size={20} />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-0.5">
-              <h3 className="text-base font-black text-foreground tracking-tight">{tr('Vision Time')}</h3>
+              <h3 className="text-base font-black tracking-tight text-foreground">{tr('Time per role')}</h3>
               <HelpTip topic="analytics.visionTime" align="left" className="-my-1" />
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{tr('Time spent per vision')}</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{tr('Planned hours · {total}h', { total: hours(stats.total) })}</p>
           </div>
         </div>
-
-        <div className="flex bg-muted/60 p-1 rounded-2xl w-fit">
-          {(['week', 'month', 'year'] as Period[]).map((p) => (
+        <div className="flex w-full rounded-2xl bg-muted/60 p-1">
+          {(['week', 'month', 'year'] as Period[]).map(p => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
-              className={`px-4 py-1.5 rounded-xl text-xs font-bold capitalize transition-all ${
-                period === p 
-                ? 'bg-violet-600 text-white shadow-sm' 
-                : 'text-muted-foreground hover:text-foreground'
-              }`}
+              className={cn('flex-1 rounded-xl px-3 py-1.5 text-xs font-bold transition-all', period === p ? 'bg-violet-600 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground')}
             >
-              {p}
+              {tr(PERIOD_LABEL[p])}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Main Chart Area */}
-      <div className="h-[240px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          {period === 'week' ? (
-            <BarChart data={stats}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.06)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fill: '#94a3b8'}} />
-              <Tooltip
-                cursor={{fill: 'rgba(124,58,237,0.08)'}}
-                contentStyle={{borderRadius: '16px', border: 'none', background: '#1e1b4b', color: '#fff', fontSize: 12}}
-              />
-              <Bar dataKey="hours" fill="#7c3aed" radius={[8, 8, 0, 0]} barSize={32} />
-            </BarChart>
-          ) : (
-            <LineChart data={stats}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.06)" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700, fill: '#94a3b8'}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 9, fill: '#94a3b8'}} />
-              <Tooltip contentStyle={{borderRadius: '16px', border: 'none', background: '#1e1b4b', color: '#fff', fontSize: 12}} />
-              <Line type="monotone" dataKey="hours" stroke="#7c3aed" strokeWidth={3} dot={{ r: 5, fill: '#7c3aed' }} activeDot={{ r: 7 }} />
-            </LineChart>
-          )}
-        </ResponsiveContainer>
-      </div>
-
-      {/* Detail Grid */}
-      {stats.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-4">{tr('No vision time logged yet.')}</p>
+      {stats.total === 0 ? (
+        <p className="py-6 text-center text-sm text-muted-foreground">{tr('No planned time in this period yet.')}</p>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {stats.map((item) => (
-            <div key={item.name} className="p-4 rounded-2xl bg-muted/40">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-xl">{Object.values(visionsMap).find(v => v.title === item.name)?.emoji}</span>
-                <p className="text-base font-black text-violet-500">{item.hours}h</p>
-              </div>
-              <h4 className="text-xs font-bold text-foreground truncate mb-2">{tr(item.name)}</h4>
-              <div className="w-full bg-muted h-1 rounded-full overflow-hidden">
-                <div className="bg-violet-500 h-full" style={{ width: `${Math.min((item.hours / 20) * 100, 100)}%` }} />
-              </div>
-              <p className="text-[10px] font-bold text-muted-foreground mt-1.5">{tr('{sessions} sessions', { sessions: item.sessions })}</p>
+        <>
+          {/* The balance of the period at a glance */}
+          <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+            {stats.roles.map(r => (
+              <div key={r.id} title={`${tr(r.name)} · ${share(r.minutes)}%`} style={{ width: `${(r.minutes / stats.total) * 100}%`, backgroundColor: r.color }} />
+            ))}
+            {olderMinutes > 0 && <div style={{ width: `${(olderMinutes / stats.total) * 100}%` }} className="bg-indigo-300 dark:bg-indigo-700" />}
+          </div>
+
+          {linked === 0 && (
+            <p className="rounded-2xl bg-violet-50 px-3 py-2 text-xs font-medium text-violet-800 dark:bg-violet-500/10 dark:text-violet-200">
+              {tr('Link events to a role when you plan them to see how your time is shared between your roles.')}
+            </p>
+          )}
+
+          <ul className="space-y-2.5">
+            {stats.roles.map(r => (
+              <li key={r.id}>
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-base">{r.emoji ?? '🎯'}</span>
+                  <span className="min-w-0 flex-1 truncate font-bold">{tr(r.name)}</span>
+                  <span className="text-xs font-semibold text-muted-foreground tabular-nums">{share(r.minutes)}%</span>
+                  <span className="w-12 text-right font-black tabular-nums">{hours(r.minutes)}h</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full" style={{ width: `${Math.max(2, (r.minutes / Math.max(...stats.roles.map(x => x.minutes))) * 100)}%`, backgroundColor: r.color }} />
+                </div>
+              </li>
+            ))}
+            {stats.unassigned > 0 && (
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="text-base">·</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{tr('No role')}</span>
+                <span className="text-xs font-semibold tabular-nums">{share(stats.unassigned)}%</span>
+                <span className="w-12 text-right font-bold tabular-nums">{hours(stats.unassigned)}h</span>
+              </li>
+            )}
+          </ul>
+
+          {stats.olderByVision.length > 0 && (
+            <div className="rounded-2xl bg-muted/40 p-3">
+              <button onClick={() => setShowOlder(s => !s)} className="flex w-full items-center justify-between text-left">
+                <span className="text-xs font-bold text-muted-foreground">{tr('Older events (by vision) · {h}h', { h: hours(olderMinutes) })}</span>
+                <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', showOlder && 'rotate-180')} />
+              </button>
+              {showOlder && (
+                <ul className="mt-2 space-y-1.5">
+                  {stats.olderByVision.map(v => (
+                    <li key={v.id} className="flex items-center gap-2 text-sm">
+                      <span>{v.emoji}</span>
+                      <span className="min-w-0 flex-1 truncate">{tr(v.name)}</span>
+                      <span className="font-bold tabular-nums">{hours(v.minutes)}h</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   )

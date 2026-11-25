@@ -22,7 +22,10 @@ export interface PlannerTask {
   start: string
   end: string
   completed: boolean
-  vision_id?: string
+  vision_id?: string // Older events: the vision they were linked to (kept as it was)
+  role_id?: string // The role this time is for (Covey: plan the week by role)
+  goal_id?: string // Optional: the goal it moves forward
+  rock_id?: string // Set when booked from a weekly big rock, so the rock shows as scheduled
   visibility?: 'private' | 'shared'
   owner_id?: string
   source_day?: string // The day this recurring task was originally created

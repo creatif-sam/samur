@@ -6,18 +6,23 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { CalendarPlus, ChevronDown, ListTodo, Plus, Trash2 } from 'lucide-react'
+import type { RoleLike } from '@/lib/planner/roleLinks'
 
 export type PlannerTodo = {
   id: string
   user_id: string
   text: string
   vision_id: string | null
+  // Set for to-dos made from a goal or a big rock (after the planner roles update)
+  role_id?: string | null
+  goal_id?: string | null
   created_at: string
 }
 
 interface Props {
   userId: string | null
   visions: Record<string, { title: string; emoji: string }>
+  roles?: Record<string, RoleLike>
   // Bumped by the parent after a to-do was scheduled (and removed), to reload
   refreshKey: number
   onSchedule: (todo: PlannerTodo) => void
@@ -25,7 +30,7 @@ interface Props {
 
 // To-dos without a time yet. "Schedule" opens the event editor at the next free
 // slot; once saved, the to-do is removed from this list.
-export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }: Props) {
+export default function PlannerTodos({ userId, visions, roles = {}, refreshKey, onSchedule }: Props) {
   const { tr } = useTranslation()
   const supabase = createClient()
   const [todos, setTodos] = useState<PlannerTodo[]>([])
@@ -82,7 +87,7 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
         onClick: async () => {
           const { data } = await supabase
             .from('planner_todos')
-            .insert({ id: todo.id, user_id: todo.user_id, text: todo.text, vision_id: todo.vision_id, created_at: todo.created_at })
+            .insert({ id: todo.id, user_id: todo.user_id, text: todo.text, vision_id: todo.vision_id, created_at: todo.created_at, ...(todo.role_id ? { role_id: todo.role_id } : {}), ...(todo.goal_id ? { goal_id: todo.goal_id } : {}) })
             .select()
             .single()
           if (data) setTodos(t => [...t, data as PlannerTodo].sort((a, b) => a.created_at.localeCompare(b.created_at)))
@@ -132,11 +137,13 @@ export default function PlannerTodos({ userId, visions, refreshKey, onSchedule }
           ) : (
             <ul className="divide-y divide-slate-200/60 dark:divide-slate-700/60">
               {todos.map(todo => {
-                const vision = todo.vision_id ? visions[todo.vision_id] : null
+                const role = todo.role_id ? roles[todo.role_id] : null
+                const vision = !todo.role_id && todo.vision_id ? visions[todo.vision_id] : null
                 return (
                   <li key={todo.id} className="flex items-center gap-2 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 break-words">{todo.text}</p>
+                      {role && <p className="flex items-center gap-1 text-[10px] text-slate-400"><span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: role.color }} />{role.emoji} {tr(role.name)}</p>}
                       {vision && <p className="text-[10px] text-slate-400">{vision.emoji} {tr(vision.title)}</p>}
                     </div>
                     <button

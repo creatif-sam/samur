@@ -3,7 +3,7 @@
 import { appLocale, trNow } from '@/lib/i18n'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon, ArrowRight, List, Clock3, LayoutTemplate } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,7 +15,8 @@ import TopCalendar from './TopCalendar'
 import DaySummary from './DailySummary'
 import FreeTimeExportButton from './FreeTimeExportButton'
 import MoodPicker, { moodThemes } from './MoodPicker'
-import { gradientFor } from './taskColors'
+import { taskLook, type RoleLike } from '@/lib/planner/roleLinks'
+import { loadRoles, sortRoles } from '@/lib/roles'
 import PlannerTimeline from './PlannerTimeline'
 import PlannerTodos, { type PlannerTodo } from './PlannerTodos'
 import PlannerTemplates, { type TemplateTask } from './PlannerTemplates'
@@ -83,6 +84,10 @@ export default function DailyPlanner() {
   const [taskModalHour, setTaskModalHour] = useState<number | null>(null)
   const [editingTask, setEditingTask] = useState<PlannerTask | null>(null)
   const [visionsMap, setVisionsMap] = useState<Record<string, Vision>>({})
+  // Every role (archived ones too, so past events keep their colour); only active ones are offered
+  const [rolesMap, setRolesMap] = useState<Record<string, RoleLike>>({})
+  const [goalTitles, setGoalTitles] = useState<Record<string, string>>({})
+  const activeRoles = useMemo(() => sortRoles(Object.values(rolesMap).filter(r => !r.is_archived) as (RoleLike & { sort_order: number; created_at?: string })[]), [rolesMap])
   const [userId, setUserId] = useState<string | null>(null)
   const [partnerId, setPartnerId] = useState<string | null>(null)
   const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({})
@@ -158,10 +163,15 @@ export default function DailyPlanner() {
     if (!auth?.user) return
     const uid = auth.user.id
 
-    const [{ data: profile }, { data: visions }] = await Promise.all([
+    const [{ data: profile }, { data: visions }, rolesRes, { data: goalRows }] = await Promise.all([
       supabase.from('profiles').select('partner_id').eq('id', uid).single(),
       supabase.from('visions').select('id, title, emoji').eq('owner_id', uid),
+      // Works before the roles update too: then there are simply no roles to offer
+      loadRoles(supabase, uid),
+      supabase.from('goals').select('id, title').eq('owner_id', uid),
     ])
+    setRolesMap(Object.fromEntries(rolesRes.roles.map(r => [r.id, r])))
+    setGoalTitles(Object.fromEntries((goalRows ?? []).map(g => [g.id as string, g.title as string])))
 
     if (visions) {
       const map: Record<string, Vision> = {}
@@ -673,6 +683,7 @@ export default function DailyPlanner() {
           tasks={loading ? [] : tasks}
           completedTaskIds={completedTaskIds}
           visionsMap={visionsMap}
+          rolesMap={rolesMap}
         />
       ) : (
         <>
@@ -692,7 +703,7 @@ export default function DailyPlanner() {
 
         <div className="space-y-3 mb-6">
           <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-[32px] p-6 border border-white/50 dark:border-slate-700/50 shadow-sm">
-            <DaySummary tasks={tasks} completedTaskIds={completedTaskIds} visions={visionsMap} />
+            <DaySummary tasks={tasks} completedTaskIds={completedTaskIds} roles={activeRoles} />
           </div>
           <div className="flex items-center gap-1 px-2">
             <FreeTimeExportButton tasks={tasks} date={selectedDate} />
@@ -762,6 +773,7 @@ export default function DailyPlanner() {
             </>
           ) : layout === 'timeline' ? (
             <PlannerTimeline
+              rolesMap={rolesMap}
               tasks={tasks}
               completedTaskIds={completedTaskIds}
               partnerCompletedIds={partnerCompletedIds}
@@ -780,13 +792,16 @@ export default function DailyPlanner() {
             const isPartnerTask = !!task.owner_id && task.owner_id !== userId
             const isDone = isPartnerTask ? partnerCompletedIds.includes(task.id) : completedTaskIds.includes(task.id)
             const vision = task.vision_id ? visionsMap[task.vision_id] : null
+            const look = taskLook(task, rolesMap)
+            const goalTitle = task.goal_id ? goalTitles[task.goal_id] : null
             const partner = isPartnerTask ? profilesMap[task.owner_id!] : null
 
             return (
               <div
                 key={task.id}
                 onClick={() => !isPartnerTask && setEditingTask(task)}
-                className={`relative overflow-hidden rounded-3xl p-4 bg-gradient-to-br ${gradientFor(task)} ${isDone ? 'opacity-60' : ''} ${!isPartnerTask ? 'active:scale-[0.98] cursor-pointer' : 'cursor-default'} transition-all shadow-sm`}
+                style={look.style}
+                className={`relative overflow-hidden rounded-3xl p-4 ${look.className} ${isDone ? 'opacity-60' : ''} ${!isPartnerTask ? 'active:scale-[0.98] cursor-pointer' : 'cursor-default'} transition-all shadow-sm`}
               >
                 {/* Decorative circle */}
                 <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
@@ -821,8 +836,15 @@ export default function DailyPlanner() {
                     {task.text}
                   </h3>
 
-                  {/* Vision badge */}
-                  {vision && (
+                  {/* Role (and goal) badge; older events show their vision */}
+                  {look.role && (
+                    <div className="mt-2 flex max-w-full items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
+                      <span className="text-[10px]">{look.role.emoji ?? '🎯'}</span>
+                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{tr(look.role.name)}</span>
+                      {goalTitle && <span className="min-w-0 truncate text-[10px] font-semibold text-white/75 normal-case">· {goalTitle}</span>}
+                    </div>
+                  )}
+                  {!look.role && !task.role_id && vision && (
                     <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
                       <span className="text-[10px]">{vision.emoji}</span>
                       <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{tr(vision.title)}</span>
@@ -868,6 +890,7 @@ export default function DailyPlanner() {
           <PlannerTodos
             userId={userId}
             visions={visionsMap}
+            roles={rolesMap}
             refreshKey={todoRefresh}
             onSchedule={scheduleTodo}
           />
@@ -954,6 +977,10 @@ export default function DailyPlanner() {
           startMinutes={editingTask ? undefined : modalStart ?? undefined}
           initialText={schedulingTodo?.text}
           initialVisionId={schedulingTodo?.vision_id}
+          initialRoleId={schedulingTodo?.role_id}
+          initialGoalId={schedulingTodo?.goal_id}
+          roles={activeRoles}
+          visions={visionsMap}
           existingTask={editingTask}
           userId={userId}
           dayTasks={schedulingForDate && schedulingForDate !== dateKey ? [] : tasks}

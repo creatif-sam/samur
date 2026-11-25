@@ -20,7 +20,7 @@ import { ChevronDown, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toLocalDateKey } from '@/lib/dates'
 import { goalDatePresets, isFarAway, newGoalOwnership } from '@/lib/goalGuide'
-import { loadRoles, sortRoles, type Role } from '@/lib/roles'
+import { isMissingRoles, loadRoles, sortRoles, type Role } from '@/lib/roles'
 
 const CATEGORY_EMOJIS = ['🎯', '📚', '💪', '🙏', '💼', '❤️', '🧠', '🏡', '💰', '⏰']
 
@@ -216,9 +216,12 @@ export function NewGoalForm({
       // The first step becomes a planner to-do (a milestone would count as 100% the moment it is ticked)
       const step = firstStep.trim()
       if (step) {
-        const { error: stepError } = await supabase
-          .from('planner_todos')
-          .insert({ user_id: auth.user.id, text: step, ...(visionId !== 'none' ? { vision_id: visionId } : {}) })
+        const baseTodo = { user_id: auth.user.id, text: step, ...(visionId !== 'none' ? { vision_id: visionId } : {}) }
+        const linked = canSetRole && data?.id ? { goal_id: data.id, ...(roleId !== 'none' ? { role_id: roleId } : {}) } : {}
+        let { error: stepError } = await supabase.from('planner_todos').insert({ ...baseTodo, ...linked })
+        if (stepError && Object.keys(linked).length && isMissingRoles(stepError.message)) {
+          ;({ error: stepError } = await supabase.from('planner_todos').insert(baseTodo))
+        }
         if (stepError) toast.warning(tr('Goal created, but the first step couldn\'t be added to your to-dos.'))
         else toast.success(tr('Goal created! Your first step is in your planner to-dos 🎯'))
       } else {

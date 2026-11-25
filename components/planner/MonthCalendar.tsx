@@ -1,5 +1,6 @@
 'use client'
 
+import type { RoleLike } from '@/lib/planner/roleLinks'
 import { appLocale } from '@/lib/i18n'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { useMemo, useState } from 'react'
@@ -18,6 +19,7 @@ interface MonthCalendarProps {
   tasks?: PlannerTask[]
   completedTaskIds?: string[]
   visionsMap?: Record<string, Vision>
+  rolesMap?: Record<string, RoleLike>
 }
 
 const DAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
@@ -32,6 +34,7 @@ export default function MonthCalendar({
   tasks = [],
   completedTaskIds = [],
   visionsMap = {},
+  rolesMap = {},
 }: MonthCalendarProps) {
   const { tr } = useTranslation()
   const [viewYear, setViewYear] = useState(selectedDate.getFullYear())
@@ -221,7 +224,8 @@ export default function MonthCalendar({
               .sort((a, b) => parseMinutes(a.start) - parseMinutes(b.start))
               .map((task) => {
                 const isDone = completedTaskIds.includes(task.id)
-                const vision = task.vision_id ? visionsMap[task.vision_id] : null
+                const role = task.role_id ? rolesMap[task.role_id] : null
+                const vision = !task.role_id && task.vision_id ? visionsMap[task.vision_id] : null
                 return (
                   <div
                     key={task.id}
@@ -242,6 +246,13 @@ export default function MonthCalendar({
                       <p className={`text-[14px] font-bold text-slate-900 dark:text-white truncate ${isDone ? 'line-through opacity-40' : ''}`}>
                         {task.text}
                       </p>
+                      {role && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: role.color }} />
+                          <span className="text-[9px]">{role.emoji}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{tr(role.name)}</span>
+                        </div>
+                      )}
                       {vision && (
                         <div className="flex items-center gap-1 mt-0.5">
                           <span className="text-[9px]">{vision.emoji}</span>

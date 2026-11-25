@@ -78,7 +78,7 @@ export const COMPASS: Record<string, string> = {
   'Add milestone': 'Ajouter une étape',
 
   // Overview
-  'avg progress': 'progression moy.',
+  'avg progress': 'moyenne',
   'Overall': 'Global',
   'goals completed': 'objectifs terminés',
   'Focus': 'Focus',
@@ -396,4 +396,15 @@ export const COMPASS: Record<string, string> = {
   'Due {value}': 'Échéance : {value}',
   'Open {title}': 'Ouvrir {title}',
   'No goals in this vision yet. Add the first step.': "Aucun objectif dans cette vision. Ajoute la première étape.",
+  // Overview by role
+  '{d} {d:day|days} late': 'en retard de {d} {d:jour|jours}',
+  'Due tomorrow': 'Pour demain',
+  'Due in {d} days': 'Dans {d} jours',
+  '{n} overdue. A small step today counts.': '{n} en retard. Un petit pas aujourd’hui compte.',
+  '{n} {n:goal|goals} in motion. Keep going.': '{n} {n:objectif|objectifs} en cours. Continue.',
+  'By role': 'Par rôle',
+  'Begin with the end in mind': 'Commencer en gardant la fin à l’esprit',
+  '{count} {count:goal|goals} · {done} done': '{count} {count:objectif|objectifs} · {done} faits',
+  '{n} {n:goal|goals} without a role yet': '{n} {n:objectif|objectifs} sans rôle',
+  'Quarter': 'Trimestre',
 }

@@ -104,8 +104,6 @@ export default function GoalsPage() {
 
   const activeRoles = useMemo(() => sortRoles(roles.filter(r => !r.is_archived)), [roles])
   const roleIds = useMemo(() => new Set(activeRoles.map(r => r.id)), [activeRoles])
-  // Bumped to open the visions section on the Roles tab
-  const [visionsSignal, setVisionsSignal] = useState(0)
   const focusGroups = useMemo(() => groupRolesByCategory(activeRoles, roleCategories), [activeRoles, roleCategories])
 
   // The focus role applies to the whole page: stats, charts and lists
@@ -213,9 +211,12 @@ export default function GoalsPage() {
         <TabsContent value="overview" className="space-y-6">
           <GoalsOverview
             goals={focusGoals}
-            visions={visions}
-            categories={uiCategories}
-            onOpenVisions={() => { setTab('roles'); setVisionsSignal(n => n + 1) }}
+            allGoals={goals}
+            roles={activeRoles}
+            roleCategories={roleCategories}
+            rolesReady={rolesReady}
+            userId={currentUserId}
+            onOpenRoles={() => setTab('roles')}
           />
         </TabsContent>
 
@@ -226,7 +227,6 @@ export default function GoalsPage() {
               ready={rolesReady}
               roles={roles}
               roleCategories={roleCategories}
-              openVisions={visionsSignal}
               goals={goals}
               visions={visions}
               categories={uiCategories}

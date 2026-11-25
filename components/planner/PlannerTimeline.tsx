@@ -4,13 +4,14 @@ import { useTranslation } from '@/contexts/TranslationContext'
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Plus, RefreshCw } from 'lucide-react'
 import { formatDuration, formatMinutes, freeGaps, taskSpan, type PlannerTask } from '@/lib/planner/tasks'
-import { gradientFor } from './taskColors'
+import { taskLook, type RoleLike } from '@/lib/planner/roleLinks'
 
 const HOUR_PX = 56
 const DEFAULT_START_HOUR = 5
 const DEFAULT_END_HOUR = 23
 
 interface Props {
+  rolesMap?: Record<string, RoleLike>
   tasks: PlannerTask[]
   completedTaskIds: string[]
   partnerCompletedIds: string[]
@@ -57,7 +58,7 @@ function layout(tasks: PlannerTask[], dayEnd: number): Placed[] {
 }
 
 export default function PlannerTimeline({
-  tasks,
+  rolesMap = {}, tasks,
   completedTaskIds,
   partnerCompletedIds,
   userId,
@@ -150,8 +151,9 @@ export default function PlannerTimeline({
           <div
             key={task.id}
             onClick={() => !isPartnerTask && onTaskClick(task)}
-            className={`absolute rounded-2xl px-2.5 py-1.5 bg-gradient-to-br ${gradientFor(task)} text-white shadow-sm overflow-hidden ${isDone ? 'opacity-55' : ''} ${isPartnerTask ? 'cursor-default ring-2 ring-white/50 ring-inset' : 'cursor-pointer active:scale-[0.99]'} transition-transform`}
+            className={`absolute rounded-2xl px-2.5 py-1.5 ${taskLook(task, rolesMap).className} text-white shadow-sm overflow-hidden ${isDone ? 'opacity-55' : ''} ${isPartnerTask ? 'cursor-default ring-2 ring-white/50 ring-inset' : 'cursor-pointer active:scale-[0.99]'} transition-transform`}
             style={{
+              ...taskLook(task, rolesMap).style,
               top: top(start) + 1.5,
               height,
               left: `calc(3rem + (100% - 3.25rem) * ${lane / lanes})`,
