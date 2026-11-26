@@ -37,6 +37,8 @@ export interface WeeklyRock {
   text: string
   done: boolean
   done_at: string | null
+  // Sessions it needs this week ("Run three times" = 3); missing before the sessions update
+  target?: number | null
   sort_order: number
   created_at?: string
 }

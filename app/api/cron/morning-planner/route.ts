@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { zonedNow } from '@/lib/dates';
 import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries';
 import { buildDayTasks } from '@/lib/planner/tasks';
+import { translate, type Language } from '@/lib/i18n';
 
 export async function GET(request: Request) {
   try {
@@ -39,9 +40,17 @@ export async function GET(request: Request) {
       ]);
 
       const taskCount = buildDayTasks({ dateKey: today, userId: user.id, dayRows, recurringRows }).length;
-      const message = taskCount > 0 
-        ? `You have ${taskCount} ${taskCount === 1 ? 'activity' : 'activities'} planned for today`
-        : 'Check your planner for today';
+      const lang: Language = user.user_metadata?.language === 'fr' ? 'fr' : 'en';
+      // Top 3 not chosen yet (or the table not there yet): ask for it
+      const { data: top3 } = await serviceSupabase
+        .from('planner_priorities').select('items').eq('user_id', user.id).eq('day', today).maybeSingle();
+      const hasTop3 = Array.isArray(top3?.items) && top3.items.length > 0;
+      const message = [
+        taskCount > 0
+          ? translate(lang, 'You have {n} {n:activity|activities} planned for today.', { n: taskCount })
+          : translate(lang, 'Check your planner for today.'),
+        hasTop3 ? '' : translate(lang, 'Pick your Top 3 for the day.'),
+      ].filter(Boolean).join(' ');
       
       await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://mastery.samuelgyasi.com'}/api/notifications/send-internal`, {
         method: 'POST',
@@ -52,7 +61,7 @@ export async function GET(request: Request) {
         body: JSON.stringify({
           targetUserId: user.id,
           type: 'planner_reminder',
-          title: 'Good Morning! ☀️',
+          title: translate(lang, 'Good Morning! ☀️'),
           body: message,
           url: '/protected/planner'
         })

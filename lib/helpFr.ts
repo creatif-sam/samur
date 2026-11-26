@@ -14,7 +14,7 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   'goals.page': { title: 'Objectifs et rôles', text: 'Commence en gardant la fin à l’esprit. Liste les rôles que tu vis, donne à chacun une mission et une vision, et fixe des objectifs dessous. Puis donne la priorité à l’essentiel : planifie chaque semaine autour de tes gros cailloux.' },
   'goals.roles': { title: 'Rôles', text: 'Un rôle est une part de ta vie dont tu es responsable, comme parent ou professionnel. Regroupe tes rôles par catégories, donne à chacun une mission et une vision, et ajoute les objectifs qui le servent.' },
   'goals.unassigned': { title: 'Non classés', text: 'Les objectifs sans rôle, groupés par leur ancienne vision. Utilise Déplacer pour classer un objectif, ou Tout déplacer pour classer un groupe entier sous le rôle qu’il sert.' },
-  'goals.week': { title: 'Ta semaine', text: 'Choisis un ou deux gros cailloux par rôle, ce qui compte le plus cette semaine. Touche le calendrier pour leur réserver du temps, coche quand c’est fait, et reporte ce qui n’est pas fini.' },
+  'goals.week': { title: 'Ta semaine', text: 'Choisis un ou deux gros cailloux par rôle. Indique combien de séances il faut, comme 3 pour Courir trois fois. Réserve du temps avec l’icône calendrier ; cocher les séances dans l’agenda termine le caillou.' },
   'goals.life': { title: 'Mission et vision de vie', text: 'Ta mission dit pourquoi tu existes et comment tu le vis, au présent. Ta vision décrit l’avenir que tu construis. Garde les deux assez courtes pour t’en souvenir ; chaque rôle et chaque objectif en découlent.' },
   'goals.focus': { title: 'Rôle ciblé', text: 'Choisis un rôle pour ne voir que ses objectifs sur cette page, ou affiche-les tous. Non classés montre tes objectifs sans rôle.' },
   'goals.attention': { title: 'À surveiller', text: 'Les objectifs qui ont besoin d’un coup de pouce : en retard, bloqués ou à rendre dans les 7 jours. Touche-en un pour l’ouvrir.' },
@@ -36,8 +36,10 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   'planner.todos': { title: 'Tâches', text: 'Les choses à faire qui n’ont pas encore d’heure. Touche Planifier sur l’une d’elles pour lui donner un créneau dans ta journée.' },
   'planner.top3': { title: 'Top 3', text: 'Choisis les trois choses qui comptent le plus aujourd’hui. Écris-les, ou touche une suggestion parmi tes gros cailloux et tes événements. Coche-les ce soir dans la carte Réflexion du soir.' },
   'planner.rocks': { title: 'Gros cailloux', text: 'Les gros cailloux choisis cette semaine dans Boussole qui n’ont pas encore de temps réservé. Place-les d’abord dans tes journées, comme l’enseigne Covey, puis organise le reste autour.' },
-  'planner.week': { title: 'Ta semaine', text: 'Comment le temps prévu cette semaine se partage entre tes rôles, où en sont tes gros cailloux, et les événements de chaque jour. Touche un jour pour l’ouvrir.' },
+  'planner.week': { title: 'Ta semaine', text: 'Le temps prévu par rôle, où en sont tes gros cailloux, et les événements de chaque jour, avec les chevauchements signalés. Touche un jour pour l’ouvrir, ou maintiens un événement et glisse-le sur un autre jour.' },
   'planner.quickadd': { title: 'Ajout rapide', text: 'Écris un événement en une ligne, comme Sport demain 7h 1h ou Réunion demain 9h à 10h. Sans heure, il va dans ton prochain créneau libre.' },
+  'planner.wrapup': { title: 'Clôturer la journée', text: 'Avant de dormir, déplace les événements non faits à demain, reporte ton Top 3 inachevé et écris une ligne sur ta journée. Chaque ligne se coche toute seule une fois faite.' },
+  'planner.partnerweek': { title: 'Sa semaine', text: 'Les gros cailloux de ton partenaire et les événements partagés avec toi. Touche l’applaudissement sur ce qui est terminé pour l’encourager ; une notification lui est envoyée.' },
   'planner.money': { title: 'Argent', text: 'Journal enregistre les entrées et sorties, Graphiques montre où va l’argent, et Budget fixe des limites par catégorie. Touche + pour ajouter une entrée.' },
 
   // ── Notes ──

@@ -11,6 +11,7 @@ import { HelpTip } from '@/components/ui/help-tip'
 import ScheduleGoalDialog from '@/components/goals/ScheduleGoalDialog'
 import { addDays, toLocalDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { loadWeek, rockProgress, rockTarget, type RockProgress } from '@/lib/planner/week'
 import { NEEDS_UPDATE, groupRolesByCategory, isMissingRoles, loadRocks, sortRoles, weekLabel, weekStart, type Role, type RoleCategory, type WeeklyRock } from '@/lib/roles'
 
 type RoleGoal = Goal & { role_id?: string | null }
@@ -42,13 +43,10 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
   const active = useMemo(() => groupRolesByCategory(sortRoles(roles.filter(r => !r.is_archived)), categories).flatMap(g => g.roles), [roles, categories])
   const goalById = useMemo(() => Object.fromEntries(goals.map(g => [g.id, g])), [goals])
 
-  // Big rocks that already have time booked in the planner this week
-  const [booked, setBooked] = useState<Set<string>>(new Set())
+  // Sessions booked (and done) in the planner this week for each big rock, repeats included
+  const [progress, setProgress] = useState<RockProgress>({})
   const loadBooked = useCallback(async (w: string) => {
-    const { data } = await createClient().from('planner_days').select('tasks').eq('user_id', userId).gte('day', w).lte('day', addDays(w, 6))
-    const ids = new Set<string>()
-    for (const row of data ?? []) for (const t of (row.tasks ?? []) as { rock_id?: string }[]) if (t?.rock_id) ids.add(t.rock_id)
-    setBooked(ids)
+    try { setProgress(rockProgress(await loadWeek(createClient(), userId, w), userId)) } catch { /* shown without progress */ }
   }, [userId])
 
   const load = useCallback(async (w: string) => {
@@ -77,13 +75,18 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
   const total = shownRocks.length
   const done = shownRocks.filter(r => r.done).length
 
-  async function add(roleId: string | null, text: string, goalId: string | null = null) {
+  async function add(roleId: string | null, text: string, goalId: string | null = null, target = 1) {
     const clean = text.trim().slice(0, 200)
     if (!clean) return false
     const sort = rocks.filter(r => r.role_id === roleId).length
-    const { data, error } = await createClient().from('weekly_rocks')
-      .insert({ owner_id: userId, role_id: roleId, goal_id: goalId, week_start: week, text: clean, sort_order: sort })
-      .select('*').single()
+    const row: Record<string, string | number | null> = { owner_id: userId, role_id: roleId, goal_id: goalId, week_start: week, text: clean, sort_order: sort }
+    const supabase = createClient()
+    let { data, error } = await supabase.from('weekly_rocks').insert(target > 1 ? { ...row, target } : row).select('*').single()
+    // Before the sessions update the column isn't there: add it as one session and say why
+    if (error && target > 1 && /target/.test(error.message) && isMissingRoles(error.message)) {
+      ;({ data, error } = await supabase.from('weekly_rocks').insert(row).select('*').single())
+      if (!error) toast(tr('Sessions need a quick database update first; this one counts as one session for now.'))
+    }
     if (error || !data) { toast.error(isMissingRoles(error?.message) ? NEEDS_UPDATE : tr('Couldn\'t add it')); return false }
     setRocks(prev => [...prev, data as WeeklyRock])
     return true
@@ -97,6 +100,19 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
     if (error || !data?.length) {
       setRocks(prev => prev.map(r => (r.id === rock.id ? rock : r)))
       toast.error(tr('Couldn\'t save that tick'))
+    }
+  }
+
+  // How many sessions a rock needs this week; existing rocks can be changed too
+  async function setTarget(rock: WeeklyRock, target: number) {
+    if (rockTarget(rock) === target) return
+    setRocks(prev => prev.map(r => (r.id === rock.id ? { ...r, target } : r)))
+    const { data, error } = await createClient().from('weekly_rocks').update({ target }).eq('id', rock.id).select('id')
+    if (error || !data?.length) {
+      setRocks(prev => prev.map(r => (r.id === rock.id ? rock : r)))
+      toast.error(error && /target/.test(error.message) && isMissingRoles(error.message)
+        ? tr('Sessions need a quick database update first: run the rock sessions migration in Supabase.')
+        : tr('Couldn\'t save that change'))
     }
   }
 
@@ -182,11 +198,12 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
               rocks={rocks.filter(r => (r.role_id ?? null) === s.roleId)}
               goals={s.roleId ? goals.filter(g => g.role_id === s.roleId && g.status !== 'done' && g.owner_id === userId) : []}
               goalById={goalById}
-              onAdd={(text, goalId) => add(s.roleId, text, goalId)}
+              onAdd={(text, goalId, target) => add(s.roleId, text, goalId, target)}
               onToggle={toggle}
+              onTarget={setTarget}
               onRemove={remove}
               onSchedule={setScheduling}
-              booked={booked}
+              progress={progress}
             />
           ))}
         </div>
@@ -203,28 +220,30 @@ export default function WeekView({ userId, ready, roles, categories = [], goals,
           }}
           open
           onOpenChange={o => { if (!o) setScheduling(null) }}
-          onScheduled={() => setBooked(prev => new Set(prev).add(scheduling.id))}
+          onScheduled={() => setProgress(prev => ({ ...prev, [scheduling.id]: { booked: (prev[scheduling.id]?.booked ?? 0) + 1, done: prev[scheduling.id]?.done ?? 0 } }))}
         />
       )}
     </div>
   )
 }
 
-function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, onSchedule, booked }: {
+function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onTarget, onRemove, onSchedule, progress }: {
   section: { id: string; name: string; emoji: string; color: string; roleId: string | null }
   rocks: WeeklyRock[]
   goals: RoleGoal[]
   goalById: Record<string, RoleGoal>
-  onAdd: (text: string, goalId: string | null) => Promise<boolean>
+  onAdd: (text: string, goalId: string | null, target?: number) => Promise<boolean>
   onToggle: (rock: WeeklyRock) => void
+  onTarget: (rock: WeeklyRock, target: number) => void
   onRemove: (rock: WeeklyRock) => void
   onSchedule: (rock: WeeklyRock) => void
-  booked: Set<string>
+  progress: RockProgress
 }) {
   const { tr } = useTranslation()
   const [text, setText] = useState('')
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [target, setTarget] = useState(1)
   const isSaw = section.roleId === null
   // Goals of this role not already a rock this week, offered as one-tap rocks
   const used = new Set(rocks.map(r => r.goal_id).filter(Boolean))
@@ -232,9 +251,9 @@ function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, 
 
   const submit = async (value: string, goalId: string | null = null) => {
     setBusy(true)
-    const ok = await onAdd(value, goalId)
+    const ok = await onAdd(value, goalId, goalId ? 1 : target)
     setBusy(false)
-    if (ok) { setText(''); setAdding(false) }
+    if (ok) { setText(''); setAdding(false); setTarget(1) }
   }
 
   return (
@@ -262,13 +281,24 @@ function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, 
                 {r.goal_id && goalById[r.goal_id] && r.text !== goalById[r.goal_id].title && (
                   <span className="block truncate text-[10px] text-muted-foreground">🎯 {tr(goalById[r.goal_id].title)}</span>
                 )}
+                {!r.done && (
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground">
+                    <select value={rockTarget(r)} onChange={e => onTarget(r, Number(e.target.value))} aria-label={tr('Sessions this week')} title={tr('Sessions this week')}
+                      className="rounded-md border border-border bg-transparent px-0.5 py-px text-[10px] font-bold outline-none">
+                      {[1, 2, 3, 4, 5, 6, 7].map(n => <option key={n} value={n}>{n}×</option>)}
+                    </select>
+                    {rockTarget(r) > 1
+                      ? tr('{done} of {target} sessions done · {booked} booked', { done: Math.min(progress[r.id]?.done ?? 0, rockTarget(r)), target: rockTarget(r), booked: progress[r.id]?.booked ?? 0 })
+                      : tr('one session')}
+                  </span>
+                )}
               </span>
-              {!r.done && booked.has(r.id) && (
+              {!r.done && (progress[r.id]?.booked ?? 0) >= rockTarget(r) && (
                 <button onClick={() => onSchedule(r)} title={tr('Book more time')} className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                   {tr('Scheduled ✓')}
                 </button>
               )}
-              {!r.done && !booked.has(r.id) && (
+              {!r.done && (progress[r.id]?.booked ?? 0) < rockTarget(r) && (
                 <button onClick={() => onSchedule(r)} aria-label={tr('Book time for {text}', { text: r.text })} className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground">
                   <CalendarPlus className="h-4 w-4" />
                 </button>
@@ -285,6 +315,10 @@ function RoleWeek({ section, rocks, goals, goalById, onAdd, onToggle, onRemove, 
         <form onSubmit={e => { e.preventDefault(); void submit(text) }} className="mt-2 flex gap-2">
           <input autoFocus value={text} onChange={e => setText(e.target.value)} maxLength={200} placeholder={isSaw ? tr('e.g. Run three times') : tr('The most important thing this week')}
             className="min-w-0 flex-1 rounded-xl border border-border bg-muted/30 px-3 py-2 text-sm outline-none focus:border-violet-400" />
+          <select value={target} onChange={e => setTarget(Number(e.target.value))} aria-label={tr('Sessions this week')} title={tr('Sessions this week')}
+            className="shrink-0 rounded-xl border border-border bg-muted/30 px-1.5 text-xs font-bold outline-none">
+            {[1, 2, 3, 4, 5, 6, 7].map(n => <option key={n} value={n}>{n}×</option>)}
+          </select>
           <button type="submit" disabled={busy || !text.trim()} className="shrink-0 rounded-xl px-3 text-xs font-bold text-white disabled:opacity-50" style={{ backgroundColor: section.color }}>{tr('Add')}</button>
           <button type="button" onClick={() => { setAdding(false); setText('') }} className="shrink-0 px-1 text-xs font-semibold text-muted-foreground">{tr('Cancel')}</button>
         </form>

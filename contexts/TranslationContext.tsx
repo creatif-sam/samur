@@ -541,6 +541,14 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang)
     try { localStorage.setItem('app_language', lang) } catch {}
+    // Reminders sent by the server follow the app's language too
+    import('@/lib/supabase/client')
+      .then(async ({ createClient }) => {
+        const supabase = createClient()
+        const { data } = await supabase.auth.getUser()
+        if (data.user && data.user.user_metadata?.language !== lang) await supabase.auth.updateUser({ data: { language: lang } })
+      })
+      .catch(() => { /* offline: synced on the next start */ })
   }, [])
 
   // Plain functions in lib (date labels and the like) follow the same language

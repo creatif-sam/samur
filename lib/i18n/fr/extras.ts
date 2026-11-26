@@ -203,7 +203,7 @@ export const EXTRAS: Record<string, string> = {
   'Goal deadlines': 'Échéances des objectifs',
   'A week, 3 days and a day before goals and visions are due': 'Une semaine, 3 jours et un jour avant les échéances des objectifs et visions',
   'Goal updates': 'Nouvelles des objectifs',
-  'New and completed goals, yours and shared ones': 'Objectifs créés et terminés, les tiens et ceux partagés',
+  'New and completed goals, yours and shared ones, and cheers from your partner': 'Objectifs créés et terminés, les tiens et ceux partagés, et les encouragements de ton partenaire',
   'Partner invites & messages': 'Invitations et messages du partenaire',
   'Partner requests and direct messages': 'Demandes de partenaire et messages directs',
   'Posts & comments': 'Publications et commentaires',

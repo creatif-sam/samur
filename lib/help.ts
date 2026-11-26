@@ -39,7 +39,7 @@ export const HELP = {
   },
   'goals.week': {
     title: 'Your week',
-    text: 'Choose one or two big rocks for each role, the things that matter most this week. Tap the calendar icon to book time for one, tick it when done, and bring unfinished ones into the next week.',
+    text: 'Choose one or two big rocks for each role. Set how many sessions one needs, like 3 for Run three times. Book time with the calendar icon; ticking the sessions in the planner finishes the rock.',
   },
   'goals.life': {
     title: 'Life mission and vision',
@@ -121,11 +121,19 @@ export const HELP = {
   },
   'planner.week': {
     title: 'Your week',
-    text: 'How this week’s planned time is shared between your roles, how your big rocks are going, and each day’s events. Tap a day to open it.',
+    text: 'Planned time per role, how your big rocks are going, and each day’s events, with clashes flagged. Tap a day to open it, or hold an event and drag it onto another day.',
   },
   'planner.quickadd': {
     title: 'Quick add',
     text: 'Type an event in one line, like Gym tomorrow 7am 1h or Réunion demain 9h à 10h. With no time, it goes in your next free slot.',
+  },
+  'planner.wrapup': {
+    title: 'Close the day',
+    text: 'Before bed, move unfinished events to tomorrow, carry your unfinished Top 3 over, and write a line about the day. Each row ticks itself once it is done.',
+  },
+  'planner.partnerweek': {
+    title: 'Their week',
+    text: 'Your partner’s big rocks and the events they share with you. Tap the clap on anything they finished to cheer them on; they get a notification.',
   },
   'planner.money': {
     title: 'Money',

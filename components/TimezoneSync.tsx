@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { CLOCK_NOTICE_KEY, clockIsOff, describeSkew, measureSkew } from '@/lib/clockCheck'
 
 // Keeps the user's IANA time zone in their auth metadata so server-side
-// reminders (task reminders, morning planner) run on their local clock.
+// reminders (task reminders, morning planner) run on their local clock, and their
+// app language so those reminders are written in it.
 // First it checks this device's clock against the server: a phone with a wrong
 // time zone (and a hand-set clock) must not overwrite the zone the other devices
 // sent, and gets a notice explaining how to fix it.
@@ -32,14 +33,19 @@ export default function TimezoneSync() {
         let hiddenUntil = 0
         try { hiddenUntil = Number(localStorage.getItem(CLOCK_NOTICE_KEY)) || 0 } catch {}
         if (Date.now() > hiddenUntil) setSkewMs(skew)
-        return // don't send this device's time zone to the server
+        // don't send this device's time zone to the server (checked again below)
       }
-      // Offline (no check possible) still syncs, as before
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-      if (!timeZone) return
       const supabase = createClient()
       const { data } = await supabase.auth.getUser()
-      if (data.user && data.user.user_metadata?.timezone !== timeZone) {
+      if (!data.user) return
+      // The app's language, so reminders from the server come in it too
+      let language = 'en'
+      try { language = localStorage.getItem('app_language') === 'fr' ? 'fr' : 'en' } catch {}
+      if (data.user.user_metadata?.language !== language) await supabase.auth.updateUser({ data: { language } })
+      if (skew !== null && clockIsOff(skew)) return
+      // Offline (no check possible) still syncs, as before
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      if (timeZone && data.user.user_metadata?.timezone !== timeZone) {
         await supabase.auth.updateUser({ data: { timezone: timeZone } })
       }
     })()

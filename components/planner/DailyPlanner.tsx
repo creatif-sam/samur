@@ -5,7 +5,7 @@ import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Calendar as CalendarIcon, BarChart3, Sun, Moon, ArrowRight, List, Clock3, LayoutTemplate, Zap } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, BarChart3, Sun, Moon, List, Clock3, LayoutTemplate, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import MonthCalendar from './MonthCalendar'
@@ -23,9 +23,10 @@ import NoteCard from './NoteCard'
 import RocksStrip from './RocksStrip'
 import TopThree, { type PrioritySuggestion } from './TopThree'
 import WeekPlanner from './WeekPlanner'
-import { loadWeek, unscheduledRocks, type WeekDay } from '@/lib/planner/week'
+import { loadWeek, rockProgress, rockShouldBeDone, unscheduledRocks, type WeekDay } from '@/lib/planner/week'
+import DayWrapUp from './DayWrapUp'
 import { parseQuickAdd } from '@/lib/planner/quickAdd'
-import { addPriority, loadPriorities, removePriority, savePriorities, type Priority } from '@/lib/planner/top3'
+import { addPriority, flushPriorities, loadPriorities, removePriority, savePriorities, type Priority } from '@/lib/planner/top3'
 import PlannerTodos, { type PlannerTodo } from './PlannerTodos'
 import PlannerTemplates, { type TemplateTask } from './PlannerTemplates'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
@@ -111,6 +112,10 @@ export default function DailyPlanner() {
   const prioritiesSynced = useRef(true)
   const prioritiesChain = useRef<Promise<unknown>>(Promise.resolve())
   const [quickText, setQuickText] = useState('')
+  // Yesterday's unfinished Top 3 (offered again this morning), and today's carried to tomorrow
+  const [yesterdayOpen, setYesterdayOpen] = useState<Priority[]>([])
+  const [carriedFor, setCarriedFor] = useState<string | null>(null)
+  const [wrapBusy, setWrapBusy] = useState(false)
   const [taskDays, setTaskDays] = useState<Set<string>>(new Set())
   const [schedulingForDate, setSchedulingForDate] = useState<string | null>(null)
   const [modalStart, setModalStart] = useState<number | null>(null)
@@ -205,6 +210,7 @@ export default function DailyPlanner() {
     if (!userId) return
     let live = true
     setPrioritiesFor(null)
+    setYesterdayOpen([])
     loadPriorities(supabase, userId, dateKey)
       .then(({ items, synced }) => {
         if (!live) return
@@ -216,8 +222,20 @@ export default function DailyPlanner() {
         console.error('Failed to load top 3', err)
         if (live) { setPriorities([]); setPrioritiesFor(dateKey) }
       })
+    loadPriorities(supabase, userId, addDays(dateKey, -1))
+      .then(({ items }) => { if (live) setYesterdayOpen(items.filter(p => !p.done)) })
+      .catch(() => { /* only suggestions */ })
     return () => { live = false }
   }, [userId, dateKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Top 3 changes saved while offline
+  useEffect(() => {
+    if (!userId) return
+    const send = () => { flushPriorities(supabase, userId).catch(() => { /* tried again next time */ }) }
+    send()
+    window.addEventListener('online', send)
+    return () => window.removeEventListener('online', send)
+  }, [userId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Flush a pending text save when switching day, leaving the page or backgrounding the app
   useEffect(() => () => flushPendingSave(), [dateKey])
@@ -517,6 +535,8 @@ export default function DailyPlanner() {
       : [...completedTaskIds, taskId]
     setCompletedTaskIds(updatedIds)
     saveNow({ completedTaskIds: updatedIds })
+    const task = tasks.find(t => t.id === taskId)
+    if (task?.rock_id && (!task.owner_id || task.owner_id === userId)) syncRockSessions(task.rock_id, completedTaskIds, updatedIds)
   }
   const toggleCompleteRef = useRef(toggleComplete)
   toggleCompleteRef.current = toggleComplete
@@ -623,6 +643,26 @@ export default function DailyPlanner() {
     }
   }
 
+  // Sessions of a big rock done this week, with the day on screen as it is now
+  function weekProgress(completedToday: string[]) {
+    return rockProgress([...weekData.filter(d => d.day !== dateKey), { day: dateKey, tasks, completed: completedToday }], userId)
+  }
+
+  // Enough sessions ticked: the rock is done. Unticking one reopens it, but only when
+  // the sessions had finished it (a rock ticked in Compass by hand stays done).
+  function syncRockSessions(rockId: string, before: string[], after: string[]) {
+    const rock = rocks.find(r => r.id === rockId)
+    if (!rock) return
+    const was = rockShouldBeDone(rock, weekProgress(before))
+    const now = rockShouldBeDone(rock, weekProgress(after))
+    if (now && !rock.done) {
+      setRockDone(rockId, true)
+      toast.success(tr('Big rock done: {text} 🎉', { text: rock.text }))
+    } else if (!now && was && rock.done) {
+      setRockDone(rockId, false)
+    }
+  }
+
   // Top 3 as shown: an item that is a big rock is done once the rock is done
   const rockDone = (id?: string) => !!id && !!rocks.find(r => r.id === id)?.done
   const shownPriorities = priorities.map(p => (!p.done && rockDone(p.rock_id) ? { ...p, done: true } : p))
@@ -643,6 +683,9 @@ export default function DailyPlanner() {
     const synced = prioritiesSynced.current
     prioritiesChain.current = prioritiesChain.current
       .then(() => savePriorities(supabase, userId, day, next, synced))
+      .then(result => {
+        if (result === 'queued') toast(tr('You\'re offline. Changes are saved on this device and will sync.'), { id: 'planner-offline' })
+      })
       .catch(err => { console.error('Failed to save top 3', err); toast.error(trNow("Couldn't save your top 3.")) })
   }
 
@@ -802,6 +845,59 @@ export default function DailyPlanner() {
     !t.recurring && (!t.owner_id || t.owner_id === userId) && !completedTaskIds.includes(t.id),
   )
 
+  async function carryTopThree() {
+    if (!userId) return
+    const open = shownPriorities.filter(p => !p.done)
+    if (open.length === 0) return
+    const tomorrow = addDays(dateKey, 1)
+    const day = dateKey
+    setWrapBusy(true)
+    try {
+      const { items, synced } = await loadPriorities(supabase, userId, tomorrow)
+      let next = items
+      for (const p of open) next = addPriority(next, { text: p.text, rock_id: p.rock_id, todo_id: p.todo_id })
+      const added = next.length - items.length
+      if (added > 0) await savePriorities(supabase, userId, tomorrow, next, synced)
+      setCarriedFor(day)
+      toast.success(added > 0
+        ? tr('{n} carried to {day}', { n: added, day: formatDateKey(tomorrow) })
+        : tr('Tomorrow\'s Top 3 is already full or has these'))
+    } catch (err) {
+      console.error('Failed to carry top 3', err)
+      toast.error(trNow("Couldn't save your top 3."))
+    } finally {
+      setWrapBusy(false)
+    }
+  }
+
+  // From the week view: move one of your events to another day. A repeating event
+  // moves only that day's occurrence; the rest of the series stays.
+  async function moveToDay(task: PlannerTask, from: string, to: string) {
+    if (!userId || from === to || (task.owner_id && task.owner_id !== userId)) return
+    flushPendingSave()
+    const ok = await enqueue(async () => {
+      if (task.recurring) {
+        const detached: PlannerTask = { ...task, id: crypto.randomUUID(), recurring: undefined, source_day: undefined }
+        await mutateSeries(task, t => withException(t, from))
+        await mutateRow(to, row => ({ ...row, tasks: [...row.tasks, detached] }))
+      } else {
+        await mutateRow(from, row => ({
+          ...row,
+          tasks: row.tasks.filter(t => t.id !== task.id),
+          completed_task_ids: row.completed_task_ids.filter(id => id !== task.id),
+        }))
+        await mutateRow(to, row => ({ ...row, tasks: [...row.tasks.filter(t => t.id !== task.id), task] }))
+      }
+      return true
+    }, trNow("Couldn't move the event."))
+    if (!ok) return
+    window.dispatchEvent(new Event('planner:changed'))
+    if (from === dateKey || to === dateKey) loadDay()
+    toast.success(task.recurring
+      ? tr('Moved to {value} for that day only', { value: formatDateKey(to) })
+      : tr('Moved to {value}', { value: formatDateKey(to) }))
+  }
+
   async function moveUnfinishedToTomorrow() {
     const moving = unfinishedOneOffs
     if (moving.length === 0) return
@@ -826,15 +922,15 @@ export default function DailyPlanner() {
   const sortedTasks = sortByStart(tasks)
   const isToday = dateKey === todayKey
 
-  // Rocks with no time yet this week (today's events come from the screen, the rest from the week)
-  const weekTasks = [...weekData.filter(d => d.day !== dateKey).flatMap(d => d.tasks), ...tasks]
-    .filter(t => !t.owner_id || t.owner_id === userId)
+  // Rocks that still need time this week (today's events come from the screen, the rest from the week)
+  const progress = weekProgress(completedTaskIds)
   // Like Compass: only rocks of active roles, and Sharpen the saw
   const liveRocks = rocks.filter(r => r.role_id === null || (!!rolesMap[r.role_id] && !rolesMap[r.role_id].is_archived))
-  const openRocks = unscheduledRocks(liveRocks, weekTasks)
+  const openRocks = unscheduledRocks(liveRocks, progress)
   const showRocks = rocksReady && activeRoles.length > 0
 
   const prioritySuggestions: PrioritySuggestion[] = [
+    ...yesterdayOpen.map(p => ({ key: `prev-${p.id}`, text: p.text, rock_id: p.rock_id, todo_id: p.todo_id, hint: '↩' })),
     ...liveRocks.filter(r => !r.done).map(r => ({ key: `rock-${r.id}`, text: r.text, rock_id: r.id, hint: '⛰️' })),
     ...sortByStart(tasks.filter(t => (!t.owner_id || t.owner_id === userId) && !completedTaskIds.includes(t.id)))
       .map(t => ({ key: `task-${t.id}`, text: t.text, hint: t.start })),
@@ -891,6 +987,9 @@ export default function DailyPlanner() {
             rolesMap={rolesMap}
             visionsMap={visionsMap}
             onPickDay={day => { setSelectedDate(parseDateKey(day)); setView('daily') }}
+            onMoveToDay={moveToDay}
+            partner={partnerId ? { id: partnerId, name: profilesMap[partnerId]?.name ?? null } : null}
+            myName={(userId && profilesMap[userId]?.name) || null}
           />
         </div>
       ) : view === 'monthly' ? (
@@ -959,7 +1058,7 @@ export default function DailyPlanner() {
 
         {showRocks && (
           <div className="mb-8">
-            <RocksStrip rocks={openRocks} total={liveRocks.length} rolesMap={rolesMap} onSchedule={scheduleRock} />
+            <RocksStrip rocks={openRocks} total={liveRocks.length} rolesMap={rolesMap} progress={progress} onSchedule={scheduleRock} />
           </div>
         )}
 
@@ -1066,16 +1165,6 @@ export default function DailyPlanner() {
           )}
         </div>
 
-        {!loading && dateKey <= todayKey && unfinishedOneOffs.length > 0 && (
-          <button
-            onClick={moveUnfinishedToTomorrow}
-            className={`w-full mb-3 py-3 px-6 rounded-3xl border border-dashed border-slate-300 dark:border-slate-600 text-[13px] font-semibold flex justify-between items-center active:scale-[0.98] transition-all ${theme.text} opacity-80`}
-          >
-            {tr('Move')}{' '}{unfinishedOneOffs.length}{' '}{tr('unfinished to tomorrow')}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        )}
-
         <div className="mb-3">
           <PlannerTodos
             userId={userId}
@@ -1148,6 +1237,19 @@ export default function DailyPlanner() {
               disabled={prioritiesLoading}
               onToggle={toggleTopThree}
             />
+            {!loading && !prioritiesLoading && dateKey <= todayKey && (
+              <DayWrapUp
+                unfinishedEvents={unfinishedOneOffs.length}
+                onMoveEvents={moveUnfinishedToTomorrow}
+                top3Total={shownPriorities.length}
+                top3Open={shownPriorities.filter(p => !p.done).length}
+                top3Carried={carriedFor === dateKey}
+                onCarryTop3={carryTopThree}
+                reflectionDone={reflection.trim().length > 0}
+                tomorrowLabel={formatDateKey(addDays(dateKey, 1))}
+                busy={wrapBusy}
+              />
+            )}
           </NoteCard>
         </div>
       </div>

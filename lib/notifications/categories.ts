@@ -24,9 +24,9 @@ export interface NotificationCategory {
 
 export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   { key: 'task_reminders', group: 'Planning', label: 'Task reminders', description: 'Before each planner event, as set on the event', types: ['task_reminder'] },
-  { key: 'planner_reminders', group: 'Planning', label: 'Daily planner & streaks', description: 'Morning plan, evening reflection and streak reminders', types: ['planner_reminder', 'habit_nudge'] },
+  { key: 'planner_reminders', group: 'Planning', label: 'Daily planner & streaks', description: 'Morning plan, evening reflection and streak reminders', types: ['planner_reminder', 'habit_nudge', 'week_plan'] },
   { key: 'goal_deadlines', group: 'Planning', label: 'Goal deadlines', description: 'A week, 3 days and a day before goals and visions are due', types: ['goal_deadline'] },
-  { key: 'goal_progress', group: 'Partner', label: 'Goal updates', description: 'New and completed goals, yours and shared ones', types: ['goal_progress', 'goal_created'] },
+  { key: 'goal_progress', group: 'Partner', label: 'Goal updates', description: 'New and completed goals, yours and shared ones, and cheers from your partner', types: ['goal_progress', 'goal_created', 'cheer'] },
   { key: 'messages', group: 'Partner', label: 'Partner invites & messages', description: 'Partner requests and direct messages', types: ['message', 'partner_invite'] },
   { key: 'posts', group: 'Partner', label: 'Posts & comments', description: 'Shared posts, comments, likes and @mentions', types: ['post', 'comment', 'mention', 'like'] },
   { key: 'prayer', group: 'Partner', label: 'Prayer & meditation', description: 'When your partner prays or meditates, and streak nudges', types: ['meditation', 'partner_prayer', 'partner_prayer_nudge'] },
