@@ -284,5 +284,6 @@ export const PLANNER: Record<string, string> = {
   "No time yet for {roles}": "Pas encore de temps pour {roles}",
   "Big rocks: {done} of {total} done, {booked} with time booked": "Gros cailloux : {done} sur {total} {done:fait|faits}, {booked} avec du temps réservé",
   "Nothing planned": "Rien de prévu",
+  "Couldn't update the big rock.": "Impossible de mettre à jour le gros caillou.",
   "+{n} more": "+{n} de plus",
 }

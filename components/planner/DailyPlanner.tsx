@@ -25,7 +25,7 @@ import TopThree, { type PrioritySuggestion } from './TopThree'
 import WeekPlanner from './WeekPlanner'
 import { loadWeek, unscheduledRocks, type WeekDay } from '@/lib/planner/week'
 import { parseQuickAdd } from '@/lib/planner/quickAdd'
-import { addPriority, loadPriorities, removePriority, savePriorities, togglePriority, type Priority } from '@/lib/planner/top3'
+import { addPriority, loadPriorities, removePriority, savePriorities, type Priority } from '@/lib/planner/top3'
 import PlannerTodos, { type PlannerTodo } from './PlannerTodos'
 import PlannerTemplates, { type TemplateTask } from './PlannerTemplates'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
@@ -189,8 +189,15 @@ export default function DailyPlanner() {
     }
     const onChanged = () => { clearTimeout(timer); timer = setTimeout(load, 800) }
     load()
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
     window.addEventListener('planner:changed', onChanged)
-    return () => { live = false; clearTimeout(timer); window.removeEventListener('planner:changed', onChanged) }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      live = false
+      clearTimeout(timer)
+      window.removeEventListener('planner:changed', onChanged)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [userId, week]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Top 3 of the day on screen
@@ -603,6 +610,31 @@ export default function DailyPlanner() {
     })
   }
 
+  // Mark a big rock done (or not) in Compass, as its checkbox there does
+  async function setRockDone(rockId: string, done: boolean) {
+    const rock = rocks.find(r => r.id === rockId)
+    if (!rock || rock.done === done || !userId) return
+    const doneAt = done ? new Date().toISOString() : null
+    setRocks(rs => rs.map(r => (r.id === rockId ? { ...r, done, done_at: doneAt } : r)))
+    const { data, error } = await supabase.from('weekly_rocks').update({ done, done_at: doneAt }).eq('id', rockId).eq('owner_id', userId).select('id')
+    if (error || !data?.length) {
+      setRocks(rs => rs.map(r => (r.id === rockId ? rock : r)))
+      toast.error(trNow("Couldn't update the big rock."))
+    }
+  }
+
+  // Top 3 as shown: an item that is a big rock is done once the rock is done
+  const rockDone = (id?: string) => !!id && !!rocks.find(r => r.id === id)?.done
+  const shownPriorities = priorities.map(p => (!p.done && rockDone(p.rock_id) ? { ...p, done: true } : p))
+
+  function toggleTopThree(id: string) {
+    const item = shownPriorities.find(p => p.id === id)
+    if (!item) return
+    const next = !item.done
+    changePriorities(priorities.map(p => (p.id === id ? { ...p, done: next } : p)))
+    if (item.rock_id) setRockDone(item.rock_id, next)
+  }
+
   // Top 3: change the list for the day on screen and save it (one save at a time)
   function changePriorities(next: Priority[]) {
     if (!userId || prioritiesFor !== dateKey || next === priorities) return
@@ -915,11 +947,11 @@ export default function DailyPlanner() {
           >
             <TopThree
               mode="plan"
-              items={priorities}
+              items={shownPriorities}
               suggestions={prioritySuggestions}
               disabled={prioritiesLoading}
               onAdd={item => changePriorities(addPriority(priorities, item))}
-              onToggle={id => changePriorities(togglePriority(priorities, id))}
+              onToggle={toggleTopThree}
               onRemove={id => changePriorities(removePriority(priorities, id))}
             />
           </NoteCard>
@@ -1112,9 +1144,9 @@ export default function DailyPlanner() {
           >
             <TopThree
               mode="review"
-              items={priorities}
+              items={shownPriorities}
               disabled={prioritiesLoading}
-              onToggle={id => changePriorities(togglePriority(priorities, id))}
+              onToggle={toggleTopThree}
             />
           </NoteCard>
         </div>
