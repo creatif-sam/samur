@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { CalendarPlus, ChevronDown, ListTodo, Plus, Trash2 } from 'lucide-react'
 import type { RoleLike } from '@/lib/planner/roleLinks'
+import { isMissingRoles } from '@/lib/roles'
 
 export type PlannerTodo = {
   id: string
@@ -37,6 +38,9 @@ export default function PlannerTodos({ userId, visions, roles = {}, refreshKey, 
   const [text, setText] = useState('')
   const [open, setOpen] = useState(true)
   const [unavailable, setUnavailable] = useState(false)
+  // The role for the next to-do (kept between adds, like a sticky filter)
+  const [newRole, setNewRole] = useState<string | null>(null)
+  const activeRoles = Object.values(roles).filter(r => !r.is_archived)
 
   useEffect(() => {
     if (!userId) return
@@ -60,11 +64,16 @@ export default function PlannerTodos({ userId, visions, roles = {}, refreshKey, 
     const value = text.trim()
     if (!value || !userId) return
     setText('')
-    const { data, error } = await supabase
+    const base: Record<string, string> = { user_id: userId, text: value }
+    let { data, error } = await supabase
       .from('planner_todos')
-      .insert({ user_id: userId, text: value })
+      .insert(newRole ? { ...base, role_id: newRole } : base)
       .select()
       .single()
+    // Before the planner roles update there is no role column: save it without
+    if (error && newRole && isMissingRoles(error.message)) {
+      ;({ data, error } = await supabase.from('planner_todos').insert(base).select().single())
+    }
     if (error) {
       setText(value)
       toast.error(tr('Couldn\'t add the to-do. Check your connection.'))
@@ -131,6 +140,24 @@ export default function PlannerTodos({ userId, visions, roles = {}, refreshKey, 
               <Plus className="w-5 h-5" />
             </button>
           </form>
+
+          {/* Optional: which role the next to-do is for */}
+          {activeRoles.length > 0 && (
+            <div className="no-scrollbar -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+              {activeRoles.map(r => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => setNewRole(newRole === r.id ? null : r.id)}
+                  aria-pressed={newRole === r.id}
+                  className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-bold transition ${newRole === r.id ? 'text-white' : 'border-slate-200 bg-white/60 text-slate-500 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-400'}`}
+                  style={newRole === r.id ? { backgroundColor: r.color, borderColor: r.color } : undefined}
+                >
+                  {r.emoji ?? '🎯'} {tr(r.name)}
+                </button>
+              ))}
+            </div>
+          )}
 
           {todos.length === 0 ? (
             <p className="text-xs text-slate-400 px-1">{tr('Jot things down here, then schedule them into a free slot.')}</p>

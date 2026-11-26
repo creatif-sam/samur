@@ -89,7 +89,7 @@ export const HELP = {
   // ── Planner ──
   'planner.page': {
     title: 'Daily Planning',
-    text: 'Plan your day under Time, or track spending under Money. Add events with the add button; they can repeat and remind you. The chart icon opens Analytics, and the calendar icon switches to a month view.',
+    text: 'Plan your day under Time, or track money under Money. Switch between Day, Week and Month at the top. On the timeline, hold an event to move it, or drag its bottom edge to change its length.',
   },
   'planner.intention': {
     title: 'Morning Intention',
@@ -110,6 +110,22 @@ export const HELP = {
   'planner.todos': {
     title: 'To-do',
     text: 'Things to do that do not have a time yet. Tap Schedule on one to give it a slot in your day.',
+  },
+  'planner.top3': {
+    title: 'Top 3',
+    text: 'Pick the three things that matter most today. Type them, or tap a suggestion from your big rocks and events. Tick them off tonight in the Evening Reflection card.',
+  },
+  'planner.rocks': {
+    title: 'Big rocks',
+    text: 'The big rocks you chose for this week in Compass that have no time booked yet. Put them in your days first, as Covey teaches, and fit the rest around them.',
+  },
+  'planner.week': {
+    title: 'Your week',
+    text: 'How this week’s planned time is shared between your roles, how your big rocks are going, and each day’s events. Tap a day to open it.',
+  },
+  'planner.quickadd': {
+    title: 'Quick add',
+    text: 'Type an event in one line, like Gym tomorrow 7am 1h or Réunion demain 9h à 10h. With no time, it goes in your next free slot.',
   },
   'planner.money': {
     title: 'Money',
@@ -228,6 +244,10 @@ export const HELP = {
   'analytics.visionTime': {
     title: 'Time per role',
     text: 'Adds up the hours you planned, by the role each event is for, so you can see whether every role gets time. Pick a role when you create an event. Older events are listed by vision.',
+  },
+  'review.roles': {
+    title: 'Your roles this week',
+    text: 'Planned time per role this week, and which big rocks you finished. A role with no time is a sign to plan for it in the coming week below.',
   },
   'review.page': {
     title: 'Weekly review',

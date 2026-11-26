@@ -26,12 +26,13 @@ interface Props {
   goals: RoleGoal[]
   // Rocks can be loaded by the caller (previews); otherwise they come from the database
   initialRocks?: WeeklyRock[]
+  initialWeek?: string   // the Sunday to open on (the weekly review opens on the coming week)
 }
 
-export default function WeekView({ userId, ready, roles, categories = [], goals, initialRocks }: Props) {
+export default function WeekView({ userId, ready, roles, categories = [], goals, initialRocks, initialWeek }: Props) {
   const { tr } = useTranslation()
   const thisWeek = weekStart(toLocalDateKey(new Date()))
-  const [week, setWeek] = useState(thisWeek)
+  const [week, setWeek] = useState(initialWeek ?? thisWeek)
   const [rocks, setRocks] = useState<WeeklyRock[]>(initialRocks ?? [])
   const [loading, setLoading] = useState(!initialRocks)
   const [carry, setCarry] = useState<WeeklyRock[]>([])

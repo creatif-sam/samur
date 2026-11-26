@@ -1,6 +1,6 @@
 'use client'
 
-import { appLocale } from '@/lib/i18n'
+import { appLocale, trNow } from '@/lib/i18n'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { useState } from 'react'
 import { Modal } from './tasks/Modal'
@@ -69,24 +69,18 @@ export default function FreeTimeExportButton({
   }
 
   const isToday = toLocalDateKey(date) === toLocalDateKey(new Date())
-  const title = isToday
-    ? 'My Free Time Today'
-    : `My Free Time on ${date.toLocaleDateString(appLocale() ?? 'en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}`
+  const longDate = date.toLocaleDateString(appLocale() ?? 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  const title = isToday ? trNow('My free time today') : trNow('My free time on {date}', { date: longDate })
 
   const message =
     freeBlocks &&
     (freeBlocks.length === 0
       ? `💜 *${title}*\n\n` +
-        `I'm fully booked${isToday ? ' for the rest of the day' : ''}. Let's find another time 🙏`
-      : `💜 *${title}* (${date.toDateString()})\n\n` +
-        `⏰ Here are the times I am available${isToday ? ' for the rest of the day' : ''}:\n\n` +
-        freeBlocks
-          .map(
-            (f) =>
-              `• ${formatMinutes(f.start)} – ${formatMinutes(f.end)}`
-          )
-          .join('\n') +
-        `\n\n👉 Please pick a time that works best for you.`)
+        (isToday ? trNow("I'm fully booked for the rest of the day. Let's find another time 🙏") : trNow("I'm fully booked that day. Let's find another time 🙏"))
+      : `💜 *${title}*${isToday ? ` (${longDate})` : ''}\n\n` +
+        `⏰ ${isToday ? trNow('Here are the times I am available for the rest of the day:') : trNow('Here are the times I am available:')}\n\n` +
+        freeBlocks.map(f => `• ${formatMinutes(f.start)} – ${formatMinutes(f.end)}`).join('\n') +
+        `\n\n👉 ${trNow('Please pick a time that works best for you.')}`)
 
   async function handleNativeShare() {
     if (!message) return

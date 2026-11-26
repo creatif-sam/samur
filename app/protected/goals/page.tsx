@@ -57,6 +57,11 @@ export default function GoalsPage() {
   const [newGoalRole, setNewGoalRole] = useState<string | undefined>(undefined)
   const [view, setView] = useState<GoalView>('monthly')
   const [tab, setTab] = useState('roles')
+  // Links can open a tab directly, e.g. /protected/goals?tab=week from the planner
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab')
+    if (wanted && ['overview', 'roles', 'goals', 'week'].includes(wanted)) setTab(wanted)
+  }, [])
   // 'all', a role id, or 'unassigned' (your goals with no role yet)
   const [focusRole, setFocusRole] = useState<string>('all')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)

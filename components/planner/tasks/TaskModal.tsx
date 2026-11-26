@@ -33,6 +33,7 @@ export function TaskModal({
   initialVisionId,
   initialRoleId,
   initialGoalId,
+  initialRockId,
   roles = [],
   visions = {},
   existingTask,
@@ -50,6 +51,7 @@ export function TaskModal({
   // Scheduling a to-do (or a goal) brings its role and goal along
   initialRoleId?: string | null
   initialGoalId?: string | null
+  initialRockId?: string | null   // booking time for a big rock
   roles?: RoleLike[]                     // active roles to choose from
   visions?: Record<string, VisionLike>   // to name an older event's vision
   existingTask?: PlannerTask | null
@@ -118,7 +120,7 @@ export function TaskModal({
       vision_id: visionId ?? undefined,
       role_id: roleId ?? undefined,
       goal_id: goalId ?? undefined,
-      rock_id: existingTask?.rock_id,
+      rock_id: existingTask ? existingTask.rock_id : initialRockId ?? undefined,
       recurring: recurring ?? undefined,
       visibility,
       owner_id: existingTask?.owner_id ?? userId ?? undefined,

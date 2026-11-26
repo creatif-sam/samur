@@ -28,12 +28,16 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   'goals.track': { title: 'Suivre', text: 'Change le statut, règle la progression par paliers, découpe l’objectif en étapes, ou réserve du temps dans ton agenda. Avec des étapes, les cocher fait avancer la progression.' },
 
   // ── Agenda ──
-  'planner.page': { title: 'Agenda du jour', text: 'Planifie ta journée dans Temps, ou suis tes dépenses dans Argent. Ajoute des événements avec le bouton ; ils peuvent se répéter et te rappeler. L’icône graphique ouvre les statistiques, et le calendrier passe à la vue du mois.' },
+  'planner.page': { title: 'Agenda du jour', text: 'Planifie ta journée dans Temps, ou suis ton argent dans Argent. Passe de Jour à Semaine ou Mois en haut. Dans l’horaire, maintiens un événement pour le déplacer, ou tire son bord du bas pour changer sa durée.' },
   'planner.intention': { title: 'Intention du matin', text: 'Écris la chose sur laquelle tu veux te concentrer aujourd’hui. Elle s’enregistre toute seule.' },
   'planner.reflection': { title: 'Réflexion du soir', text: 'Note comment s’est passée la journée. Elle s’enregistre toute seule et apparaît dans ton bilan de la semaine.' },
   'planner.summary': { title: 'Résumé du jour', text: 'La carte ci-dessus montre les événements faits, prévus et le temps libre restant, avec une suggestion. Partager mon temps libre envoie tes créneaux à un ami.' },
   'planner.mood': { title: 'Humeur', text: 'Touche le visage pour dire comment tu te sens aujourd’hui. C’est enregistré avec la journée et change les couleurs de l’agenda et le verset affiché.' },
   'planner.todos': { title: 'Tâches', text: 'Les choses à faire qui n’ont pas encore d’heure. Touche Planifier sur l’une d’elles pour lui donner un créneau dans ta journée.' },
+  'planner.top3': { title: 'Top 3', text: 'Choisis les trois choses qui comptent le plus aujourd’hui. Écris-les, ou touche une suggestion parmi tes gros cailloux et tes événements. Coche-les ce soir dans la carte Réflexion du soir.' },
+  'planner.rocks': { title: 'Gros cailloux', text: 'Les gros cailloux choisis cette semaine dans Boussole qui n’ont pas encore de temps réservé. Place-les d’abord dans tes journées, comme l’enseigne Covey, puis organise le reste autour.' },
+  'planner.week': { title: 'Ta semaine', text: 'Comment le temps prévu cette semaine se partage entre tes rôles, où en sont tes gros cailloux, et les événements de chaque jour. Touche un jour pour l’ouvrir.' },
+  'planner.quickadd': { title: 'Ajout rapide', text: 'Écris un événement en une ligne, comme Sport demain 7h 1h ou Réunion demain 9h à 10h. Sans heure, il va dans ton prochain créneau libre.' },
   'planner.money': { title: 'Argent', text: 'Journal enregistre les entrées et sorties, Graphiques montre où va l’argent, et Budget fixe des limites par catégorie. Touche + pour ajouter une entrée.' },
 
   // ── Notes ──
@@ -71,6 +75,7 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   // ── Statistiques ──
   'analytics.page': { title: 'Statistiques', text: 'Un regard sur ta croissance : série de méditations, objectifs atteints, livres lus, répartition de tes objectifs, et comment ton temps prévu se partage entre tes rôles.' },
   'analytics.visionTime': { title: 'Temps par rôle', text: 'Additionne les heures prévues selon le rôle de chaque événement, pour voir si chaque rôle reçoit du temps. Choisis un rôle en créant un événement. Les anciens événements sont listés par vision.' },
+  'review.roles': { title: 'Tes rôles cette semaine', text: 'Le temps prévu par rôle cette semaine, et les gros cailloux terminés. Un rôle sans temps est un signe de le prévoir pour la semaine qui vient, plus bas.' },
   'review.page': { title: 'Bilan de la semaine', text: 'Ta semaine en un coup d’œil : objectifs, méditations, tâches faites, argent, temps de prière et versets, plus tes réflexions du soir. Sers-t’en pour choisir quoi améliorer la semaine prochaine.' },
   'notifications.page': { title: 'Notifications', text: 'Tout ce qui t’a été envoyé, du plus récent au plus ancien : l’activité de ton partenaire, des rappels et des encouragements. Touche-en une pour l’ouvrir. Filtre par Toutes ou Non lues, et la roue choisit ce que tu reçois.' },
 

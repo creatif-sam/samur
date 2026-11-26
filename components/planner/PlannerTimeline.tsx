@@ -1,14 +1,17 @@
 'use client'
 
 import { useTranslation } from '@/contexts/TranslationContext'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Plus, RefreshCw } from 'lucide-react'
 import { formatDuration, formatMinutes, freeGaps, taskSpan, type PlannerTask } from '@/lib/planner/tasks'
 import { taskLook, type RoleLike } from '@/lib/planner/roleLinks'
+import { moveBy, pxToMinutes, resizeBy, snap } from '@/lib/planner/drag'
 
 const HOUR_PX = 56
 const DEFAULT_START_HOUR = 5
 const DEFAULT_END_HOUR = 23
+const LONG_PRESS_MS = 350   // hold this long on an event to pick it up
+const SLOP_PX = 8           // moving further first means the finger is scrolling
 
 interface Props {
   rolesMap?: Record<string, RoleLike>
@@ -20,7 +23,11 @@ interface Props {
   onTaskClick: (task: PlannerTask) => void
   onToggleComplete: (taskId: string) => void
   onAddAt: (minutes: number) => void
+  // Drop after moving or resizing one of your own events (the times are already snapped)
+  onMove?: (task: PlannerTask, next: { start: string; end: string }) => void
 }
+
+type Drag = { task: PlannerTask; mode: 'move' | 'resize'; startY: number; delta: number }
 
 type Placed = { task: PlannerTask; start: number; end: number; lane: number; lanes: number }
 
@@ -66,8 +73,107 @@ export default function PlannerTimeline({
   onTaskClick,
   onToggleComplete,
   onAddAt,
+  onMove,
 }: Props) {
   const { tr } = useTranslation()
+
+  // ---------- drag to move, bottom handle to resize ----------
+  const [drag, setDrag] = useState<Drag | null>(null)
+  const dragRef = useRef<Drag | null>(null)
+  const press = useRef<{ timer: ReturnType<typeof setTimeout>; x: number; y: number; pointerId: number } | null>(null)
+  const suppressClick = useRef(false)
+  const onMoveRef = useRef(onMove)
+  onMoveRef.current = onMove
+
+  function startDrag(d: Drag) {
+    dragRef.current = d
+    setDrag(d)
+    try { navigator.vibrate?.(10) } catch { /* not supported */ }
+  }
+  function cancelPress() {
+    if (press.current) clearTimeout(press.current.timer)
+    press.current = null
+  }
+  useEffect(() => cancelPress, [])
+
+  // Window listeners while a drag runs; touchmove is non-passive so the page doesn't scroll
+  const dragging = drag !== null
+  useEffect(() => {
+    if (!dragging) return
+    const update = (y: number) => {
+      const d = dragRef.current
+      if (!d) return
+      const delta = snap(pxToMinutes(y - d.startY, HOUR_PX))
+      if (delta !== d.delta) { dragRef.current = { ...d, delta }; setDrag(dragRef.current) }
+    }
+    const onPointerMove = (e: PointerEvent) => update(e.clientY)
+    const onTouchMove = (e: TouchEvent) => { e.preventDefault(); if (e.touches[0]) update(e.touches[0].clientY) }
+    const finish = () => {
+      const d = dragRef.current
+      dragRef.current = null
+      setDrag(null)
+      if (!d) return
+      // The release also fires a click on the event: don't open the editor for it
+      suppressClick.current = true
+      setTimeout(() => { suppressClick.current = false }, 50)
+      if (d.delta === 0) return
+      const next = d.mode === 'move' ? moveBy(d.task, d.delta) : resizeBy(d.task, d.delta)
+      if (next.start !== d.task.start || next.end !== d.task.end) onMoveRef.current?.(d.task, next)
+    }
+    const onCancel = (e: PointerEvent) => { if (e.pointerType !== 'touch') finish() } // a touch drag ends on touchend
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('pointerup', finish)
+    window.addEventListener('touchend', finish)
+    window.addEventListener('pointercancel', onCancel)
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('pointerup', finish)
+      window.removeEventListener('touchend', finish)
+      window.removeEventListener('pointercancel', onCancel)
+    }
+  }, [dragging])
+
+  // Touch: hold still to pick an event up (moving first scrolls the page). Mouse: just drag.
+  function pressHandlers(task: PlannerTask) {
+    return {
+      onPointerDown: (e: React.PointerEvent) => {
+        if (e.button > 0) return
+        cancelPress()
+        const { clientX: x, clientY: y, pointerId } = e
+        const timer = setTimeout(() => {
+          press.current = null
+          startDrag({ task, mode: 'move', startY: y, delta: 0 })
+        }, LONG_PRESS_MS)
+        if (e.pointerType === 'mouse') clearTimeout(timer)
+        press.current = { x, y, pointerId, timer }
+      },
+      onPointerMove: (e: React.PointerEvent) => {
+        const p = press.current
+        if (!p || p.pointerId !== e.pointerId) return
+        const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y)
+        if (e.pointerType === 'mouse') {
+          if (moved > 4) { cancelPress(); startDrag({ task, mode: 'move', startY: p.y, delta: 0 }) }
+        } else if (moved > SLOP_PX) cancelPress()
+      },
+      onPointerUp: cancelPress,
+      onPointerCancel: cancelPress,
+      onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+    }
+  }
+  function resizeHandlers(task: PlannerTask) {
+    return {
+      onPointerDown: (e: React.PointerEvent) => {
+        if (e.button > 0) return
+        e.stopPropagation()
+        cancelPress()
+        startDrag({ task, mode: 'resize', startY: e.clientY, delta: 0 })
+      },
+      onClick: (e: React.MouseEvent) => e.stopPropagation(),
+    }
+  }
+
   const [nowMinutes, setNowMinutes] = useState(() => {
     const d = new Date()
     return d.getHours() * 60 + d.getMinutes()
@@ -98,6 +204,7 @@ export default function PlannerTimeline({
   const dayEnd = endHour * 60
   const top = (minutes: number) => ((minutes - dayStart) / 60) * HOUR_PX
   const placed = useMemo(() => layout(tasks, dayEnd), [tasks, dayEnd])
+  const dragged = drag ? (drag.mode === 'move' ? moveBy(drag.task, drag.delta) : resizeBy(drag.task, drag.delta)) : null
   const gaps = useMemo(
     () => freeGaps(tasks, isToday ? Math.max(dayStart, Math.ceil(nowMinutes / 15) * 15) : dayStart, dayEnd, 30),
     [tasks, isToday, nowMinutes, dayStart, dayEnd],
@@ -142,18 +249,25 @@ export default function PlannerTimeline({
       ))}
 
       {/* Tasks */}
-      {placed.map(({ task, start, end, lane, lanes }) => {
+      {placed.map(({ task, start: placedStart, end: placedEnd, lane, lanes }) => {
         const isPartnerTask = !!task.owner_id && task.owner_id !== userId
         const isDone = isPartnerTask ? partnerCompletedIds.includes(task.id) : completedTaskIds.includes(task.id)
+        const isDragged = !!dragged && drag?.task.id === task.id
+        const shown = isDragged ? taskSpan(dragged) : null
+        const start = shown ? shown.start : placedStart
+        const end = shown ? Math.min(shown.end, Math.max(dayEnd, shown.start + 15)) : placedEnd
         const height = Math.max(top(end) - top(start) - 3, 26)
         const compact = height < 44
+        const draggable = !isPartnerTask && !!onMove
         return (
           <div
             key={task.id}
-            onClick={() => !isPartnerTask && onTaskClick(task)}
-            className={`absolute rounded-2xl px-2.5 py-1.5 ${taskLook(task, rolesMap).className} text-white shadow-sm overflow-hidden ${isDone ? 'opacity-55' : ''} ${isPartnerTask ? 'cursor-default ring-2 ring-white/50 ring-inset' : 'cursor-pointer active:scale-[0.99]'} transition-transform`}
+            {...(draggable ? pressHandlers(task) : {})}
+            onClick={() => { if (!isPartnerTask && !suppressClick.current) onTaskClick(task) }}
+            className={`absolute rounded-2xl px-2.5 py-1.5 ${taskLook(task, rolesMap).className} text-white shadow-sm overflow-hidden ${isDone ? 'opacity-55' : ''} ${isPartnerTask ? 'cursor-default ring-2 ring-white/50 ring-inset' : 'cursor-pointer active:scale-[0.99]'} ${isDragged ? 'z-20 scale-[1.02] shadow-xl ring-2 ring-white' : 'transition-transform'}`}
             style={{
               ...taskLook(task, rolesMap).style,
+              WebkitTouchCallout: 'none',
               top: top(start) + 1.5,
               height,
               left: `calc(3rem + (100% - 3.25rem) * ${lane / lanes})`,
@@ -163,9 +277,9 @@ export default function PlannerTimeline({
             <div className="flex items-start gap-1.5 h-full">
               <div className="min-w-0 flex-1">
                 <p className={`text-[12px] font-black leading-tight truncate ${isDone ? 'line-through' : ''}`}>{task.text}</p>
-                {!compact && (
+                {(!compact || isDragged) && (
                   <p className="text-[10px] font-semibold text-white/70 tabular-nums mt-0.5 flex items-center gap-1">
-                    {task.start}–{task.end}
+                    {dragged && isDragged ? `${dragged.start}–${dragged.end}` : `${task.start}–${task.end}`}
                     {task.recurring && <RefreshCw className="w-2.5 h-2.5" />}
                   </p>
                 )}
@@ -181,6 +295,16 @@ export default function PlannerTimeline({
                 </button>
               )}
             </div>
+            {draggable && (
+              <div
+                {...resizeHandlers(task)}
+                aria-hidden
+                className="absolute inset-x-0 bottom-0 flex h-3 cursor-ns-resize items-end justify-center pb-0.5"
+                style={{ touchAction: 'none' }}
+              >
+                <span className="h-1 w-6 rounded-full bg-white/50" />
+              </div>
+            )}
           </div>
         )
       })}

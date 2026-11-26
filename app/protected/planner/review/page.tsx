@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation'
 import {
   ChevronLeft,
   Target,
-  BookOpen,
   Heart,
   Wallet,
   Sparkles,
@@ -18,9 +17,16 @@ import {
   Calendar,
   Flame,
   Brain,
+  Mountain,
 } from 'lucide-react'
+import type { Goal } from '@/lib/types'
+import WeekBalance from '@/components/planner/WeekBalance'
+import WeekView from '@/components/goals/roles/WeekView'
+import { loadWeek } from '@/lib/planner/week'
+import { isMissingRoles, loadCategories, loadRocks, loadRoles, type Role, type RoleCategory, type WeeklyRock } from '@/lib/roles'
+import type { PlannerTask } from '@/lib/planner/tasks'
 import { cn } from '@/lib/utils'
-import { toLocalDateKey } from '@/lib/dates'
+import { addDays, toLocalDateKey } from '@/lib/dates'
 import { fetchRecurringRows } from '@/lib/planner/queries'
 import { expandDays, type PlannerDayRow } from '@/lib/planner/tasks'
 
@@ -83,7 +89,42 @@ export default function WeeklyReviewPage() {
   const { start: weekStart, end: weekEnd, startStr, endStr } = weekRange()
   const days = dayLabels()
 
-  useEffect(() => { load() }, [])
+  // Look back by role (time and big rocks), then plan the coming week
+  const [userId, setUserId] = useState<string | null>(null)
+  const [roles, setRoles] = useState<Role[]>([])
+  const [roleCategories, setRoleCategories] = useState<RoleCategory[]>([])
+  const [rolesReady, setRolesReady] = useState(false)
+  const [roleGoals, setRoleGoals] = useState<Goal[]>([])
+  const [weekTasks, setWeekTasks] = useState<PlannerTask[]>([])
+  const [allWeekRocks, setWeekRocks] = useState<WeeklyRock[]>([])
+  const rolesMap = Object.fromEntries(roles.map(r => [r.id, r]))
+  const weekRocks = allWeekRocks.filter(r => r.role_id === null || (!!rolesMap[r.role_id] && !rolesMap[r.role_id].is_archived))
+  // On Sunday the new week has just begun: plan it; any other day, plan the next one
+  const planWeek = new Date().getDay() === 0 ? startStr : addDays(startStr, 7)
+
+  useEffect(() => { load(); loadRoleWeek() }, [])
+
+  async function loadRoleWeek() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    try {
+      const [rRes, week, rocks, goalsRes] = await Promise.all([
+        loadRoles(supabase, user.id),
+        loadWeek(supabase, user.id, startStr),
+        loadRocks(supabase, user.id, startStr).catch(err => { if (isMissingRoles(err?.message)) return [] as WeeklyRock[]; throw err }),
+        supabase.from('goals').select('*').or(`owner_id.eq.${user.id},partner_id.eq.${user.id}`).order('created_at', { ascending: false }),
+      ])
+      setRoles(rRes.roles)
+      setRolesReady(rRes.ready)
+      if (rRes.ready) setRoleCategories(await loadCategories(supabase, user.id, rRes.roles.length > 0))
+      setWeekTasks(week.flatMap(d => d.tasks.filter(t => !t.owner_id || t.owner_id === user.id)))
+      setWeekRocks(rocks)
+      setRoleGoals((goalsRes.data ?? []) as Goal[])
+      setUserId(user.id)
+    } catch (err) {
+      console.error('Failed to load the week by role', err)
+    }
+  }
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -238,7 +279,7 @@ export default function WeeklyReviewPage() {
               icon={<Target className="w-4 h-4 text-white" />}
               label={tr('Goals this week')}
               value={data.goals.total}
-              sub={`${data.goals.done} done · ${data.goals.doing} in progress`}
+              sub={tr('{done} done · {doing} in progress', { done: data.goals.done, doing: data.goals.doing })}
               color="bg-gradient-to-br from-violet-600 to-purple-700"
             />
             <StatCard
@@ -252,31 +293,62 @@ export default function WeeklyReviewPage() {
               icon={<CheckCircle2 className="w-4 h-4 text-white" />}
               label={tr('Tasks done')}
               value={taskRate !== null ? `${taskRate}%` : data.tasksDone}
-              sub={`${data.tasksDone} of ${data.tasksTotal} completed`}
+              sub={tr('{done} of {total} completed', { done: data.tasksDone, total: data.tasksTotal })}
               color="bg-gradient-to-br from-emerald-500 to-teal-600"
             />
             <StatCard
               icon={<Wallet className="w-4 h-4 text-white" />}
               label={tr('Net money')}
               value={`${data.moneyIn - data.moneyOut >= 0 ? '+' : ''}${(data.moneyIn - data.moneyOut).toFixed(0)}`}
-              sub={`In ${data.moneyIn.toFixed(0)} · Out ${data.moneyOut.toFixed(0)}`}
+              sub={tr('In {moneyIn} · Out {moneyOut}', { moneyIn: data.moneyIn.toFixed(0), moneyOut: data.moneyOut.toFixed(0) })}
               color="bg-gradient-to-br from-blue-500 to-cyan-600"
             />
             <StatCard
               icon={<Flame className="w-4 h-4 text-white" />}
               label={tr('Prayer time')}
               value={data.prayerMinutes >= 60 ? `${Math.floor(data.prayerMinutes / 60)}h ${data.prayerMinutes % 60}m` : `${data.prayerMinutes}m`}
-              sub={`${data.prayerDays} of 7 days`}
+              sub={tr('{n} of 7 days', { n: data.prayerDays })}
               color="bg-gradient-to-br from-amber-500 to-orange-600"
             />
             <StatCard
               icon={<Brain className="w-4 h-4 text-white" />}
               label={tr('Memory verses')}
               value={data.versesChosen}
-              sub={`${data.versesMemorized} memorized`}
+              sub={tr('{n} memorized', { n: data.versesMemorized })}
               color="bg-gradient-to-br from-indigo-500 to-violet-600"
             />
           </div>
+
+          {/* Time per role and big rocks this week */}
+          {rolesReady && roles.length > 0 && (
+            <div className="rounded-3xl border border-border/60 bg-card p-4 space-y-3">
+              <div className="flex items-center gap-1">
+                <p className="text-[11px] font-black text-muted-foreground uppercase tracking-widest">{tr('Your roles this week')}</p>
+                <HelpTip topic="review.roles" align="left" className="-my-1" />
+              </div>
+              <WeekBalance tasks={weekTasks} rolesMap={rolesMap} />
+              {weekRocks.length > 0 && (
+                <div className="space-y-1.5 border-t border-border/50 pt-3">
+                  <p className="flex items-center gap-1.5 text-xs font-bold">
+                    <Mountain className="h-3.5 w-3.5 text-muted-foreground" />
+                    {tr('Big rocks: {done} of {total} done', { done: weekRocks.filter(r => r.done).length, total: weekRocks.length })}
+                  </p>
+                  <ul className="space-y-1">
+                    {weekRocks.map(r => {
+                      const role = r.role_id ? rolesMap[r.role_id] : null
+                      return (
+                        <li key={r.id} className="flex items-center gap-2 text-xs">
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: role?.color ?? '#0d9488' }} />
+                          <span className={cn('min-w-0 truncate', r.done ? 'line-through text-muted-foreground' : 'font-semibold')}>{r.text}</span>
+                          {r.done && <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Gratitude highlight */}
           {data.gratitude.length > 0 && (
@@ -312,6 +384,14 @@ export default function WeeklyReviewPage() {
                   ))}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Plan the coming week by role (Covey: weekly planning) */}
+          {rolesReady && userId && roles.length > 0 && (
+            <div className="space-y-2">
+              <p className="px-1 text-[11px] font-black text-muted-foreground uppercase tracking-widest">{tr('Plan your week')}</p>
+              <WeekView userId={userId} ready={rolesReady} roles={roles} categories={roleCategories} goals={roleGoals} initialWeek={planWeek} />
             </div>
           )}
 

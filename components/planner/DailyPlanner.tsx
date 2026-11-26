@@ -5,7 +5,7 @@ import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Calendar as CalendarIcon, Check, RefreshCw, BarChart3, Sun, Moon, ArrowRight, List, Clock3, LayoutTemplate } from 'lucide-react'
+import { Plus, Calendar as CalendarIcon, BarChart3, Sun, Moon, ArrowRight, List, Clock3, LayoutTemplate, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import MonthCalendar from './MonthCalendar'
@@ -15,9 +15,17 @@ import TopCalendar from './TopCalendar'
 import DaySummary from './DailySummary'
 import FreeTimeExportButton from './FreeTimeExportButton'
 import MoodPicker, { moodThemes } from './MoodPicker'
-import { taskLook, type RoleLike } from '@/lib/planner/roleLinks'
-import { loadRoles, sortRoles } from '@/lib/roles'
+import type { RoleLike } from '@/lib/planner/roleLinks'
+import { isMissingRoles, loadRocks, loadRoles, sortRoles, weekStart, type WeeklyRock } from '@/lib/roles'
 import PlannerTimeline from './PlannerTimeline'
+import DayTaskCards from './DayTaskCards'
+import NoteCard from './NoteCard'
+import RocksStrip from './RocksStrip'
+import TopThree, { type PrioritySuggestion } from './TopThree'
+import WeekPlanner from './WeekPlanner'
+import { loadWeek, unscheduledRocks, type WeekDay } from '@/lib/planner/week'
+import { parseQuickAdd } from '@/lib/planner/quickAdd'
+import { addPriority, loadPriorities, removePriority, savePriorities, togglePriority, type Priority } from '@/lib/planner/top3'
 import PlannerTodos, { type PlannerTodo } from './PlannerTodos'
 import PlannerTemplates, { type TemplateTask } from './PlannerTemplates'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
@@ -25,7 +33,7 @@ import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries'
 import { dequeueDay, isNetworkError, queueDay, queuedDay, queuedDays, type QueuedDay } from '@/lib/planner/offline'
 import {
   buildDayTasks,
-  endsNextDay,
+  formatMinutes,
   nextFreeSlot,
   sortByStart,
   tasksToStore,
@@ -91,7 +99,18 @@ export default function DailyPlanner() {
   const [userId, setUserId] = useState<string | null>(null)
   const [partnerId, setPartnerId] = useState<string | null>(null)
   const [profilesMap, setProfilesMap] = useState<Record<string, UserProfile>>({})
-  const [view, setView] = useState<'daily' | 'monthly'>('daily')
+  const [view, setView] = useState<'daily' | 'weekly' | 'monthly'>('daily')
+  // This week's big rocks and the week's events (to know which rocks have time booked)
+  const [rocks, setRocks] = useState<WeeklyRock[]>([])
+  const [rocksReady, setRocksReady] = useState(false)
+  const [weekData, setWeekData] = useState<WeekDay[]>([])
+  const [schedulingRock, setSchedulingRock] = useState<WeeklyRock | null>(null)
+  // Top 3 for the day on screen
+  const [priorities, setPriorities] = useState<Priority[]>([])
+  const [prioritiesFor, setPrioritiesFor] = useState<string | null>(null)
+  const prioritiesSynced = useRef(true)
+  const prioritiesChain = useRef<Promise<unknown>>(Promise.resolve())
+  const [quickText, setQuickText] = useState('')
   const [taskDays, setTaskDays] = useState<Set<string>>(new Set())
   const [schedulingForDate, setSchedulingForDate] = useState<string | null>(null)
   const [modalStart, setModalStart] = useState<number | null>(null)
@@ -105,6 +124,7 @@ export default function DailyPlanner() {
   const todayKey = toLocalDateKey(new Date())
   const theme = moodThemes[mood] || moodThemes['default']
   const loading = loadedDateKey !== dateKey
+  const week = weekStart(dateKey)
 
   // Latest state for async callbacks (debounced saves, undo actions)
   const stateRef = useRef<DaySnapshot & { loadedDateKey: string | null; userId: string | null }>(null!)
@@ -144,6 +164,53 @@ export default function DailyPlanner() {
   useEffect(() => {
     if (view === 'monthly' && userId) loadTaskDays(selectedDate.getFullYear(), selectedDate.getMonth())
   }, [view, userId, tasks])
+
+  // The week's rocks and events, refreshed after planner saves (debounced: text saves fire it too)
+  useEffect(() => {
+    if (!userId) return
+    let live = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const load = async () => {
+      try {
+        const [weekRocks, days] = await Promise.all([
+          loadRocks(supabase, userId, week).then(r => ({ r, ok: true }), err => {
+            if (isMissingRoles(err?.message)) return { r: [] as WeeklyRock[], ok: false }
+            throw err
+          }),
+          loadWeek(supabase, userId, week),
+        ])
+        if (!live) return
+        setRocks(weekRocks.r)
+        setRocksReady(weekRocks.ok)
+        setWeekData(days)
+      } catch (err) {
+        console.error('Failed to load the week', err)
+      }
+    }
+    const onChanged = () => { clearTimeout(timer); timer = setTimeout(load, 800) }
+    load()
+    window.addEventListener('planner:changed', onChanged)
+    return () => { live = false; clearTimeout(timer); window.removeEventListener('planner:changed', onChanged) }
+  }, [userId, week]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Top 3 of the day on screen
+  useEffect(() => {
+    if (!userId) return
+    let live = true
+    setPrioritiesFor(null)
+    loadPriorities(supabase, userId, dateKey)
+      .then(({ items, synced }) => {
+        if (!live) return
+        prioritiesSynced.current = synced
+        setPriorities(items)
+        setPrioritiesFor(dateKey)
+      })
+      .catch(err => {
+        console.error('Failed to load top 3', err)
+        if (live) { setPriorities([]); setPrioritiesFor(dateKey) }
+      })
+    return () => { live = false }
+  }, [userId, dateKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Flush a pending text save when switching day, leaving the page or backgrounding the app
   useEffect(() => () => flushPendingSave(), [dateKey])
@@ -453,6 +520,7 @@ export default function DailyPlanner() {
     setSchedulingForDate(null)
     setModalStart(null)
     setSchedulingTodo(null)
+    setSchedulingRock(null)
   }
 
   function openNewTask(startMinutes?: number) {
@@ -468,6 +536,82 @@ export default function DailyPlanner() {
     const slot = nextFreeSlot(tasks, from) ?? Math.ceil(from / 15) * 15
     setSchedulingTodo(todo)
     openNewTask(Math.min(slot, 23 * 60))
+  }
+
+  // Next free start on the day on screen (from now if today), for to-dos, rocks and quick add
+  function nextSlot(dayTasks: PlannerTask[], day: string, duration = 60) {
+    const now = new Date()
+    const from = day === todayKey ? now.getHours() * 60 + now.getMinutes() : 9 * 60
+    return Math.min(nextFreeSlot(dayTasks, from, duration) ?? Math.ceil(from / 15) * 15, 23 * 60)
+  }
+
+  // Book time for a big rock: the editor opens at the next free slot with its role and goal
+  function scheduleRock(rock: WeeklyRock) {
+    setSchedulingRock(rock)
+    openNewTask(nextSlot(tasks, dateKey))
+  }
+
+  // One line: "Gym tomorrow 7am 1h"; with no time it goes in the next free slot
+  const quickParsed = useMemo(() => parseQuickAdd(quickText, todayKey, dateKey), [quickText, todayKey, dateKey])
+  const quickSlot = useMemo(() => {
+    if (!quickParsed) return null
+    if (quickParsed.start && quickParsed.end) return { start: quickParsed.start, end: quickParsed.end }
+    const dayTasks = quickParsed.day === dateKey ? tasks : weekData.find(d => d.day === quickParsed.day)?.tasks ?? []
+    const start = nextSlot(dayTasks, quickParsed.day, quickParsed.duration)
+    return { start: formatMinutes(start), end: formatMinutes((start + quickParsed.duration) % 1440) }
+  }, [quickParsed, tasks, weekData, dateKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function quickAdd() {
+    if (!quickParsed || !quickSlot || !userId || loading) return
+    const task: PlannerTask = {
+      id: crypto.randomUUID(),
+      text: quickParsed.text,
+      start: quickSlot.start,
+      end: quickSlot.end,
+      completed: false,
+      visibility: 'private',
+      owner_id: userId,
+    }
+    const day = quickParsed.day
+    setQuickText('')
+    handleSave(task, 'all', { original: null, targetDay: day !== dateKey ? day : null })
+    if (day === dateKey) toast.success(tr('Added {text} at {time}', { text: task.text, time: task.start }))
+  }
+
+  // Dropped on the timeline: a one-off moves (with undo); a repeating event moves for this day only
+  function moveTask(task: PlannerTask, next: { start: string; end: string }) {
+    if (loading) return
+    const moved = { ...task, ...next }
+    if (task.recurring) {
+      handleSave(moved, 'this', { original: task })
+      toast.success(tr('Moved to {time} for this day only', { time: next.start }))
+      return
+    }
+    handleSave(moved, 'all', { original: task })
+    const day = dateKey
+    toast.success(tr('Moved to {time}', { time: next.start }), {
+      action: {
+        label: tr('Undo'),
+        onClick: () => {
+          const s = stateRef.current
+          if (s.dateKey !== day || s.loadedDateKey !== day) return
+          const restored = s.tasks.map(t => (t.id === task.id ? { ...t, start: task.start, end: task.end } : t))
+          setTasks(restored)
+          saveNow({ tasks: restored })
+        },
+      },
+    })
+  }
+
+  // Top 3: change the list for the day on screen and save it (one save at a time)
+  function changePriorities(next: Priority[]) {
+    if (!userId || prioritiesFor !== dateKey || next === priorities) return
+    setPriorities(next)
+    const day = dateKey
+    const synced = prioritiesSynced.current
+    prioritiesChain.current = prioritiesChain.current
+      .then(() => savePriorities(supabase, userId, day, next, synced))
+      .catch(err => { console.error('Failed to save top 3', err); toast.error(trNow("Couldn't save your top 3.")) })
   }
 
   async function completeScheduledTodo(todo: PlannerTodo | null) {
@@ -499,10 +643,16 @@ export default function DailyPlanner() {
     })
   }
 
-  async function handleSave(task: PlannerTask, scope: SaveScope) {
-    const original = editingTask
-    const targetDay = schedulingForDate
-    const todo = schedulingTodo
+  // From the editor (defaults come from what it was opened with), or directly from
+  // quick add and drag, which pass the original event and the target day themselves
+  async function handleSave(
+    task: PlannerTask,
+    scope: SaveScope,
+    ctx?: { original?: PlannerTask | null; targetDay?: string | null; todo?: PlannerTodo | null },
+  ) {
+    const original = ctx ? ctx.original ?? null : editingTask
+    const targetDay = ctx ? ctx.targetDay ?? null : schedulingForDate
+    const todo = ctx ? ctx.todo ?? null : schedulingTodo
     closeModal()
     if (!userId) return
     task.owner_id = task.owner_id || userId
@@ -644,6 +794,21 @@ export default function DailyPlanner() {
   const sortedTasks = sortByStart(tasks)
   const isToday = dateKey === todayKey
 
+  // Rocks with no time yet this week (today's events come from the screen, the rest from the week)
+  const weekTasks = [...weekData.filter(d => d.day !== dateKey).flatMap(d => d.tasks), ...tasks]
+    .filter(t => !t.owner_id || t.owner_id === userId)
+  // Like Compass: only rocks of active roles, and Sharpen the saw
+  const liveRocks = rocks.filter(r => r.role_id === null || (!!rolesMap[r.role_id] && !rolesMap[r.role_id].is_archived))
+  const openRocks = unscheduledRocks(liveRocks, weekTasks)
+  const showRocks = rocksReady && activeRoles.length > 0
+
+  const prioritySuggestions: PrioritySuggestion[] = [
+    ...liveRocks.filter(r => !r.done).map(r => ({ key: `rock-${r.id}`, text: r.text, rock_id: r.id, hint: '⛰️' })),
+    ...sortByStart(tasks.filter(t => (!t.owner_id || t.owner_id === userId) && !completedTaskIds.includes(t.id)))
+      .map(t => ({ key: `task-${t.id}`, text: t.text, hint: t.start })),
+  ]
+  const prioritiesLoading = prioritiesFor !== dateKey
+
   return (
     <div className={`min-h-screen transition-colors duration-1000 ${theme.bg} font-sans pb-32`}>
       <header className={`sticky top-0 transition-colors duration-1000 z-30 px-6 pt-12 pb-4 ${theme.bg} backdrop-blur-md`}>
@@ -663,6 +828,7 @@ export default function DailyPlanner() {
 
             <button
               onClick={() => setView(v => v === 'monthly' ? 'daily' : 'monthly')}
+              aria-label={tr('Month')}
               className={`relative transition-transform active:scale-90 ${view === 'monthly' ? 'scale-110' : ''}`}
             >
               <CalendarIcon className={`w-7 h-7 ${theme.text} ${view === 'monthly' ? 'opacity-100' : 'opacity-80'}`} />
@@ -670,9 +836,32 @@ export default function DailyPlanner() {
             </button>
           </div>
         </div>
+        {/* Day, week or month */}
+        <div className="mt-4 flex rounded-2xl border border-white/50 bg-white/60 p-1 dark:border-slate-700/50 dark:bg-slate-800/60">
+          {([['daily', 'Day'], ['weekly', 'Week'], ['monthly', 'Month']] as const).map(([value, label]) => (
+            <button
+              key={value}
+              onClick={() => setView(value)}
+              aria-pressed={view === value}
+              className={`flex-1 rounded-xl py-1.5 text-xs font-bold transition-all ${view === value ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}
+            >
+              {tr(label)}
+            </button>
+          ))}
+        </div>
       </header>
 
-      {view === 'monthly' ? (
+      {view === 'weekly' ? (
+        <div className="mt-4">
+          <WeekPlanner
+            selectedKey={dateKey}
+            userId={userId}
+            rolesMap={rolesMap}
+            visionsMap={visionsMap}
+            onPickDay={day => { setSelectedDate(parseDateKey(day)); setView('daily') }}
+          />
+        </div>
+      ) : view === 'monthly' ? (
         <MonthCalendar
           selectedDate={selectedDate}
           onDateSelect={setSelectedDate}
@@ -712,25 +901,35 @@ export default function DailyPlanner() {
         </div>
 
         <div className="mb-8">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-500 to-orange-600 p-5 shadow-sm">
-            <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-3">
-                <Sun className="w-3.5 h-3.5 text-white/70" />
-                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">{tr('Morning Intention')}</span>
-                <HelpTip topic="planner.intention" tone="onDark" align="left" className="-my-1" />
-              </div>
-              <textarea
-                value={morning}
-                disabled={loading}
-                placeholder={tr('Focus of the day...')}
-                onChange={(e) => { setMorning(e.target.value); saveDebounced({ morning: e.target.value }) }}
-                onBlur={flushPendingSave}
-                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[70px] disabled:opacity-60"
-              />
-            </div>
-          </div>
+          <NoteCard
+            icon={<Sun className="w-3.5 h-3.5 text-white/70" />}
+            title={tr('Morning Intention')}
+            help="planner.intention"
+            gradient="from-amber-500 to-orange-600"
+            value={morning}
+            placeholder={tr('Focus of the day...')}
+            minHeight="70px"
+            disabled={loading}
+            onChange={v => { setMorning(v); saveDebounced({ morning: v }) }}
+            onBlur={flushPendingSave}
+          >
+            <TopThree
+              mode="plan"
+              items={priorities}
+              suggestions={prioritySuggestions}
+              disabled={prioritiesLoading}
+              onAdd={item => changePriorities(addPriority(priorities, item))}
+              onToggle={id => changePriorities(togglePriority(priorities, id))}
+              onRemove={id => changePriorities(removePriority(priorities, id))}
+            />
+          </NoteCard>
         </div>
+
+        {showRocks && (
+          <div className="mb-8">
+            <RocksStrip rocks={openRocks} total={liveRocks.length} rolesMap={rolesMap} onSchedule={scheduleRock} />
+          </div>
+        )}
 
         <div className="flex items-center justify-between mb-3 px-1">
           <span className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-50 ${theme.text}`}>
@@ -758,6 +957,36 @@ export default function DailyPlanner() {
           </div>
         </div>
 
+        <form
+          onSubmit={e => { e.preventDefault(); quickAdd() }}
+          className="mb-3"
+        >
+          <div className="flex items-center gap-2 rounded-2xl border border-white/50 bg-white/70 px-3 py-1.5 shadow-sm backdrop-blur-sm dark:border-slate-700/50 dark:bg-slate-800/70">
+            <Zap className="h-4 w-4 shrink-0 text-violet-500" />
+            <input
+              value={quickText}
+              onChange={e => setQuickText(e.target.value)}
+              disabled={loading}
+              maxLength={200}
+              enterKeyHint="done"
+              placeholder={tr('Quick add: Gym tomorrow 7am 1h')}
+              aria-label={tr('Quick add')}
+              className="min-w-0 flex-1 bg-transparent py-1.5 text-[16px] font-semibold text-slate-800 outline-none placeholder:text-slate-400 dark:text-slate-100"
+            />
+            <HelpTip topic="planner.quickadd" align="right" className="-my-1" />
+            {quickParsed && (
+              <button type="submit" disabled={loading} className="shrink-0 rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-bold text-white active:scale-95 disabled:opacity-60">
+                {tr('Add')}
+              </button>
+            )}
+          </div>
+          {quickParsed && quickSlot && (
+            <p className={`mt-1.5 px-2 text-[11px] font-semibold opacity-60 ${theme.text}`}>
+              → {quickParsed.text} · {quickParsed.day === dateKey ? (isToday ? tr('Today') : formatDateKey(quickParsed.day)) : formatDateKey(quickParsed.day)} · {quickSlot.start}–{quickSlot.end}{!quickParsed.start && ` (${tr('next free slot')})`}
+            </p>
+          )}
+        </form>
+
         <div className="space-y-3 relative mb-8">
           {loadError ? (
             <div className="rounded-3xl border-2 border-dashed border-red-200 dark:border-red-900/50 p-6 text-center">
@@ -782,98 +1011,27 @@ export default function DailyPlanner() {
               onTaskClick={setEditingTask}
               onToggleComplete={toggleComplete}
               onAddAt={openNewTask}
+              onMove={moveTask}
             />
           ) : sortedTasks.length === 0 ? (
             <div className="rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-6 text-center">
               <p className={`text-sm font-semibold opacity-60 ${theme.text}`}>{tr('Nothing planned yet')}</p>
               <p className={`text-xs opacity-40 mt-1 ${theme.text}`}>{tr('Add an event to start shaping your day.')}</p>
             </div>
-          ) : sortedTasks.map((task) => {
-            const isPartnerTask = !!task.owner_id && task.owner_id !== userId
-            const isDone = isPartnerTask ? partnerCompletedIds.includes(task.id) : completedTaskIds.includes(task.id)
-            const vision = task.vision_id ? visionsMap[task.vision_id] : null
-            const look = taskLook(task, rolesMap)
-            const goalTitle = task.goal_id ? goalTitles[task.goal_id] : null
-            const partner = isPartnerTask ? profilesMap[task.owner_id!] : null
-
-            return (
-              <div
-                key={task.id}
-                onClick={() => !isPartnerTask && setEditingTask(task)}
-                style={look.style}
-                className={`relative overflow-hidden rounded-3xl p-4 ${look.className} ${isDone ? 'opacity-60' : ''} ${!isPartnerTask ? 'active:scale-[0.98] cursor-pointer' : 'cursor-default'} transition-all shadow-sm`}
-              >
-                {/* Decorative circle */}
-                <div className="absolute -bottom-5 -right-5 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
-
-                <div className="relative z-10">
-                  {/* Time + completion row */}
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-white/60 uppercase tracking-widest tabular-nums">
-                        {task.start} — {task.end}{endsNextDay(task) && ' (+1)'}
-                      </span>
-                      {task.recurring && <RefreshCw className="w-3 h-3 text-white/40" />}
-                    </div>
-                    {isPartnerTask ? (
-                      isDone && (
-                        <div className="w-6 h-6 rounded-full bg-white/80 flex items-center justify-center">
-                          <Check className="w-3 h-3 text-slate-600 stroke-[3]" />
-                        </div>
-                      )
-                    ) : (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); toggleComplete(task.id) }}
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isDone ? 'bg-white border-white' : 'border-white/50 hover:border-white'}`}
-                      >
-                        {isDone && <Check className="w-3 h-3 text-slate-600 stroke-[3]" />}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Task title */}
-                  <h3 className={`text-base font-black text-white leading-snug ${isDone ? 'line-through' : ''}`}>
-                    {task.text}
-                  </h3>
-
-                  {/* Role (and goal) badge; older events show their vision */}
-                  {look.role && (
-                    <div className="mt-2 flex max-w-full items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
-                      <span className="text-[10px]">{look.role.emoji ?? '🎯'}</span>
-                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{tr(look.role.name)}</span>
-                      {goalTitle && <span className="min-w-0 truncate text-[10px] font-semibold text-white/75 normal-case">· {goalTitle}</span>}
-                    </div>
-                  )}
-                  {!look.role && !task.role_id && vision && (
-                    <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
-                      <span className="text-[10px]">{vision.emoji}</span>
-                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">{tr(vision.title)}</span>
-                    </div>
-                  )}
-
-                  {/* Partner badge */}
-                  {partner && (
-                    <div className="mt-2 flex items-center gap-1.5 bg-white/20 backdrop-blur-sm rounded-full px-2.5 py-1 w-fit">
-                      {partner.avatar_url ? (
-                        <img
-                          src={partner.avatar_url}
-                          alt={partner.name || tr('Partner')}
-                          className="w-3.5 h-3.5 rounded-full"
-                        />
-                      ) : (
-                        <div className="w-3.5 h-3.5 rounded-full bg-white/30 flex items-center justify-center text-[7px] font-bold text-white">
-                          {(partner.name || 'P')[0].toUpperCase()}
-                        </div>
-                      )}
-                      <span className="text-[10px] font-bold text-white/90 uppercase tracking-wide">
-                        {partner.name || tr('Partner')}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          ) : (
+            <DayTaskCards
+              tasks={sortedTasks}
+              userId={userId}
+              completedTaskIds={completedTaskIds}
+              partnerCompletedIds={partnerCompletedIds}
+              rolesMap={rolesMap}
+              visionsMap={visionsMap}
+              goalTitles={goalTitles}
+              profilesMap={profilesMap}
+              onOpen={setEditingTask}
+              onToggle={toggleComplete}
+            />
+          )}
         </div>
 
         {!loading && dateKey <= todayKey && unfinishedOneOffs.length > 0 && (
@@ -940,24 +1098,25 @@ export default function DailyPlanner() {
         </div>
 
         <div className="mt-6 pb-20">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-violet-600 to-indigo-700 p-5 shadow-sm">
-            <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
-            <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-3">
-                <Moon className="w-3.5 h-3.5 text-white/70" />
-                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">{tr('Evening Reflection')}</span>
-                <HelpTip topic="planner.reflection" tone="onDark" align="left" className="-my-1" />
-              </div>
-              <textarea
-                value={reflection}
-                disabled={loading}
-                placeholder={tr('How did you finish your day?')}
-                onChange={(e) => { setReflection(e.target.value); saveDebounced({ reflection: e.target.value }) }}
-                onBlur={flushPendingSave}
-                className="w-full bg-transparent border-none text-white text-[16px] font-semibold placeholder:text-white/40 focus:ring-0 resize-none outline-none min-h-[100px] disabled:opacity-60"
-              />
-            </div>
-          </div>
+          <NoteCard
+            icon={<Moon className="w-3.5 h-3.5 text-white/70" />}
+            title={tr('Evening Reflection')}
+            help="planner.reflection"
+            gradient="from-violet-600 to-indigo-700"
+            value={reflection}
+            placeholder={tr('How did you finish your day?')}
+            minHeight="100px"
+            disabled={loading}
+            onChange={v => { setReflection(v); saveDebounced({ reflection: v }) }}
+            onBlur={flushPendingSave}
+          >
+            <TopThree
+              mode="review"
+              items={priorities}
+              disabled={prioritiesLoading}
+              onToggle={id => changePriorities(togglePriority(priorities, id))}
+            />
+          </NoteCard>
         </div>
       </div>
         </>
@@ -975,10 +1134,11 @@ export default function DailyPlanner() {
         <TaskModal
           hour={editingTask ? parseInt(editingTask.start.split(':')[0]) : taskModalHour!}
           startMinutes={editingTask ? undefined : modalStart ?? undefined}
-          initialText={schedulingTodo?.text}
+          initialText={schedulingTodo?.text ?? schedulingRock?.text}
           initialVisionId={schedulingTodo?.vision_id}
-          initialRoleId={schedulingTodo?.role_id}
-          initialGoalId={schedulingTodo?.goal_id}
+          initialRoleId={schedulingTodo?.role_id ?? schedulingRock?.role_id}
+          initialGoalId={schedulingTodo?.goal_id ?? schedulingRock?.goal_id}
+          initialRockId={schedulingRock?.id}
           roles={activeRoles}
           visions={visionsMap}
           existingTask={editingTask}
@@ -986,7 +1146,7 @@ export default function DailyPlanner() {
           dayTasks={schedulingForDate && schedulingForDate !== dateKey ? [] : tasks}
           dayLabel={schedulingForDate ? formatDateKey(schedulingForDate) : formatDateKey(dateKey)}
           onClose={closeModal}
-          onSave={handleSave}
+          onSave={(t, scope) => handleSave(t, scope)}
           onDelete={editingTask ? (scope) => handleDelete(editingTask, scope) : undefined}
         />
       )}
