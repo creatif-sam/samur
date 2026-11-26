@@ -1,6 +1,6 @@
 'use client'
 
-import { appLocale, trNow } from '@/lib/i18n'
+import { appLocale } from '@/lib/i18n'
 import { useTranslation } from '@/contexts/TranslationContext'
 import { HelpTip } from '@/components/ui/help-tip'
 import { JSX, useEffect, useRef, useState } from 'react'
@@ -10,9 +10,8 @@ import PrayerTimer from './PrayerTimer'
 import PrayerCalendar from './PrayerCalendar'
 import PartnerPrayerBoard from './PartnerPrayerBoard'
 import { ThoughtEditor } from '@/components/note/ThoughtEditor'
-import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight, Play } from 'lucide-react'
+import { X, Check, ChevronDown, ChevronUp, Plus, BookOpen, ChevronRight, Play, Pencil, Share2, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { toLocalDateKey } from '@/lib/dates'
 import { ensureSystemNotebook, findSystemNotebook } from '@/lib/notes/data'
 import { loadDraft, saveDraft } from '@/lib/offline'
 import { useVisualViewport } from '@/lib/useVisualViewport'
@@ -21,32 +20,15 @@ import { classicTimerRunning, clearGuided, loadGuided, saveGuided, type GuidedIt
 import GuidedPrayerSetup from './GuidedPrayerSetup'
 import GuidedPrayerSession from './GuidedPrayerSession'
 import DiaryEntryCard from './DiaryEntryCard'
+import RequestModal, { CATEGORY_COLORS, CATEGORY_LABELS, type RequestDraft } from './RequestModal'
+import PrayerReminders from './PrayerReminders'
+import { composePost } from '@/lib/posts'
+import {
+  answeredAfter, isMissingPrayerUpdate, loadHistory, loadPartner, loadPartnerRequests, sinceLabel,
+  type PrayerHistory, type PrayerRequest,
+} from '@/lib/prayer/requests'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-
-type Category = 'personal' | 'family' | 'intercession' | 'guidance' | 'healing' | 'thanksgiving'
-type Status = 'active' | 'answered' | 'ongoing'
-
-interface PrayerEntry {
-  id: string
-  date: string
-  completed: boolean
-  duration_minutes: number | null
-  notes: string | null
-  listened_to_god?: boolean
-}
-
-interface PrayerRequest {
-  id: string
-  title: string
-  description: string | null
-  category: Category
-  status: Status
-  is_shared: boolean
-  answer_note: string | null
-  answered_at: string | null
-  created_at: string
-}
 
 interface DiaryPage {
   id: string
@@ -61,132 +43,7 @@ interface DiarySection {
   title: string
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const CATEGORY_LABELS: Record<Category, string> = {
-  personal: 'Personal',
-  family: 'Family',
-  intercession: 'Intercession',
-  guidance: 'Guidance',
-  healing: 'Healing',
-  thanksgiving: 'Thanksgiving',
-}
-
-const CATEGORY_COLORS: Record<Category, string> = {
-  personal:     'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-  family:       'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  intercession: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  guidance:     'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  healing:      'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
-  thanksgiving: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-}
-
-const QUICK_DURATIONS = [5, 10, 15, 20, 30]
-
-function todayISO() {
-  return toLocalDateKey(new Date())
-}
-
-function daysAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime()
-  const days = Math.floor(diff / 86_400_000)
-  if (days === 0) return trNow('today')
-  return trNow('{days} {days:day|days} ago', { days })
-}
-
-function calcStreak(entries: PrayerEntry[]): number {
-  const doneSet = new Set(entries.filter(e => e.completed).map(e => e.date))
-  let streak = 0
-  const d = new Date()
-  // allow today to be incomplete (streak extends if yesterday was done)
-  if (!doneSet.has(todayISO())) d.setDate(d.getDate() - 1)
-  while (doneSet.has(toLocalDateKey(d))) {
-    streak++
-    d.setDate(d.getDate() - 1)
-  }
-  return streak
-}
-
 // ─── Sub-components ──────────────────────────────────────────────────────────
-
-function AddRequestModal({ onClose, onSave }: { onClose: () => void; onSave: (r: Omit<PrayerRequest, 'id' | 'created_at' | 'answered_at' | 'answer_note'>) => Promise<void> }) {
-  const { tr } = useTranslation()
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState<Category>('personal')
-  const [isShared, setIsShared] = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  async function submit() {
-    if (!title.trim()) return
-    setSaving(true)
-    await onSave({ title: title.trim(), description: description.trim() || null, category, status: 'active', is_shared: isShared })
-    setSaving(false)
-    onClose()
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-4">
-      <div className="w-full max-w-md bg-background rounded-3xl shadow-2xl p-6 space-y-5 mb-20 sm:mb-0">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-base">{tr('New Prayer Request')}</h3>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition"><X className="w-4 h-4" /></button>
-        </div>
-        <input
-          autoFocus
-          placeholder={tr('What are you bringing before God?')}
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
-        />
-        <textarea
-          placeholder={tr('More details (optional)')}
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          rows={3}
-          className="w-full rounded-xl border bg-muted/30 px-4 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-violet-500"
-        />
-        <div>
-          <p className="text-xs text-muted-foreground mb-2 font-medium">{tr('Category')}</p>
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(CATEGORY_LABELS) as Category[]).map(cat => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition ${
-                  category === cat
-                    ? CATEGORY_COLORS[cat] + ' ring-2 ring-offset-1 ring-current'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                }`}
-              >
-                {tr(CATEGORY_LABELS[cat])}
-              </button>
-            ))}
-          </div>
-        </div>
-        <label className="flex items-center gap-3 cursor-pointer select-none">
-          <div
-            onClick={() => setIsShared(v => !v)}
-            className={`relative w-10 h-5.5 rounded-full transition-colors ${isShared ? 'bg-violet-600' : 'bg-muted'}`}
-          >
-            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${isShared ? 'translate-x-5' : ''}`} />
-          </div>
-          <span className="text-sm">{tr('Share with partner')}</span>
-        </label>
-        <div className="flex gap-2 pt-1">
-          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted transition">{tr('Cancel')}</button>
-          <button
-            onClick={submit}
-            disabled={saving || !title.trim()}
-            className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold transition disabled:opacity-50"
-          >
-            {saving ? tr('Saving...') : tr('Add Request')}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function MarkAnsweredModal({ request, onClose, onSave }: { request: PrayerRequest; onClose: () => void; onSave: (note: string) => Promise<void> }) {
   const { tr } = useTranslation()
@@ -207,7 +64,7 @@ function MarkAnsweredModal({ request, onClose, onSave }: { request: PrayerReques
           <h3 className="font-semibold text-base">{tr('Prayer Answered!')}</h3>
           <button onClick={onClose} className="p-1 rounded-full hover:bg-muted transition"><X className="w-4 h-4" /></button>
         </div>
-        <p className="text-sm text-muted-foreground">&ldquo;{tr(request.title)}&rdquo;</p>
+        <p className="text-sm text-muted-foreground">&ldquo;{request.title}&rdquo;</p>
         <textarea
           autoFocus
           placeholder={tr('How was it answered? (optional)')}
@@ -231,38 +88,60 @@ function MarkAnsweredModal({ request, onClose, onSave }: { request: PrayerReques
   )
 }
 
-function RequestCard({ req, onMarkAnswered, onDelete, onPray }: {
+// One prayer request. Yours can be prayed for, edited, marked answered or removed;
+// your partner's shared ones can be prayed for.
+function RequestCard({ req, lastPrayed, partnerPrayed, partnerName, onPray, onEdit, onMarkAnswered, onDelete }: {
   req: PrayerRequest
-  onMarkAnswered: (r: PrayerRequest) => void
-  onDelete: (id: string) => void
+  lastPrayed?: string
+  partnerPrayed?: { count: number; last: string }
+  partnerName?: string | null
   onPray: (r: PrayerRequest) => void
+  onEdit?: (r: PrayerRequest) => void
+  onMarkAnswered?: (r: PrayerRequest) => void
+  onDelete?: (r: PrayerRequest) => void
 }) {
   const { tr } = useTranslation()
   const [expanded, setExpanded] = useState(false)
+  const mine = !!onEdit
 
   return (
     <div className="bg-background rounded-2xl border shadow-sm overflow-hidden">
       <button
         onClick={() => setExpanded(v => !v)}
+        aria-expanded={expanded}
         className="w-full flex items-start gap-3 p-4 text-left"
       >
         <div className="mt-0.5 flex-shrink-0">
           {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium leading-snug">{tr(req.title)}</p>
+          <p className="text-sm font-medium leading-snug">{req.title}</p>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[req.category]}`}>
-              {tr(CATEGORY_LABELS[req.category])}
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[req.category] ?? CATEGORY_COLORS.personal}`}>
+              {tr(CATEGORY_LABELS[req.category] ?? req.category)}
             </span>
-            <span className="text-[10px] text-muted-foreground">{daysAgo(req.created_at)}</span>
-            {req.is_shared && <span className="text-[10px] text-violet-500 font-medium">{tr('shared')}</span>}
+            <span className="text-[10px] text-muted-foreground">{sinceLabel(req.created_at)}</span>
+            {mine && req.is_shared && <span className="text-[10px] text-violet-500 font-medium">{tr('shared')}</span>}
           </div>
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            {lastPrayed ? tr('You last prayed {when}', { when: sinceLabel(lastPrayed) }) : tr('Not prayed for yet')}
+            {partnerPrayed && partnerPrayed.count > 0 && (
+              <span className="font-semibold text-violet-600 dark:text-violet-400">
+                {' · '}{tr('{name} prayed {n} {n:time|times}', { name: partnerName || tr('Your partner'), n: partnerPrayed.count })}
+              </span>
+            )}
+          </p>
         </div>
       </button>
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t pt-3">
-          {req.description && <p className="text-sm text-muted-foreground">{tr(req.description)}</p>}
+          {req.description && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{req.description}</p>}
+          {req.verse_ref && (
+            <blockquote className="rounded-xl border-l-4 border-violet-400 bg-violet-50 px-3 py-2 text-xs leading-relaxed dark:bg-violet-500/10">
+              {req.verse_text && <span className="italic text-foreground/80">“{req.verse_text}” </span>}
+              <span className="font-bold text-violet-700 dark:text-violet-300">{req.verse_ref}</span>
+            </blockquote>
+          )}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => onPray(req)}
@@ -270,18 +149,30 @@ function RequestCard({ req, onMarkAnswered, onDelete, onPray }: {
             >
               <Play className="w-3.5 h-3.5 fill-current" />{' '}{tr('Pray for this')}
             </button>
-            <button
-              onClick={() => onMarkAnswered(req)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
-            >
-              <Check className="w-3.5 h-3.5" />{' '}{tr('Answered')}
-            </button>
-            <button
-              onClick={() => onDelete(req.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive text-xs font-medium transition"
-            >
-              <X className="w-3.5 h-3.5" />{' '}{tr('Remove')}
-            </button>
+            {onMarkAnswered && (
+              <button
+                onClick={() => onMarkAnswered(req)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
+              >
+                <Check className="w-3.5 h-3.5" />{' '}{tr('Answered')}
+              </button>
+            )}
+            {onEdit && (
+              <button
+                onClick={() => onEdit(req)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-muted/70 text-xs font-medium transition"
+              >
+                <Pencil className="w-3.5 h-3.5" />{' '}{tr('Edit')}
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(req)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive text-xs font-medium transition"
+              >
+                <X className="w-3.5 h-3.5" />{' '}{tr('Remove')}
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -369,7 +260,7 @@ function DiaryModal({ onClose, onSave, saving, sections, onCreateSection, initia
                       : 'bg-muted text-muted-foreground hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-950/40'
                   }`}
                 >
-                  {tr(s.title)}
+                  {s.title}
                 </button>
               ))}
               <button
@@ -472,7 +363,19 @@ export default function PrayerTab(): JSX.Element {
   const [calendarRefreshKey, setCalendarRefreshKey] = useState(0)
   const [requests, setRequests] = useState<PrayerRequest[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editing, setEditing] = useState<PrayerRequest | null>(null)
   const [markAnsweringReq, setMarkAnsweringReq] = useState<PrayerRequest | null>(null)
+  // Your partner, their shared requests, and who prayed for what (every device)
+  const [partner, setPartner] = useState<{ id: string; name: string | null } | null>(null)
+  const [myName, setMyName] = useState<string | null>(null)
+  const [partnerRequests, setPartnerRequests] = useState<PrayerRequest[]>([])
+  const [history, setHistory] = useState<PrayerHistory>({ lastPrayed: {}, partnerPrayers: {} })
+  const [testified, setTestified] = useState<Set<string>>(() => new Set())
+  useEffect(() => {
+    try { setTestified(new Set(JSON.parse(localStorage.getItem('prayer-testimonies') ?? '[]'))) } catch { /* storage unavailable */ }
+  }, [])
+  // Removals wait a few seconds so they can be undone
+  const pendingDeletes = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; run: () => void }>())
   const [showAnswered, setShowAnswered] = useState(false)
   const [diaryNotebookId, setDiaryNotebookId] = useState<string | null>(null)
   const [diarySections, setDiarySections] = useState<DiarySection[]>([])
@@ -497,34 +400,152 @@ export default function PrayerTab(): JSX.Element {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setLoading(false); return }
     setUserId(user.id)
-    const { data: requestsData } = await supabase
+    const { data: requestsData, error } = await supabase
       .from('prayer_requests')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
-    setRequests(requestsData ?? [])
+    if (error) toast.error(tr('Couldn\'t load your prayer requests. Check your connection.'))
+    const own = (requestsData ?? []) as PrayerRequest[]
+    setRequests(own)
     setLoading(false)
     void loadDiary(user.id)
+    void loadPeople(user.id, own)
   }
 
-  async function addRequest(req: Omit<PrayerRequest, 'id' | 'created_at' | 'answered_at' | 'answer_note'>) {
+  // Partner, their shared requests and the prayer history (all optional: they load after the list)
+  async function loadPeople(uid: string, own: PrayerRequest[]) {
+    const supabase = createClient()
+    try {
+      const [p, me] = await Promise.all([
+        loadPartner(supabase, uid),
+        supabase.from('profiles').select('name').eq('id', uid).maybeSingle(),
+      ])
+      setPartner(p)
+      setMyName((me.data?.name as string | null) ?? null)
+      const [theirs, hist] = await Promise.all([
+        p ? loadPartnerRequests(supabase, p.id) : Promise.resolve([] as PrayerRequest[]),
+        loadHistory(supabase, uid, own.map(r => r.id)),
+      ])
+      setPartnerRequests(theirs)
+      setHistory(hist)
+    } catch (err) {
+      console.error('Failed to load partner prayer requests', err)
+    }
+  }
+
+  function refreshHistory() {
     if (!userId) return
-    const supabase = createClient()
-    const { data } = await supabase.from('prayer_requests').insert({ ...req, user_id: userId }).select().single()
-    if (data) setRequests(prev => [data, ...prev])
+    loadHistory(createClient(), userId, requests.map(r => r.id)).then(setHistory).catch(() => {})
   }
 
-  async function markAnswered(id: string, note: string) {
+  // Saves a request; before the prayer update the promise verse can't be stored yet
+  async function writeRequest(draft: RequestDraft, id?: string) {
     const supabase = createClient()
+    const run = (row: Record<string, unknown>) => id
+      ? supabase.from('prayer_requests').update(row).eq('id', id).select().single()
+      : supabase.from('prayer_requests').insert({ ...row, status: 'active', user_id: userId }).select().single()
+    let { data, error } = await run({ ...draft })
+    if (error && /verse/.test(error.message) && isMissingPrayerUpdate(error.message)) {
+      const { verse_ref: _r, verse_text: _t, ...rest } = draft // eslint-disable-line @typescript-eslint/no-unused-vars
+      ;({ data, error } = await run(rest))
+      if (!error && draft.verse_ref) toast(tr('Saved. The promise verse needs a quick database update first: run the prayer migration in Supabase.'))
+    }
+    return { data: data as PrayerRequest | null, error }
+  }
+
+  async function addRequest(draft: RequestDraft) {
+    if (!userId) return false
+    const { data, error } = await writeRequest(draft)
+    if (error || !data) { toast.error(tr('Couldn\'t save the request. Check your connection.')); return false }
+    setRequests(prev => [data, ...prev])
+    return true
+  }
+
+  async function saveEdit(req: PrayerRequest, draft: RequestDraft) {
+    const { data, error } = await writeRequest(draft, req.id)
+    if (error || !data) { toast.error(tr('Couldn\'t save the request. Check your connection.')); return false }
+    setRequests(prev => prev.map(r => (r.id === req.id ? { ...r, ...data } : r)))
+    return true
+  }
+
+  async function markAnswered(req: PrayerRequest, note: string) {
     const now = new Date().toISOString()
-    await supabase.from('prayer_requests').update({ status: 'answered', answer_note: note || null, answered_at: now }).eq('id', id)
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'answered', answer_note: note || null, answered_at: now } : r))
+    const patch = { status: 'answered' as const, answer_note: note || null, answered_at: now }
+    setRequests(prev => prev.map(r => (r.id === req.id ? { ...r, ...patch } : r)))
+    const { data, error } = await createClient().from('prayer_requests').update(patch).eq('id', req.id).select('id')
+    if (error || !data?.length) {
+      setRequests(prev => prev.map(r => (r.id === req.id ? req : r)))
+      toast.error(tr('Couldn\'t mark it answered. Check your connection.'))
+      return
+    }
+    toast.success(tr('Praise God! 🎉'))
+    // A shared request: your partner prayed for it too, so they hear the answer
+    if (req.is_shared && partner) {
+      fetch('/api/notifications/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: partner.id,
+          type: 'request_prayed',
+          title: tr('🎉 {name}\'s prayer was answered', { name: myName || tr('Your partner') }),
+          body: (note ? `${req.title}: ${note}` : req.title).slice(0, 180),
+          url: '/protected/posts?tab=prayer',
+        }),
+      }).catch(() => {})
+    }
   }
 
-  async function deleteRequest(id: string) {
-    const supabase = createClient()
-    await supabase.from('prayer_requests').delete().eq('id', id)
-    setRequests(prev => prev.filter(r => r.id !== id))
+  // Removed at once on screen, deleted after a few seconds unless undone
+  function deleteRequest(req: PrayerRequest) {
+    setRequests(prev => prev.filter(r => r.id !== req.id))
+    const run = async () => {
+      pendingDeletes.current.delete(req.id)
+      const { data, error } = await createClient().from('prayer_requests').delete().eq('id', req.id).select('id')
+      if (error || !data?.length) {
+        setRequests(prev => (prev.some(r => r.id === req.id) ? prev : [req, ...prev]))
+        toast.error(tr('Couldn\'t remove the request. Check your connection.'))
+      }
+    }
+    pendingDeletes.current.set(req.id, { timer: setTimeout(run, 5000), run })
+    toast(tr('Request removed'), {
+      duration: 5000,
+      action: {
+        label: tr('Undo'),
+        onClick: () => {
+          const pending = pendingDeletes.current.get(req.id)
+          if (pending) clearTimeout(pending.timer)
+          pendingDeletes.current.delete(req.id)
+          setRequests(prev => [req, ...prev.filter(r => r.id !== req.id)].sort((a, b) => b.created_at.localeCompare(a.created_at)))
+        },
+      },
+    })
+  }
+  // Leaving the tab doesn't cancel a removal: it is done straight away
+  useEffect(() => () => {
+    for (const { timer, run } of pendingDeletes.current.values()) { clearTimeout(timer); void run() }
+  }, [])
+
+  // An answered prayer shared as a post, to encourage your partner
+  async function shareTestimony(req: PrayerRequest) {
+    const after = req.answered_at ? answeredAfter(req.created_at, req.answered_at) : ''
+    const body = [`🙏 ${req.title}`, req.answer_note, after].filter(Boolean).join('\n')
+    try {
+      const res = await fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: composePost('gratitude', body), visibility: 'shared' }),
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      setTestified(prev => {
+        const next = new Set(prev).add(req.id)
+        try { localStorage.setItem('prayer-testimonies', JSON.stringify([...next].slice(-200))) } catch { /* storage unavailable */ }
+        return next
+      })
+      toast.success(tr('Shared in Posts'))
+    } catch {
+      toast.error(tr('Couldn\'t share it. Check your connection.'))
+    }
   }
 
   async function loadDiary(uid: string) {
@@ -641,6 +662,12 @@ export default function PrayerTab(): JSX.Element {
   }
 
   const active = requests.filter(r => r.status === 'active' || r.status === 'ongoing')
+  const toGuided = (r: PrayerRequest, theirs = false) => ({
+    id: r.id, title: r.title, description: r.description, category: r.category,
+    verse_ref: r.verse_ref ?? null, verse_text: r.verse_text ?? null,
+    ...(theirs ? { partner: true, owner_name: partner?.name ?? null } : {}),
+  })
+  const prayable = [...active.map(r => toGuided(r)), ...partnerRequests.map(r => toGuided(r, true))]
   const answered = requests.filter(r => r.status === 'answered')
 
   if (loading) {
@@ -681,6 +708,9 @@ export default function PrayerTab(): JSX.Element {
       {/* ── Partner Streaks ─────────────────────────────────── */}
       <PartnerPrayerBoard refreshKey={calendarRefreshKey} />
 
+      {/* ── Daily prayer times ──────────────────────────────── */}
+      {userId && <PrayerReminders userId={userId} />}
+
       {/* ── Active Requests ─────────────────────────────────── */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -689,7 +719,7 @@ export default function PrayerTab(): JSX.Element {
             <HelpTip topic="prayer.requests" align="left" className="-my-1" />
           </div>
           <div className="flex items-center gap-3">
-            {active.length > 0 && (
+            {prayable.length > 0 && (
               <button
                 onClick={() => openGuidedSetup(null)}
                 className="flex items-center gap-1 rounded-full bg-violet-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700 active:scale-95"
@@ -716,7 +746,11 @@ export default function PrayerTab(): JSX.Element {
               <RequestCard
                 key={req.id}
                 req={req}
+                lastPrayed={history.lastPrayed[req.id]}
+                partnerPrayed={history.partnerPrayers[req.id]}
+                partnerName={partner?.name}
                 onMarkAnswered={setMarkAnsweringReq}
+                onEdit={setEditing}
                 onDelete={deleteRequest}
                 onPray={r => openGuidedSetup(r.id)}
               />
@@ -725,6 +759,27 @@ export default function PrayerTab(): JSX.Element {
         )}
       </div>
 
+      {/* ── Your partner's shared requests ─────────────────── */}
+      {partner && partnerRequests.length > 0 && (
+        <div>
+          <div className="mb-3 flex items-center gap-1.5">
+            <Users className="h-4 w-4 text-violet-600" />
+            <p className="text-sm font-semibold text-foreground">{tr('Pray for {name}', { name: partner.name || tr('your partner') })}</p>
+            <HelpTip topic="prayer.partner" align="left" className="-my-1" />
+          </div>
+          <div className="space-y-2">
+            {partnerRequests.map(req => (
+              <RequestCard
+                key={req.id}
+                req={req}
+                lastPrayed={history.lastPrayed[req.id]}
+                onPray={r => openGuidedSetup(r.id)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Answered Prayers ────────────────────────────────── */}
       {answered.length > 0 && (
         <div>
@@ -732,7 +787,7 @@ export default function PrayerTab(): JSX.Element {
             onClick={() => setShowAnswered(v => !v)}
             className="flex items-center gap-2 text-sm font-semibold text-foreground mb-3 w-full"
           >
-            <span className="flex-1 text-left">{tr('Answered Prayers ({answeredCount})', { answeredCount: answered.length })}</span>
+            <span className="flex-1 text-left">{tr('Testimonies: answered prayers ({answeredCount})', { answeredCount: answered.length })}</span>
             {showAnswered ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
           </button>
           {showAnswered && (
@@ -742,9 +797,21 @@ export default function PrayerTab(): JSX.Element {
                   <div className="flex items-start gap-2">
                     <Check className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{tr(req.title)}</p>
+                      <p className="text-sm font-medium">{req.title}</p>
                       {req.answer_note && <p className="text-xs text-muted-foreground mt-1 italic">{req.answer_note}</p>}
-                      <p className="text-[10px] text-muted-foreground mt-1">{tr('Answered {value}', { value: req.answered_at ? daysAgo(req.answered_at) : '' })}</p>
+                      {req.answered_at && (
+                        <p className="mt-1.5 text-[11px] font-bold text-green-700 dark:text-green-400">
+                          {answeredAfter(req.created_at, req.answered_at)}
+                          <span className="font-normal text-muted-foreground"> · {sinceLabel(req.answered_at)}</span>
+                        </p>
+                      )}
+                      <button
+                        onClick={() => shareTestimony(req)}
+                        disabled={testified.has(req.id)}
+                        className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/70 px-2.5 py-1 text-[11px] font-bold text-green-800 disabled:opacity-60 dark:bg-green-950/50 dark:text-green-300"
+                      >
+                        <Share2 className="h-3 w-3" /> {testified.has(req.id) ? tr('Shared ✓') : tr('Share as a testimony')}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -793,13 +860,16 @@ export default function PrayerTab(): JSX.Element {
 
       {/* ── Modals ──────────────────────────────────────────── */}
       {showAddModal && (
-        <AddRequestModal onClose={() => setShowAddModal(false)} onSave={addRequest} />
+        <RequestModal onClose={() => setShowAddModal(false)} onSave={addRequest} />
+      )}
+      {editing && (
+        <RequestModal initial={editing} onClose={() => setEditing(null)} onSave={draft => saveEdit(editing, draft)} />
       )}
       {markAnsweringReq && (
         <MarkAnsweredModal
           request={markAnsweringReq}
           onClose={() => setMarkAnsweringReq(null)}
-          onSave={note => markAnswered(markAnsweringReq.id, note)}
+          onSave={note => markAnswered(markAnsweringReq, note)}
         />
       )}
       {showDiaryModal && (
@@ -815,7 +885,8 @@ export default function PrayerTab(): JSX.Element {
       )}
       {guidedSetup && (
         <GuidedPrayerSetup
-          requests={active.map(r => ({ id: r.id, title: r.title, description: r.description, category: r.category }))}
+          requests={prayable}
+          lastPrayed={history.lastPrayed}
           initialTopicId={guidedSetup.topicId}
           blockedReason={classicTimerRunning() ? tr('Your prayer timer is running. Finish or stop it first.') : null}
           onStart={beginGuided}
@@ -826,8 +897,10 @@ export default function PrayerTab(): JSX.Element {
         <GuidedPrayerSession
           state={guided}
           userId={userId}
+          myName={myName}
+          partnerId={partner?.id ?? null}
           onState={updateGuided}
-          onSaved={() => setCalendarRefreshKey(k => k + 1)}
+          onSaved={() => { setCalendarRefreshKey(k => k + 1); setTimeout(refreshHistory, 800) }}
           onAddToDiary={guidedToDiary}
           onClose={closeGuided}
         />

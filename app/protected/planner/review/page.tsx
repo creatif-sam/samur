@@ -42,6 +42,8 @@ interface WeekData {
   prayerDays: number
   versesChosen: number
   versesMemorized: number
+  requestsAnswered: number
+  requestsPrayed: number   // different requests prayed for (0 before the prayer update)
   gratitude: { date: string; entry_1: string; entry_2: string; entry_3: string }[]
 }
 
@@ -186,6 +188,18 @@ export default function WeeklyReviewPage() {
         .lt('day', endStr),
     ])
 
+    // Prayer requests answered this week, and how many different ones were prayed for
+    const [answeredRes, prayedRes] = await Promise.all([
+      supabase.from('prayer_requests').select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id).eq('status', 'answered')
+        .gte('answered_at', weekStart.toISOString()).lt('answered_at', weekEnd.toISOString()),
+      supabase.from('prayer_request_prayers').select('request_id')
+        .eq('user_id', user.id)
+        .gte('prayed_at', weekStart.toISOString()).lt('prayed_at', weekEnd.toISOString()),
+    ])
+    const requestsAnswered = answeredRes.count ?? 0
+    const requestsPrayed = new Set((prayedRes.data ?? []).map(r => r.request_id)).size
+
     // Prayer and memory verses
     const prayer = prayerRes.data ?? []
     const prayerMinutes = Math.round(prayer.reduce((a, p) => a + (p.duration_seconds ?? 0), 0) / 60)
@@ -230,6 +244,8 @@ export default function WeeklyReviewPage() {
       prayerDays,
       versesChosen: new Set(verses.map(v => v.reference)).size,
       versesMemorized: verses.filter(v => v.memorized).length,
+      requestsAnswered,
+      requestsPrayed,
       gratitude: gratitudeRes.data ?? [],
     })
     setLoading(false)
@@ -316,6 +332,13 @@ export default function WeeklyReviewPage() {
               value={data.versesChosen}
               sub={tr('{n} memorized', { n: data.versesMemorized })}
               color="bg-gradient-to-br from-indigo-500 to-violet-600"
+            />
+            <StatCard
+              icon={<Sparkles className="w-4 h-4 text-white" />}
+              label={tr('Prayers answered')}
+              value={data.requestsAnswered}
+              sub={tr('{n} {n:request|requests} prayed for', { n: data.requestsPrayed })}
+              color="bg-gradient-to-br from-green-500 to-emerald-600"
             />
           </div>
 

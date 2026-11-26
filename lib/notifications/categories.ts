@@ -29,7 +29,7 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   { key: 'goal_progress', group: 'Partner', label: 'Goal updates', description: 'New and completed goals, yours and shared ones, and cheers from your partner', types: ['goal_progress', 'goal_created', 'cheer'] },
   { key: 'messages', group: 'Partner', label: 'Partner invites & messages', description: 'Partner requests and direct messages', types: ['message', 'partner_invite'] },
   { key: 'posts', group: 'Partner', label: 'Posts & comments', description: 'Shared posts, comments, likes and @mentions', types: ['post', 'comment', 'mention', 'like'] },
-  { key: 'prayer', group: 'Partner', label: 'Prayer & meditation', description: 'When your partner prays or meditates, and streak nudges', types: ['meditation', 'partner_prayer', 'partner_prayer_nudge'] },
+  { key: 'prayer', group: 'Partner', label: 'Prayer & meditation', description: 'When your partner prays or meditates, prays for your requests, your prayer times and streak nudges', types: ['meditation', 'partner_prayer', 'partner_prayer_nudge', 'request_prayed', 'prayer_reminder'] },
   { key: 'reading_reminders', group: 'Habits', label: 'Reading & work log', description: 'Daily reading and creative work reminders', types: ['reading_reminder', 'work_log_reminder'] },
   { key: 'money_alerts', group: 'Habits', label: 'Budget alerts', description: 'When spending crosses your budget thresholds', types: ['budget_alert'] },
   { key: 'weekly_summary', group: 'Habits', label: 'Weekly summary email', description: 'Sunday email with your week at a glance', types: [] },
@@ -51,7 +51,7 @@ export function categoryForType(type: string | null | undefined) {
 }
 
 // Pushes for these still go out during quiet hours (the user scheduled them)
-const QUIET_HOURS_EXEMPT = new Set(['task_reminder', 'system'])
+const QUIET_HOURS_EXEMPT = new Set(['task_reminder', 'prayer_reminder', 'system'])
 
 function toMinutes(hhmm: string) {
   const [h, m] = hhmm.split(':').map(Number)

@@ -9,9 +9,10 @@ import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import { chimeMuted, playChime, setChimeMuted } from '@/lib/prayer/chime'
 import {
-  clearGuided, elapsedMs, formatClock, jumpTo, markPrayed, MIN_SAVE_SECONDS, pauseGuided, positionAt, prayedSeconds,
+  clearGuided, elapsedMs, formatClock, jumpTo, MIN_SAVE_SECONDS, pauseGuided, positionAt, prayedSeconds,
   resumeGuided, totalSeconds, type GuidedItem, type GuidedState,
 } from '@/lib/prayer/session'
+import { logPrayers } from '@/lib/prayer/requests'
 
 const CATEGORY_LABEL: Record<string, string> = {
   personal: 'Personal', family: 'Family', intercession: 'Intercession',
@@ -21,6 +22,8 @@ const CATEGORY_LABEL: Record<string, string> = {
 interface Props {
   state: GuidedState
   userId: string
+  myName?: string | null
+  partnerId?: string | null
   onState: (next: GuidedState) => void
   onSaved: () => void                         // refresh the calendar and graph
   onAddToDiary: (prayed: GuidedItem[]) => void
@@ -31,7 +34,7 @@ type Phase = 'praying' | 'saving' | 'summary'
 
 type WakeLockNav = Navigator & { wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }
 
-export default function GuidedPrayerSession({ state, userId, onState, onSaved, onAddToDiary, onClose }: Props) {
+export default function GuidedPrayerSession({ state, userId, myName, partnerId, onState, onSaved, onAddToDiary, onClose }: Props) {
   const { tr } = useTranslation()
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<Phase>('praying')
@@ -114,7 +117,25 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
       completed_at: new Date(end).toISOString(),
     })
     if (!error) {
-      if (prayed.length) markPrayed(prayed.map(i => i.id))
+      if (prayed.length) {
+        const supabase = createClient()
+        void logPrayers(supabase, prayed.map(i => i.id), new Date(end).toISOString())
+        // Your partner hears that you prayed for their requests
+        const theirs = prayed.filter(i => i.partner)
+        if (theirs.length && partnerId) {
+          fetch('/api/notifications/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              targetUserId: partnerId,
+              type: 'request_prayed',
+              title: trNow('{name} prayed for you 🙏', { name: myName || trNow('Your partner') }),
+              body: theirs.map(i => i.title).join(' · ').slice(0, 180),
+              url: '/protected/posts?tab=prayer',
+            }),
+          }).catch(() => {})
+        }
+      }
       onSaved()
       // Same partner note as the prayer timer (the server sends it once a day)
       fetch('/api/prayer/partner-notify', {
@@ -128,7 +149,7 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
     playChime()
     setResult({ seconds, prayed, saved: !error })
     setPhase('summary')
-  }, [state, total, userId, reached, onSaved, onClose])
+  }, [state, total, userId, myName, partnerId, reached, onSaved, onClose])
 
   // Every card has had its time
   useEffect(() => {
@@ -197,8 +218,17 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
                   {tr(CATEGORY_LABEL[item.category] ?? item.category)}
                 </span>
               )}
-              <h2 className="mt-4 font-serif text-3xl font-bold leading-tight">{tr(item.title)}</h2>
-              {item.description && <p className="mx-auto mt-3 max-w-sm whitespace-pre-wrap text-sm leading-relaxed text-white/75">{tr(item.description)}</p>}
+              {item.partner && (
+                <p className="mt-3 text-xs font-bold uppercase tracking-widest text-amber-200">{tr('For {name}', { name: item.owner_name || tr('your partner') })}</p>
+              )}
+              <h2 className="mt-4 font-serif text-3xl font-bold leading-tight">{item.title}</h2>
+              {item.description && <p className="mx-auto mt-3 max-w-sm whitespace-pre-wrap text-sm leading-relaxed text-white/75">{item.description}</p>}
+              {item.verse_ref && (
+                <blockquote className="mx-auto mt-5 max-w-sm rounded-2xl bg-white/10 px-4 py-3 text-left">
+                  {item.verse_text && <p className="font-serif text-sm italic leading-relaxed text-white/90">“{item.verse_text}”</p>}
+                  <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-amber-200">{item.verse_ref}</p>
+                </blockquote>
+              )}
             </div>
 
             <p className="mt-10 font-mono text-6xl font-bold tabular-nums tracking-tight">{formatClock(pos.remaining)}</p>
@@ -243,7 +273,7 @@ export default function GuidedPrayerSession({ state, userId, onState, onSaved, o
               <ul className="mt-6 w-full max-w-sm space-y-1.5 text-left">
                 {result.prayed.map(i => (
                   <li key={i.id} className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm">
-                    <Check className="h-4 w-4 shrink-0 text-emerald-300" /> <span className="truncate">{tr(i.title)}</span>
+                    <Check className="h-4 w-4 shrink-0 text-emerald-300" /> <span className="truncate">{i.title}</span>
                   </li>
                 ))}
               </ul>

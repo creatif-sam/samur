@@ -209,7 +209,7 @@ export const EXTRAS: Record<string, string> = {
   'Posts & comments': 'Publications et commentaires',
   'Shared posts, comments, likes and @mentions': 'Publications partagées, commentaires, j’aime et @mentions',
   'Prayer & meditation': 'Prière et méditation',
-  'When your partner prays or meditates, and streak nudges': 'Quand ton partenaire prie ou médite, et les encouragements de série',
+  'When your partner prays or meditates, prays for your requests, your prayer times and streak nudges': 'Quand ton partenaire prie ou médite, prie pour tes demandes, tes heures de prière et les encouragements de série',
   'Reading & work log': 'Lecture et sessions de travail',
   'Daily reading and creative work reminders': 'Rappels de lecture et de travail créatif',
   'Budget alerts': 'Alertes de budget',

@@ -33,7 +33,7 @@ export default function DiaryEntryCard({ page, sectionTitle, onOpen, onToggle }:
             <BookOpen className="w-4 h-4 text-violet-600 dark:text-violet-400" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold truncate">{tr(page.title)}</p>
+            <p className="text-sm font-semibold truncate">{page.title}</p>
             <div className="flex flex-wrap items-center gap-2 mt-0.5">
               {sectionTitle && (
                 <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400">{sectionTitle}</span>

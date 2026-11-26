@@ -39,7 +39,7 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   'planner.week': { title: 'Ta semaine', text: 'Le temps prévu par rôle, où en sont tes gros cailloux, et les événements de chaque jour, avec les chevauchements signalés. Touche un jour pour l’ouvrir, ou maintiens un événement et glisse-le sur un autre jour.' },
   'planner.quickadd': { title: 'Ajout rapide', text: 'Écris un événement en une ligne, comme Sport demain 7h 1h ou Réunion demain 9h à 10h. Sans heure, il va dans ton prochain créneau libre.' },
   'planner.wrapup': { title: 'Clôturer la journée', text: 'Avant de dormir, déplace les événements non faits à demain, reporte ton Top 3 inachevé et écris une ligne sur ta journée. Chaque ligne se coche toute seule une fois faite.' },
-  'planner.partnerweek': { title: 'Sa semaine', text: 'Les gros cailloux de ton partenaire et les événements partagés avec toi. Touche l’applaudissement sur ce qui est terminé pour l’encourager ; une notification lui est envoyée.' },
+  'planner.partnerweek': { title: 'Sa semaine', text: 'Les gros cailloux de ton partenaire et les événements qu’il partage avec toi. Touche l’applaudissement sur ce qu’il a terminé pour l’encourager ; il reçoit une notification.' },
   'planner.money': { title: 'Argent', text: 'Journal enregistre les entrées et sorties, Graphiques montre où va l’argent, et Budget fixe des limites par catégorie. Touche + pour ajouter une entrée.' },
 
   // ── Notes ──
@@ -68,7 +68,9 @@ export const HELP_FR: Record<HelpTopic, { title: string; text: string }> = {
   'spirit.journal': { title: 'Ton journal', text: 'Tes méditations, des plus récentes aux plus anciennes, groupées par mois. Recherche-les, filtre par Moi, mon partenaire, Partagées ou Privées, et touche-en une pour la lire.' },
   'prayer.timer': { title: 'Minuteur de prière', text: 'Choisis combien de temps tu veux prier et appuie sur Démarrer. Une session terminée est enregistrée dans ton calendrier et ton partenaire est prévenu. Les inspirations notées pendant la prière vont dans tes Notes.' },
   'prayer.target': { title: 'Objectif de prière quotidien', text: 'Choisis combien de minutes tu veux prier chaque jour ce mois-ci. La ligne verte en gras le montre sur le graphique, et un jour devient vert dans le calendrier quand tu l’atteins. Chaque mois garde son objectif.' },
-  'prayer.requests': { title: 'Sujets de prière', text: 'Liste ce pour quoi tu pries. Quand Dieu répond, marque-le exaucé et ajoute une note ; il passe dans Prières exaucées pour que tu puisses t’en souvenir.' },
+  'prayer.requests': { title: 'Sujets de prière', text: 'Liste ce pour quoi tu pries, avec un verset de promesse si tu veux. Partage un sujet et ton partenaire peut prier pour lui aussi. Quand Dieu répond, marque-le exaucé ; il rejoint tes témoignages.' },
+  'prayer.partner': { title: 'Prier pour ton partenaire', text: 'Les sujets que ton partenaire partage avec toi. Prie pour l’un d’eux, ou inclus-les dans Prier pour tous ; ton partenaire est prévenu que tu as prié.' },
+  'prayer.reminders': { title: 'Heures de prière', text: 'Choisis jusqu’à cinq heures par jour pour prier. Une notification arrive à chacune, dans ton fuseau horaire, même pendant les heures calmes.' },
   'prayer.diary': { title: 'Journal de prière', text: 'Écris ce que tu pries et entends, et ajoute des points de prière à cocher en priant. Les entrées sont enregistrées comme notes dans ton carnet Journal de prière.' },
   'prayer.guided': { title: 'Session de prière', text: 'Choisis tes minutes et les sujets à inclure, et le temps est partagé équitablement. Chaque sujet s’affiche en carte avec son propre compte à rebours. Ton temps est enregistré dans le calendrier, et tu peux ajouter la session à ton journal.' },
   'prayer.partnerStreaks': { title: 'Séries de prière', text: 'Combien de jours d’affilée toi et ton partenaire avez prié. Prie aujourd’hui pour garder ta série.' },

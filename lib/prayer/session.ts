@@ -7,6 +7,10 @@ export interface GuidedItem {
   title: string
   description: string | null
   category: string
+  owner_name?: string | null   // set on your partner's shared requests ("For Urbright")
+  partner?: boolean
+  verse_ref?: string | null    // the promise attached to the request
+  verse_text?: string | null
 }
 
 export interface GuidedState {

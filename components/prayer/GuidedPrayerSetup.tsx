@@ -17,13 +17,14 @@ const MINUTE_CHOICES = [1, 2, 3, 5, 10, 15, 20, 30]
 
 interface Props {
   requests: GuidedItem[]          // active prayer requests, newest first
+  lastPrayed?: Record<string, string>  // request id -> when you last prayed for it (every device)
   initialTopicId?: string | null  // opened from "Pray for this" on a request
   blockedReason?: string | null   // e.g. the prayer timer is already running
   onStart: (state: GuidedState) => void
   onClose: () => void
 }
 
-export default function GuidedPrayerSetup({ requests, initialTopicId, blockedReason, onStart, onClose }: Props) {
+export default function GuidedPrayerSetup({ requests, lastPrayed, initialTopicId, blockedReason, onStart, onClose }: Props) {
   const { tr } = useTranslation()
   const [mode, setMode] = useState<'all' | 'one'>(initialTopicId ? 'one' : 'all')
   const [included, setIncluded] = useState<Set<string>>(() => new Set(requests.map(r => r.id)))
@@ -44,8 +45,8 @@ export default function GuidedPrayerSetup({ requests, initialTopicId, blockedRea
   // What this session will pray through, in order
   const items: GuidedItem[] = useMemo(() => {
     if (mode === 'one') return requests.filter(r => r.id === topicId)
-    return pickForSession(selected, effectiveCount, loadLastPrayed())
-  }, [mode, requests, topicId, selected, effectiveCount])
+    return pickForSession(selected, effectiveCount, lastPrayed ?? loadLastPrayed())
+  }, [mode, requests, topicId, selected, effectiveCount, lastPrayed])
 
   const split = minutesValid ? splitSeconds(chosenMinutes * 60, items.length) : []
   const perItem = split.length ? Math.min(...split) : 0
@@ -103,7 +104,7 @@ export default function GuidedPrayerSetup({ requests, initialTopicId, blockedRea
         ) : (
           <div className="space-y-5">
             <div className="grid grid-cols-2 gap-1 rounded-2xl bg-muted/60 p-1">
-              {([['all', 'My requests'], ['one', 'One topic']] as const).map(([m, label]) => (
+              {([['all', 'All requests'], ['one', 'One topic']] as const).map(([m, label]) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
@@ -139,7 +140,8 @@ export default function GuidedPrayerSetup({ requests, initialTopicId, blockedRea
                           <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-md border-2', on ? 'border-violet-600 bg-violet-600 text-white' : 'border-muted-foreground/40')}>
                             {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                           </span>
-                          <span className="truncate text-sm font-semibold">{tr(r.title)}</span>
+                          <span className="min-w-0 truncate text-sm font-semibold">{r.title}</span>
+                          {r.partner && <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{tr('For {name}', { name: r.owner_name || tr('your partner') })}</span>}
                         </button>
                       </li>
                     )
@@ -171,7 +173,8 @@ export default function GuidedPrayerSetup({ requests, initialTopicId, blockedRea
                         className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition', topicId === r.id ? 'bg-violet-50 ring-1 ring-violet-500 dark:bg-violet-500/10' : 'hover:bg-muted/50')}
                       >
                         <span className={cn('h-4 w-4 shrink-0 rounded-full border-2', topicId === r.id ? 'border-[5px] border-violet-600' : 'border-muted-foreground/40')} />
-                        <span className="truncate text-sm font-semibold">{tr(r.title)}</span>
+                        <span className="min-w-0 truncate text-sm font-semibold">{r.title}</span>
+                        {r.partner && <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">{tr('For {name}', { name: r.owner_name || tr('your partner') })}</span>}
                       </button>
                     </li>
                   ))}

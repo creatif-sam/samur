@@ -225,7 +225,15 @@ export const HELP = {
   },
   'prayer.requests': {
     title: 'Prayer requests',
-    text: 'List what you are praying for. When God answers, mark it answered and add a note; it moves to Answered Prayers so you can look back.',
+    text: 'List what you are praying for, with a promise verse if you like. Share one and your partner can pray for it too. When God answers, mark it answered; it moves to your testimonies.',
+  },
+  'prayer.partner': {
+    title: 'Pray for your partner',
+    text: 'The requests your partner shares with you. Pray for one, or include them in Pray through; your partner is told that you prayed.',
+  },
+  'prayer.reminders': {
+    title: 'Prayer times',
+    text: 'Choose up to five times a day to pray. A notification comes at each one, in your own time zone, even during quiet hours.',
   },
   'prayer.diary': {
     title: 'Prayer diary',

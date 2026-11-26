@@ -22,7 +22,7 @@ export async function canNotify(senderId: string, targetUserId: string) {
 // Types a client may send through the user-facing routes (system/cron types are server-only)
 const CLIENT_TYPES = new Set([
   'message', 'partner_invite', 'post', 'comment', 'mention', 'like',
-  'goal_progress', 'goal_created', 'meditation', 'system', 'cheer',
+  'goal_progress', 'goal_created', 'meditation', 'system', 'cheer', 'request_prayed',
 ])
 
 export function clientNotificationType(type: unknown, fallback = 'message') {
