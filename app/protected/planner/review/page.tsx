@@ -22,7 +22,7 @@ import {
 import type { Goal } from '@/lib/types'
 import WeekBalance from '@/components/planner/WeekBalance'
 import WeekView from '@/components/goals/roles/WeekView'
-import { loadWeek } from '@/lib/planner/week'
+import { hideFinishedRockSessions, loadWeek } from '@/lib/planner/week'
 import { isMissingRoles, loadCategories, loadRocks, loadRoles, type Role, type RoleCategory, type WeeklyRock } from '@/lib/roles'
 import type { PlannerTask } from '@/lib/planner/tasks'
 import { cn } from '@/lib/utils'
@@ -119,7 +119,8 @@ export default function WeeklyReviewPage() {
       setRoles(rRes.roles)
       setRolesReady(rRes.ready)
       if (rRes.ready) setRoleCategories(await loadCategories(supabase, user.id, rRes.roles.length > 0))
-      setWeekTasks(week.flatMap(d => d.tasks.filter(t => !t.owner_id || t.owner_id === user.id)))
+      const doneRocks = new Set(rocks.filter(r => r.done).map(r => r.id))
+      setWeekTasks(week.flatMap(d => hideFinishedRockSessions(d.tasks.filter(t => !t.owner_id || t.owner_id === user.id), doneRocks, d.completed)))
       setWeekRocks(rocks)
       setRoleGoals((goalsRes.data ?? []) as Goal[])
       setUserId(user.id)

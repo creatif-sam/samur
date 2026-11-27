@@ -23,7 +23,7 @@ import NoteCard from './NoteCard'
 import RocksStrip from './RocksStrip'
 import TopThree, { type PrioritySuggestion } from './TopThree'
 import WeekPlanner from './WeekPlanner'
-import { loadWeek, rockProgress, rockShouldBeDone, unscheduledRocks, type WeekDay } from '@/lib/planner/week'
+import { hideFinishedRockSessions, loadWeek, rockProgress, rockShouldBeDone, unscheduledRocks, type WeekDay } from '@/lib/planner/week'
 import DayWrapUp from './DayWrapUp'
 import { parseQuickAdd } from '@/lib/planner/quickAdd'
 import { addPriority, flushPriorities, loadPriorities, removePriority, savePriorities, type Priority } from '@/lib/planner/top3'
@@ -130,6 +130,11 @@ export default function DailyPlanner() {
   const theme = moodThemes[mood] || moodThemes['default']
   const loading = loadedDateKey !== dateKey
   const week = weekStart(dateKey)
+  // Time still booked for a big rock that is done is no longer needed: it isn't shown
+  // (nothing is deleted; reopening the rock brings it back). `tasks` keeps everything for saving.
+  const doneRockIds = useMemo(() => new Set(rocks.filter(r => r.done).map(r => r.id)), [rocks])
+  const shownTasks = useMemo(() => hideFinishedRockSessions(tasks, doneRockIds, completedTaskIds), [tasks, doneRockIds, completedTaskIds])
+  const hiddenSessions = tasks.length - shownTasks.length
 
   // Latest state for async callbacks (debounced saves, undo actions)
   const stateRef = useRef<DaySnapshot & { loadedDateKey: string | null; userId: string | null }>(null!)
@@ -575,7 +580,7 @@ export default function DailyPlanner() {
   // Book time for a big rock: the editor opens at the next free slot with its role and goal
   function scheduleRock(rock: WeeklyRock) {
     setSchedulingRock(rock)
-    openNewTask(nextSlot(tasks, dateKey))
+    openNewTask(nextSlot(shownTasks, dateKey))
   }
 
   // One line: "Gym tomorrow 7am 1h"; with no time it goes in the next free slot
@@ -583,7 +588,8 @@ export default function DailyPlanner() {
   const quickSlot = useMemo(() => {
     if (!quickParsed) return null
     if (quickParsed.start && quickParsed.end) return { start: quickParsed.start, end: quickParsed.end }
-    const dayTasks = quickParsed.day === dateKey ? tasks : weekData.find(d => d.day === quickParsed.day)?.tasks ?? []
+    const other = weekData.find(d => d.day === quickParsed.day)
+    const dayTasks = quickParsed.day === dateKey ? shownTasks : other ? hideFinishedRockSessions(other.tasks, doneRockIds, other.completed) : []
     const start = nextSlot(dayTasks, quickParsed.day, quickParsed.duration)
     return { start: formatMinutes(start), end: formatMinutes((start + quickParsed.duration) % 1440) }
   }, [quickParsed, tasks, weekData, dateKey]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -631,8 +637,10 @@ export default function DailyPlanner() {
   }
 
   // Mark a big rock done (or not) in Compass, as its checkbox there does
+  const rocksRef = useRef(rocks)
+  rocksRef.current = rocks
   async function setRockDone(rockId: string, done: boolean) {
-    const rock = rocks.find(r => r.id === rockId)
+    const rock = rocksRef.current.find(r => r.id === rockId)
     if (!rock || rock.done === done || !userId) return
     const doneAt = done ? new Date().toISOString() : null
     setRocks(rs => rs.map(r => (r.id === rockId ? { ...r, done, done_at: doneAt } : r)))
@@ -641,6 +649,14 @@ export default function DailyPlanner() {
       setRocks(rs => rs.map(r => (r.id === rockId ? rock : r)))
       toast.error(trNow("Couldn't update the big rock."))
     }
+  }
+
+  // Ticked from the big rocks card: done, with an Undo
+  function finishRock(rock: WeeklyRock) {
+    setRockDone(rock.id, true)
+    toast.success(tr('Big rock done: {text} 🎉', { text: rock.text }), {
+      action: { label: tr('Undo'), onClick: () => { setRockDone(rock.id, false) } },
+    })
   }
 
   // Sessions of a big rock done this week, with the day on screen as it is now
@@ -841,7 +857,7 @@ export default function DailyPlanner() {
     await loadDay()
   }
 
-  const unfinishedOneOffs = tasks.filter(t =>
+  const unfinishedOneOffs = shownTasks.filter(t =>
     !t.recurring && (!t.owner_id || t.owner_id === userId) && !completedTaskIds.includes(t.id),
   )
 
@@ -919,7 +935,7 @@ export default function DailyPlanner() {
     toast.success(tr('{movingCount} {movingCount:event|events} moved to {value2}', { movingCount: moving.length, value2: formatDateKey(tomorrow) }))
   }
 
-  const sortedTasks = sortByStart(tasks)
+  const sortedTasks = sortByStart(shownTasks)
   const isToday = dateKey === todayKey
 
   // Rocks that still need time this week (today's events come from the screen, the rest from the week)
@@ -932,7 +948,7 @@ export default function DailyPlanner() {
   const prioritySuggestions: PrioritySuggestion[] = [
     ...yesterdayOpen.map(p => ({ key: `prev-${p.id}`, text: p.text, rock_id: p.rock_id, todo_id: p.todo_id, hint: '↩' })),
     ...liveRocks.filter(r => !r.done).map(r => ({ key: `rock-${r.id}`, text: r.text, rock_id: r.id, hint: '⛰️' })),
-    ...sortByStart(tasks.filter(t => (!t.owner_id || t.owner_id === userId) && !completedTaskIds.includes(t.id)))
+    ...sortByStart(shownTasks.filter(t => (!t.owner_id || t.owner_id === userId) && !completedTaskIds.includes(t.id)))
       .map(t => ({ key: `task-${t.id}`, text: t.text, hint: t.start })),
   ]
   const prioritiesLoading = prioritiesFor !== dateKey
@@ -1000,7 +1016,7 @@ export default function DailyPlanner() {
           onAddEvent={() => setTaskModalHour(new Date().getHours())}
           taskDays={taskDays}
           onMonthChange={loadTaskDays}
-          tasks={loading ? [] : tasks}
+          tasks={loading ? [] : shownTasks}
           completedTaskIds={completedTaskIds}
           visionsMap={visionsMap}
           rolesMap={rolesMap}
@@ -1023,10 +1039,10 @@ export default function DailyPlanner() {
 
         <div className="space-y-3 mb-6">
           <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-sm rounded-[32px] p-6 border border-white/50 dark:border-slate-700/50 shadow-sm">
-            <DaySummary tasks={tasks} completedTaskIds={completedTaskIds} roles={activeRoles} />
+            <DaySummary tasks={shownTasks} completedTaskIds={completedTaskIds} roles={activeRoles} />
           </div>
           <div className="flex items-center gap-1 px-2">
-            <FreeTimeExportButton tasks={tasks} date={selectedDate} />
+            <FreeTimeExportButton tasks={shownTasks} date={selectedDate} />
             <HelpTip topic="planner.summary" align="left" />
           </div>
         </div>
@@ -1058,7 +1074,7 @@ export default function DailyPlanner() {
 
         {showRocks && (
           <div className="mb-8">
-            <RocksStrip rocks={openRocks} total={liveRocks.length} rolesMap={rolesMap} progress={progress} onSchedule={scheduleRock} />
+            <RocksStrip rocks={openRocks} total={liveRocks.length} rolesMap={rolesMap} progress={progress} onSchedule={scheduleRock} onDone={finishRock} />
           </div>
         )}
 
@@ -1067,9 +1083,9 @@ export default function DailyPlanner() {
             {isToday ? tr('Today’s Schedule') : tr('Schedule')}
           </span>
           <div className="flex items-center gap-3">
-            {!loading && tasks.length > 0 && (
+            {!loading && shownTasks.length > 0 && (
               <span className={`text-[10px] font-semibold opacity-40 ${theme.text}`}>
-                {tr('{tasksCount} {tasksCount:event|events}', { tasksCount: tasks.length })}
+                {tr('{tasksCount} {tasksCount:event|events}', { tasksCount: shownTasks.length })}
               </span>
             )}
             <div className="flex rounded-xl bg-white/60 dark:bg-slate-800/60 p-0.5 border border-white/50 dark:border-slate-700/50">
@@ -1134,7 +1150,7 @@ export default function DailyPlanner() {
           ) : layout === 'timeline' ? (
             <PlannerTimeline
               rolesMap={rolesMap}
-              tasks={tasks}
+              tasks={shownTasks}
               completedTaskIds={completedTaskIds}
               partnerCompletedIds={partnerCompletedIds}
               userId={userId}
@@ -1162,6 +1178,11 @@ export default function DailyPlanner() {
               onOpen={setEditingTask}
               onToggle={toggleComplete}
             />
+          )}
+          {!loading && hiddenSessions > 0 && (
+            <p className={`px-2 text-[11px] font-semibold opacity-50 ${theme.text}`}>
+              {tr('{n} booked {n:session|sessions} hidden: the big rock is done', { n: hiddenSessions })}
+            </p>
           )}
         </div>
 
@@ -1277,7 +1298,7 @@ export default function DailyPlanner() {
           visions={visionsMap}
           existingTask={editingTask}
           userId={userId}
-          dayTasks={schedulingForDate && schedulingForDate !== dateKey ? [] : tasks}
+          dayTasks={schedulingForDate && schedulingForDate !== dateKey ? [] : shownTasks}
           dayLabel={schedulingForDate ? formatDateKey(schedulingForDate) : formatDateKey(dateKey)}
           onClose={closeModal}
           onSave={(t, scope) => handleSave(t, scope)}
@@ -1290,7 +1311,7 @@ export default function DailyPlanner() {
           userId={userId}
           dateKey={dateKey}
           dayLabel={formatDateKey(dateKey)}
-          dayTasks={tasks}
+          dayTasks={shownTasks}
           onApply={applyTemplate}
           onClose={() => setShowTemplates(false)}
         />

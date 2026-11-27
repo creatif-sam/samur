@@ -75,3 +75,21 @@ export function dayLoad(tasks: PlannerTask[], from = 8 * 60, to = 22 * 60) {
   const full = tasks.length > 0 && freeGaps(tasks, from, to, 30).length === 0
   return { clashes, full }
 }
+
+// ── Sessions left over once a rock is done ──
+// Time booked for a big rock that is already done is no longer needed, so the planner and
+// reminders leave it out. Sessions that were ticked done stay: they are what was done.
+// Reopening the rock brings the rest back (nothing is deleted).
+export function hideFinishedRockSessions<T extends Pick<PlannerTask, 'id' | 'rock_id'>>(tasks: T[], doneRockIds: Set<string>, completed: string[]) {
+  if (doneRockIds.size === 0) return tasks
+  return tasks.filter(t => !(t.rock_id && doneRockIds.has(t.rock_id) && !completed.includes(t.id)))
+}
+
+// Which of these rocks are done (none when the rocks table isn't there yet)
+export async function finishedRockIds(supabase: SupabaseClient, rockIds: (string | undefined)[]): Promise<Set<string>> {
+  const ids = [...new Set(rockIds.filter((id): id is string => !!id))]
+  if (ids.length === 0) return new Set()
+  const { data, error } = await supabase.from('weekly_rocks').select('id').in('id', ids).eq('done', true)
+  if (error) return new Set()
+  return new Set((data ?? []).map(r => r.id as string))
+}

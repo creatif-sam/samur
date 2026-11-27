@@ -7,7 +7,8 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
 import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries'
-import { alertMinutes, buildDayTasks, parseMinutes } from '@/lib/planner/tasks'
+import { alertMinutes, buildDayTasks, parseMinutes, type PlannerTask } from '@/lib/planner/tasks'
+import { finishedRockIds } from '@/lib/planner/week'
 
 // Planner alarms while the app is open: at a task's alert time (or when its alarm push
 // arrives) a full-screen alarm rings on a loop until it's snoozed, done or stopped.
@@ -108,15 +109,22 @@ export default function AlarmWatcher() {
     const days = [today, addDays(today, 1)]
     try {
       const recurringRows = await fetchRecurringRows(supabase, [uid], days[1])
-      const next: Alarm[] = []
+      const found: { task: PlannerTask; day: string }[] = []
       for (const day of days) {
         const dayRows = await fetchDayRows(supabase, [uid], day)
         const done = new Set(dayRows[0]?.completed_task_ids ?? [])
         for (const task of buildDayTasks({ dateKey: day, userId: uid, dayRows, recurringRows })) {
           if (!task.alarm || done.has(task.id) || (task.owner_id && task.owner_id !== uid)) continue
-          const lead = alertMinutes(task) ?? 0
-          next.push({ taskId: task.id, day, text: task.text, start: task.start, at: timeOn(day, parseMinutes(task.start) - lead) })
+          found.push({ task, day })
         }
+      }
+      // Time booked for a big rock that is already done doesn't ring
+      const finished = await finishedRockIds(supabase, found.map(f => f.task.rock_id))
+      const next: Alarm[] = []
+      for (const { task, day } of found) {
+        if (task.rock_id && finished.has(task.rock_id)) continue
+        const lead = alertMinutes(task) ?? 0
+        next.push({ taskId: task.id, day, text: task.text, start: task.start, at: timeOn(day, parseMinutes(task.start) - lead) })
       }
       alarmsRef.current = next
       loadedFor.current = today

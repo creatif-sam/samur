@@ -292,6 +292,8 @@ export const PLANNER: Record<string, string> = {
   "Sessions this week": "Séances cette semaine",
   "Sessions need a quick database update first: run the rock sessions migration in Supabase.": "Les séances demandent d'abord une petite mise à jour : exécute la migration des séances dans Supabase.",
   "one session": "une séance",
+  "Mark {text} done": "Marquer {text} comme fait",
+  "{n} booked {n:session|sessions} hidden: the big rock is done": "{n} {n:séance réservée masquée|séances réservées masquées} : le gros caillou est terminé",
   "Couldn't save that change": "Impossible d'enregistrer ce changement",
   "{booked} of {target} sessions booked": "{booked} {booked:séance réservée|séances réservées} sur {target}",
   "Big rock done: {text} 🎉": "Gros caillou terminé : {text} 🎉",

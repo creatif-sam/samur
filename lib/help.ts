@@ -117,7 +117,7 @@ export const HELP = {
   },
   'planner.rocks': {
     title: 'Big rocks',
-    text: 'The big rocks you chose for this week in Compass that have no time booked yet. Put them in your days first, as Covey teaches, and fit the rest around them.',
+    text: 'The big rocks you chose for this week in Compass that have no time booked yet. Put them in your days first, as Covey teaches. Already done one? Tick its circle.',
   },
   'planner.week': {
     title: 'Your week',

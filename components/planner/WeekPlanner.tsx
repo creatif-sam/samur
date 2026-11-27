@@ -10,7 +10,7 @@ import { HelpTip } from '@/components/ui/help-tip'
 import WeekBalance from './WeekBalance'
 import { addDays, parseDateKey, toLocalDateKey } from '@/lib/dates'
 import { isMissingRoles, loadRocks, weekLabel, weekStart, type WeeklyRock } from '@/lib/roles'
-import { dayLoad, loadWeek, rockProgress, rockTarget, type WeekDay } from '@/lib/planner/week'
+import { dayLoad, hideFinishedRockSessions, loadWeek, rockProgress, rockTarget, type WeekDay } from '@/lib/planner/week'
 import { sortByStart, type PlannerTask } from '@/lib/planner/tasks'
 import { taskLook, type RoleLike, type VisionLike } from '@/lib/planner/roleLinks'
 import { weekToIcs } from '@/lib/planner/ics'
@@ -91,11 +91,13 @@ export default function WeekPlanner({
 
   const viewingPartner = who === 'partner' && !!partner
   const ownerOf = (t: PlannerTask) => t.owner_id || userId
-  const shown = (days ?? []).map(d => ({
-    day: d.day,
-    tasks: d.tasks.filter(t => (viewingPartner ? ownerOf(t) === partnerId : ownerOf(t) === userId)),
-    completed: viewingPartner ? d.partnerCompleted ?? [] : d.completed,
-  }))
+  // Time still booked for a big rock that is done is left out (theirs too)
+  const doneRocks = new Set((viewingPartner ? partnerRocks : allRocks).filter(r => r.done).map(r => r.id))
+  const shown = (days ?? []).map(d => {
+    const completed = viewingPartner ? d.partnerCompleted ?? [] : d.completed
+    const theirs = d.tasks.filter(t => (viewingPartner ? ownerOf(t) === partnerId : ownerOf(t) === userId))
+    return { day: d.day, tasks: hideFinishedRockSessions(theirs, doneRocks, completed), completed }
+  })
   const allTasks = shown.flatMap(d => d.tasks)
   const rocks = viewingPartner
     ? partnerRocks

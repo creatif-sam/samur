@@ -2,19 +2,20 @@
 
 import Link from 'next/link'
 import { useTranslation } from '@/contexts/TranslationContext'
-import { CalendarPlus, Mountain } from 'lucide-react'
+import { CalendarPlus, Check, Mountain } from 'lucide-react'
 import { HelpTip } from '@/components/ui/help-tip'
 import type { WeeklyRock } from '@/lib/roles'
 import type { RoleLike } from '@/lib/planner/roleLinks'
 import { rockTarget, type RockProgress } from '@/lib/planner/week'
 
 // This week's big rocks that have no time yet: put them in the day first (Covey, Habit 3)
-export default function RocksStrip({ rocks, total, rolesMap, progress = {}, onSchedule }: {
+export default function RocksStrip({ rocks, total, rolesMap, progress = {}, onSchedule, onDone }: {
   rocks: WeeklyRock[]               // unscheduled, unfinished
   total: number                     // rocks planned this week
   rolesMap: Record<string, RoleLike>
   progress?: RockProgress            // sessions booked and done this week
   onSchedule: (rock: WeeklyRock) => void
+  onDone?: (rock: WeeklyRock) => void   // already done: tick it here, no need to book time
 }) {
   const { tr } = useTranslation()
   return (
@@ -36,9 +37,21 @@ export default function RocksStrip({ rocks, total, rolesMap, progress = {}, onSc
             const role = r.role_id ? rolesMap[r.role_id] : null
             return (
               <li key={r.id} className="flex items-center gap-2.5">
-                <span className="h-7 w-1 shrink-0 rounded-full" style={{ backgroundColor: role?.color ?? '#0d9488' }} />
+                {onDone ? (
+                  <button
+                    onClick={() => onDone(r)}
+                    aria-label={tr('Mark {text} done', { text: r.text })}
+                    title={tr('Done')}
+                    className="group grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition active:scale-90"
+                    style={{ borderColor: role?.color ?? '#0d9488' }}
+                  >
+                    <Check className="h-3.5 w-3.5 opacity-0 transition group-hover:opacity-60" style={{ color: role?.color ?? '#0d9488' }} strokeWidth={3} />
+                  </button>
+                ) : (
+                  <span className="h-7 w-1 shrink-0 rounded-full" style={{ backgroundColor: role?.color ?? '#0d9488' }} />
+                )}
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{r.text}</span>
+                  <span className="block text-sm font-semibold leading-snug text-slate-800 dark:text-slate-100">{r.text}</span>
                   <span className="block truncate text-[10px] text-slate-400">
                     {role ? `${role.emoji ?? ''} ${tr(role.name)}` : `🪚 ${tr('Sharpen the saw')}`}
                     {rockTarget(r) > 1 && ` · ${tr('{booked} of {target} sessions booked', { booked: progress[r.id]?.booked ?? 0, target: rockTarget(r) })}`}

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { addDays, zonedNow } from '@/lib/dates';
 import { fetchDayRows, fetchRecurringRows } from '@/lib/planner/queries';
 import { alertMinutes, buildDayTasks, parseMinutes, type PlannerTask } from '@/lib/planner/tasks';
+import { finishedRockIds } from '@/lib/planner/week';
 
 // Supabase pg_cron calls this every minute (supabase/migrations/*_task_reminders_cron.sql).
 // A reminder fires on the first call
@@ -65,7 +66,11 @@ export async function GET(request: Request) {
         continue;
       }
 
+      // Time booked for a big rock that is already done gets no reminder
+      const finishedRocks = await finishedRockIds(serviceSupabase, candidates.map(c => c.task.rock_id));
+
       for (const { task, day, minutesUntilTask } of candidates) {
+        if (task.rock_id && finishedRocks.has(task.rock_id)) continue;
         // Alarms with no reminder picked still ring at the start
         const lead = alertMinutes(task);
         if (lead === null) continue;
