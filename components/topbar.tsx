@@ -9,7 +9,7 @@ import { NotificationToast } from '@/components/notifications/NotificationToast'
 import { ThemeSwitcher } from '@/components/theme-switcher' // Adjust path as needed
 import Link from 'next/link'
 import Image from 'next/image'
-import { User } from 'lucide-react'
+import { Search, User } from 'lucide-react'
 
 export function Topbar() {
   const { tr } = useTranslation()
@@ -163,6 +163,14 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-1">
+          {/* Ask Mastery: search everything you've written */}
+          <Link
+            href="/protected/ask"
+            aria-label={tr('Ask Mastery')}
+            className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white ring-1 ring-white/20 transition hover:bg-white/20 active:scale-95"
+          >
+            <Search className="h-[18px] w-[18px]" />
+          </Link>
           <ThemeSwitcher />
           <NotificationCenter 
             notifications={notifications} 

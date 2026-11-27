@@ -155,6 +155,15 @@ export default function DailyPlanner() {
     return run
   }
 
+  // /protected/planner/day?date=YYYY-MM-DD opens that day (e.g. from Ask Mastery)
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get('date')
+    if (wanted && /^\d{4}-\d{2}-\d{2}$/.test(wanted)) {
+      setSelectedDate(parseDateKey(wanted))
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [])
+
   // Remember list/timeline choice on this device
   useEffect(() => {
     try {

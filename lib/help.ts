@@ -265,6 +265,10 @@ export const HELP = {
     title: 'Your roles this week',
     text: 'Planned time per role this week, and which big rocks you finished. A role with no time is a sign to plan for it in the coming week below.',
   },
+  'ask.page': {
+    title: 'Ask Mastery',
+    text: 'Ask in plain words to find anything you have written: notes, journal, prayers, goals and planner days. Mention a period like last month or in March. It searches on this device; nothing is sent anywhere.',
+  },
   'review.page': {
     title: 'Weekly review',
     text: 'Your week at a glance: goals, meditations, tasks done, money, prayer time and memory verses, plus your evening reflections. Use it to decide what to improve next week.',
